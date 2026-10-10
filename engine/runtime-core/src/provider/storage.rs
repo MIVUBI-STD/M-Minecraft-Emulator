@@ -29,6 +29,50 @@ pub(crate) fn promote_staging_vm(staging_vmx: &Path, final_vmx: &Path) -> io::Re
     fs::rename(staging, final_dir)
 }
 
+// Filesystem-only cutover primitive. The caller must stage a complete VM,
+// including its client-profile.json, and verify VMware disk references first.
+// Retain backup on success for explicit recovery; never delete it implicitly.
+#[allow(dead_code)]
+pub(crate) fn cutover_staged_vm(
+    staged_vmx: &Path,
+    final_vmx: &Path,
+    backup_dir: &Path,
+) -> io::Result<()> {
+    let staged_dir = vm_container(staged_vmx)?;
+    let final_dir = vm_container(final_vmx)?;
+    if !staged_vmx.is_file() || !staged_dir.join("client-profile.json").is_file() {
+        return Err(io::Error::new(io::ErrorKind::InvalidData,
+            "staged VM and its client profile must both exist before cutover"));
+    }
+    if !final_vmx.is_file() || !final_dir.join("client-profile.json").is_file() {
+        return Err(io::Error::new(io::ErrorKind::InvalidData,
+            "original VM and its client profile must both exist before cutover"));
+    }
+    if backup_dir.exists() {
+        return Err(io::Error::new(io::ErrorKind::AlreadyExists,
+            "recovery backup already exists; manual reconciliation required"));
+    }
+    if staged_dir.parent() != final_dir.parent() {
+        return Err(io::Error::new(io::ErrorKind::InvalidInput,
+            "staged and final VM directories must share a filesystem parent"));
+    }
+    if backup_dir.parent() != final_dir.parent() {
+        return Err(io::Error::new(io::ErrorKind::InvalidInput,
+            "recovery backup must be beside the original VM"));
+    }
+    fs::rename(final_dir, backup_dir)?;
+    if let Err(error) = fs::rename(staged_dir, final_dir) {
+        // Do not hide recovery failure: backup is intentionally preserved.
+        match fs::rename(backup_dir, final_dir) {
+            Ok(()) => return Err(io::Error::new(error.kind(),
+                format!("replacement promotion failed; original restored: {error}"))),
+            Err(restore_error) => return Err(io::Error::new(error.kind(),
+                format!("replacement promotion failed ({error}); original remains at recovery location, automatic restoration failed ({restore_error})"))),
+        }
+    }
+    Ok(())
+}
+
 pub(crate) fn has_suspend_state(vmx: &Path) -> bool {
     let Ok(container) = vm_container(vmx) else { return false; };
     let Ok(entries) = fs::read_dir(container) else { return false; };
@@ -64,6 +108,43 @@ fn cleanup_staging_at(staging: &Path) -> io::Result<()> {
 mod tests {
     use super::cleanup_staging_at;
     use std::{fs, io, time::{SystemTime, UNIX_EPOCH}};
+
+    #[test]
+    fn cutover_keeps_original_backup_with_profile() {
+        let root = std::env::temp_dir().join(format!("vc-cutover-{}-{}", std::process::id(),
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()));
+        let old = root.join("Virtual-01");
+        let stage = root.join("Virtual-01-new");
+        let backup = root.join("Virtual-01-backup");
+        fs::create_dir_all(&old).unwrap();
+        fs::create_dir_all(&stage).unwrap();
+        for (dir, value) in [(&old, "original"), (&stage, "replacement")] {
+            fs::write(dir.join("Virtual-01.vmx"), value).unwrap();
+            fs::write(dir.join("client-profile.json"), value).unwrap();
+        }
+        super::cutover_staged_vm(&stage.join("Virtual-01.vmx"), &old.join("Virtual-01.vmx"), &backup).unwrap();
+        assert_eq!(fs::read_to_string(old.join("client-profile.json")).unwrap(), "replacement");
+        assert_eq!(fs::read_to_string(backup.join("client-profile.json")).unwrap(), "original");
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn cutover_rejects_invalid_staging_without_touching_original() {
+        let root = std::env::temp_dir().join(format!("vc-cutover-invalid-{}-{}", std::process::id(),
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()));
+        let old = root.join("Virtual-01");
+        let stage = root.join("candidate");
+        let backup = root.join("backup");
+        fs::create_dir_all(&old).unwrap();
+        fs::create_dir_all(&stage).unwrap();
+        fs::write(old.join("Virtual-01.vmx"), "old").unwrap();
+        fs::write(old.join("client-profile.json"), "old-profile").unwrap();
+        fs::write(stage.join("Virtual-01.vmx"), "new").unwrap();
+        assert!(super::cutover_staged_vm(&stage.join("Virtual-01.vmx"), &old.join("Virtual-01.vmx"), &backup).is_err());
+        assert_eq!(fs::read_to_string(old.join("client-profile.json")).unwrap(), "old-profile");
+        assert!(!backup.exists());
+        fs::remove_dir_all(root).unwrap();
+    }
 
     #[test]
     fn unresolved_staging_is_preserved() {
