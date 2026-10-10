@@ -44,6 +44,10 @@ The first two steps are **operator/game/UI observations**, not something to fake
 
 See [One Guest Feasibility](./client-feasibility.md). If step 1–3 fails, stop. Do not promote to three VMs or four-account readiness. After a successful scratch guest, prepare the account-clean Base, create three guests, sign in with separate legitimate accounts and measure four-client concurrency.
 
+## Host/baseline collection before any guest provisioning
+
+The `tooling/acceptance/windows/collect-acceptance.ps1` source now records a HOST baseline without requiring three pre-existing Virtual VMs. VM resource utilization remains null and `resourcesCollected=false` until all three clients exist, avoiding an early `resources 3` failure or fake zero. This correction is source-only until a Windows PowerShell + CLI execution verifies it.
+
 ## Handoff recording requirements
 
 In `planning/development.md`, record the actual **exact SHA**, build environment, real command or package-smoke execution, exit status, artifact hash/path/identity where applicable and unresolved steps. One commit's code changes do not qualify as a test run. The state becomes `PRE_LOCAL_READY` only when G1–G4 have real positive evidence. Source/static-review alone is `SOURCE_REVIEWED / BUILD_UNPROVEN`.

@@ -44,11 +44,17 @@ if ($VerifyIdentities) {
 }
 
 $diagnostics = (Invoke-VirtualClientsJson -Name 'diagnostics' -Arguments @('diagnostics')).data
-$resources = (Invoke-VirtualClientsJson -Name 'resources-3' -Arguments @('resources', '3')).data
+# resources 3 is only valid after three clients are provisioned. Preserve an
+# early HOST/baseline report instead of failing the entire campaign.
+$resources = $null
 
 $virtuals = @($status.clients | Where-Object { $_.native -eq $false })
 if ($virtuals.Count -ne 3) {
-  throw "Expected exactly three Virtual clients, found $($virtuals.Count)."
+  throw "Expected exactly three Virtual client status slots, found $($virtuals.Count)."
+}
+$provisionedCount = @($virtuals | Where-Object { $_.state -ne 'NOT_PROVISIONED' -and $_.state -ne 'ERROR' }).Count
+if ($provisionedCount -eq 3) {
+  $resources = (Invoke-VirtualClientsJson -Name 'resources-3' -Arguments @('resources', '3')).data
 }
 
 if ($VerifyIdentities) {
@@ -66,7 +72,9 @@ $summary = [ordered]@{
   platform = $doctor.platform
   provider = $doctor.provider
   baseState = $doctor.baseState
-  readyForProvisioning = [bool]$doctor.readyForProvisioning
+  nextSetupAction = [string]$doctor.nextSetupAction
+  provisionedVirtuals = [int]$provisionedCount
+  resourcesCollected = ($null -ne $resources)
   runtimeProfileParity = [string]$doctor.runtimeProfile.parity
   pressure = [string]$status.pressure.level
   virtuals = @(
@@ -94,10 +102,7 @@ $summary = [ordered]@{
       [ordered]@{
         id = $_.id
         networkMode = $_.networkMode
-        networkConfigurationObserved = $_.networkConfigurationObserved
-        multiplayerVerified = $_.multiplayerVerified
         graphics3dEnabled = $_.graphics3dEnabled
-        graphicsPolicyReady = $_.graphicsPolicyReady
       }
     }
   )
@@ -110,13 +115,13 @@ $summary = [ordered]@{
     graphics = @($diagnostics.host.graphics)
   }
   resources = [ordered]@{
-    requestedVirtualClients = $resources.requestedVirtualClients
-    runningVirtualClients = $resources.runningVirtualClients
-    suspendedVirtualClients = $resources.suspendedVirtualClients
-    stoppedVirtualClients = $resources.stoppedVirtualClients
-    virtualMemoryLimitMb = $resources.virtualMemoryLimitMb
-    observedWorkingSetMb = $resources.observedWorkingSetMb
-    observedWorkingSetInstances = $resources.observedWorkingSetInstances
+    requestedVirtualClients = if ($null -ne $resources) { $resources.requestedVirtualClients } else { $null }
+    runningVirtualClients = if ($null -ne $resources) { $resources.runningVirtualClients } else { $null }
+    suspendedVirtualClients = if ($null -ne $resources) { $resources.suspendedVirtualClients } else { $null }
+    stoppedVirtualClients = if ($null -ne $resources) { $resources.stoppedVirtualClients } else { $null }
+    virtualMemoryLimitMb = if ($null -ne $resources) { $resources.virtualMemoryLimitMb } else { $null }
+    observedWorkingSetMb = if ($null -ne $resources) { $resources.observedWorkingSetMb } else { $null }
+    observedWorkingSetInstances = if ($null -ne $resources) { $resources.observedWorkingSetInstances } else { $null }
   }
   identityVerificationRequested = [bool]$VerifyIdentities
   identityVerificationCaptured = ($null -ne $identityProof)

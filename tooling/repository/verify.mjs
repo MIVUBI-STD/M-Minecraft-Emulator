@@ -121,6 +121,13 @@ for (const name of readdirSync(resolve(root, "apps/desktop/test"))) {
 }
 requireFact(read("tooling/acceptance/windows/new-stage-result.ps1").includes("'CLIENT_FEASIBILITY'"),
   "Client feasibility evidence stage not recognized by acceptance recorder");
+const hostAcceptance = read("tooling/acceptance/windows/collect-acceptance.ps1");
+requireFact(hostAcceptance.includes("if ($provisionedCount -eq 3)") &&
+  hostAcceptance.includes("$resources = $null") &&
+  hostAcceptance.includes("resourcesCollected = ($null -ne $resources)") &&
+  !hostAcceptance.includes("readyForProvisioning = [bool]$doctor.readyForProvisioning") &&
+  !hostAcceptance.includes("multiplayerVerified = $_.multiplayerVerified"),
+  "Host-stage acceptance must collect before VM provisioning without inventing readiness");
 const guestProofSource = read("tooling/acceptance/windows/collect-client-feasibility.ps1");
 const evaluatorSource = read("tooling/acceptance/evaluate-client-feasibility.mjs");
 for (const fact of ["vmDesktopOpened", "educationInstalled", "educationSignedIn",

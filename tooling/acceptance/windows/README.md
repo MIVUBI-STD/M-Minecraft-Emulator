@@ -59,7 +59,7 @@ Do not infer `PASS` from source tests, CI, documentation, configured NAT, proces
 
 Run stages in table order. Stop escalation when a stage fails. Diagnose the first wrong owner before attempting later concurrency, account or multiplayer stages.
 
-Use `collect-acceptance.ps1` before and after meaningful runtime transitions. Preserve each output as evidence for the campaign rather than overwriting previous captures.
+Use `collect-acceptance.ps1` before and after meaningful runtime transitions. The collector must support HOST/baseline **before any VM is provisioned**: `resourcesCollected=false` and null resource measurements explicitly mean *not yet available*, not zero or success. Only after all three Virtual clients are provisioned may the optional `resources 3` command be queried. No unobserved multiplayer or provisioning-ready flags may be created. Preserve each output as evidence for the campaign rather than overwriting previous captures.
 
 
 ## Performance evidence
