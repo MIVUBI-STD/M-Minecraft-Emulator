@@ -3,6 +3,21 @@
 Updated: 2026-10-10
 Authority: `MIVUBI-STD/M-Minecraft-Emulator`, branch `Local`. Current GitHub source HEAD always outranks this file.
 
+## Current implementation — stable Windows window identification (2026-10-11)
+
+**Work:** `emulator/window-discovery-correctness`  
+**State:** SOURCE_PATCHED / EXECUTION_UNPROVEN  
+**Starting GitHub `Local`:** `2fc9008774096fd61c974136645daedcadc27c25` (new GitHub commit is the source of final SHA).
+
+- Replaced title-substring `Get-Process.MainWindowHandle` sampling with Win32 `EnumWindows`/visible ownerless top-level HWND enumeration in the **existing** `window_arrangement.rs` owner. Candidate recognition now cross-checks PID/process name and bounded client-name title patterns; the native app also allows an identified Store ApplicationFrameHost window.
+- Each client must resolve to at most one HWND, and each HWND must belong to only one client. Incomplete discovery reports missing clients as before. An ambiguous/inconsistent mapping fails closed; one VMware application window or tab is **not** treated as three distinct VM windows.
+- Before applying any move, the desktop verifies every HWND still exists with the discovered PID and client title. Every `MoveWindow` result is checked; an actual API failure is surfaced instead of claiming the layout worked. No new window manager, public contract, guest protocol, provider, or dependency.
+- A single existing-suite regression covers duplicate handles/labels, invalid PID, and mismatched missing-client inventory. Geometry and public layout schema are unchanged.
+- **Proof:** `REMOTE_GITHUB` structural and consumer review only. Native Win32 execution, Rust/Tauri compilation, Windows window behavior, Minecraft gameplay and four-client acceptance are **NOT_EXECUTED**. Do not involve a user machine in source work.
+
+**Next:** Inspect exact-source compilation-sensitive boundaries and leave unverified Windows-specific behavior explicitly marked; address only grounded defects.
+
+
 ## Current source batch — bounded Guest Agent requests (2026-10-11)
 
 **Work:** `emulator/guest-agent-transport`  

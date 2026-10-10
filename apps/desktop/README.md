@@ -39,7 +39,7 @@ engine/runtime-core/
 
 There is no localhost HTTP bridge, injected browser-global API, or second VM state authority.
 
-Window arrangement is desktop-native presentation behavior. VM lifecycle eligibility stays in the backend.
+Window arrangement is desktop-native presentation behavior. VM lifecycle eligibility stays in the backend. Its Windows discovery enumerates **visible, ownerless top-level HWNDs**, checks owning PIDs and constrained Minecraft Education/VMware window titles, and refuses duplicate or ambiguous client/window mappings. Placement rechecks HWND ownership/title and rejects a failed Win32 `MoveWindow` result instead of reporting success. VMware tabs are not assumed to be independent windows; grid/focus/columns geometry and the public layout response remain unchanged.
 
 ## Packaging
 

@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::io;
+use std::{collections::HashSet, io};
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
@@ -171,6 +171,7 @@ pub fn displays() -> io::Result<Vec<DisplayInfo>> {
 struct DiscoveredWindow {
     id: String,
     handle: u64,
+    process_id: u32,
 }
 
 #[derive(Debug, Deserialize)]
@@ -199,11 +200,43 @@ pub struct ArrangementExecution {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct WindowMove {
+    id: String,
     handle: u64,
+    process_id: u32,
     x: i32,
     y: i32,
     width: i32,
     height: i32,
+}
+
+// A VM tab is not a separate top-level window. Never assign one HWND to more
+// than one client or move an HWND whose identity cannot be established.
+fn validate_discovery(discovery: &WindowDiscovery) -> io::Result<()> {
+    if discovery.area_width <= 0 || discovery.area_height <= 0 {
+        return Err(io::Error::new(io::ErrorKind::InvalidData, "window discovery returned an invalid display area"));
+    }
+    let mut ids = HashSet::new();
+    let mut handles = HashSet::new();
+    for window in &discovery.windows {
+        if window.handle == 0 || window.process_id == 0
+            || !ids.insert(window.id.as_str()) || !handles.insert(window.handle)
+        {
+            return Err(io::Error::new(io::ErrorKind::InvalidData, "window discovery contained a duplicate or invalid window identity"));
+        }
+    }
+    let missing: HashSet<&str> = discovery.missing.iter().map(String::as_str).collect();
+    if missing.len() != discovery.missing.len()
+        || ["Native", "Virtual-01", "Virtual-02", "Virtual-03"]
+            .into_iter()
+            .any(|id| ids.contains(id) == missing.contains(id))
+        || ids.len() + missing.len() != 4
+    {
+        return Err(io::Error::new(io::ErrorKind::InvalidData, "window discovery returned an inconsistent client inventory"));
+    }
+    if discovery.windows.is_empty() {
+        return Err(io::Error::new(io::ErrorKind::NotFound, "No distinct Minecraft Education or VMware client windows were found"));
+    }
+    Ok(())
 }
 
 #[cfg(target_os = "windows")]
@@ -211,48 +244,99 @@ fn discover_windows(display_index: usize) -> io::Result<WindowDiscovery> {
     use std::process::Command;
     const SCRIPT: &str = r#"
 param([int]$DisplayIndex)
+$ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Windows.Forms
+Add-Type -TypeDefinition @"
+using System;
+using System.Collections.Generic;
+using System.Runtime.InteropServices;
+using System.Text;
+public sealed class VirtualClientsTopLevelWindow {
+    public ulong Handle { get; set; }
+    public uint ProcessId { get; set; }
+    public string Title { get; set; }
+    public string ClassName { get; set; }
+}
+public static class VirtualClientsWindowDiscovery {
+    private delegate bool EnumCallback(IntPtr hwnd, IntPtr lparam);
+    [DllImport("user32.dll")] private static extern bool EnumWindows(EnumCallback callback, IntPtr lparam);
+    [DllImport("user32.dll")] private static extern bool IsWindowVisible(IntPtr hwnd);
+    [DllImport("user32.dll")] private static extern IntPtr GetWindow(IntPtr hwnd, uint command);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern int GetWindowText(IntPtr hwnd, StringBuilder buffer, int length);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern int GetClassName(IntPtr hwnd, StringBuilder buffer, int length);
+    [DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(IntPtr hwnd, out uint processId);
+    public static List<VirtualClientsTopLevelWindow> Enumerate() {
+        var result = new List<VirtualClientsTopLevelWindow>();
+        EnumWindows((hwnd, _) => {
+            if (!IsWindowVisible(hwnd) || GetWindow(hwnd, 4) != IntPtr.Zero) return true;
+            var title = new StringBuilder(512);
+            if (GetWindowText(hwnd, title, title.Capacity) <= 0) return true;
+            var windowClass = new StringBuilder(256);
+            GetClassName(hwnd, windowClass, windowClass.Capacity);
+            uint pid;
+            GetWindowThreadProcessId(hwnd, out pid);
+            if (pid != 0) result.Add(new VirtualClientsTopLevelWindow {
+                Handle = unchecked((ulong)hwnd.ToInt64()), ProcessId = pid,
+                Title = title.ToString(), ClassName = windowClass.ToString()
+            });
+            return true;
+        }, IntPtr.Zero);
+        return result;
+    }
+}
+"@
 $screens = @([System.Windows.Forms.Screen]::AllScreens)
 if ($DisplayIndex -lt 0 -or $DisplayIndex -ge $screens.Count) { throw "Selected display is unavailable." }
 $area = $screens[$DisplayIndex].WorkingArea
-$targets = @(
-  @{ id = 'Native'; patterns = @('Minecraft Education'); processKind = 'minecraft' },
-  @{ id = 'Virtual-01'; patterns = @('Virtual-01'); processKind = 'vmware' },
-  @{ id = 'Virtual-02'; patterns = @('Virtual-02'); processKind = 'vmware' },
-  @{ id = 'Virtual-03'; patterns = @('Virtual-03'); processKind = 'vmware' }
-)
+$targets = @('Native', 'Virtual-01', 'Virtual-02', 'Virtual-03')
 $deadline = [DateTime]::UtcNow.AddSeconds(5)
 $found = @{}
 do {
-  foreach ($process in Get-Process | Where-Object { $_.MainWindowHandle -ne 0 -and $_.MainWindowTitle }) {
-    foreach ($target in $targets) {
-      if ($found.ContainsKey($target.id)) { continue }
-      foreach ($pattern in $target.patterns) {
-        $titleMatches = $process.MainWindowTitle -like "*$pattern*"
-        if (-not $titleMatches) { continue }
-        $name = $process.ProcessName.ToLowerInvariant()
-        if ($target.processKind -eq 'minecraft' -and $name -notlike "*minecraft*" -and $name -notlike "*education*") { continue }
-        if ($target.processKind -eq 'vmware' -and $name -notlike "*vmware*") { continue }
-        $found[$target.id] = [uint64]$process.MainWindowHandle
-        break
+  $candidates = @{}
+  foreach ($id in $targets) { $candidates[$id] = @() }
+  foreach ($window in [VirtualClientsWindowDiscovery]::Enumerate()) {
+    foreach ($id in $targets) {
+      $matchesTitle = if ($id -eq 'Native') {
+        $window.Title -match '(?i)(?<![a-z0-9])Minecraft Education(?![a-z0-9])'
+      } else {
+        $window.Title -match "(?i)(?<![a-z0-9])$([regex]::Escape($id))(?![a-z0-9])"
       }
+      if (-not $matchesTitle) { continue }
+      $process = Get-Process -Id ([int]$window.ProcessId) -ErrorAction SilentlyContinue
+      if (-not $process) { continue }
+      $name = $process.ProcessName.ToLowerInvariant()
+      if ($id -eq 'Native') {
+        $nativeExe = $name -like '*minecraft*' -or $name -like '*education*'
+        $storeFrame = $name -eq 'applicationframehost' -and $window.ClassName -eq 'ApplicationFrameWindow'
+        if (-not ($nativeExe -or $storeFrame)) { continue }
+      } elseif ($name -notin @('vmware', 'vmplayer')) {
+        continue
+      }
+      $candidates[$id] += $window
     }
   }
-  if ($found.Count -ge 4) { break }
+  $found = @{}
+  foreach ($id in $targets) {
+    $matches = @($candidates[$id] | Sort-Object -Property Handle -Unique)
+    if ($matches.Count -gt 1) { throw "Multiple windows match $id; select distinct client windows before arranging." }
+    if ($matches.Count -eq 1) { $found[$id] = $matches[0] }
+  }
+  if ($found.Count -eq 4) { break }
   Start-Sleep -Milliseconds 200
 } while ([DateTime]::UtcNow -lt $deadline)
 $windows = @()
 $missing = @()
-foreach ($target in $targets) {
-  if ($found.ContainsKey($target.id)) {
-    $windows += [PSCustomObject]@{ id=$target.id; handle=$found[$target.id] }
+foreach ($id in $targets) {
+  if ($found.ContainsKey($id)) {
+    $win = $found[$id]
+    $windows += [PSCustomObject]@{ id=$id; handle=$win.Handle; processId=$win.ProcessId }
   } else {
-    $missing += $target.id
+    $missing += $id
   }
 }
 [PSCustomObject]@{
   areaX=$area.Left; areaY=$area.Top; areaWidth=$area.Width; areaHeight=$area.Height
-  windows=$windows; missing=$missing
+  windows=@($windows); missing=@($missing)
 } | ConvertTo-Json -Depth 4 -Compress
 "#;
     let output = Command::new("powershell.exe")
@@ -265,10 +349,12 @@ foreach ($target in $targets) {
         let detail = String::from_utf8_lossy(&output.stderr).trim().to_string();
         return Err(io::Error::new(io::ErrorKind::Other, format!("window discovery failed: {detail}")));
     }
-    serde_json::from_slice(&output.stdout).map_err(|error| io::Error::new(
+    let discovery: WindowDiscovery = serde_json::from_slice(&output.stdout).map_err(|error| io::Error::new(
         io::ErrorKind::InvalidData,
         format!("window discovery returned invalid data: {error}")
-    ))
+    ))?;
+    validate_discovery(&discovery)?;
+    Ok(discovery)
 }
 
 #[cfg(target_os = "windows")]
@@ -278,20 +364,43 @@ fn apply_window_moves(moves: &[WindowMove]) -> io::Result<()> {
         .map_err(|error| io::Error::new(io::ErrorKind::InvalidInput, error.to_string()))?;
     const SCRIPT: &str = r#"
 param([string]$PlanJson)
+$ErrorActionPreference = 'Stop'
 Add-Type @"
 using System;
 using System.Runtime.InteropServices;
+using System.Text;
 public static class VirtualClientsWindowNative {
+  [DllImport("user32.dll")] public static extern bool IsWindow(IntPtr hwnd);
+  [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hwnd, out uint processId);
+  [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+  public static extern int GetWindowText(IntPtr hwnd, StringBuilder title, int length);
   [DllImport("user32.dll", SetLastError=true)]
-  public static extern bool MoveWindow(IntPtr hWnd, int X, int Y, int Width, int Height, bool Repaint);
+  public static extern bool MoveWindow(IntPtr hwnd, int x, int y, int width, int height, bool repaint);
 }
 "@
 $moves = @($PlanJson | ConvertFrom-Json)
+# Validate every planned HWND before moving any window. HWNDs can be closed
+# or reused between the discovery call and placement.
 foreach ($move in $moves) {
-  [VirtualClientsWindowNative]::MoveWindow(
+  $handle = [IntPtr][uint64]$move.handle
+  if (-not [VirtualClientsWindowNative]::IsWindow($handle)) { throw "Window for $($move.id) no longer exists." }
+  $currentPid = [uint32]0
+  [void][VirtualClientsWindowNative]::GetWindowThreadProcessId($handle, [ref]$currentPid)
+  if ($currentPid -ne [uint32]$move.processId) { throw "Window ownership changed for $($move.id)." }
+  $title = New-Object System.Text.StringBuilder 512
+  [void][VirtualClientsWindowNative]::GetWindowText($handle, $title, $title.Capacity)
+  $sameClient = if ($move.id -eq 'Native') {
+    $title.ToString() -match '(?i)(?<![a-z0-9])Minecraft Education(?![a-z0-9])'
+  } else {
+    $title.ToString() -match "(?i)(?<![a-z0-9])$([regex]::Escape($move.id))(?![a-z0-9])"
+  }
+  if (-not $sameClient) { throw "Window title changed for $($move.id)." }
+}
+foreach ($move in $moves) {
+  if (-not [VirtualClientsWindowNative]::MoveWindow(
     [IntPtr][uint64]$move.handle,
     [int]$move.x, [int]$move.y, [int]$move.width, [int]$move.height, $true
-  ) | Out-Null
+  )) { throw "Windows rejected the window placement for $($move.id)." }
 }
 "#;
     let output = Command::new("powershell.exe")
@@ -322,7 +431,9 @@ pub fn arrange_with_slots(request: WindowLayoutRequest) -> io::Result<Arrangemen
     };
     let slots = calculate_slots(&request.layout, area, discovery.windows.len());
     let moves: Vec<WindowMove> = discovery.windows.iter().zip(slots.iter()).map(|(window, slot)| WindowMove {
+        id: window.id.clone(),
         handle: window.handle,
+        process_id: window.process_id,
         x: slot.x,
         y: slot.y,
         width: slot.width,
@@ -357,7 +468,10 @@ pub fn arrange_with_slots(request: WindowLayoutRequest) -> io::Result<Arrangemen
 
 #[cfg(test)]
 mod tests {
-    use super::{calculate_slots, validate_request, Rect, WindowLayout, WindowLayoutRequest};
+    use super::{
+        calculate_slots, validate_discovery, validate_request, DiscoveredWindow, Rect,
+        WindowDiscovery, WindowLayout, WindowLayoutRequest,
+    };
 
     #[test]
     fn layout_geometry_is_adaptive_and_gap_free() {
@@ -374,6 +488,34 @@ mod tests {
         let columns = calculate_slots(&WindowLayout::Columns, area, 4);
         assert_eq!(columns.len(), 4);
         assert_eq!(columns.iter().map(|slot| slot.width).sum::<i32>(), 1200);
+    }
+
+    #[test]
+    fn discovered_windows_require_unique_client_ids_and_handles() {
+        let mut discovery = WindowDiscovery {
+            area_x: 0, area_y: 0, area_width: 1200, area_height: 800,
+            windows: vec![
+                DiscoveredWindow { id: "Native".into(), handle: 11, process_id: 101 },
+                DiscoveredWindow { id: "Virtual-01".into(), handle: 22, process_id: 202 },
+            ],
+            missing: vec!["Virtual-02".into(), "Virtual-03".into()],
+        };
+        assert!(validate_discovery(&discovery).is_ok());
+
+        discovery.windows[1].handle = 11;
+        assert!(validate_discovery(&discovery).is_err());
+        discovery.windows[1].handle = 22;
+
+        discovery.windows[1].id = "Native".into();
+        assert!(validate_discovery(&discovery).is_err());
+        discovery.windows[1].id = "Virtual-01".into();
+
+        discovery.windows[1].process_id = 0;
+        assert!(validate_discovery(&discovery).is_err());
+        discovery.windows[1].process_id = 202;
+
+        discovery.missing = vec!["Virtual-01".into(), "Virtual-03".into()];
+        assert!(validate_discovery(&discovery).is_err());
     }
 
     #[test]
