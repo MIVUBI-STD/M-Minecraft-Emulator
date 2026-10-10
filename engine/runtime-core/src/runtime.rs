@@ -1196,23 +1196,15 @@ impl VirtualClients {
         })?;
         check_action_admission(provider.as_ref(), client, LifecycleAction::Reprovision)?;
 
-        remove_client_profile(client)?;
-        provider.reprovision(client)?;
-        if let Err(error) = write_client_profile(client, &native.version, &base_generation_id) {
-            return Err(io::Error::new(
-                error.kind(),
-                format!("{} was reprovisioned but lineage provenance could not be committed; start remains blocked until provenance is repaired: {error}", client.as_str()),
-            ));
-        }
-        let working_sets = provider.host_working_sets_mb()?;
-        let native_profile = native_minecraft_profile();
-        client_status(
-            provider.as_ref(),
-            &working_sets,
-            native_profile.as_ref(),
-            client,
-        )
+        // Reprovision currently deletes the account-bearing directory before
+        // the replacement clone succeeds. Fail closed until staged cutover can
+        // preserve the old VM and its client-profile.json on every error.
+        Err(io::Error::new(
+            io::ErrorKind::Unsupported,
+            "Reprovision temporarily disabled: replacement is not yet recoverable. Existing VM, snapshots and account profile are preserved.",
+        ))
     }
+
 
     fn verify_identities_inner(&self) -> io::Result<Vec<ClientStatus>> {
         require_base_matches_native()?;
