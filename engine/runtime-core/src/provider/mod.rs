@@ -293,6 +293,43 @@ mod tests {
     }
 
     #[test]
+    fn cloned_vmx_normalizes_duplicate_keys_and_guest_token() {
+        let root = unique_temp_dir("vmx-key-normalization");
+        fs::create_dir_all(&root).unwrap();
+        let vmx = root.join("Virtual-01.vmx");
+        let base_token = "a".repeat(64);
+        fs::write(&vmx, format!(r#"# Keep this comment
+MEMSIZE="1024"
+memsize = "2048"
+memsizeExtra = "KEEP"
+GUESTINFO.VIRTUALCLIENTS.TOKEN = "{base_token}"
+guestinfo.virtualclients.token="{base_token}"
+GuestInfo.VirtualClients.BaseState = "FINALIZED"
+"#)).unwrap();
+
+        assert_eq!(super::read_vmx_value(&vmx, "memsize").unwrap_err().kind(),
+            std::io::ErrorKind::InvalidData);
+        apply_virtual_hardware_policy(&vmx).unwrap();
+
+        assert_eq!(super::read_vmx_value(&vmx, "memsize").unwrap().as_deref(),
+            Some("4096"));
+        assert_eq!(super::read_vmx_value(&vmx, "memsizeExtra").unwrap().as_deref(),
+            Some("KEEP"));
+        assert!(super::base_state_for_path(&vmx).unwrap().is_none());
+        let rotated = guest_token_for_path(&vmx).unwrap().unwrap();
+        assert!(valid_guest_token(&rotated));
+        assert_ne!(rotated, base_token);
+
+        let content = fs::read_to_string(&vmx).unwrap();
+        for key in ["memsize", "guestinfo.virtualclients.token"] {
+            assert_eq!(content.lines().filter(|line| line.split_once('=')
+                .is_some_and(|(name, _)| name.trim().eq_ignore_ascii_case(key))).count(), 1);
+        }
+        assert!(content.contains("# Keep this comment"));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn base_state_is_single_canonical_vmx_key() {
         let root = unique_temp_dir("base-state");
         fs::create_dir_all(&root).unwrap();

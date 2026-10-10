@@ -43,7 +43,7 @@ Rust owns runtime truth.
 - `resources.rs` — host pressure policy.
 - `client.rs` — public instance/status contract.
 - `doctor.rs` — provider, Base, capacity and parity readiness.
-- `provider/` — VMware mechanics and VMX inspection.
+- `provider/` — VMware mechanics and VMX inspection. VMX key reads now accept mixed casing/spacing, require exact left-hand key matches, and reject ambiguous duplicate values for Base state, identity and Guest Agent token. Intentional hardware policy writes deduplicate the affected keys and replace the cloned Base token in the same VMX write. Provisioning preflights all existing VM states and lineage before cloning missing clients. This prevents *some* inconsistent intermediate states; it does not establish crash-atomic VMware disk-chain recovery.
 - `virtual-guest-agent` — guest-side read-only runtime probe.
 - `virtual-clients` — thin operator CLI.
 

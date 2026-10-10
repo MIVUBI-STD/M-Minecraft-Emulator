@@ -260,6 +260,26 @@ fn restore_batch_state(
 // VM power batches are deliberately non-atomic. A failed provider command may
 // already have changed its VM; never mask that with an implicit restart.
 // Project observed states to the caller so a human can reconcile before retry.
+// Inspect all existing Virtual lineage before attempting the first clone.
+// Partial/missing provenance must never cause another guest to be provisioned.
+fn missing_provision_targets(
+    provider: &dyn Provider,
+    mut verify_existing: impl FnMut(ClientId) -> io::Result<()>,
+) -> io::Result<Vec<ClientId>> {
+    let mut missing = Vec::new();
+    for client in ClientId::VIRTUAL {
+        if provider.status(client)? == ClientState::NotProvisioned {
+            missing.push(client);
+        } else {
+            verify_existing(client).map_err(|error| io::Error::new(error.kind(), format!(
+                "{} exists but its lineage is not usable: {error}. Existing VM/account data were preserved; no new clients were provisioned.",
+                client.as_str()
+            )))?;
+        }
+    }
+    Ok(missing)
+}
+
 fn execute_non_atomic_power_batch(
     provider: &dyn Provider,
     targets: &[ClientId],
@@ -1173,22 +1193,11 @@ impl VirtualClients {
             )
         })?;
 
-        for client in ClientId::VIRTUAL {
-            let previous = provider.status(client)?;
-            // An existing VMX with absent/corrupt profile is not a completed
-            // provision. Never treat a provider no-op as provenance recovery.
-            if previous != ClientState::NotProvisioned {
-                require_client_matches_native(client).map_err(|error| {
-                    io::Error::new(
-                        error.kind(),
-                        format!(
-                            "{} already exists but its lineage is not usable: {error}. Existing VM and account data were preserved.",
-                            client.as_str()
-                        ),
-                    )
-                })?;
-                continue;
-            }
+        // Full-target preflight before creating the first missing Virtual.
+        let missing = missing_provision_targets(provider.as_ref(), |client| {
+            require_client_matches_native(client).map(|_| ())
+        })?;
+        for client in missing {
             provider.provision(client)?;
             if let Err(error) = write_client_profile(client, &native.version, &base_generation_id) {
                 return Err(io::Error::new(
@@ -1766,8 +1775,9 @@ impl VirtualClients {
 #[cfg(test)]
 mod tests {
     use super::{
-        classify_identity_state, guest_probe_error_is_terminal, restore_batch_state, stop_targets,
-        suspend_targets, validate_power_state, LifecycleAction, vm_identity_state,
+        classify_identity_state, guest_probe_error_is_terminal, missing_provision_targets,
+        restore_batch_state, stop_targets, suspend_targets, validate_power_state, LifecycleAction,
+        vm_identity_state,
     };
     use crate::profile::BaseState;
     use crate::{
@@ -2067,6 +2077,28 @@ mod tests {
             vm_identity_state(&unreadable, ClientId::Virtual01),
             IdentityState::Unknown
         );
+    }
+
+    #[test]
+    fn provisioning_preflight_rejects_bad_existing_profile_before_any_clone() {
+        let provider = FakeProvider::new(
+            [ClientState::NotProvisioned, ClientState::Stopped, ClientState::NotProvisioned],
+            [None, None, None],
+        );
+        let error = missing_provision_targets(&provider, |client| {
+            if client == ClientId::Virtual02 {
+                Err(io::Error::new(io::ErrorKind::InvalidData, "invalid saved lineage"))
+            } else {
+                Ok(())
+            }
+        }).unwrap_err();
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert!(error.to_string().contains("no new clients were provisioned"));
+        assert_eq!(*provider.states.borrow(), [
+            ClientState::NotProvisioned, ClientState::Stopped, ClientState::NotProvisioned
+        ]);
+        assert_eq!(missing_provision_targets(&provider, |_| Ok(())).unwrap(),
+            vec![ClientId::Virtual01, ClientId::Virtual03]);
     }
 
     #[test]

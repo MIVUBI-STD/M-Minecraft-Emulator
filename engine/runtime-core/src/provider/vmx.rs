@@ -18,19 +18,27 @@ pub(crate) fn apply_virtual_hardware_policy(vmx: &Path) -> io::Result<()> {
     set_vmx_value(&mut lines, "ethernet0.startConnected", "TRUE");
     set_vmx_value(&mut lines, "answer.msg.uuid.altered", "I copied it");
     remove_vmx_value(&mut lines, BASE_STATE_KEY);
+    // One VMX write: no intermediate clone configuration with inherited token.
+    let token = generate_guest_token()?;
+    set_vmx_value(&mut lines, GUEST_TOKEN_KEY, &token);
     let mut output = lines.join("\n");
     output.push('\n');
-    fs::write(vmx, output)?;
-    rotate_guest_token_for_path(vmx).map(|_| ())
+    fs::write(vmx, output)
 }
 
 pub(crate) fn read_vmx_value(vmx: &Path, key: &str) -> io::Result<Option<String>> {
     let source = fs::read_to_string(vmx)?;
-    let prefix = format!("{key} =");
-    Ok(source.lines().find_map(|line| {
-        let trimmed = line.trim();
-        trimmed.strip_prefix(&prefix).map(|value| value.trim().trim_matches('"').to_string())
-    }))
+    let mut result = None;
+    for line in source.lines() {
+        let Some((name, value)) = vmx_assignment(line) else { continue; };
+        if !name.eq_ignore_ascii_case(key) { continue; }
+        if result.is_some() {
+            return Err(io::Error::new(io::ErrorKind::InvalidData,
+                format!("VMX contains multiple definitions for {key}")));
+        }
+        result = Some(value.trim_matches('"').to_owned());
+    }
+    Ok(result)
 }
 
 pub(crate) fn read_vmx_memory(vmx: &Path) -> io::Result<u64> {
@@ -89,16 +97,20 @@ fn generate_guest_token() -> io::Result<String> {
     Ok(bytes.iter().map(|byte| format!("{byte:02x}")).collect())
 }
 
+// Exact left-side key; comments, unrelated similarly-prefixed fields
+// and casing/spacing variants are never confused with one another.
+fn vmx_assignment(line: &str) -> Option<(&str, &str)> {
+    let (name, value) = line.split_once('=')?;
+    let name = name.trim();
+    if name.is_empty() || name.starts_with('#') { return None; }
+    Some((name, value.trim()))
+}
+
 fn remove_vmx_value(lines: &mut Vec<String>, key: &str) {
-    let prefix = format!("{key} =");
-    lines.retain(|line| !line.trim_start().starts_with(&prefix));
+    lines.retain(|line| !vmx_assignment(line).is_some_and(|(name, _)| name.eq_ignore_ascii_case(key)));
 }
 
 fn set_vmx_value(lines: &mut Vec<String>, key: &str, value: &str) {
-    let prefix = format!("{key} =");
-    if let Some(line) = lines.iter_mut().find(|line| line.trim_start().starts_with(&prefix)) {
-        *line = format!("{key} = \"{value}\"");
-    } else {
-        lines.push(format!("{key} = \"{value}\""));
-    }
+    remove_vmx_value(lines, key);
+    lines.push(format!("{key} = \"{value}\""));
 }

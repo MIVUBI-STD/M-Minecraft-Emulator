@@ -3,6 +3,21 @@
 Updated: 2026-10-10
 Authority: `MIVUBI-STD/M-Minecraft-Emulator`, branch `Local`. Current GitHub source HEAD always outranks this file.
 
+## Current batch — safe provisioning preflight and VMX key integrity (2026-10-11)
+
+**Work:** `emulator/provision-vmx-integrity`  
+**State:** SOURCE_PATCHED / EXECUTION_UNPROVEN  
+**Parent Local:** `d9c5cdf27bd52613dd1e0b79492b3241ce681d00` (exact new commit is the authoritative source).
+
+- Before cloning any missing guest, the runtime checks provider state and existing Base/client lineage for **all three** virtual clients. A later invalid or missing profile no longer causes earlier Virtuals to be cloned before the failure is discovered; no original client/account data is deleted.
+- `provider/vmx.rs` now matches exact VMX key names case-insensitively with flexible spacing. Reads reject duplicate assignments instead of guessing which sensitive Base/identity/token value VMware would use. Intentional writes deduplicate the targeted key variants and keep unrelated values/comments intact.
+- Cloned VM hardware policy rotates the Guest Agent secret and writes the policy **once**, eliminating its former separate write with an inherited Base token in between. This reduces inconsistent intermediate states but is not a filesystem-atomic VMX transaction or proof of complete VMware disk chains.
+- Existing test modules received a bounded VMX key/token regression and provisioning preflight matrix; no new module, dependency, lifecycle manager or speculative recovery route was introduced.
+- **Proof:** exact GitHub source and consumer inspection only. Rust compiler/tests, Windows installer, real VMware clone, Education graphics and four-account playability are **NOT_EXECUTED**. Development remains ChatGPT + GitHub `Local`, with no CI or user-PC tasks.
+
+**Next:** Inspect a concrete source defect in VMX persistence/provisioning if found; otherwise stop instead of adding unconsumed recovery scaffolding.
+
+
 ## Current implementation — stable Windows window identification (2026-10-11)
 
 **Work:** `emulator/window-discovery-correctness`  
