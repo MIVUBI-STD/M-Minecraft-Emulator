@@ -2,7 +2,7 @@ use super::{
     apply_virtual_hardware_policy, base_vmx_path, client_vmx_path, command_output,
     command_output_with_timeout, ensure_parent, guest_tools_state_ready, has_suspend_state,
     listed_as_running, parse_guest_ip, read_vmx_memory,
-    snapshot_list_contains, vm_identity_key, wait_for_state, Provider,
+    snapshot_list_contains, vm_identity_key, vmx_file_present, wait_for_state, Provider,
     DISK_STATE_TIMEOUT,
 };
 use crate::client::{ClientId, ClientState};
@@ -56,7 +56,7 @@ impl VmwareWorkstationProvider {
 
     fn require_client(&self, client: ClientId) -> io::Result<PathBuf> {
         let path = client_vmx_path(client)?;
-        if path.is_file() {
+        if vmx_file_present(&path)? {
             Ok(path)
         } else {
             Err(io::Error::new(
@@ -179,12 +179,12 @@ impl Provider for VmwareWorkstationProvider {
 
     fn provision(&self, client: ClientId) -> io::Result<ClientState> {
         let target = client_vmx_path(client)?;
-        if target.is_file() {
+        if vmx_file_present(&target)? {
             return self.status(client);
         }
 
         let base = base_vmx_path()?;
-        if !base.is_file() {
+        if !vmx_file_present(&base)? {
             return Err(io::Error::new(
                 io::ErrorKind::NotFound,
                 format!("base VM is missing: {}", base.display()),
@@ -226,7 +226,7 @@ impl Provider for VmwareWorkstationProvider {
             DISK_STATE_TIMEOUT,
         )?;
         // Do not erase a failed clone or rewrite its disk metadata on error.
-        if !target.is_file() {
+        if !vmx_file_present(&target)? {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidData,
                 "VMware clone returned success but no final VMX exists; inspect the destination",
@@ -238,7 +238,7 @@ impl Provider for VmwareWorkstationProvider {
 
     fn status(&self, client: ClientId) -> io::Result<ClientState> {
         let vmx = client_vmx_path(client)?;
-        if !vmx.is_file() {
+        if !vmx_file_present(&vmx)? {
             // An existing container with no VMX may be an interrupted clone.
             // It is not equivalent to a clean, unprovisioned client.
             if vmx.parent().is_some_and(Path::exists) {

@@ -1,15 +1,26 @@
 use crate::{
+    persistence::{read_text_recovering, write_text_transactional},
     policy::VIRTUAL_VCPUS,
     profile::BaseState,
     resources::VIRTUAL_MEMORY_LIMIT_MB,
 };
-use std::{fs, io, path::Path};
+use std::{io, path::Path};
 
 pub(crate) const GUEST_TOKEN_KEY: &str = "guestinfo.virtualclients.token";
 pub(crate) const BASE_STATE_KEY: &str = "guestinfo.virtualclients.baseState";
 
+// VMX may temporarily exist only as an adjacent backup after a failed
+// metadata replacement. Recover the canonical path before classifying it.
+pub(crate) fn vmx_file_present(vmx: &Path) -> io::Result<bool> {
+    match read_text_recovering(vmx) {
+        Ok(_) => Ok(true),
+        Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(false),
+        Err(error) => Err(error),
+    }
+}
+
 pub(crate) fn apply_virtual_hardware_policy(vmx: &Path) -> io::Result<()> {
-    let source = fs::read_to_string(vmx)?;
+    let source = read_text_recovering(vmx)?;
     let mut lines: Vec<String> = source.lines().map(ToOwned::to_owned).collect();
     set_vmx_value(&mut lines, "numvcpus", &VIRTUAL_VCPUS.to_string());
     set_vmx_value(&mut lines, "memsize", &VIRTUAL_MEMORY_LIMIT_MB.to_string());
@@ -23,11 +34,11 @@ pub(crate) fn apply_virtual_hardware_policy(vmx: &Path) -> io::Result<()> {
     set_vmx_value(&mut lines, GUEST_TOKEN_KEY, &token);
     let mut output = lines.join("\n");
     output.push('\n');
-    fs::write(vmx, output)
+    write_text_transactional(vmx, &output)
 }
 
 pub(crate) fn read_vmx_value(vmx: &Path, key: &str) -> io::Result<Option<String>> {
-    let source = fs::read_to_string(vmx)?;
+    let source = read_text_recovering(vmx)?;
     let mut result = None;
     for line in source.lines() {
         let Some((name, value)) = vmx_assignment(line) else { continue; };
@@ -55,12 +66,12 @@ pub(crate) fn base_state_for_path(vmx: &Path) -> io::Result<Option<BaseState>> {
 }
 
 pub(crate) fn set_base_state_for_path(vmx: &Path, state: BaseState) -> io::Result<()> {
-    let source = fs::read_to_string(vmx)?;
+    let source = read_text_recovering(vmx)?;
     let mut lines: Vec<String> = source.lines().map(ToOwned::to_owned).collect();
     set_vmx_value(&mut lines, BASE_STATE_KEY, state.as_vmx_str());
     let mut output = lines.join("\n");
     output.push('\n');
-    fs::write(vmx, output)
+    write_text_transactional(vmx, &output)
 }
 
 pub(crate) fn ensure_guest_token_for_path(vmx: &Path) -> io::Result<String> {
@@ -72,12 +83,12 @@ pub(crate) fn ensure_guest_token_for_path(vmx: &Path) -> io::Result<String> {
 
 pub(crate) fn rotate_guest_token_for_path(vmx: &Path) -> io::Result<String> {
     let token = generate_guest_token()?;
-    let source = fs::read_to_string(vmx)?;
+    let source = read_text_recovering(vmx)?;
     let mut lines: Vec<String> = source.lines().map(ToOwned::to_owned).collect();
     set_vmx_value(&mut lines, GUEST_TOKEN_KEY, &token);
     let mut output = lines.join("\n");
     output.push('\n');
-    fs::write(vmx, output)?;
+    write_text_transactional(vmx, &output)?;
     Ok(token)
 }
 

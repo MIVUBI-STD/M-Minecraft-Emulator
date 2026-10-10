@@ -8,7 +8,7 @@ mod vmx;
 
 pub(crate) use process::{command_output, command_output_with_timeout, wait_for_state};
 pub(crate) use storage::{cleanup_staging, ensure_parent, has_suspend_state, promote_staging_vm, remove_vm_container, staging_residue_count};
-pub(crate) use vmx::{apply_virtual_hardware_policy, base_state_for_path, ensure_guest_token_for_path, guest_token_for_path, read_vmx_memory, read_vmx_value, set_base_state_for_path, vm_identity_key};
+pub(crate) use vmx::{apply_virtual_hardware_policy, base_state_for_path, ensure_guest_token_for_path, guest_token_for_path, read_vmx_memory, read_vmx_value, set_base_state_for_path, vm_identity_key, vmx_file_present};
 
 use crate::{
     client::{ClientId, ClientState},
@@ -326,6 +326,26 @@ GuestInfo.VirtualClients.BaseState = "FINALIZED"
                 .is_some_and(|(name, _)| name.trim().eq_ignore_ascii_case(key))).count(), 1);
         }
         assert!(content.contains("# Keep this comment"));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn interrupted_vmx_metadata_write_recovers_before_presence_check() {
+        let root = unique_temp_dir("vmx-rename-recovery");
+        fs::create_dir_all(&root).unwrap();
+        let path = root.join("Virtual-01.vmx");
+        let backup = root.join(".Virtual-01.vmx.bak");
+        fs::write(&backup, "memsize = \"4096\"\n").unwrap();
+
+        assert!(super::vmx_file_present(&path).unwrap());
+        assert!(path.is_file());
+        assert!(!backup.exists());
+        assert_eq!(super::read_vmx_value(&path, "memsize").unwrap().as_deref(), Some("4096"));
+
+        super::set_base_state_for_path(&path, BaseState::Registered).unwrap();
+        assert_eq!(super::base_state_for_path(&path).unwrap(), Some(BaseState::Registered));
+        assert_eq!(super::read_vmx_value(&path, "memsize").unwrap().as_deref(), Some("4096"));
+        assert!(!backup.exists());
         fs::remove_dir_all(root).unwrap();
     }
 

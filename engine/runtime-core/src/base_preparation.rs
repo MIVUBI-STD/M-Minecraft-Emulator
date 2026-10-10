@@ -1,6 +1,6 @@
 use crate::{
     profile::{current_base_vmx_path, native_minecraft_profile, BaseState},
-    provider::{base_state_for_path, current_platform_provider, read_vmx_value},
+    provider::{base_state_for_path, current_platform_provider, read_vmx_value, vmx_file_present},
 };
 use serde::Serialize;
 use std::io;
@@ -29,7 +29,8 @@ pub fn inspect_base_preparation() -> io::Result<BasePreparationReport> {
     let native = native_minecraft_profile();
     let provider = current_platform_provider();
     let base = current_base_vmx_path().ok();
-    let base_present = base.as_ref().is_some_and(|path| path.is_file());
+    let base_present = base.as_ref()
+        .is_some_and(|path| vmx_file_present(path).unwrap_or(false));
 
     let base_stopped = match (provider.as_ref(), base.as_ref()) {
         (Some(provider), Some(path)) if base_present => {

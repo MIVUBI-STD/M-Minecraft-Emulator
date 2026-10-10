@@ -2,7 +2,7 @@ use super::{
     apply_virtual_hardware_policy, base_vmx_path, client_vmx_path, command_output,
     command_output_with_timeout, ensure_parent, guest_tools_state_ready, has_suspend_state,
     listed_as_running, parse_guest_ip, promote_staging_vm, read_vmx_memory, remove_vm_container,
-    snapshot_list_contains, staging_client_vmx_path, vm_identity_key, wait_for_state, Provider,
+    snapshot_list_contains, staging_client_vmx_path, vm_identity_key, vmx_file_present, wait_for_state, Provider,
     DISK_STATE_TIMEOUT,
 };
 use crate::client::{ClientId, ClientState};
@@ -24,7 +24,7 @@ impl VmwareFusionProvider {
 
     fn require_client(&self, client: ClientId) -> io::Result<std::path::PathBuf> {
         let path = client_vmx_path(client)?;
-        if path.is_file() {
+        if vmx_file_present(&path)? {
             Ok(path)
         } else {
             Err(io::Error::new(
@@ -161,12 +161,12 @@ impl Provider for VmwareFusionProvider {
 
     fn provision(&self, client: ClientId) -> io::Result<ClientState> {
         let target = client_vmx_path(client)?;
-        if target.is_file() {
+        if vmx_file_present(&target)? {
             return self.status(client);
         }
 
         let base = base_vmx_path()?;
-        if !base.is_file() {
+        if !vmx_file_present(&base)? {
             return Err(io::Error::new(
                 io::ErrorKind::NotFound,
                 format!("base VM is missing: {}", base.display()),
@@ -218,7 +218,7 @@ impl Provider for VmwareFusionProvider {
 
     fn status(&self, client: ClientId) -> io::Result<ClientState> {
         let vmx = client_vmx_path(client)?;
-        if !vmx.is_file() {
+        if !vmx_file_present(&vmx)? {
             return Ok(ClientState::NotProvisioned);
         }
         Ok(if self.running(&vmx)? {

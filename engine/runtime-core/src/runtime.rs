@@ -28,7 +28,7 @@ use crate::{
     },
     provider::{
         base_state_for_path, cleanup_staging, current_platform_provider,
-        ensure_guest_token_for_path, guest_token, set_base_state_for_path, Provider,
+        ensure_guest_token_for_path, guest_token, set_base_state_for_path, vmx_file_present, Provider,
     },
     resources::{current_host_pressure, HostPressure, StartDecision, VIRTUAL_MEMORY_LIMIT_MB},
     startup::wait_until_start_is_safe,
@@ -1028,7 +1028,7 @@ impl VirtualClients {
             )
         })?;
         let base = current_base_vmx_path()?;
-        if !base.is_file() {
+        if !vmx_file_present(&base)? {
             return Err(io::Error::new(
                 io::ErrorKind::NotFound,
                 format!("Base VM is missing: {}", base.display()),
@@ -1140,7 +1140,7 @@ impl VirtualClients {
             )
         })?;
         let base = current_base_vmx_path()?;
-        if !base.is_file() {
+        if !vmx_file_present(&base)? {
             return Err(io::Error::new(
                 io::ErrorKind::NotFound,
                 format!("Base VM is missing: {}", base.display()),

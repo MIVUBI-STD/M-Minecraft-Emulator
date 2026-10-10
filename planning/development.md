@@ -3,6 +3,20 @@
 Updated: 2026-10-10
 Authority: `MIVUBI-STD/M-Minecraft-Emulator`, branch `Local`. Current GitHub source HEAD always outranks this file.
 
+## Current implementation — recoverable VMX configuration writes (2026-10-11)
+
+**Work:** `emulator/vmx-transactional-persistence`  
+**State:** SOURCE_PATCHED / EXECUTION_UNPROVEN  
+**Base Local HEAD:** `d5151c2b0b908ce7f9f536f96f58ba52d7e0c6fd`. The resulting GitHub commit is the authority for the final SHA.
+
+- Replaced truncate-in-place `fs::write` in the **existing** `provider/vmx.rs` owner with the already established transactional metadata writer `persistence::write_text_transactional` for hardware policy, Base state and Guest Agent token. VMX reads now use its matching `read_text_recovering` path. No second recovery engine or new dependency.
+- A process interruption between renaming VMX to `.vmx.bak` and promoting the replacement could otherwise make a valid VM appear missing. Provider `require_client`, status, provision and Base checks, as well as Doctor/Base preparation and registration, now recover through a single VMX-presence helper before making that classification. Unsafe/invalid files fail closed on operational provider paths.
+- One existing-suite regression exercises interrupted-backup recovery, retained VMX settings, and a subsequent transactional Base-state write. No new test framework, lifecycle state, VM disk mutation, public schema, or snapshot change.
+- **Evidence:** exact-ref `REMOTE_GITHUB` static and consumer review. Cargo tests/build, NSIS packaging, Windows/VMware lock behavior, Minecraft graphics and four-client acceptance remain `NOT_EXECUTED`. No user PC, automatic CI, default-branch edits or alternative execution environments.
+
+**Next:** Stop unless another current-source defect is directly demonstrated; do not add speculative disk-chain parsing or separate recovery mechanisms.
+
+
 ## Current batch — safe provisioning preflight and VMX key integrity (2026-10-11)
 
 **Work:** `emulator/provision-vmx-integrity`  

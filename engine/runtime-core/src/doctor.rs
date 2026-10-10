@@ -7,7 +7,7 @@ use crate::{
         client_lineage_parity, load_client_profile, profile_status, BaseState,
         ProfileParity, ProfileStatus,
     },
-    provider::{base_state_for_path, current_platform_provider},
+    provider::{base_state_for_path, current_platform_provider, vmx_file_present},
     schema::{inspect_runtime_schema, SchemaStatus},
 };
 use serde::Serialize;
@@ -285,9 +285,10 @@ pub fn doctor() -> DoctorReport {
     let available_memory_gb = system.available_memory() as f64 / 1024.0 / 1024.0 / 1024.0;
     let max_recommended_virtual_clients = recommended_virtual_clients(total_memory_gb, logical_cpus);
 
-    let base_vm_present = base.as_ref().is_some_and(|path| path.is_file());
+    let base_vm_present = base.as_ref()
+        .is_some_and(|path| vmx_file_present(path).unwrap_or(false));
     let base_vm_stopped = match (provider.as_ref(), base.as_ref()) {
-        (Some(provider), Some(path)) if path.is_file() => {
+        (Some(provider), Some(path)) if base_vm_present => {
             provider.is_running_path(path).ok().map(|running| !running)
         }
         _ => None,
