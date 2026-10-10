@@ -1,6 +1,6 @@
 param(
   [Parameter(Mandatory = $true)]
-  [ValidateSet('HOST','SINGLE_VM','GUEST','MINECRAFT','ACCOUNT','THREE_VMS','FOUR_MINECRAFT','FOUR_ACCOUNTS','MULTIPLAYER','RECOVERY','SOAK')]
+  [ValidateSet('CLIENT_FEASIBILITY','HOST','SINGLE_VM','GUEST','MINECRAFT','ACCOUNT','THREE_VMS','FOUR_MINECRAFT','FOUR_ACCOUNTS','MULTIPLAYER','RECOVERY','SOAK')]
   [string]$Stage,
   [Parameter(Mandatory = $true)]
   [ValidateSet('NOT_RUN','OBSERVED','PASS','FAIL','BLOCKED')]

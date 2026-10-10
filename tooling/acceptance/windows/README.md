@@ -6,6 +6,7 @@ This campaign is evidence collection, not simulation. A stage stays `NOT_RUN` un
 
 | Stage | Purpose | Evidence owner |
 | --- | --- | --- |
+| CLIENT_FEASIBILITY | **Before production VM setup:** prove one scratch Windows VMware guest can render and interact with Minecraft Education; capture OpenGL separately | operator + read-only guest collector |
 | HOST | Record Windows, VMware, CPU, memory, GPU, hypervisor/VBS and Native Minecraft facts | collector |
 | SINGLE_VM | Prove one Virtual lifecycle on the target provider | operator + collector |
 | GUEST | Prove VMware Tools, Guest Agent and interactive launcher progression | collector |
@@ -17,6 +18,14 @@ This campaign is evidence collection, not simulation. A stage stays `NOT_RUN` un
 | MULTIPLAYER | Prove required Native↔Virtual and Virtual↔Virtual join paths | operator |
 | RECOVERY | Prove stop/start, suspend/resume, reset and host reboot behavior | operator + collector |
 | SOAK | Record long-run stability and repeated lifecycle cycles | operator + collector |
+
+## Early client-graphics feasibility pilot
+
+Use `collect-client-feasibility.ps1` **inside one interactive Windows scratch guest**. It is read-only except its temporary report and does not require Guest Agent, account-name capture or a configured three-VM application. Collect `ENVIRONMENT`, then manually open Minecraft Education, observe a usable world and collect `INTERACTIVE` with explicitly operator-attributed observations.
+
+Review the JSON with `../evaluate-client-feasibility.mjs`. The reviewer never certifies official client support; it reports `OPERATOR_REPORTED_PLAYABLE`, `OPERATOR_REPORTED_FAILURE` or `INCONCLUSIVE`, never a synthetic PASS. The existing `new-stage-result.ps1 -Stage CLIENT_FEASIBILITY` records a **separately reviewed** decision with an actual evidence reference.
+
+Canonical guide: [Client Feasibility](../../../docs/validation/client-feasibility.md). A scratch-guest failure stops further cloning and account setup until graphics/driver/VM compatibility is understood.
 
 ## Result vocabulary
 

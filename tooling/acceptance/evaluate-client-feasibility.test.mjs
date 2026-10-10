@@ -1,0 +1,74 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { evaluateClientFeasibility } from "./evaluate-client-feasibility.mjs";
+
+const fixture = () => ({
+  "schema": 1,
+  "scope": "CLIENT_FEASIBILITY",
+  "stage": "INTERACTIVE",
+  "evidenceOrigin": "WINDOWS_GUEST",
+  "automaticVerdict": "NOT_PROVIDED",
+  "windows": {
+    "interactiveSession": true,
+    "architecture": "64-bit",
+    "vmwareToolsRunning": true
+  },
+  "graphics": {
+    "openGl": {
+      "status": "MEASURED",
+      "version": "4.3 VMware"
+    }
+  },
+  "minecraft": {
+    "candidateProcessCount": 1,
+    "processEvidenceClass": "CANDIDATE_ONLY"
+  },
+  "operator": {
+    "menuRendered": "YES",
+    "worldRendered": "YES",
+    "inputResponsive": "YES",
+    "blockingGraphicsError": "NO",
+    "evidenceReference": "proof-01",
+    "attribution": "OPERATOR_DECLARED_NOT_MACHINE_VERIFIED"
+  }
+});
+test("working-game evidence never implies official virtual-client support", () => {
+  const x = evaluateClientFeasibility(fixture());
+  assert.equal(x.verdict, "OPERATOR_REPORTED_PLAYABLE");
+  assert.equal(x.officialVmClientSupport, "NOT_CLAIMED");
+  assert.ok(x.risks.includes("OPENGL_BELOW_PUBLISHED_4_4_REFERENCE"));
+});
+test("process alone never proves visible Minecraft", () => {
+  const x = fixture(); x.operator.menuRendered = "UNKNOWN";
+  assert.equal(evaluateClientFeasibility(x).verdict, "INCONCLUSIVE");
+});
+test("reported graphics failure and a non-rendered world are explicit failures", () => {
+  const x = fixture(); x.operator.blockingGraphicsError = "YES";
+  assert.equal(evaluateClientFeasibility(x).verdict, "OPERATOR_REPORTED_FAILURE");
+  const y = fixture(); y.operator.worldRendered = "NO";
+  assert.equal(evaluateClientFeasibility(y).verdict, "OPERATOR_REPORTED_FAILURE");
+});
+test("missing evidence, process, or interactive session never produces playability", () => {
+  for (const key of ["evidence","process","session"]) {
+    const x = fixture();
+    if(key==="evidence") x.operator.evidenceReference=null;
+    if(key==="process") x.minecraft.candidateProcessCount=0;
+    if(key==="session") x.windows.interactiveSession=false;
+    assert.equal(evaluateClientFeasibility(x).verdict, "INCONCLUSIVE");
+  }
+});
+test("environment snapshot cannot claim gameplay; unknown GL remains explicitly flagged", () => {
+  const x = fixture(); x.stage="ENVIRONMENT";
+  for(const k of ["menuRendered","worldRendered","inputResponsive","blockingGraphicsError"])x.operator[k]="UNKNOWN";
+  x.operator.evidenceReference=null;
+  x.graphics.openGl={status:"UNKNOWN",version:null};
+  const o=evaluateClientFeasibility(x);
+  assert.equal(o.verdict,"INCONCLUSIVE");
+  assert.ok(o.risks.includes("OPENGL_UNMEASURED"));
+});
+test("unknown schema, forged automatic pass and sensitive evidence paths rejected", () => {
+  for(const mutation of [x=>x.schema=2,x=>x.automaticVerdict="PASS",x=>x.operator.evidenceReference="C:\\account\\data",x=>x.stage="PASS"]) {
+    const x=fixture();mutation(x);
+    assert.throws(()=>evaluateClientFeasibility(x),TypeError);
+  }
+});

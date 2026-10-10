@@ -16,7 +16,11 @@ const required = [
   "apps/desktop/src-tauri/Cargo.toml", "apps/desktop/src-tauri/tauri.conf.json",
   "engine/runtime-core/Cargo.toml", "engine/distribution/release-channel.json",
   "tooling/acceptance/windows/collect-acceptance.ps1",
-  ".github/workflows/verify.yml", ".github/workflows/package-smoke.yml"
+  ".github/workflows/verify.yml", ".github/workflows/package-smoke.yml",
+  "docs/validation/client-feasibility.md",
+  "tooling/acceptance/windows/collect-client-feasibility.ps1",
+  "tooling/acceptance/evaluate-client-feasibility.mjs",
+  "tooling/acceptance/evaluate-client-feasibility.test.mjs"
 ];
 for (const file of required) {
   requireFact(existsSync(resolve(root, file)), "Missing canonical repository owner: " + file);
@@ -66,6 +70,13 @@ requireFact(rootPackage.scripts["check:runtime"].includes("engine/runtime-core/C
   "Runtime check route drift");
 requireFact(rootPackage.scripts["verify:source"].includes("npm run verify:repository"),
   "Aggregate source check omits repository contract");
+requireFact(rootPackage.scripts["test:feasibility"] ===
+  "node --test tooling/acceptance/evaluate-client-feasibility.test.mjs",
+  "Single guest feasibility regression route drift");
+requireFact(rootPackage.scripts["verify:source"].includes("npm run test:feasibility"),
+  "Aggregate source check must include client-feasibility evidence regressions");
+requireFact(read("tooling/acceptance/windows/new-stage-result.ps1").includes("'CLIENT_FEASIBILITY'"),
+  "Client feasibility evidence stage not recognized by acceptance recorder");
 
 requireFact(read("apps/desktop/src-tauri/Cargo.toml").includes('path = "../../../engine/runtime-core"'),
   "Tauri backend dependency points outside canonical engine");

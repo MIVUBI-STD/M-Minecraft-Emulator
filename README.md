@@ -28,6 +28,7 @@ Documentation: [docs/README.md](docs/README.md). Current work and continuation: 
 | --- | --- | --- |
 | Develop, refactor, repair, or improve repository | [AGENTS.md](AGENTS.md) → [.agents development procedure](.agents/skills/emulator-development/SKILL.md) | Existing source owner in `apps/` or `engine/` |
 | Examine VM behavior or diagnose setup | [Implementation Map](docs/system/implementation-map.md) → [Runtime Core](docs/system/runtime-core.md) | `engine/runtime-core/`, observed provider/guest evidence |
+| Prove Minecraft Education can render on one Windows VMware guest before scaling | [Client Feasibility](docs/validation/client-feasibility.md) | Scratch VM; diagnostics separate from manual game observation |
 | Verify Windows/VMware/Minecraft usability | [Validation](docs/validation/README.md) | Real machine and game observations; `tooling/acceptance/` collects bounded evidence |
 | Prepare package or validate update trust | [Distribution](engine/distribution/README.md) | Machine-readable contracts in `engine/distribution/` and Tauri package config |
 | Resume work without the previous chat | [Development Planning](planning/development.md) | Current `Local` source + explicit proof records |
@@ -82,6 +83,7 @@ All human-facing documentation routes start at `docs/README.md`. Product policie
 ```bash
 npm run setup                    # app lockfile install (optional local/cloud execution)
 npm run verify:repository        # static repository and cross-file contract verification
+npm run test:feasibility          # pure Node evidence classification regressions
 npm run test                     # desktop contract tests
 npm run check:desktop            # Svelte, frontend, desktop/Tauri source checks
 npm run check:runtime            # Rust canonical runtime checks

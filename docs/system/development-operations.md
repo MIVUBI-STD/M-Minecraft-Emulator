@@ -70,6 +70,12 @@ GitHub requires a `workflow_dispatch` workflow file to exist on the repository's
 
 **Decision (2026-10-10): keep all development on `Local`; leave `main` unchanged in its initial README-only state.** Do not bootstrap workflows on `main`, switch the default branch, or promote source merely to activate Actions. Keep the existing `Local` workflow YAML as optional source definitions, not runnable CI evidence. Execute source/build tests only through a separately authorized independent cloud/runner context that can check out the exact `Local` SHA, if one is actually available. Otherwise complete all GitHub-verifiable work and explicitly record executable proof as `NOT_EXECUTED`; never redirect ChatGPT-owned verification to the user's PC.
 
+## Single guest renderer compatibility pilot
+
+Before registering/finalizing a production Base, read [Client Feasibility](../validation/client-feasibility.md). The Windows guest collector is in `../../tooling/acceptance/windows/collect-client-feasibility.ps1`; it inspects a real interactive guest's video adapter/OpenGL context and captures separately attributed manual Minecraft menu, scene and input observations. The pure reviewer (`npm run feasibility:review -- <path-to-report.json>`) and its `npm run test:feasibility` regression tests do **not** launch Minecraft or assert official VM-client support.
+
+Source-only changes may be completed on GitHub `Local`, but guest graphics and gameplay remain `NOT_EXECUTED` without real machine evidence. Avoid asking for local PC access to close GitHub-only work. No changes to `main`.
+
 ## Real-machine evidence
 
 Read [Acceptance](../validation/acceptance.md) and [Failure Matrix](../validation/four-client-failure-matrix.md). The privacy-bounded Windows evidence collector lives in `../../tooling/acceptance/windows/collect-acceptance.ps1`. Running the collector does not prove Microsoft sign-in, 3D graphics or multiplayer unless separately observed.

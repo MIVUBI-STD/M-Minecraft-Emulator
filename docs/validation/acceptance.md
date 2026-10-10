@@ -9,6 +9,12 @@ lifecycle: ACTIVE
 
 # Virtual Clients Acceptance
 
+## Earlier hard feasibility gate — Minecraft Education inside a VM
+
+Before production Base registration, cloning or a four-client promise, follow [Single Guest Client Feasibility](./client-feasibility.md) with one **disposable** Windows VMware guest. Collect its measured OpenGL context, VMware video adapter/driver, and real Minecraft menu/world rendering and keyboard/mouse interaction. Stop multi-instance escalation if real rendering fails.
+
+This pilot does not need the manager's Base, Guest Agent or three-clone lifecycle and must not mutate production runtime state. Operator observations are not automatic game/VM support claims. Source-only development may continue independently even while target-machine pilot is `NOT_EXECUTED`.
+
 ## Source proof
 
 The canonical local source checkpoint must pass before target-machine acceptance:

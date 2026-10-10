@@ -21,6 +21,17 @@ The existing Virtual Clients policy caps each virtual guest at 4096 MB and confi
 
 The official requirements also caution that using emulators to run Minecraft Education on Linux is unsupported. This project does not claim official Minecraft Education support for running the game inside a VMware guest; Windows VMware support and Minecraft usability require actual compatibility evidence.
 
+## Critical graphics compatibility gap — first acceptance gate
+
+Minecraft Education lists integrated Intel HD Graphics 4400 / AMD Radeon R5 with **OpenGL 4.4** in its published PC GPU minimum (or supported discrete equivalents). VMware's documented guest 3D capability is **OpenGL 4.3** and **DirectX 11**. These specifications are not equivalent, and neither proves a particular Minecraft Education build fails or succeeds. Rendering may use another graphics path. Do **not** mark the product compatible merely because `mks.enable3d = TRUE`.
+
+Authoritative references:
+- Minecraft Education system requirements: https://edusupport.minecraft.net/hc/en-us/articles/360047556591-System-Requirements
+- VMware Workstation/Fusion graphics capabilities: https://www.vmware.com/products/desktop-hypervisor/workstation-and-fusion
+- Dedicated Server is VM-supported **unlike the client**: https://edusupport.minecraft.net/hc/en-us/articles/46913335157140-Dedicated-Server-System-Requirements
+
+**Proof-first action:** Use [Client Feasibility Gate](./client-feasibility.md) on **one disposable interactive Windows VMware guest** before creating the account-bearing immutable Base or three clones. Directly querying a guest OpenGL context is diagnostic; live Minecraft menu, input and a rendered world are the critical observations. Lack of guest-graphics evidence stays `UNKNOWN`, not PASS.
+
 ## Account identity, tenant and network
 
 Minecraft Education multiplayer requires the same Minecraft Education version for all participating clients, and regular peer-to-peer players are expected to use accounts in the same Microsoft 365 tenant. A valid individual Minecraft Education license is assigned to the relevant account. Merely having network access or a shared join code does not prove a usable session.

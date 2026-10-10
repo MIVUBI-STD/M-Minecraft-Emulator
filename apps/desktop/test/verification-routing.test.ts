@@ -9,6 +9,7 @@ describe("Emulator source verification routing", () => {
   it("has exactly one repository-to-desktop-to-runtime verification route", () => {
     expect(root.scripts["verify:source"].split(" && ")).toEqual([
       "npm run verify:repository",
+      "npm run test:feasibility",
       "npm run check:desktop",
       "npm run check:runtime",
       "npm run test:runtime",

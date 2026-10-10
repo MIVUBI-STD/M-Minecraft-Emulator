@@ -15,6 +15,7 @@ This is a **navigation guide**, not a second registry or copy of implementation 
 
 | Question / fault | Primary implementation owner | Consumer / companion |
 | --- | --- | --- |
+| Determine whether Minecraft Education can actually render within **one VMware Windows guest** | `tooling/acceptance/windows/collect-client-feasibility.ps1`, `tooling/acceptance/evaluate-client-feasibility.mjs` | [Client Feasibility](../validation/client-feasibility.md); no production VM mutation |
 | VM status, start/stop/suspend/restart/reprovision and rollback | `engine/runtime-core/src/runtime.rs` | `lifecycle_admission.rs`, provider implementation |
 | Lifecycle eligibility / guard decisions | `engine/runtime-core/src/lifecycle_admission.rs` | `runtime.rs`, `client.rs` |
 | First-run setup decision, environment problems | `engine/runtime-core/src/doctor.rs` | Desktop `src/app/setupFlow.ts`, `src/app/surfaces/SetupSurface.svelte` |

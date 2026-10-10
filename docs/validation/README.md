@@ -11,6 +11,7 @@ lifecycle: ACTIVE
 
 | Question | Authoritative reference |
 | --- | --- |
+| Can Minecraft Education render inside **one** VMware guest? | [Client Feasibility Gate](./client-feasibility.md) — before Base cloning |
 | What real tests must pass? | [Target-machine Acceptance](./acceptance.md) |
 | What is statically covered versus unproven? | [Static Readiness](./static-readiness.md) |
 | What specific four-client failures must be exercised? | [Four-Client Failure Matrix](./four-client-failure-matrix.md) |
@@ -20,6 +21,7 @@ lifecycle: ACTIVE
 
 ```text
 Exact GitHub source and static contract review
+→ independent single-guest Minecraft Education feasibility pilot (actual Windows VM required)
 → executed desktop/Rust checks
 → actual installer construction/package smoke
 → actual Windows + VMware Base/Guest observations

@@ -11,6 +11,12 @@ lifecycle: ACTIVE
 
 Base is the immutable parent for Virtual-01, Virtual-02, and Virtual-03.
 
+## Prerequisite: prove one Minecraft Education guest
+
+Before investing in Base finalization, linked clones or Microsoft account-bearing snapshots, use the [Single Guest Client Feasibility Gate](../validation/client-feasibility.md) on a **disposable, separate** Windows VMware VM. Minecraft Education's published minimum OpenGL 4.4 vs VMware's documented guest OpenGL 4.3 is a compatibility warning. Source configuration of 3D acceleration is not evidence of an actually rendered Minecraft world.
+
+Do not reuse an interactive, signed-in feasibility scratch guest as the immutable account-clean Base. A successful pilot identifies a candidate environment for later deliberate Base preparation, not a production-ready clone image.
+
 ## Required
 
 Base must keep:
