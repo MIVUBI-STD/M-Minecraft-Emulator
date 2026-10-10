@@ -35,8 +35,10 @@ No VM data migration, credential automation, newly implemented hypervisor, autom
 | --- | --- |
 | Canonical folder rename and cross-file references | `REMOTE_GITHUB`: Git tree, reference and ownership inspection; staged source verifier/test assertions, with final exact HEAD confirmation required |
 | Release-channel repository identity | Source pinned to `MIVUBI-STD/M-Minecraft-Emulator`; runtime self-apply disabled |
-| Desktop npm lock and Rust/Tauri versions | Source inspected; actual dependency installation and build `NOT_EXECUTED` |
+| Desktop npm lock and Rust/Tauri versions | `REMOTE_GITHUB STATIC`: 185 locked packages, 253 dependency edges resolved and no definite package semver mismatch; no observed incompatibility with Node 24.21.0. Dependency installation and executable build remain `NOT_EXECUTED`. |
 | Repository static verifier and desktop regression tests | Source authored; execution `NOT_EXECUTED` unless evidence is later obtained |
+| Installer required resources | `REMOTE_GITHUB STATIC`: pre-fix 12/15 package-contract files covered, fixed to 15/15 in commit `71507dfa`; Tauri resources and package-preparation static checks reconciled. Installer not built. |
+| GitHub manual workflow activation | `BLOCKED`: default branch `main` has only README, while `workflow_dispatch` workflows are only on `Local`. GitHub requires the workflow file on the default branch for manual dispatch. 0 workflow runs recorded. |
 | Source/backend compile and Rust tests | `NOT_EXECUTED` |
 | NSIS installer package smoke, Windows install/repair/uninstall | `NOT_EXECUTED` |
 | VMware Base/clone/lifecycle/identity and interactive Guest Agent | `NOT_EXECUTED` |
@@ -50,6 +52,23 @@ No VM data migration, credential automation, newly implemented hypervisor, autom
 3. If packaging is needed, run a separately authorized Windows NSIS package smoke, checking installed CLI/Guest Agent/scripts, data preservation and signature gates. Do not conflate an unsigned smoke with a release.
 4. For actual VM acceptance, follow [Acceptance](../docs/validation/acceptance.md), [Static Readiness](../docs/validation/static-readiness.md), and [Failure Matrix](../docs/validation/four-client-failure-matrix.md). Measure account isolation, guest launcher Windows session, CPU/RAM/GPU and Minecraft Education connectivity.
 5. Reopen architecture only for a diagnosed defect that the existing owner cannot correctly express. No speculative provider, VM manager or optimization system.
+
+## Source and Build Verification — 2026-10-10
+
+**Source under review:** `Local` at `59477cbbb270512eb1bc10a37f848bdff196f9d0`; packaging source repair `71507dfa0222d681a1a8684215a1b2db16fc95e1`. A newer HEAD must be re-pinned for actual execution.
+
+**Observed static results:**
+- All 116 mapped production source assets from the original Experimental snapshot remain present. 104 have byte-identical Git blob SHA; 12 were intentionally modified for extraction, paths or release routing.
+- 185 npm lock nodes and 253 declared dependency edges resolve within the desktop lock; no definite range mismatch was detected by static comparison. This is **not** `npm ci` execution.
+- Desktop/Tauri/backend/product versions match `0.1.0`. Cargo path dependency points to `engine/runtime-core/`.
+- Required Tauri package resources, machine-readable package contract, update repository pin and manual-only workflow triggers were reviewed. Three missing distribution payload mappings were corrected, bringing static coverage to **15/15**.
+- No `SOURCE_EXECUTION`, Windows package smoke, VMware run or Minecraft execution occurred; no run on GitHub Actions was available.
+
+**Execution blocker:** GitHub `workflow_dispatch` requires a workflow definition on the repository's default branch. The default `main` branch contains only `README.md`; workflows `.github/workflows/verify.yml` and `package-smoke.yml` exist only on `Local`. No connected GitHub workflow-dispatch action is exposed in this session. Do not report CI, build or tests as PASS.
+
+**Safest next action:** Obtain separate authorization for a minimal **manual workflow bootstrap on `main`** (workflow definitions only, not product source or release promotion), or use another authorized independent build runner. Only then execute the source verification on an exact `Local` SHA and inspect the actual run/job evidence. Keep `main` release authority and prohibit automatic push/pull_request triggers. After source PASS, separately request a Windows NSIS smoke; game/VM proof still requires its own environment.
+
+Reference: https://docs.github.com/en/actions/how-tos/manage-workflow-runs/manually-run-a-workflow
 
 ## STOP
 

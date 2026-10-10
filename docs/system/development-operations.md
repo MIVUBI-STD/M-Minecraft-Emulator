@@ -64,6 +64,12 @@ DEV.cmd package
 
 GitHub workflow files in `.github/workflows/` are `workflow_dispatch` only and may be invoked solely when appropriate. They are evidence tools, not a parallel source of readiness state. No push-based CI, unattended release or automatic promotion to `main`.
 
+### Manual workflow activation on this repository
+
+GitHub requires a `workflow_dispatch` workflow file to exist on the repository's **default branch** before it can be manually triggered. Currently `main` is the default and contains no workflow files; only `Local` has `verify.yml` and `package-smoke.yml`. Their YAML being syntactically present in `Local` therefore **does not mean the Actions UI or API can run them yet**. See [GitHub's manual-run requirement](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/manually-run-a-workflow).
+
+Bootstrapping the workflow definitions on `main` is an explicit repository-infrastructure decision and must **not** silently promote product source, change the default branch or enable push-triggered CI. Once approved and bootstrapped, select ref `Local`, run the appropriate manual workflow and record the exact HEAD, job status and logs. Until then report `SOURCE_EXECUTION` and `PACKAGE_EXECUTION` as `NOT_EXECUTED`, and keep current progress in `planning/development.md`.
+
 ## Real-machine evidence
 
 Read [Acceptance](../validation/acceptance.md) and [Failure Matrix](../validation/four-client-failure-matrix.md). The privacy-bounded Windows evidence collector lives in `../../tooling/acceptance/windows/collect-acceptance.ps1`. Running the collector does not prove Microsoft sign-in, 3D graphics or multiplayer unless separately observed.
