@@ -166,41 +166,42 @@ impl Provider for VmwareWorkstationProvider {
             ));
         }
 
-        let staging = staging_client_vmx_path(client)?;
-        remove_vm_container(&staging)?;
-        ensure_parent(&staging)?;
+        // Linked clone disk parent paths can depend on the destination
+        // directory. Clone directly to the final VMX: no unverified relocation.
+        // If a previous operation left partial data, preserve it and fail closed.
+        if target.parent().is_some_and(Path::exists) {
+            return Err(io::Error::new(
+                io::ErrorKind::AlreadyExists,
+                format!(
+                    "{} has an existing VM directory without a complete VMX; inspect it before retrying",
+                    client.as_str()
+                ),
+            ));
+        }
+        ensure_parent(&target)?;
 
         let clone_name = format!("-cloneName={}", client.as_str());
-        let clone_result = command_output_with_timeout(
+        command_output_with_timeout(
             self.require_vmrun()?,
             [
                 "-T",
                 "ws",
                 "clone",
                 base.to_string_lossy().as_ref(),
-                staging.to_string_lossy().as_ref(),
+                target.to_string_lossy().as_ref(),
                 "linked",
                 clone_name.as_str(),
             ],
             DISK_STATE_TIMEOUT,
-        );
-
-        if let Err(error) = clone_result {
-            // A failed clone may still have active VMware disk work. Preserve its
-            // staging artifacts for inspection instead of deleting them blindly.
-            return Err(error);
+        )?;
+        // Do not erase a failed clone or rewrite its disk metadata on error.
+        if !target.is_file() {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "VMware clone returned success but no final VMX exists; inspect the destination",
+            ));
         }
-
-        if let Err(error) = apply_virtual_hardware_policy(&staging) {
-            let _ = remove_vm_container(&staging);
-            return Err(error);
-        }
-
-        if let Err(error) = promote_staging_vm(&staging, &target) {
-            let _ = remove_vm_container(&staging);
-            return Err(error);
-        }
-
+        apply_virtual_hardware_policy(&target)?;
         Ok(ClientState::Stopped)
     }
 
