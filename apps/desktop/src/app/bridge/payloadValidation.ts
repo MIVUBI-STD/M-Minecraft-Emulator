@@ -11,7 +11,7 @@ const text: Check = (value) => typeof value === "string";
 const boolean: Check = (value) => typeof value === "boolean";
 const number: Check = (value) => typeof value === "number" && Number.isFinite(value) && value >= 0;
 const integer: Check = (value) => typeof value === "number" && value >= 0 && Number.isSafeInteger(value);
-const positiveInteger: Check = (value) => integer(value) && value > 0;
+const positiveInteger: Check = (value) => integer(value) && typeof value === "number" && value > 0;
 const hex64: Check = (value) => typeof value === "string" && /^[0-9a-fA-F]{64}$/.test(value);
 const nullable = (check: Check): Check => (value) => value === null || check(value);
 const optional = (check: Check): Check => (value) => value === undefined || check(value);
@@ -116,11 +116,11 @@ export const engineSnapshot = shape<EngineSnapshot>({
     runtime: runtimeStatus,
     host: shape({
       os: nullable(text), osVersion: nullable(text), cpu: nullable(text), logicalCpus: integer,
-      totalMemoryMb: integer, availableMemoryMb: integer, graphics: arrayOf(text),
+      totalMemoryMb: integer, availableMemoryMb: integer, graphics: array(text),
       hypervisorPresent: nullable(boolean), vbsStatus: nullable(integer),
     }),
     provider: shape({ id: nullable(text), version: nullable(text) }),
-    virtualHardware: arrayOf(shape({
+    virtualHardware: array(shape({
       id: virtualId, networkMode: nullable(text), networkRequiresAcceptance: boolean,
       networkConfigurationObserved: boolean, multiplayerVerified: boolean,
       graphics3dEnabled: nullable(boolean),

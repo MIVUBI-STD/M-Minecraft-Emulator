@@ -3,6 +3,14 @@
 Updated: 2026-10-10
 Authority: `MIVUBI-STD/M-Minecraft-Emulator`, branch `Local`. Current GitHub source HEAD always outranks this file.
 
+## Prior verified Windows build failures repaired in source — 2026-10-10
+
+**Scope:** Exact `Local` source fix for failures observed in the previously completed GitHub Actions runs [Source Verification #38067894851](https://github.com/MIVUBI-STD/M-Minecraft-Emulator/actions/runs/38067894851) and [Package Smoke #38067894820](https://github.com/MIVUBI-STD/M-Minecraft-Emulator/actions/runs/38067894820), both at historical SHA `515e076`. These logged three Svelte typecheck errors (`positiveInteger` unknown narrowing and two undefined `arrayOf` calls) and five Rust compiler errors (`guest_token` imported from the wrong module, and generic `fs::rename` passed without a lifetime-compatible closure). This change corrects those exact source causes in existing owners. **No GitHub Actions or automatic CI was triggered by the fix.** Rust/TypeScript executable confirmation at the new SHA remains **NOT_EXECUTED**. These build errors are not evidence of VMware/Minecraft feasibility failure.
+
+**Primary product outcome remains:** demonstrate one actual Minecraft Education Windows client inside one VMware Workstation guest: Windows desktop boots, licensed sign-in works, world renders, and input remains responsive. Existing guest feasibility collector/evaluator are available; this cannot be truthfully passed via source or hosted Windows runner without an interactive VMware guest. Do not extend micro-tests or restore automatic CI. `main` remains untouched; `Local` manual-only Actions configuration stays unchanged.
+
+**Next action:** obtain a genuinely executed same-SHA source/installer build only through an explicitly authorized on-demand execution route; then perform one disposable guest feasibility observation. Record exact evidence, not a synthetic PASS.
+
 ## E1 incomplete clone UI/status reconciliation — 2026-10-10
 
 **SOURCE_PATCHED / NOT_EXECUTED.** Commit `c8bcbd8` changes Workstation provider status for an existing VM directory with no VMX from an error result (which Doctor previously discarded) to the existing `ClientState::Error`. Doctor can now surface the occupied, unhealthy client as an issue instead of recommending clean provisioning. Runtime provisioning refuses to overwrite it; user VM files are preserved. No new state, schema, validator, or micro-test. This does **not** reconstruct missing VMX/profile or prove Windows behavior. Node/Rust/Tauri/Windows execution still NOT_EXECUTED.

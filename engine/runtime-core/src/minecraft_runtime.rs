@@ -9,8 +9,7 @@ use crate::{
         guest_agent_launch_compatible, launch_guest_minecraft, query_guest_status,
         GUEST_AGENT_PROTOCOL_VERSION,
     },
-    paths::guest_token,
-    provider::Provider,
+    provider::{guest_token, Provider},
 };
 
 pub fn ensure_running(provider: &dyn Provider, client: ClientId) -> io::Result<()> {

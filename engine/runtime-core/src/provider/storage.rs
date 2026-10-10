@@ -38,7 +38,7 @@ pub(crate) fn cutover_staged_vm(
     final_vmx: &Path,
     backup_dir: &Path,
 ) -> io::Result<()> {
-    cutover_staged_vm_with_rename(staged_vmx, final_vmx, backup_dir, fs::rename)
+    cutover_staged_vm_with_rename(staged_vmx, final_vmx, backup_dir, |from, to| fs::rename(from, to))
 }
 
 // Rename injection belongs to the existing filesystem owner, not a new
