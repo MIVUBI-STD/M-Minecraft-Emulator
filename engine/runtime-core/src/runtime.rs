@@ -257,6 +257,30 @@ fn restore_batch_state(
     failed
 }
 
+// Stopping multiple guests is not atomic: never silently restart a stopped
+// guest during recovery. Report observed provider states after a failure.
+fn stop_targets(
+    provider: &dyn Provider,
+    targets: &[ClientId],
+    mut admit: impl FnMut(ClientId) -> io::Result<()>,
+) -> io::Result<()> {
+    for &client in targets {
+        if let Err(error) = admit(client).and_then(|_| provider.stop(client).map(|_| ())) {
+            let observed = targets.iter().map(|&target| {
+                let state = provider.status(target)
+                    .map(|state| format!("{state:?}"))
+                    .unwrap_or_else(|read_error| format!("UNKNOWN({read_error})"));
+                format!("{}={state}", target.as_str())
+            }).collect::<Vec<_>>().join(", ");
+            return Err(io::Error::new(error.kind(), format!(
+                "Stop batch interrupted at {}: {error}. Partial completion possible; observed VM states: {observed}. Inspect status before retrying.",
+                client.as_str()
+            )));
+        }
+    }
+    Ok(())
+}
+
 fn with_rollback_context(error: io::Error, failed: &[&'static str]) -> io::Error {
     if failed.is_empty() {
         return error;
@@ -1559,22 +1583,9 @@ impl VirtualClients {
         };
 
         let mut result = Vec::with_capacity(targets.len());
-        let mut stopped_by_batch = Vec::new();
-        for client in &targets {
-            let client = *client;
-            let original_state = provider.status(client)?;
-            if let Err(error) = check_action_admission(provider.as_ref(), client, LifecycleAction::Stop) {
-                let failed = restore_batch_state(provider.as_ref(), &stopped_by_batch);
-                return Err(with_rollback_context(error, &failed));
-            }
-            if let Err(error) = provider.stop(client) {
-                let failed = restore_batch_state(provider.as_ref(), &stopped_by_batch);
-                return Err(with_rollback_context(error, &failed));
-            }
-            if original_state != ClientState::Stopped {
-                stopped_by_batch.push((client, original_state));
-            }
-        }
+        stop_targets(provider.as_ref(), &targets, |client| {
+            check_action_admission(provider.as_ref(), client, LifecycleAction::Stop)
+        })?;
 
         let working_sets = provider.host_working_sets_mb()?;
         let native_profile = native_minecraft_profile();
@@ -1762,7 +1773,7 @@ impl VirtualClients {
 #[cfg(test)]
 mod tests {
     use super::{
-        classify_identity_state, guest_probe_error_is_terminal, restore_batch_state,
+        classify_identity_state, guest_probe_error_is_terminal, restore_batch_state, stop_targets,
         vm_identity_state,
     };
     use crate::profile::BaseState;
@@ -2058,6 +2069,44 @@ mod tests {
             vm_identity_state(&unreadable, ClientId::Virtual01),
             IdentityState::Unknown
         );
+    }
+
+    #[test]
+    fn stop_batch_reports_partial_completion_without_restarting_guests() {
+        let provider = FakeProvider {
+            fail_stop: Some(ClientId::Virtual02),
+            ..FakeProvider::new(
+                [ClientState::Running, ClientState::Running, ClientState::Running],
+                [None, None, None],
+            )
+        };
+        let targets = [ClientId::Virtual01, ClientId::Virtual02, ClientId::Virtual03];
+        let error = stop_targets(&provider, &targets, |_| Ok(())).unwrap_err();
+        assert!(error.to_string().contains("Partial completion possible"));
+        assert!(error.to_string().contains("Virtual-01=Stopped"));
+        assert!(error.to_string().contains("Virtual-02=Running"));
+        assert!(error.to_string().contains("Virtual-03=Running"));
+        assert_eq!(provider.state(ClientId::Virtual01).unwrap(), ClientState::Stopped);
+        assert_eq!(provider.state(ClientId::Virtual03).unwrap(), ClientState::Running);
+    }
+
+    #[test]
+    fn stop_batch_admission_failure_preserves_unattempted_clients() {
+        let provider = FakeProvider::new(
+            [ClientState::Running, ClientState::Running, ClientState::Running],
+            [None, None, None],
+        );
+        let targets = [ClientId::Virtual01, ClientId::Virtual02, ClientId::Virtual03];
+        let error = stop_targets(&provider, &targets, |client| {
+            if client == ClientId::Virtual02 {
+                Err(io::Error::new(io::ErrorKind::PermissionDenied, "injected admission failure"))
+            } else {
+                Ok(())
+            }
+        }).unwrap_err();
+        assert_eq!(error.kind(), io::ErrorKind::PermissionDenied);
+        assert!(error.to_string().contains("Virtual-01=Stopped"));
+        assert!(error.to_string().contains("Virtual-03=Running"));
     }
 
     #[test]
