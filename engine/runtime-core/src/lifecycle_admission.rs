@@ -177,11 +177,10 @@ pub(super) fn evaluate_lifecycle_admission(
         return blocked("Base compatibility with Native and Guest Agent cannot be verified.");
     }
     if action == LifecycleAction::Reprovision {
-        return if facts.base_finalized_and_stopped {
-            state
-        } else {
-            blocked("Base must be finalized and stopped before recreating a client.")
-        };
+        // The current VMware provider replaces the account-bearing VM before
+        // it can guarantee clone success. Block the action in both UI and API
+        // admission until provider/storage implements recoverable cutover.
+        return blocked("Recreate client is temporarily unavailable until VM and account data can be preserved on failure.");
     }
     if !facts.client_compatible {
         return blocked("This client no longer matches Native. Recreate the affected client.");
@@ -482,7 +481,7 @@ mod tests {
             client_compatible: false,
             ..admitted_facts(ClientState::Stopped)
         };
-        assert!(super::evaluate_lifecycle_admission(
+        assert!(!super::evaluate_lifecycle_admission(
             ClientId::Virtual01, LifecycleAction::Reprovision, &facts,
         ).allowed);
         facts.base_finalized_and_stopped = false;
