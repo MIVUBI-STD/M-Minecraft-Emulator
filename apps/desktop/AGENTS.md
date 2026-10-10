@@ -1,10 +1,10 @@
 # Virtual Clients Desktop Rules
 
-Applies to `apps/virtual-clients/`.
+Applies to `apps/desktop/`.
 
 ## Boundary
 
-This is the canonical Tauri 2 + Svelte desktop application for the Virtual Clients Rust backend under `virtual-clients/runtime-core/`.
+This is the canonical Tauri 2 + Svelte desktop application for the Virtual Clients Rust backend under `engine/runtime-core/`.
 
 ## Rules
 
@@ -24,6 +24,6 @@ This is the canonical Tauri 2 + Svelte desktop application for the Virtual Clien
 - User-facing feature name is **Window Layout**. `window_arrangement` is only an internal Windows adapter/command implementation term.
 - Window Layout geometry has one owner: `src-tauri/src/engine/window_arrangement.rs`; Screen Overlay consumes its slots and never calculates a second layout.
 - Public Window Layout mutation has one path: `window_apply_layout`. Do not restore legacy arrange/overlay mutation commands.
-- Guest Minecraft launch policy belongs to `virtual-clients/runtime-core/src/minecraft_runtime.rs`; desktop code does not infer Guest Agent capability.
+- Guest Minecraft launch policy belongs to `engine/runtime-core/src/minecraft_runtime.rs`; desktop code does not infer Guest Agent capability.
 - Do not add Start Session, account-state detection, auth automation, forced network mode, GPU thresholds, reconnect machinery, or another launcher owner without target-machine evidence recorded in the canonical acceptance/failure matrix.
 - Do not retain unused public commands or speculative engines for a future consumer; add them when a proven workflow needs them.

@@ -2,57 +2,54 @@
 id: document.system.architecture
 class: DOCUMENT
 domain: system
-role: CANONICAL
+role: CONTRACT
 authority: CANONICAL
 lifecycle: ACTIVE
 ---
 
-# Architecture
+# Emulator Architecture
 
-## Scope
+## Product scope
 
-Manage one native Minecraft Education client and at most three isolated VMware guest clients. The user controls gameplay and Microsoft sign-in. The program is a VM manager, not a native Minecraft engine emulator or general VM hypervisor. Release-ready or four-client support has not been demonstrated on a real target machine.
+Minecraft Education VM multi-instance manager for one Native client and up to three VMware Virtual clients. This is neither an implementation of Minecraft's engine nor a generic hypervisor. Source-level architecture is available; complete real-machine acceptance is separate.
 
-## One execution and truth path
+## One runtime owner per responsibility
 
 ```text
-Svelte 5 UI (apps/virtual-clients/src)
-    ↓ typed facade
-Tauri 2 commands (apps/virtual-clients/src-tauri/src/commands)
-    ↓ thin adapter, no duplicated lifecycle policies
-Rust VM authority (virtual-clients/runtime-core)
-    ├── doctor / initial setup decision
-    ├── lifecycle admission / state, immutable Base and snapshots
-    ├── identity, Native/Base/Virtual version parity
-    ├── pressure monitoring and staggered starts
-    ├── guest protocol and launch
-    └── provider abstraction
-        ├── VMware Workstation (Windows)
-        └── VMware Fusion (macOS)
+Svelte desktop UI (apps/desktop/src)
+    ↓ typed bridge (apps/desktop/src/app/bridge)
+Thin Tauri command adapters (apps/desktop/src-tauri/src/commands)
+    ↓ public Rust contract
+Rust canonical runtime-core (engine/runtime-core)
+    ├── doctor / one first-run setup decision
+    ├── lifecycle admission, provenance, identity, version parity
+    ├── provider reconciliation and resource pressure
+    ├── guest protocol / interactive Minecraft launcher
+    ├── recovery / snapshots / staged update
+    └── VMware provider
+        ├── Workstation (Windows)
+        └── Fusion (macOS)
     ↓
-Windows guest and fixed-scope Guest Agent
+Windows guest and bounded Agent scripts (engine/guest/windows)
 ```
 
-Desktop-native screen/window layout is owned only by `apps/virtual-clients/src-tauri/src/engine/`; it never certifies that a guest is signed in or has joined multiplayer.
+Desktop window arrangement/overlay is a desktop-native operation in `apps/desktop/src-tauri/src/engine/`; it never determines VM readiness. `engine/distribution/` owns machine-readable installer and trusted-release policy.
 
 ## Critical invariants
 
-- One Native Minecraft version authority; mismatched Base or virtual lineage blocks unsafe operations.
-- Base is registered and finalized before clone. Reprovision is explicit and destroys only the selected guest state.
-- Three virtual clients have isolated guest disks, unique identities and per-VM tokens. Accounts stay inside the correct guest.
-- First run uses backend `DoctorReport.nextSetupAction` as sole setup owner. The UI never persists a second setup-complete state.
-- Provider operations must be observable, bounded and fail closed on uncertainty.
-- VM RUNNING, Guest Agent reachable, Minecraft process running, Minecraft signed in, and multiplayer ready are separate observations.
-- No auto-kill on memory pressure and no fictitious GPU/FPS optimization controls.
-- App updates may be staged; runtime self-apply and unattended provider/Minecraft installation remain disabled.
-- Installed `M-Bedrock Virtual Clients` identity and data paths are a compatibility boundary; a new repo title must not silently rewrite them.
+- Rust is the only provider/lifecycle/readiness decision authority; Svelte presents state, not a second lifecycle manager.
+- Native Minecraft is the version authority. Guest Base and live Virtual lineage must match.
+- A stopped, finalized Base is required for a safe clone; normal VM operations do not destroy selected account-bearing state.
+- Per-Virtual Guest Agent authentication, Windows identity and Microsoft account sessions must remain isolated.
+- Provider power state, Guest Agent response, process execution, signed-in game UI and actual multiplayer usability are distinct evidence.
+- Memory and vCPU limits are configuration, not measured GPU/RAM/game performance proof.
+- App updates may stage trusted files, but automatic self-apply remains off.
+- Source-path cleanup never renames installed `M-Bedrock Virtual Clients`, its Windows identifier, guest wire protocol, snapshot identity or persisted runtime path.
 
-## Proof boundaries
+## Proof boundary
 
-Static source review is not a Windows build. A Windows build is not proof of VMware's session, GPU, account isolation or four-client multiplayer. Reference acceptance authority: `../../virtual-clients/docs/acceptance.md`.
+Use [Validation](../validation/README.md) for source, package, VM and game proof. Review the [Implementation Map](./implementation-map.md) before changing a consumer. Windows NSIS is the declared desktop packaging route; Fusion source exists but a macOS desktop release is not yet accepted.
 
-The backend provider includes a macOS implementation, but Windows NSIS is the currently specified desktop distribution path. Any macOS installer/support claim requires its own proof.
+## Provenance
 
-## Source extraction
-
-The functional VM source was preserved from `MIVUBI-STD/M-Lazy-Developer` `Experimental` commit `89cb8691f6757d287707bb8cae2d0d810b751404`. Its map inspection and repair engine are **not** part of this repo. Governance follows the modular responsibility/proof approach of that project's `Local` branch.
+Product source was separated from `MIVUBI-STD/M-Lazy-Developer` `Experimental` at commit `89cb8691f6757d287707bb8cae2d0d810b751404`. This history is not an active runtime dependency.

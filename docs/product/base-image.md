@@ -1,3 +1,12 @@
+---
+id: document.product.base-image
+class: DOCUMENT
+domain: product
+role: GUIDE
+authority: CANONICAL
+lifecycle: ACTIVE
+---
+
 # Virtual Clients Base Image
 
 Base is the immutable parent for Virtual-01, Virtual-02, and Virtual-03.

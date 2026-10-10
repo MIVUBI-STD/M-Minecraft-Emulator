@@ -43,4 +43,4 @@ The first acceptance target should be a real Windows host using VMware Workstati
 
 ## Evidence rule
 
-Do not infer four interactive Minecraft Education sessions from configured 3D acceleration, four running VM processes, memory availability, or official minimum specifications. Use the canonical exact-machine acceptance and failure matrix under `../../virtual-clients/docs/`.
+Do not infer four interactive Minecraft Education sessions from configured 3D acceleration, four running VM processes, memory availability, or official minimum specifications. Use the canonical exact-machine acceptance and failure matrix under [Validation](./README.md), especially the [Acceptance](./acceptance.md) and [Failure Matrix](./four-client-failure-matrix.md).

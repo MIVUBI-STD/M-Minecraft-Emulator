@@ -1,6 +1,8 @@
-# Virtual Clients Distribution
+# Emulator Distribution and Update Contracts
 
-Distribution is separate from runtime lifecycle.
+Distribution policy is separate from runtime lifecycle. Canonical source owner: `engine/distribution/`; update transport/validation lives in `engine/runtime-core/src/update.rs` and the packaged consumer in `apps/desktop/src-tauri/`.
+
+The installed product is still named **M-Bedrock Virtual Clients**. The repository rename must not silently change signed asset naming, installed state paths, Windows product identifier, release tag format, or package contents.
 
 ## Release identity
 

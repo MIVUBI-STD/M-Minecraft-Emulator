@@ -1,0 +1,59 @@
+---
+id: document.system.implementation-map
+class: DOCUMENT
+domain: system
+role: GUIDE
+authority: CANONICAL
+lifecycle: ACTIVE
+---
+
+# Implementation Ownership Map
+
+This is a **navigation guide**, not a second registry or copy of implementation truth. For an issue, select its responsibility, then inspect the exact owning source and affected consumers.
+
+## Locate work by problem
+
+| Question / fault | Primary implementation owner | Consumer / companion |
+| --- | --- | --- |
+| VM status, start/stop/suspend/restart/reprovision and rollback | `engine/runtime-core/src/runtime.rs` | `lifecycle_admission.rs`, provider implementation |
+| Lifecycle eligibility / guard decisions | `engine/runtime-core/src/lifecycle_admission.rs` | `runtime.rs`, `client.rs` |
+| First-run setup decision, environment problems | `engine/runtime-core/src/doctor.rs` | Desktop `src/app/setupFlow.ts`, `src/app/surfaces/SetupSurface.svelte` |
+| Base provenance, immutable finalized image and parity | `engine/runtime-core/src/profile.rs`, `base_preparation.rs` | `engine/guest/windows/prepare-base.ps1`, `finalize-base.ps1` |
+| VMware Workstation/Fusion operations and VMX | `engine/runtime-core/src/provider/` | `runtime.rs`, `diagnostics.rs` |
+| Identity and guest disk isolation | `engine/runtime-core/src/identity.rs`, `provider/vmx.rs` | `profile.rs`, `engine/guest/windows/` |
+| Guest Agent authenticated status/launch | `engine/runtime-core/src/guest.rs`, `src/bin/virtual-guest-agent.rs` | `engine/guest/windows/install-guest-agent.ps1` |
+| Native Minecraft detection and executable constraints | `engine/runtime-core/src/minecraft_runtime.rs`, `profile.rs` | `guest.rs`, `doctor.rs` |
+| RAM/CPU resource pressure and start admission | `engine/runtime-core/src/resources.rs`, `policy.rs` | `runtime.rs`, `capacity.rs` |
+| State schema, durable profile and recovery | `engine/runtime-core/src/schema.rs`, `persistence.rs` | `journal.rs`, `runtime.rs` |
+| Update policy, signed-asset manifest, installer integrity | `engine/runtime-core/src/update.rs`, `engine/distribution/` | Tauri package configurations, package smoke |
+| Product desktop navigation / visual state | `apps/desktop/src/App.svelte`, `src/app/surfaces/` | `src/contracts.ts`, `src/view-model.ts` |
+| Typed frontend/backend IPC and contract validation | `apps/desktop/src/app/bridge/` | `apps/desktop/src-tauri/src/commands/` |
+| Desktop-native window layout, DPI and overlay | `apps/desktop/src-tauri/src/engine/` | `src-tauri/src/commands/window_arrangement.rs` |
+| Windows package contents/install lifecycle | `engine/distribution/package-contract.json`, `install-lifecycle-policy.json` | `apps/desktop/src-tauri/tauri*.json`, `scripts/prepare-package-binaries.mjs` |
+| Target Windows machine acceptance collector | `tooling/acceptance/windows/` | [Validation](../validation/README.md) |
+| Root scripts, tooling pin/metadata and source checks | `package.json`, `toolchain.json`, `tooling/repository/verify.mjs` | `tooling/windows-toolchain/dev.ps1`, `.github/workflows/` |
+
+## Domain boundaries
+
+```text
+UI intent → typed desktop bridge → thin Tauri command
+→ Rust runtime policy → VMware provider / bounded Guest Agent
+→ observed facts → Rust status contract → desktop projection
+```
+
+UI never decides or stores whether the Base, guest or signed-in session is ready. The runtime does not own Windows window layout presentation. Documentation never replaces either.
+
+## Route by work type
+
+| Work | First navigation |
+| --- | --- |
+| Change engine behavior | [Runtime Core](./runtime-core.md) → listed Rust owner → source tests |
+| Improve desktop | `apps/desktop/README.md` → affected Svelte/Tauri owner |
+| Base image or guest Windows concern | [Base Image](../product/base-image.md) → `engine/guest/windows/` |
+| Package/release safety | `engine/distribution/README.md` → contract JSON → Tauri consumer |
+| Investigate VM/game acceptance | [Acceptance](../validation/acceptance.md) → [Failure Matrix](../validation/four-client-failure-matrix.md) |
+| Continue unfinished repo work | `planning/development.md` + current GitHub `Local` HEAD |
+
+## Exact lookup rule
+
+Identify one first wrong owner and only its caller/test dependency closure. Search the entire repository only when a concrete cross-domain reference remains unresolved. Source, machine-readable contracts and actual runtime evidence take precedence over overview text. Keep obsolete implementation names in Git history, **not** duplicated source folders.

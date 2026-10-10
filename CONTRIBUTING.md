@@ -1,13 +1,27 @@
-# Contributing
+# Contributing to M-Minecraft-Emulator
 
-`Local` is the development branch; `main` is stable/release-only.
+## Branch and operating mode
 
-For every change, follow `AGENTS.md` and `GITHUB_RULES.md`. Locate one canonical owner and identify its consumers. Prefer changes that preserve public contracts and guest disks. Avoid speculative managers, broad renames, compatibility aliases without consumers, and unbounded VM retries.
+`Local` is active development; `main` is stable/release-only. Product source changes use the [Emulator Development procedure](.agents/skills/emulator-development/SKILL.md), [GitHub Rules](GITHUB_RULES.md) and [Development Discipline](docs/system/development-discipline.md).
 
-**Check hierarchy:** repository static layout → focused source tests → cross-platform Rust/desktop checks → installer/package smoke → real Windows/VMware → Minecraft Education → four-client acceptance.
+ChatGPT's normal route is GitHub-first and source-verifiable. Do not make user-local Node/Rust/VMware execution a prerequisite for remote repository editing.
 
-Use focused logical commits such as `fix(runtime): ...`, `feat(desktop): ...`, `test(guest): ...`, or `docs(acceptance): ...`. Source tests and machine acceptance are different proof levels. Never claim one from the other.
+## Before any change
 
-Do not commit runtime data, VM images, Microsoft sessions, Minecraft account details, world files, signing keys, log captures, downloaded installers or build outputs.
+Find the first wrong canonical owner via `docs/system/implementation-map.md`. Identify its consumers, verify positive/negative impact, and preserve stable runtime identity and account-bearing data. Do not add a second path, helper, state store or compatibility shim for an existing responsibility.
 
-No automatic GitHub Actions workflows or deployment. Test commands are documented in `docs/system/development-operations.md` and are optional higher-level verification when actual execution is available; ChatGPT source-only tasks use GitHub directly.
+## Code and tests
+
+- Keep typed Tauri command adapters thin; lifecycle and provider policies belong to Rust.
+- Follow canonical module responsibilities and keep destructive VM operations explicit and preconditioned.
+- Unit tests cover invariants; a written regression test is `NOT_EXECUTED` until actually run.
+- Prefer targeted source verification over automatic expensive CI.
+- Prefer one named implementation and Git history to `-new`, `-final`, `-v2` copies of internal code. Public schema versions remain explicit.
+
+## Repository hygiene
+
+Never commit VMware disks, guest/session images, Microsoft sign-in material, Minecraft worlds, signer keys, machine telemetry, build directories, generated support captures or `node_modules`. See `SECURITY.md`.
+
+## Commit and handoff
+
+Commit one coherent change to `Local`; cite exact SHA and proof level. Record significant ongoing work in `planning/development.md`. Stop when the requested outcome and its source-level acceptance are complete.

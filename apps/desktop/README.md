@@ -1,6 +1,6 @@
 # Virtual Clients Desktop
 
-Canonical user-facing desktop source for M-Bedrock Virtual Clients. Non-UI product authority lives under `../../virtual-clients/`.
+Canonical user-facing desktop source for M-Bedrock Virtual Clients. Non-UI product authority lives under `../../engine/`.
 
 ## Stack
 
@@ -33,7 +33,7 @@ src/                         presentation + ephemeral UI state
 src/app/bridge/              typed Tauri boundary
 src-tauri/src/commands/      thin adapters
 src-tauri/src/engine/        desktop-native behavior only
-virtual-clients/runtime-core/
+engine/runtime-core/
                              VM lifecycle/domain authority
 ```
 
@@ -75,7 +75,7 @@ Base creation and Windows Sysprep remain guided user steps because the backend h
 
 From repository root, use `npm run verify:source` as the optional complete developer checkpoint. The root route includes the app's Svelte/Vitest/build/Tauri checks and the canonical backend crate's check, tests and rustfmt. App-local `verify:source` covers the desktop but does not replace the backend's own checks.
 
-Prepare desktop dependencies from `apps/virtual-clients/package-lock.json` with `npm --prefix apps/virtual-clients ci`. The new repository root has no Bedrock analysis engine dependencies. Use the pinned Node/npm versions in toolchain.json, the
+Prepare desktop dependencies from `apps/desktop/package-lock.json` with `npm --prefix apps/desktop ci`. The new repository root has no Bedrock analysis engine dependencies. Use the pinned Node/npm versions in toolchain.json, the
 Rust toolchain used by the Virtual Clients backend workflow (including rustfmt),
 and Windows desktop build prerequisites. See
 [Development Operations](../../docs/system/development-operations.md).

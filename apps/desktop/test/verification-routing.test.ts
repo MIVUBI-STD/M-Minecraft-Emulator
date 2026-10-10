@@ -1,0 +1,38 @@
+import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+
+const root = JSON.parse(readFileSync(new URL("../../../package.json", import.meta.url), "utf8"));
+const app = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
+const router = readFileSync(new URL("../../../tooling/windows-toolchain/dev.ps1", import.meta.url), "utf8");
+
+describe("Emulator source verification routing", () => {
+  it("has exactly one repository-to-desktop-to-runtime verification route", () => {
+    expect(root.scripts["verify:source"].split(" && ")).toEqual([
+      "npm run verify:repository",
+      "npm run check:desktop",
+      "npm run check:runtime",
+      "npm run test:runtime",
+      "npm run format:runtime",
+    ]);
+    expect(root.scripts["check:desktop"]).toBe("npm --prefix apps/desktop run verify:source");
+    expect(root.scripts["check:runtime"]).toContain("engine/runtime-core/Cargo.toml");
+    expect(root.scripts["test:runtime"]).toContain("engine/runtime-core/Cargo.toml");
+  });
+
+  it("runs desktop tests and source compilation checks without packaging", () => {
+    expect(app.scripts["verify:source"]).toBe(
+      "npm run typecheck && npm run test && npm run build:frontend && npm run check:rust && npm run test:rust",
+    );
+    expect(app.scripts["check:rust"]).toContain("npm run prepare:icons && cargo check");
+    expect(app.scripts["test:rust"]).toContain("cargo test --all-targets");
+    expect(root.scripts["verify:source"]).not.toMatch(/build:app|dev:app|vmrun/);
+  });
+
+  it("routes the optional Windows entrypoint through source checks", () => {
+    expect(router).toContain('"check"');
+    expect(router).toContain("npm run verify:source");
+    expect(router).toContain('"setup"');
+    expect(router).toContain("npm run setup");
+    expect(router).not.toMatch(/virtual-clients:verify|M-Bedrock-Dev/);
+  });
+});

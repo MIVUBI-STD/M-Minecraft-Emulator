@@ -1,37 +1,53 @@
 # Emulator Agent Routing
 
-## Branch and source authority
+This file defines repository-wide routing and non-negotiable boundaries only. The detailed development procedure belongs to `.agents/skills/emulator-development/SKILL.md`, and implementation semantics belong to their actual source owner.
 
-`Local` is the remote GitHub development branch. `main` is release-only. A local checkout or user PC is not required to complete ChatGPT-owned source work. Never silently fall back to `main`.
+## Priority and branch
 
-Use `GITHUB_RULES.md` for GitHub mutation and evidence rules, `CONTEXT.md` for stable invariants, and `planning/development.md` for current handoff. Current code and exact HEAD supersede stale planning text.
+Current user intent guides bounded work, subject to source authority, safety and available proof. `Local` is the active **remote GitHub branch**; `main` is stable/release-only. Never silently fall back to main.
 
-## Task routing
+For material writes read `GITHUB_RULES.md`, pin exact `Local` HEAD, and consult `docs/system/implementation-map.md` before broad searching. `CONTEXT.md` holds stable facts; `planning/development.md` holds current continuation. Current source wins if either document is stale.
 
-| Task | First owner |
-| --- | --- |
-| Guest provisioning / lifecycle / snapshots / resource policy | `virtual-clients/runtime-core/` |
-| VMware details and reconciliation | `virtual-clients/runtime-core/src/provider/` |
-| Guest Agent protocol / interactive launcher | `virtual-clients/runtime-core/src/guest.rs`, `virtual-clients/runtime-core/src/bin/virtual-guest-agent.rs`, `virtual-clients/guest/` |
-| Desktop UX / setup / window layout | `apps/virtual-clients/` |
-| Packaged application or update trust | `virtual-clients/distribution/`, desktop Tauri package config |
-| Windows/VMware/Minecraft acceptance | `virtual-clients/acceptance/`, `virtual-clients/docs/acceptance.md` |
-| Current roadmap, blockers and progress | `planning/development.md` |
-| Speculative/temporary studies | `experiments/` |
+## Execution and evidence
 
-## Mandatory development discipline
+Use the strongest **actually available** evidence context:
 
-1. Pin repository, branch, HEAD, and canonical owner before material edits.
-2. Distinguish observed source, inference, test execution and actual Minecraft/VMware proof.
-3. Trace consumer contracts and trust boundaries before edits.
-4. Prefer no change, removal or a correction in the existing owner over new managers, aliases and duplicate state machines.
-5. Preserve existing VM data paths, installed identity and schema contracts without explicit migration/proof.
-6. Commit one coherent change to `Local`, inspect the resulting exact HEAD, record verification and unresolved evidence, then STOP.
-7. Do not create automatic CI or publish a release without explicit approval.
-8. Never request account passwords/tokens or automate Microsoft sign-in/MFA to meet a readiness claim.
+```text
+REMOTE_GITHUB → exact-source / static contract review
+SOURCE_EXECUTION → actually run Node, Svelte, Rust and Tauri checks
+PACKAGE_EXECUTION → actual Windows installer construction/inspection
+TARGET_WINDOWS → VMware, guest identity, interactive Windows session
+MINECRAFT_RUNTIME → live Education sign-in, gameplay, peer-to-peer network
+FOUR_CLIENT_ACCEPTANCE → Native plus three Virtuals concurrently accepted
+```
 
-## Evidence vocabulary
+Never promote one rung into another. Absence of runtime or source execution evidence is `NOT_EXECUTED`, not PASS.
 
-`SOURCE_REVIEWED`, `SOURCE_TESTED`, `PACKAGE_TESTED`, `TARGET_WINDOWS_VERIFIED`, `VMWARE_VERIFIED`, `MINECRAFT_VERIFIED`, `FOUR_CLIENT_ACCEPTED`. Levels are independent and may only be claimed with corresponding actual evidence.
+GitHub/ChatGPT source work is remote-first. Do not demand the user's PC, a checkout, installs, or running Minecraft just to complete source-verifiable repository work. If an observed machine capability is genuinely needed, record the unresolved evidence instead of guessing.
 
-No automatic elevation from a VM process to gameplay or multiplayer readiness. If evidence is unavailable, mark it `NOT_EXECUTED` or `UNKNOWN` and complete every source-level task that is still possible.
+## Operator routes
+
+| Request | Procedure | Owner / artifact |
+| --- | --- | --- |
+| Improve or repair product, UI, source, packaging code, repo organization | `SYSTEM DEVELOPMENT` → `.agents/skills/emulator-development/SKILL.md` | `docs/system/implementation-map.md`, existing code |
+| Review environment, VM provisioning or guest issues | `DIAGNOSE` | Rust runtime/VMware source + observed evidence |
+| Measure or validate Windows/Minecraft runtime | `RUNTIME ACCEPTANCE` | `docs/validation/acceptance.md`, `tooling/acceptance/windows/` |
+| Windows package / signing / release | `PACKAGE VERIFICATION` | `engine/distribution/`, Tauri package config; manual gate |
+
+A diagnosis does not automatically authorize code changes or a destructive VM action. No operator mode automatically publishes to `main`.
+
+## Canonical owners
+
+- Backend lifecycle, doctor, version parity, providers, resource policy, Guest Agent protocol: `engine/runtime-core/`.
+- Guest Windows preparation/agent install: `engine/guest/windows/`.
+- Machine-readable release and installer policy: `engine/distribution/`.
+- User-facing UI/typed Tauri bridge/window arrangement: `apps/desktop/`.
+- Source verification, optional developer commands and acceptance collectors: `tooling/`.
+- Stable architecture and how-to: `docs/`.
+- Current work and actual evidence handoff: `planning/`.
+
+No duplicate lifecycle authority, agent/network gateway, credentials store, or parallel setup-complete flag. Do not alter installed app identity, Windows data paths, snapshots, signed-release format, or public wire schemas as an incidental folder rename.
+
+## Completion rule
+
+Identify one owner, trace consumers, make the smallest complete change, evaluate relevant static/regression evidence, record exact SHA and remaining `UNKNOWN`, then STOP. Avoid cosmetic renames and speculative restructuring.

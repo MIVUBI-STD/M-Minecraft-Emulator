@@ -1,3 +1,12 @@
+---
+id: document.validation.four-client-failure-matrix
+class: DOCUMENT
+domain: validation
+role: REFERENCE
+authority: CANONICAL
+lifecycle: ACTIVE
+---
+
 # Virtual Clients — Four-Client Failure Matrix
 
 Status: REMOTE_GITHUB scenario model. This is not runtime proof.

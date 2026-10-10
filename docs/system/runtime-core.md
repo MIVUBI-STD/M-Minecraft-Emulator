@@ -1,3 +1,12 @@
+---
+id: document.system.runtime-core
+class: DOCUMENT
+domain: system
+role: CONTRACT
+authority: CANONICAL
+lifecycle: ACTIVE
+---
+
 # Virtual Clients Runtime Core
 
 ## Product boundary
@@ -187,7 +196,7 @@ Not exposed today:
 
 ## Frontend boundary
 
-The user-facing desktop lives at `apps/virtual-clients/`; this runtime core is owned by `virtual-clients/runtime-core/` and is consumed through typed Tauri commands. It must not duplicate provider, lifecycle, parity, update, resource, identity, or recovery policy.
+The user-facing desktop lives at `apps/desktop/`; this runtime core is owned by `engine/runtime-core/` and is consumed through typed Tauri commands. It must not duplicate provider, lifecycle, parity, update, resource, identity, or recovery policy.
 
 `DoctorReport.nextSetupAction` is the sole first-run decision owner. Desktop presentation may classify that action as app-owned, user-guided, client-manager, or blocked for UX purposes, but it must refresh backend truth after every step and must never persist its own setup-completion state.
 

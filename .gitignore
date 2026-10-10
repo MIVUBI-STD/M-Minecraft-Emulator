@@ -35,3 +35,13 @@ Thumbs.db
 workspace/evidence/
 workspace/captures/
 workspace/private/
+
+# VM/storage images and local runtime material
+*.vhd
+*.vhdx
+*.pvm
+workspace/images/
+workspace/runtime/
+workspace/diagnostics/
+engine/runtime-core/runtime/
+engine/runtime-core/images/

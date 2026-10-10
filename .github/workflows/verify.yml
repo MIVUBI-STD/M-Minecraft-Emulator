@@ -20,15 +20,15 @@ jobs:
         with:
           node-version: 24.21.0
           cache: npm
-          cache-dependency-path: apps/virtual-clients/package-lock.json
+          cache-dependency-path: apps/desktop/package-lock.json
       - name: Rust toolchain
         shell: pwsh
         run: |
           rustup toolchain install 1.98.1 --profile minimal --component rustfmt
           rustup default 1.98.1
       - name: Install exact desktop dependency lock
-        run: npm --prefix apps/virtual-clients ci --no-audit --no-fund
+        run: npm --prefix apps/desktop ci --no-audit --no-fund
       - name: Verify exact repository contract
-        run: npm run verify:layout
+        run: npm run verify:repository
       - name: Complete source checks (desktop and canonical backend)
         run: npm run verify:source

@@ -1,3 +1,12 @@
+---
+id: document.validation.acceptance
+class: DOCUMENT
+domain: validation
+role: PROCEDURE
+authority: CANONICAL
+lifecycle: ACTIVE
+---
+
 # Virtual Clients Acceptance
 
 ## Source proof

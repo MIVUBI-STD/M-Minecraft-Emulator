@@ -1,59 +1,55 @@
 # Emulator Development Handoff
 
 Updated: 2026-10-10
-Authority: `MIVUBI-STD/M-Minecraft-Emulator`, branch `Local`.
+Authority: `MIVUBI-STD/M-Minecraft-Emulator`, branch `Local`. Current GitHub source HEAD always outranks this file.
 
-## Current state
+## Current product status
 
-**Source extraction and repository separation completed.** This is NOT the same as application-ready, package-ready or four-client-ready.
+The emulator/VM manager is now an independent repository with a canonical root and source ownership scheme aligned to the working discipline of `M-Lazy-Developer/Local`.
 
-- Source snapshot: `MIVUBI-STD/M-Lazy-Developer` `Experimental` @ `89cb8691f6757d287707bb8cae2d0d810b751404`.
-- Source migration: `625511ac905dc053e35ecc806463aaa16970ec77`.
-- Desktop tests decoupled from the old monorepo: Vitest dependency added to app manifest/lock; root source command delegates to app and canonical backend.
-- Release metadata and pinned Rust policy now point to `MIVUBI-STD/M-Minecraft-Emulator` (legacy origin rejected in a source-level regression test). No trusted release is claimed.
-- New repo governance follows the one-owner, GitHub-first, source-vs-runtime-proof approach of M-Lazy-Developer `Local`, not its map-audit implementation.
-- Original installed application identity and persisted VM/runtime paths remain unchanged intentionally.
+Scope is **repository setup/navigation and source-path separation**, not proof that Windows, VMware and Minecraft Education work together. Do not claim that any tests were executed merely because test source exists or the repository was refactored.
 
-## Proof ledger
+## Completed source work
 
-| Claim | Status | Evidence |
-| --- | --- | --- |
-| Product domain source copied into `Local` | VERIFIED_GITHUB | 123/123 source files present; 116 identical Git blob IDs; 7 intentional changes for standalone repository setup/security |
-| Source architecture and known interfaces reviewed | STATIC_REVIEWED | Source and original docs, Rust owner/consumer inspection |
-| GitHub cross-file and lock inspection | VERIFIED_GITHUB_STATIC | 0 missing domain files, desktop/Tauri/backend versions 0.1.0 aligned; all 185 app lock nodes with no unresolved declared dependency edges; release pin matches this repo |
-| Root layout/source contract validator | NOT_EXECUTED | Script added; no Node execution proof yet |
-| Desktop npm dependency installation and Vitest | NOT_EXECUTED | Lock merged statically; install/test must be executed for PASS |
-| Svelte/Tauri source build + Rust tests | NOT_EXECUTED | No compilation claim |
-| Windows NSIS package smoke / signing | NOT_EXECUTED | No installer claim |
-| VMware Workstation/Fusion host/guest lifecycle | NOT_EXECUTED | Requires provider/OS evidence |
-| Minecraft Education session, sign-in, GPU, multiplayer | NOT_EXECUTED | Requires real game/runtime evidence |
-| Native + Virtual-01/02/03 accepted concurrently | NOT_EXECUTED | Target objective, not present proof |
+- Original dedicated extraction: `M-Lazy-Developer` `Experimental` @ `89cb8691f6757d287707bb8cae2d0d810b751404`, initially migrated into this repository on `Local`.
+- Canonical root entry: `README.md`, `AGENTS.md`, `GITHUB_RULES.md`, `CONTEXT.md`, `CONTRIBUTING.md`, `SECURITY.md`, `VERSION`, `package.json`, `toolchain.json`, and optional `DEV.cmd`.
+- `apps/desktop/`: one user interface and typed desktop/Tauri adapter.
+- `engine/runtime-core/`: one Rust runtime and VMware provider authority.
+- `engine/guest/windows/`, `engine/distribution/`: guest setup and machine-readable installer/update contracts.
+- `docs/`: one documentation router with `product/`, `system/`, and `validation/` domains; old product-local docs path retired.
+- `tooling/repository/`, `tooling/windows-toolchain/`, `tooling/acceptance/windows/`: verifier, optional developer commands, real-machine evidence collection.
+- `.agents/skills/emulator-development/`: one bounded development procedure; no duplicate VM state owner.
+- Old monorepo-style `virtual-clients/` and `apps/virtual-clients/` source paths retired. Cargo/Tauri/NSIS sources and consumer tests updated to the new paths.
+- `verification-routing.test.ts` originally asserted a deleted `virtual-clients:verify` script. It now asserts the actual source verification command chain.
 
-## Immediate development route
+## Compatibility and non-goals
 
-1. **Repository closure:** verify the final branch tree, canonical paths, Tauri/Rust version matches, app lock dependency closure, and no old-monorepo release/config pointers. Fix only concrete migration defects.
-2. **Executable source gate (when execution context exists):** app `npm ci`, Svelte/Vitest/Tauri checks, `cargo check/test/fmt` backend, with exact HEAD evidence. Do not ask a user to execute these merely to finish ChatGPT-owned GitHub source work.
-3. **Package gate:** manual Windows unsigned NSIS smoke; verify bundled CLI/Guest Agent/preparation scripts, installation/repair/uninstall preservation. Trusted release workflow/signing remains a separate expressly authorized task.
-4. **Windows + VMware acceptance:** Base state, guest provisioning/identity, SYSTEM Guest Agent → interactive user launch, persistent independent account sessions, network and layout.
-5. **Four-client acceptance:** Native + three virtual clients, manual switching, Minecraft Education join/host, memory/CPU/GPU observation, disconnect/reconnect, suspend/resume, host restart and failure isolation.
+This source reorganization **does not** rename or delete the existing installed `M-Bedrock Virtual Clients` application identity, package binary names, snapshot `QA_READY`, `M-Bedrock/VirtualClients` persistent data path, provider state, registered Base images or per-VM Microsoft account sessions.
 
-External platform baseline: Minecraft Education lists Windows 10/11 **64-bit** support, 2 GB minimum and 8 GB recommended RAM (February 2026 change). The Virtual Clients 4 GB guest memory ceiling is below that device recommendation and is not a measured success criterion. Peer-to-peer Minecraft Education joins require compatible versions and the same Microsoft 365 tenant. See `docs/validation/platform-prerequisites.md`.
+No VM data migration, credential automation, newly implemented hypervisor, automatic update/apply, CI on push or release to `main` is authorized by the repository setup.
 
-## Highest-risk unverified boundaries
+## Evidence ledger
 
-- Actual concurrent GPU/CPU/RAM performance; 4096 MB/2-vCPU per virtual is a policy, not proof.
-- Windows Guest Agent service/session 0 to interactive desktop crossover.
-- Account/license/tenant authorization and guest session isolation.
-- Base finalization, first-boot generalization and independent guest Windows identity.
-- NAT/firewall + Minecraft multiplayer host/join behavior.
-- Installer/repair/signing behavior and update trust on the target machine.
+| Claim | Evidence / state |
+| --- | --- |
+| Canonical folder rename and cross-file references | `REMOTE_GITHUB`: Git tree, reference and ownership inspection; staged source verifier/test assertions, with final exact HEAD confirmation required |
+| Release-channel repository identity | Source pinned to `MIVUBI-STD/M-Minecraft-Emulator`; runtime self-apply disabled |
+| Desktop npm lock and Rust/Tauri versions | Source inspected; actual dependency installation and build `NOT_EXECUTED` |
+| Repository static verifier and desktop regression tests | Source authored; execution `NOT_EXECUTED` unless evidence is later obtained |
+| Source/backend compile and Rust tests | `NOT_EXECUTED` |
+| NSIS installer package smoke, Windows install/repair/uninstall | `NOT_EXECUTED` |
+| VMware Base/clone/lifecycle/identity and interactive Guest Agent | `NOT_EXECUTED` |
+| Minecraft Education sign-in, graphics, network and multi-client usability | `NOT_EXECUTED` |
+| Native + Virtual-01/02/03 concurrent acceptance | `NOT_EXECUTED` |
 
-## Architectural choice
+## Next substantive development route
 
-Continue the **existing VMware provider architecture** for the first working Windows proof, rather than starting a custom hypervisor or pretending this is a Minecraft engine emulator. Keep the macOS Fusion backend source, but do not imply an accepted macOS desktop release. Any change in virtualization strategy requires concrete feasibility and compatibility evidence.
+1. Verify the current `Local` exact HEAD's repository structure, consumed Cargo/Tauri resource paths, docs links and source test assumptions. Fix only concrete migration defects.
+2. When source execution can be completed independently, run the locked desktop TypeScript/Vitest/Tauri checks and Rust runtime `cargo check/test/fmt` on the **same SHA**. Manual GitHub Actions are an optional last-resort evidence path; do not demand a user PC as a ChatGPT source-work prerequisite.
+3. If packaging is needed, run a separately authorized Windows NSIS package smoke, checking installed CLI/Guest Agent/scripts, data preservation and signature gates. Do not conflate an unsigned smoke with a release.
+4. For actual VM acceptance, follow [Acceptance](../docs/validation/acceptance.md), [Static Readiness](../docs/validation/static-readiness.md), and [Failure Matrix](../docs/validation/four-client-failure-matrix.md). Measure account isolation, guest launcher Windows session, CPU/RAM/GPU and Minecraft Education connectivity.
+5. Reopen architecture only for a diagnosed defect that the existing owner cannot correctly express. No speculative provider, VM manager or optimization system.
 
-## Next task and STOP
+## STOP
 
-Source extraction and targeted GitHub cross-file verification are complete. Next: **executed source/package verification when an appropriate execution context is available**; otherwise inspect a concrete backend/Windows-guest boundary only if there is a source-level defect to repair. Never substitute missing Windows/Minecraft runtime proof with speculative source refactoring.
-
-Update this file at the next meaningful milestone with exact commit and proof (including `UNKNOWN` if needed).
+Once exact-head source navigation and reference integrity are proven, stop repository tidying. Subsequent work is evidence-driven product development, not repeated cosmetic cleanup.

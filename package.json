@@ -3,20 +3,21 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Dedicated Minecraft Education multi-instance VM manager",
+  "description": "Minecraft Education VMware multi-instance management workspace",
   "engines": {
     "node": "24.x"
   },
   "packageManager": "npm@11.19.0",
   "scripts": {
-    "verify:layout": "node tooling/verify-repository.mjs",
-    "dev": "npm --prefix apps/virtual-clients run dev:app",
-    "test": "npm --prefix apps/virtual-clients run test",
-    "check:desktop": "npm --prefix apps/virtual-clients run verify:source",
-    "check:runtime": "cargo check --locked --all-targets --manifest-path virtual-clients/runtime-core/Cargo.toml",
-    "test:runtime": "cargo test --locked --all-targets --manifest-path virtual-clients/runtime-core/Cargo.toml",
-    "format:runtime": "cargo fmt --manifest-path virtual-clients/runtime-core/Cargo.toml --all --check",
-    "verify:source": "npm run verify:layout && npm run check:desktop && npm run check:runtime && npm run test:runtime && npm run format:runtime",
-    "package:windows": "npm --prefix apps/virtual-clients run build:app"
+    "setup": "npm --prefix apps/desktop ci --no-audit --no-fund",
+    "dev": "npm --prefix apps/desktop run dev:app",
+    "verify:repository": "node tooling/repository/verify.mjs",
+    "test": "npm --prefix apps/desktop run test",
+    "check:desktop": "npm --prefix apps/desktop run verify:source",
+    "check:runtime": "cargo check --locked --all-targets --manifest-path engine/runtime-core/Cargo.toml",
+    "test:runtime": "cargo test --locked --all-targets --manifest-path engine/runtime-core/Cargo.toml",
+    "format:runtime": "cargo fmt --manifest-path engine/runtime-core/Cargo.toml --all --check",
+    "verify:source": "npm run verify:repository && npm run check:desktop && npm run check:runtime && npm run test:runtime && npm run format:runtime",
+    "package:windows": "npm --prefix apps/desktop run build:app"
   }
 }

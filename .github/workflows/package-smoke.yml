@@ -1,4 +1,4 @@
-name: Virtual Clients Package Smoke
+name: Emulator Windows Package Smoke
 
 on:
   workflow_dispatch:
@@ -16,14 +16,14 @@ jobs:
     timeout-minutes: 40
     defaults:
       run:
-        working-directory: apps/virtual-clients
+        working-directory: apps/desktop
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
           node-version: 24.21.0
           cache: npm
-          cache-dependency-path: apps/virtual-clients/package-lock.json
+          cache-dependency-path: apps/desktop/package-lock.json
       - name: Install Rust 1.98.1
         shell: pwsh
         run: |

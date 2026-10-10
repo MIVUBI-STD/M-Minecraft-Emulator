@@ -9,19 +9,24 @@ lifecycle: ACTIVE
 
 # Validation and Evidence
 
-Read the canonical [Virtual Clients Acceptance](../../virtual-clients/docs/acceptance.md), [Static Readiness Freeze](../../virtual-clients/docs/static-readiness-freeze.md), and [Four-Client Failure Matrix](../../virtual-clients/docs/four-client-failure-matrix.md).
+| Question | Authoritative reference |
+| --- | --- |
+| What real tests must pass? | [Target-machine Acceptance](./acceptance.md) |
+| What is statically covered versus unproven? | [Static Readiness](./static-readiness.md) |
+| What specific four-client failures must be exercised? | [Four-Client Failure Matrix](./four-client-failure-matrix.md) |
+| What does the Minecraft/VMware platform officially require? | [Platform Prerequisites](./platform-prerequisites.md) |
 
-Platform constraints and dated external sources: [Platform Prerequisites](./platform-prerequisites.md).
-
-## Evidence ladder
+## Evidence hierarchy
 
 ```text
-Remote static source and lock references
-→ executed focused frontend/Rust checks
-→ Windows installer package smoke
-→ real VMware host and Base/guest lifecycle
-→ interactive Minecraft Education sign-in and version parity
-→ Native + three virtuals, multiplayer and failure recovery
+Exact GitHub source and static contract review
+→ executed desktop/Rust checks
+→ actual installer construction/package smoke
+→ actual Windows + VMware Base/Guest observations
+→ Minecraft Education sign-in, usable UI and multiplayer
+→ Native + Virtual-01/02/03 full concurrent acceptance
 ```
 
-Do not treat a lower rung as proof of a higher one. Each failed stage belongs to a concrete existing source owner or an unresolved environment/acceptance requirement.
+A lower level cannot authorize the next. Machine collector source lives in `../../tooling/acceptance/windows/`; a completed collection proves only the fields directly observed. Player/gameplay acceptance still requires real Minecraft evidence.
+
+Verification jobs are manual-only; `planning/development.md` records open proof status, not this router.

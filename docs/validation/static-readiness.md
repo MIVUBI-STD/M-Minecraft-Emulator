@@ -1,3 +1,12 @@
+---
+id: document.validation.static-readiness
+class: DOCUMENT
+domain: validation
+role: REFERENCE
+authority: CANONICAL
+lifecycle: ACTIVE
+---
+
 # Virtual Clients — Static Readiness Freeze
 
 Status: REMOTE_GITHUB source boundary. This document is not target-machine proof.
@@ -58,7 +67,7 @@ The following remain intentionally unproven by source inspection:
 
 ## Acceptance entrypoint
 
-Use `acceptance/windows/collect-acceptance.ps1` for machine evidence. A collected field is evidence only for what it directly observes. In particular:
+Use `tooling/acceptance/windows/collect-acceptance.ps1` for machine evidence. A collected field is evidence only for what it directly observes. In particular:
 
 - `connectionHealth=MINECRAFT_RUNNING` means a Minecraft process was observed;
 - `networkMode` records a provider network configuration only when one was observed;
