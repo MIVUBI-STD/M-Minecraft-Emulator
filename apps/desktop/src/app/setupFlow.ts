@@ -93,8 +93,8 @@ const flows: Record<SetupAction, SetupExperience> = {
   REPROVISION_VIRTUALS: {
     owner: "CLIENTS",
     phase: "CLIENTS",
-    title: "Recreate outdated clients",
-    description: "One or more virtual clients no longer match the current environment. Recreate only the affected clients.",
+    title: "Review client compatibility",
+    description: "At least one virtual client's saved environment does not have verified matching lineage. Recreation is disabled to protect its Windows and Minecraft account data. Review diagnostics; no automatic repair is available.",
     primaryLabel: "Review clients",
     steps: [],
   },

@@ -109,13 +109,15 @@ describe("Virtual Clients presentation projection", () => {
   it("uses backend setup action as the only setup decision", () => {
     expect(actionLabel("VERIFY_IDENTITIES")).toBe("Check virtual clients");
     expect(actionLabel("READY")).toBe("Setup complete");
+    expect(actionLabel("REPROVISION_VIRTUALS")).toBe("Review client compatibility");
+    expect(setupHint("REPROVISION_VIRTUALS")).toMatch(/recreation is disabled/i);
     expect(setupHint("FINALIZE_BASE")).not.toMatch(/sysprep|provenance|base/i);
   });
 
   it("formats update states without inventing update policy", () => {
     expect(updateLabel("UP_TO_DATE")).toBe("Up to date");
     expect(updateLabel("UPDATE_AVAILABLE")).toBe("Update available");
-    expect(updateLabel("UPDATE_STAGED")).toBe("Update ready to install");
+    expect(updateLabel("UPDATE_STAGED")).toBe("Installer prepared");
   });
 });
 

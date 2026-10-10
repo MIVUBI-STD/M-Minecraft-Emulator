@@ -62,9 +62,13 @@ describe("Virtual Clients first-run presentation", () => {
     expect(setupPhaseIndex("CREATE_READY_SNAPSHOTS")).toBe(3);
   });
   it("uses one recreation term in setup navigation and guidance", () => {
-    expect(actionLabel("REPROVISION_VIRTUALS")).toBe("Recreate outdated clients");
+    expect(actionLabel("REPROVISION_VIRTUALS")).toBe("Review client compatibility");
     expect(setupExperience("REPROVISION_VIRTUALS").title).toBe(actionLabel("REPROVISION_VIRTUALS"));
     expect(setupExperience("REPROVISION_VIRTUALS").owner).toBe("CLIENTS");
+    expect(setupExperience("REPROVISION_VIRTUALS").description).toMatch(/recreation is disabled/i);
+    const clients = readFileSync(new URL("../src/app/surfaces/ClientsSurface.svelte", import.meta.url), "utf8");
+    expect(clients).toContain('on:click={onSupport}>Open Support</button>');
+    expect(clients).not.toContain("One or more clients need to be recreated");
   });
 
   it("labels completed setup without claiming gameplay readiness", () => {

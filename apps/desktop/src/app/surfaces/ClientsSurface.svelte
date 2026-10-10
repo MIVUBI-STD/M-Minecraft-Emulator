@@ -75,16 +75,17 @@
 {:else if setupAction === "REPROVISION_VIRTUALS"}
   <section class="setup-client-banner">
     <div>
-      <span class="eyebrow">SETUP · RECREATE</span>
-      <strong>One or more clients need to be recreated</strong>
-      <small>Recreation is currently unavailable to protect saved Windows and Minecraft sessions. Open Support for the current diagnostic state; do not delete VM files manually.</small>
+      <span class="eyebrow">SETUP · COMPATIBILITY</span>
+      <strong>Review client compatibility</strong>
+      <small>One or more clients have unverified or mismatched environment lineage. Recreation is disabled to preserve saved Windows and Minecraft sessions; do not delete VM files manually.</small>
     </div>
+    <button class="secondary" disabled={Boolean(busy)} on:click={onSupport}>Open Support</button>
   </section>
 {/if}
 
 <section class="batch-bar">
   <div>
-    <strong>{runningVirtuals ? `${runningVirtuals} running` : "All clients are stopped"}{pausedVirtuals ? ` · ${pausedVirtuals} paused` : ""}</strong>
+    <strong>{runningVirtuals} running{pausedVirtuals ? ` · ${pausedVirtuals} paused` : ""}</strong>
     <small>{hostResourceMessage}</small>
   </div>
   <div class="batch-actions">
