@@ -67,6 +67,12 @@ Do not create `lifecycle/` or `provision/` until the first repair and focused te
 
 For each bounded change: pin current Local HEAD; read first owner and consumers; write focused regression before claiming a fix; commit with truthful `Work`, `State`, `Proof`, `Unresolved`, `Next`; capture exact new SHA and remaining unexecuted proof; STOP. Preserve older entries as historical evidence rather than rewriting them as completed.
 
+## B1b startup recovery source patch — 2026-10-10
+
+**State:** SOURCE_PATCHED / EXECUTION_UNPROVEN. `Local` commit `34b69742e31868aaec5cc1b7dd791b1dddb2cccf` moves Minecraft Education launch and VMware window opening inside the existing `execute_start_batch` verification/rollback boundary. The rollback retains its original policy: newly started clients are stopped after failed current-client verification, earlier new clients are restored to their original power states, and preexisting RUNNING clients are not stopped. Two targeted FakeProvider regression tests were authored for post-boot failure; actual Rust compilation/tests and VMware/game execution remain NOT_EXECUTED. A VM power-state rollback cannot undo a game process launched in a preexisting RUNNING VM; game readiness still requires separate observed proof.
+
+**Next single source task:** B1c safe reprovision: avoid deleting old profile/VM before a candidate clone and recovery cutover are validated. Preserve explicit destructive consent; design fail-closed behavior around ambiguous disk mutation and snapshots.
+
 ## Pre-local-test source readiness audit — 2026-10-10
 
 **Status: SOURCE_REVIEWED / BUILD_UNPROVEN; PRE_LOCAL_READY = NO.** Only the `Local` branch is authorized; `main` stays README-only. User requires completing all source and package preparation gates before first target-PC test, not repeated ad hoc local tests.
