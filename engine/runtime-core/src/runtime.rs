@@ -22,7 +22,7 @@ use crate::{
     profile::{
         client_lineage_parity, current_base_vmx_path, identity_fingerprint, load_base_profile,
         load_client_profile, native_minecraft_profile, profile_status,
-        remove_client_profile, require_base_launch_protocol, require_base_matches_native, require_client_matches_native, write_client_profile,
+        require_base_launch_protocol, require_base_matches_native, require_client_matches_native, write_client_profile,
         write_verified_base_profile, write_verified_client_identities, BaseProfile, BaseState,
         MinecraftProfile, ProfileParity, ProfileStatus,
     },
@@ -1167,44 +1167,14 @@ impl VirtualClients {
                 "reprovision requires explicit account-state destruction confirmation",
             ));
         }
-
-        let profile = require_base_matches_native()?;
-        let native = profile.native.ok_or_else(|| {
-            io::Error::new(
-                io::ErrorKind::NotFound,
-                "Native Minecraft Education version could not be detected",
-            )
-        })?;
-        let base_generation_id = profile.base.as_ref().map(|base| base.base_generation_id.clone()).ok_or_else(|| {
-            io::Error::new(io::ErrorKind::NotFound, "registered Base generation is unavailable")
-        })?;
-        let base = current_base_vmx_path()?;
-        if base_state_for_path(&base)? != Some(BaseState::Finalized) {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidInput,
-                "Base must be FINALIZED with finalize-base.ps1 before reprovisioning",
-            ));
-        }
-
-        let _lock = OperationLock::acquire()?;
-        cleanup_staging()?;
-        let provider = current_platform_provider().ok_or_else(|| {
-            io::Error::new(
-                io::ErrorKind::NotFound,
-                "virtualization provider is unavailable",
-            )
-        })?;
-        check_action_admission(provider.as_ref(), client, LifecycleAction::Reprovision)?;
-
-        // Reprovision currently deletes the account-bearing directory before
-        // the replacement clone succeeds. Fail closed until staged cutover can
-        // preserve the old VM and its client-profile.json on every error.
+        // This operation previously removed the saved profile and the entire
+        // account-bearing VM before the new clone existed. Until a recoverable
+        // cutover is implemented, reject it without touching disks or profiles.
         Err(io::Error::new(
             io::ErrorKind::Unsupported,
-            "Reprovision temporarily disabled: replacement is not yet recoverable. Existing VM, snapshots and account profile are preserved.",
+            "Reprovision is temporarily disabled until VM and account data can be preserved on failure.",
         ))
     }
-
 
     fn verify_identities_inner(&self) -> io::Result<Vec<ClientStatus>> {
         require_base_matches_native()?;
