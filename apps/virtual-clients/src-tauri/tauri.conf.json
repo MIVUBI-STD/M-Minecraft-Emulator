@@ -1,0 +1,70 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "M-Bedrock Virtual Clients",
+  "version": "0.1.0",
+  "identifier": "com.mivubi.mbedrock.virtualclients",
+  "build": {
+    "beforeDevCommand": "npm run dev:frontend",
+    "devUrl": "http://127.0.0.1:1421",
+    "beforeBuildCommand": "npm run build:frontend",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "M-Bedrock Virtual Clients",
+        "width": 1180,
+        "height": 760,
+        "minWidth": 920,
+        "minHeight": 620,
+        "resizable": true,
+        "fullscreen": false
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' ipc: http://ipc.localhost; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "category": "Utility",
+    "publisher": "MIVUBI-STD",
+    "shortDescription": "Desktop manager for multiple Minecraft Education virtual clients.",
+    "longDescription": "M-Bedrock Virtual Clients manages isolated Minecraft Education virtual clients while keeping virtualization, account setup, recovery, and diagnostics under explicit user control.",
+    "copyright": "Copyright © MIVUBI-STD",
+    "targets": [
+      "nsis"
+    ],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.ico"
+    ],
+    "resources": {
+      "../../../virtual-clients/guest/windows/": "guest/windows/",
+      "../../../virtual-clients/acceptance/windows/": "acceptance/windows/",
+      "../../../virtual-clients/distribution/release-channel.json": "distribution/release-channel.json",
+      "../../../virtual-clients/distribution/package-contract.json": "distribution/package-contract.json"
+    },
+    "windows": {
+      "allowDowngrades": false,
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper",
+        "silent": true
+      },
+      "nsis": {
+        "installMode": "currentUser",
+        "languages": [
+          "English"
+        ],
+        "displayLanguageSelector": false,
+        "installerIcon": "icons/icon.ico",
+        "uninstallerIcon": "icons/icon.ico",
+        "startMenuFolder": "M-Bedrock Virtual Clients",
+        "installerHooks": "windows/installer-hooks.nsh"
+      }
+    }
+  }
+}
