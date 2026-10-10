@@ -8,7 +8,6 @@
   export let readyVirtuals: number;
   export let busy: string;
   export let onContinue: () => void | Promise<void>;
-  export let onOpenClients: () => void;
   export let onSupport: () => void;
   export let onOpenBaseLocation: () => void | Promise<void>;
   export let onOpenSetupTools: () => void | Promise<void>;
@@ -38,12 +37,10 @@
     {/if}
   </div>
   <div class="setup-action">
-    {#if experience.owner === "APP" && action !== "READY"}
+    {#if experience.owner === "APP"}
       <button class="primary large" disabled={Boolean(busy)} on:click={onContinue}>
         {busy === "setup" ? "Working…" : experience.primaryLabel}
       </button>
-    {:else if experience.owner === "CLIENTS" || action === "READY"}
-      <button class="primary large" on:click={onOpenClients}>{action === "READY" ? "Finish setup" : experience.primaryLabel}</button>
     {:else if experience.owner === "BLOCKED"}
       <button class="secondary large" on:click={onSupport}>{experience.primaryLabel}</button>
     {:else}

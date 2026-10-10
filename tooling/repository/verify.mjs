@@ -18,6 +18,8 @@ const required = [
   "tooling/acceptance/windows/collect-acceptance.ps1",
   ".github/workflows/verify.yml", ".github/workflows/package-smoke.yml",
   "docs/validation/client-feasibility.md",
+  "docs/product/four-concurrent-accounts.md",
+  "tooling/acceptance/windows/probe-native-multi-instance.ps1",
   "tooling/acceptance/windows/collect-client-feasibility.ps1",
   "tooling/acceptance/evaluate-client-feasibility.mjs",
   "tooling/acceptance/evaluate-client-feasibility.test.mjs"
@@ -75,6 +77,17 @@ requireFact(rootPackage.scripts["test:feasibility"] ===
   "Single guest feasibility regression route drift");
 requireFact(rootPackage.scripts["verify:source"].includes("npm run test:feasibility"),
   "Aggregate source check must include client-feasibility evidence regressions");
+requireFact(read("apps/desktop/src/App.svelte").includes(
+  "!shouldShowClientControls(snapshot.doctor.nextSetupAction)"),
+  "Client-owned setup actions must show real client controls, not the setup wizard");
+const nativeProbe = read("tooling/acceptance/windows/probe-native-multi-instance.ps1");
+requireFact(nativeProbe.includes("[string]$Mode = 'OBSERVE'") &&
+  nativeProbe.includes("simultaneousDistinctAccounts = 'NOT_VERIFIED'") &&
+  nativeProbe.includes("verdict = 'INCONCLUSIVE'"),
+  "Native multi-instance probe must remain read-only by default and unverified");
+requireFact(read("docs/product/four-concurrent-accounts.md").includes(
+  "four independent Minecraft Education game windows"),
+  "Four-client end-user outcome was removed from canonical product contract");
 requireFact(read("tooling/acceptance/windows/new-stage-result.ps1").includes("'CLIENT_FEASIBILITY'"),
   "Client feasibility evidence stage not recognized by acceptance recorder");
 

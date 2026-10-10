@@ -3,6 +3,22 @@
 Updated: 2026-10-10
 Authority: `MIVUBI-STD/M-Minecraft-Emulator`, branch `Local`. Current GitHub source HEAD always outranks this file.
 
+## Current approved MVP goal — four simultaneous accounts on one PC (2026-10-10)
+
+The user clarified the whole product requirement: **one Windows computer, four independent Minecraft Education windows, four legitimately licensed accounts signed in at the same time, all responsive**. Nothing beyond this is a first milestone. The implementation mechanism should be the simplest that truly meets the outcome; VM tooling must not become a user-facing prerequisite if native multi-instance works.
+
+**Evidence-first route:**
+1. Direct Windows second-native launch feasibility **first**. Source probe `tooling/acceptance/windows/probe-native-multi-instance.ps1` observes visible window candidates by default; the explicitly requested `TRY_SECOND` mode asks the installed Start-menu application to open a second window and compares observations. It never labels account separation, playability or success as verified. Education's old multiple-instance restriction is historical, not confirmed for the currently installed 2026 version; the modern Manage Accounts feature switches users rather than providing concurrent logins.
+2. If a second native window can stay open, verify **two different licensed accounts** simultaneously, then extend to four without shared session collisions. Do not introduce credential automation or bypass client single-instance internals.
+3. If native isolation fails, use existing **one native + three VMware guests** only after the [single scratch Windows VM game feasibility gate](../docs/validation/client-feasibility.md) actually proves the client renders, accepts input, and can sign in. VMware's 3D-capability specification and the lack of official VM-client support remain major uncertainties.
+4. The actual acceptance goal remains four simultaneous visible, playable and separately authenticated sessions on the same host desktop. Four VMs/processes/installed apps or four sequential account switches do not count.
+
+**Concrete source repair:** `App.svelte` client-owned setup phases previously stayed on `SetupSurface` because `page === "clients" && !setupComplete` ignored the backend's `CLIENTS` owner. The fix uses `shouldShowClientControls(nextSetupAction)` in existing `setupFlow.ts`, exposing `ClientsSurface` for identity verification, recovery snapshots and reprovision without a parallel setup manager. The client screen now shows an explicitly **manual/unverified Native** plus the three current VMware virtual slots. This reflects the existing fallback source, not an assertion that four accounts work.
+
+**Proof boundary:** Windows native retry, VMware graphics/login, and four simultaneously interactive logged-in accounts remain `NOT_EXECUTED / UNKNOWN`. No Windows host, Node 24/Svelte/Vitest/Tauri compilation, installer or Minecraft session was executed as part of these source changes. The changes are GitHub source work only and `main` must stay README-only.
+
+**Next necessary task:** prove or disprove the **second native window + independent account** on an actual supported Windows environment when an independently authorized runner is available; if not available, keep the honest `UNKNOWN` and continue only bounded source repairs justified by code.
+
 ## Current product status
 
 The emulator/VM manager is now an independent repository with a canonical root and source ownership scheme aligned to the working discipline of `M-Lazy-Developer/Local`.

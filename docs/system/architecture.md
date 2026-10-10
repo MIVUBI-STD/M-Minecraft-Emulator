@@ -11,7 +11,7 @@ lifecycle: ACTIVE
 
 ## Product scope
 
-Minecraft Education VM multi-instance manager for one Native client and up to three VMware Virtual clients. This is neither an implementation of Minecraft's engine nor a generic hypervisor. Source-level architecture is available; complete real-machine acceptance is separate.
+**End-user objective:** four Minecraft Education windows on one Windows PC, each using a distinct concurrently signed-in account. See [Four-account Product Goal](../product/four-concurrent-accounts.md). The current implementation offers one Native and up to three VMware Virtual clients **as a conditional route**; direct native multi-instance has not been disproved for the installed 2026 app and is the first, simpler proof target. This is not an implementation of the game engine or a hypervisor. The source structure exists but no four-client runtime acceptance exists.
 
 ## One runtime owner per responsibility
 

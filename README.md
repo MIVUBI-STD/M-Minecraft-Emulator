@@ -1,6 +1,6 @@
 # M-Minecraft-Emulator
 
-Dedicated multi-instance VMware manager for **Minecraft Education**. The application coordinates one native Minecraft Education client and up to three separate VMware guest clients for manual QA. It does not emulate the Minecraft game engine or implement a hypervisor.
+**Primary goal:** four separate Minecraft Education windows, simultaneously signed in with **four different licensed accounts**, usable together on **one Windows PC**. The simplest supported mechanism wins. Test direct Windows multi-instance first; the existing one-native-plus-three-VMware architecture is a conditional fallback, not the product goal itself. No official client-in-VM compatibility or concurrent four-account success is claimed.
 
 ## Branch authority
 
@@ -20,13 +20,14 @@ AGENTS.md → GITHUB_RULES.md → docs/system/implementation-map.md
 
 An operator does **not** need a local checkout to complete repository/source-verifiable tasks. Windows or Minecraft acceptance is a separate, higher proof context. `DEV.cmd` is an optional local developer convenience, never the remote GitHub completion requirement.
 
-Documentation: [docs/README.md](docs/README.md). Current work and continuation: [planning/development.md](planning/development.md).
+**Definition of DONE:** [Four simultaneous Minecraft Education accounts](docs/product/four-concurrent-accounts.md). Documentation: [docs/README.md](docs/README.md). Current work and continuation: [planning/development.md](planning/development.md).
 
 ## Choose one work route
 
 | Intended work | Entry | Actual authority |
 | --- | --- | --- |
 | Develop, refactor, repair, or improve repository | [AGENTS.md](AGENTS.md) → [.agents development procedure](.agents/skills/emulator-development/SKILL.md) | Existing source owner in `apps/` or `engine/` |
+| Probe a second native Minecraft Education window before assuming VMs are necessary | [Four-account goal](docs/product/four-concurrent-accounts.md) → [native Windows probe](tooling/acceptance/windows/probe-native-multi-instance.ps1) | Source-only probe; actual distinct logged-in windows require observed Windows evidence |
 | Examine VM behavior or diagnose setup | [Implementation Map](docs/system/implementation-map.md) → [Runtime Core](docs/system/runtime-core.md) | `engine/runtime-core/`, observed provider/guest evidence |
 | Prove Minecraft Education can render on one Windows VMware guest before scaling | [Client Feasibility](docs/validation/client-feasibility.md) | Scratch VM; diagnostics separate from manual game observation |
 | Verify Windows/VMware/Minecraft usability | [Validation](docs/validation/README.md) | Real machine and game observations; `tooling/acceptance/` collects bounded evidence |

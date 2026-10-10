@@ -15,9 +15,11 @@ This is a **navigation guide**, not a second registry or copy of implementation 
 
 | Question / fault | Primary implementation owner | Consumer / companion |
 | --- | --- | --- |
+| Determine whether native Windows can open **two distinct Education windows/accounts** without VMs | `tooling/acceptance/windows/probe-native-multi-instance.ps1` | [Four-account objective](../product/four-concurrent-accounts.md); no credential automation, window count alone not proof |
 | Determine whether Minecraft Education can actually render within **one VMware Windows guest** | `tooling/acceptance/windows/collect-client-feasibility.ps1`, `tooling/acceptance/evaluate-client-feasibility.mjs` | [Client Feasibility](../validation/client-feasibility.md); no production VM mutation |
 | VM status, start/stop/suspend/restart/reprovision and rollback | `engine/runtime-core/src/runtime.rs` | `lifecycle_admission.rs`, provider implementation |
 | Lifecycle eligibility / guard decisions | `engine/runtime-core/src/lifecycle_admission.rs` | `runtime.rs`, `client.rs` |
+| Client-owned setup phases stranded in wizard | `apps/desktop/src/app/setupFlow.ts` and `apps/desktop/src/App.svelte` | `shouldShowClientControls` and `apps/desktop/test/setup-flow.test.ts` regression |
 | First-run setup decision, environment problems | `engine/runtime-core/src/doctor.rs` | Desktop `src/app/setupFlow.ts`, `src/app/surfaces/SetupSurface.svelte` |
 | Base provenance, immutable finalized image and parity | `engine/runtime-core/src/profile.rs`, `base_preparation.rs` | `engine/guest/windows/prepare-base.ps1`, `finalize-base.ps1` |
 | VMware Workstation/Fusion operations and VMX | `engine/runtime-core/src/provider/` | `runtime.rs`, `diagnostics.rs` |

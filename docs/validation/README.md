@@ -11,6 +11,7 @@ lifecycle: ACTIVE
 
 | Question | Authoritative reference |
 | --- | --- |
+| Can direct Windows launch create **independent** Minecraft Education instances? | [Four-account goal](../product/four-concurrent-accounts.md) + [native probe](../../tooling/acceptance/windows/probe-native-multi-instance.ps1) |
 | Can Minecraft Education render inside **one** VMware guest? | [Client Feasibility Gate](./client-feasibility.md) — before Base cloning |
 | What real tests must pass? | [Target-machine Acceptance](./acceptance.md) |
 | What is statically covered versus unproven? | [Static Readiness](./static-readiness.md) |
@@ -21,7 +22,8 @@ lifecycle: ACTIVE
 
 ```text
 Exact GitHub source and static contract review
-→ independent single-guest Minecraft Education feasibility pilot (actual Windows VM required)
+→ native Windows second-window + distinct-account feasibility (no VM unless needed)
+→ single Windows VMware guest if native instance isolation is not viable
 → executed desktop/Rust checks
 → actual installer construction/package smoke
 → actual Windows + VMware Base/Guest observations

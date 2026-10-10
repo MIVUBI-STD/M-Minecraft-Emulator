@@ -14,6 +14,7 @@
   export let snapshot: EngineSnapshot;
   export let policy: EnginePolicy | undefined;
   export let actions: readonly ClientLifecycleActions[];
+  export let native: ClientStatus | undefined;
   export let virtuals: ClientStatus[];
   export let blockerCount: number;
   export let setupAction: SetupAction;
@@ -45,8 +46,8 @@
 </script>
 
 <section class="hero compact clients-heading">
-  <h2>Your clients</h2>
-  <p>Choose a client and continue.</p>
+  <h2>Four Minecraft Education clients</h2>
+  <p>One native client on this PC and three isolated virtual clients. Each needs its own licensed account.</p>
 </section>
 
 {#if setupAction === "VERIFY_IDENTITIES"}
@@ -87,7 +88,7 @@
   <div class="batch-actions">
     {#if setupAction !== "VERIFY_IDENTITIES" && startableVirtuals > 0}
       <button class="primary" disabled={Boolean(busy) || !policy} on:click={onStartAll}>
-        {busy === "start-all" ? "Starting…" : startableVirtuals === virtuals.length ? "Start all" : "Start remaining"}
+        {busy === "start-all" ? "Starting virtuals…" : startableVirtuals === virtuals.length ? "Start virtual clients" : "Start remaining virtuals"}
       </button>
     {/if}
     {#if runningVirtuals > 0}
@@ -107,6 +108,15 @@
 </section>
 
 <section class="client-list">
+  <article class="client-row">
+    <div class="client-icon">PC</div>
+    <div class="client-main">
+      <h3>This PC · Native Minecraft Education</h3>
+      <small>Installed version: {native?.minecraftVersion ?? "Not detected"} · Open Minecraft Education normally on this PC.</small>
+      <small>Native game process and account sign-in are not automatically verified by the VM backend.</small>
+    </div>
+    <div class="row-action"><span>Manual</span></div>
+  </article>
 
   {#each virtuals as client}
     {@const available = actionForClient(actions, client.id)}

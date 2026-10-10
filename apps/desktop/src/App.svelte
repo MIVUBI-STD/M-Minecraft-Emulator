@@ -26,7 +26,7 @@
   import { actionForClient, clientDisplayName, primaryClientAction } from "./view-model.js";
   import type { Page } from "./app/navigation.js";
   import { presentRuntimeError, type RuntimeErrorPresentation } from "./app/runtimeErrorPresentation.js";
-  import { setupExperience } from "./app/setupFlow.js";
+  import { setupExperience, shouldShowClientControls } from "./app/setupFlow.js";
   import { defaultWindowLayoutPreference, loadWindowLayoutPreference, saveWindowLayoutPreference, type WindowLayoutPreference } from "./app/windowLayoutPreference.js";
 
 
@@ -436,7 +436,7 @@
         <strong>Checking Virtual Clients…</strong>
       </section>
     {:else if snapshot}
-      {#if page === "clients" && !setupComplete}
+      {#if page === "clients" && !shouldShowClientControls(snapshot.doctor.nextSetupAction)}
         <SetupSurface
           {snapshot}
           {basePreflight}
@@ -444,7 +444,6 @@
           {readyVirtuals}
           {busy}
           onContinue={continueSetup}
-          onOpenClients={() => selectPage("clients")}
           onSupport={() => selectPage("support")}
           onOpenBaseLocation={openBaseLocation}
           onOpenSetupTools={openSetupTools}
@@ -455,6 +454,7 @@
           {snapshot}
           {policy}
           {actions}
+          {native}
           {virtuals}
           blockerCount={blockers.length}
           setupAction={snapshot.doctor.nextSetupAction}

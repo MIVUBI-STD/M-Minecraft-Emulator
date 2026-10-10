@@ -13,6 +13,7 @@ This is the **single documentation entrypoint**. Load only the domain needed for
 
 | Task | Domain route | Canonical source where applicable |
 | --- | --- | --- |
+| Product goal: four simultaneous logged-in Minecraft Education clients on one PC | [Four-account definition](./product/four-concurrent-accounts.md) | Native multi-instance evidence first; VMware fallback only if verified |
 | First-run VM Base, guest preparation and product setup | [Product](./product/README.md) | `engine/runtime-core/`, `engine/guest/windows/` |
 | Architecture, ownership, naming, developer commands | [System](./system/README.md) | `apps/desktop/`, `engine/runtime-core/`, `tooling/` |
 | Source proof, Windows/VMware/ Minecraft acceptance | [Validation](./validation/README.md) | `tooling/acceptance/windows/` and live evidence |

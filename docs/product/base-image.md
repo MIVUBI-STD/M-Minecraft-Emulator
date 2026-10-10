@@ -11,6 +11,10 @@ lifecycle: ACTIVE
 
 Base is the immutable parent for Virtual-01, Virtual-02, and Virtual-03.
 
+## Conditional backend only
+
+Base images are not the product. The [four-account objective](./four-concurrent-accounts.md) takes priority, and a direct Windows multi-instance capability should be investigated first. This Base applies only if native sessions fail to provide four independent logged-in windows and the Windows VMware guest feasibility pilot succeeds.
+
 ## Prerequisite: prove one Minecraft Education guest
 
 Before investing in Base finalization, linked clones or Microsoft account-bearing snapshots, use the [Single Guest Client Feasibility Gate](../validation/client-feasibility.md) on a **disposable, separate** Windows VMware VM. Minecraft Education's published minimum OpenGL 4.4 vs VMware's documented guest OpenGL 4.3 is a compatibility warning. Source configuration of 3D acceleration is not evidence of an actually rendered Minecraft world.

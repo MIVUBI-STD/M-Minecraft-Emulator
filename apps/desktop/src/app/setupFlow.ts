@@ -144,3 +144,9 @@ export function setupPhaseIndex(action: SetupAction): number {
   const phase = setupExperience(action).phase;
   return phase === "COMPUTER" ? 0 : phase === "ENVIRONMENT" ? 1 : phase === "CLIENTS" ? 2 : 3;
 }
+
+// Backend owns setup state. Client-owned steps require the Clients controls,
+// not another wizard button pointing back to the same page.
+export function shouldShowClientControls(action: SetupAction): boolean {
+  return setupExperience(action).owner === "CLIENTS" || action === "READY";
+}

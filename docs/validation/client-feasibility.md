@@ -7,7 +7,11 @@ authority: CANONICAL
 lifecycle: ACTIVE
 ---
 
-# Minecraft Education — Single Guest Feasibility Gate
+# Minecraft Education — Single Guest Feasibility Gate (Conditional VMware Route)
+
+## Use this gate only when direct native instances do not solve the goal
+
+The [primary product goal](../product/four-concurrent-accounts.md) is four independently logged-in Minecraft Education windows on one PC. **Check native Windows multi-instance first**, without VM overhead. The following Windows-guest compatibility gate becomes necessary only if the direct route cannot provide separate windows and accounts. Do not start production cloning before this gate.
 
 ## Why this comes first
 

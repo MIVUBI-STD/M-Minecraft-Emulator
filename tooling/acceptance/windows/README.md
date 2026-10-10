@@ -19,6 +19,19 @@ This campaign is evidence collection, not simulation. A stage stays `NOT_RUN` un
 | RECOVERY | Prove stop/start, suspend/resume, reset and host reboot behavior | operator + collector |
 | SOAK | Record long-run stability and repeated lifecycle cycles | operator + collector |
 
+## Four-accounts-first acceptance route
+
+[Product objective](../../../docs/product/four-concurrent-accounts.md): four different Education accounts must stay logged in concurrently in four separate **real, interactive Windows windows**.
+
+**Before starting VMware:** use `probe-native-multi-instance.ps1` on the Windows host. Its default `OBSERVE` mode only counts candidate visible Education windows; `TRY_SECOND` explicitly requests one additional launch using the unique registered Start-menu entry, if available. Neither a launch request nor an extra candidate process/window establishes account independence. Verify actual distinct game windows and two simultaneously signed-in different authorized accounts by direct observation, without capturing credentials. If both succeed, test reaching four with native isolation; if not, move to the one-guest pilot below.
+
+```powershell
+.\probe-native-multi-instance.ps1 -Mode OBSERVE
+.\probe-native-multi-instance.ps1 -Mode TRY_SECOND
+```
+
+When `TRY_SECOND` cannot find a unique Start-menu AppID, do not guess an executable or patch single-instance safeguards. The native experiment is `INCONCLUSIVE` until real windows and accounts are observed. These commands are future acceptance steps; adding the scripts to source does not execute them.
+
 ## Early client-graphics feasibility pilot
 
 Use `collect-client-feasibility.ps1` **inside one interactive Windows scratch guest**. It is read-only except its temporary report and does not require Guest Agent, account-name capture or a configured three-VM application. Collect `ENVIRONMENT`, then manually open Minecraft Education, observe a usable world and collect `INTERACTIVE` with explicitly operator-attributed observations.
