@@ -60,7 +60,7 @@ When working through ChatGPT/GitHub, repository-level source edits must be compl
 
 The imported implementation and its source contracts can be inspected in GitHub. A commit, added test, or static review is **not** proof of a successful test run, Windows installer, VMware session, Minecraft sign-in, GPU performance, or concurrent multiplayer.
 
-See `planning/development.md` for current continuation and `virtual-clients/docs/static-readiness-freeze.md` for the specific machine-level proof gaps.
+See `planning/development.md` for current continuation, `docs/validation/platform-prerequisites.md` for official platform constraints, and `virtual-clients/docs/static-readiness-freeze.md` for the machine-level proof gaps.
 
 ## Migration provenance
 

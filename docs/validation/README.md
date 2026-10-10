@@ -11,6 +11,8 @@ lifecycle: ACTIVE
 
 Read the canonical [Virtual Clients Acceptance](../../virtual-clients/docs/acceptance.md), [Static Readiness Freeze](../../virtual-clients/docs/static-readiness-freeze.md), and [Four-Client Failure Matrix](../../virtual-clients/docs/four-client-failure-matrix.md).
 
+Platform constraints and dated external sources: [Platform Prerequisites](./platform-prerequisites.md).
+
 ## Evidence ladder
 
 ```text
