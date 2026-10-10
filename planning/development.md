@@ -67,6 +67,14 @@ Do not create `lifecycle/` or `provision/` until the first repair and focused te
 
 For each bounded change: pin current Local HEAD; read first owner and consumers; write focused regression before claiming a fix; commit with truthful `Work`, `State`, `Proof`, `Unresolved`, `Next`; capture exact new SHA and remaining unexecuted proof; STOP. Preserve older entries as historical evidence rather than rewriting them as completed.
 
+## B1c recoverable filesystem cutover primitive — 2026-10-10
+
+**State: PARTIAL_SOURCE_IMPLEMENTATION / REPROVISION_DISABLED.** Commit `f15b4b0` adds `provider/storage.rs::cutover_staged_vm`, an intentionally non-wired filesystem cutover that checks for VMX + co-located client profile, moves the original directory to a sibling backup, promotes the staged directory, and attempts to restore the original if promotion fails. Two isolated directory regression tests were authored but NOT_EXECUTED. The original backup is deliberately retained after success; no automatic cleanup or destructive retry.
+
+**Proof/constraints:** REMOTE_GITHUB source only. The helper requires staged/final/backup sibling directories; current provider staging lives elsewhere and is not compatible without deliberate staging adjustment. No verification of VMware linked-disk references, clone integrity, power state, snapshot chains, symlink safety, or actual Windows filesystem rename behavior has occurred. Public and shared-admission reprovision guards remain in place. **Do not wire or enable until candidate preparation, on-disk profile generation, VMware disk integrity and recovery tests are complete.**
+
+**Next:** In provider/storage ownership, implement candidate preparation and validation compatible with sibling cutover and add deterministic rename-failure injection before integrating; only afterward reassess public reprovision guard.
+
 ## B1c safety gate — 2026-10-10
 
 **State: SAFETY_GUARD_APPLIED / RECOVERABLE_REPROVISION_NOT_IMPLEMENTED.** Commits `a934270`, `d247b0c` and `b169c47` intentionally disable account-destructive Reprovision in both `VirtualClients::reprovision_inner` and `lifecycle_admission.rs` until the provider owns a recoverable cutover. The guard now runs before any provider, staging cleanup, profile or VM mutation. Existing clients, snapshots and account data remain unchanged by rejected reprovision calls. All source-execution and Windows/VMware tests are still NOT_EXECUTED; this is source logic, not machine proof.
