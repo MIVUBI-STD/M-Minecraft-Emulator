@@ -67,6 +67,14 @@ Do not create `lifecycle/` or `provision/` until the first repair and focused te
 
 For each bounded change: pin current Local HEAD; read first owner and consumers; write focused regression before claiming a fix; commit with truthful `Work`, `State`, `Proof`, `Unresolved`, `Next`; capture exact new SHA and remaining unexecuted proof; STOP. Preserve older entries as historical evidence rather than rewriting them as completed.
 
+## Workstation initial provisioning — no linked-clone relocation — 2026-10-10
+
+**State: SOURCE_PATCHED / EXECUTION_UNPROVEN.** Commits `a6338e6` and `a6f26d0` change **initial** VMware Workstation `provider.provision`: a linked clone is created directly in the final VMX directory rather than cloned under staging and then moved. This removes an unverified relative-parent path relocation from the initial provisioning sequence. An existing final directory without a VMX now fails closed as partial residue; vmrun errors and missing VMX leave files intact for diagnosis rather than deleting possible in-flight disk output. Once vmrun and VMX creation succeed, hardware policy is applied at final path. No actual VMware execution or Rust tests were run. This is not evidence that VMware linked clone itself is compatible or bootable.
+
+**Not covered:** public Reprovision remains disabled and the legacy low-level provider.reprovision is destructive if called outside the guarded runtime. Filesystem `cutover_staged_vm` and text VMDK preflight utilities are deliberately **not** active provider behavior; do not present them as proof or expand further speculative parsers. The provider's `status` may report NOT_PROVISIONED for partial existing directories; a subsequent `provision` will now refuse to overwrite them, requiring safe reconciliation. Existing profiles/VMs remain untouched by this initial-clone change.
+
+**Next:** run pinned Rust check/tests and inspect deterministic provisioning failure tests; add read-only diagnostics for incomplete final VM directories if needed. Validate actual Workstation linked clone from native Windows guest before making additional disk-chain architecture claims. No main modifications, cloud dependency or user-PC source testing requirement.
+
 ## B1c inventory-wide candidate disk rejection — 2026-10-10
 
 **State:** SOURCE_GUARD_AUTHORED / NOT_EXECUTED / REPROVISION_DISABLED. Commit `43c206d` introduces read-only `validate_staged_disk_inventory` in the canonical provider storage owner. It traverses the staged directory and refuses symlinks, no VMDKs, binary/unknown descriptors, absent parent hints, absent referenced parents and paths that change their meaning on final movement. Two Rust regression cases were authored but **NOT_EXECUTED**. This does not prove VMware extent formats, snapshot chains, complete descriptor grammar, child-parent IDs, or actual guest boot. The helper is not wired into production cutover, and must not be described as full VMDK-chain validation.
