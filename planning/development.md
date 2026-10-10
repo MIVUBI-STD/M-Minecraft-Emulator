@@ -3,6 +3,12 @@
 Updated: 2026-10-10
 Authority: `MIVUBI-STD/M-Minecraft-Emulator`, branch `Local`. Current GitHub source HEAD always outranks this file.
 
+## E1 incomplete clone state and verification ceiling — 2026-10-10
+
+**Status: SOURCE_PATCHED / BUILD_NOT_EXECUTED.** Commit `63393d1` changes Workstation provider status to return an explicit error when the client VM directory exists but its VMX is missing, rather than reporting NOT_PROVISIONED. This protects residue from being misclassified as a clean new client. Existing provider provisioning already refuses to overwrite the directory. Rust compiler/Cargo and pinned source execution were not available in the current execution context, and direct network clone access is unavailable; no Rust tests, NSIS build or VMware execution were performed. Doctor still degrades provider-status errors into missing/unknown observations; product readiness must not infer a successful VM from such a result.
+
+**Next:** Run same-SHA Rust source checks and one high-value provision/status matrix when a suitable independent execution environment is available, then repair actual failures. Avoid more one-off micro-tests or speculative disk parsing. Public destructive reprovision remains disabled.
+
 ## E1 provision provenance boundary — 2026-10-10
 
 **State: SOURCE_PATCHED / EXECUTION_UNPROVEN.** Commit `b8e4d39` repairs `runtime.rs::provision_inner`: an existing Virtual VM cannot silently pass as provisioned without a readable, compatible client lineage profile. Preexisting clients now require `require_client_matches_native` before the loop continues, preserving all VM/account files if provenance is missing or stale. Newly created VM instances still commit the client profile and fail explicitly if that write fails; no automatic destructive cleanup or fabricated recovery. Pinned source check was performed; cargo build/test and VMware acceptance remain NOT_EXECUTED. The previous interrupted clone or interrupted provenance write still needs an explicit non-destructive recovery path.
