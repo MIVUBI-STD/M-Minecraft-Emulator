@@ -4,7 +4,7 @@ This file defines repository-wide routing and non-negotiable boundaries only. Th
 
 ## Priority and branch
 
-Current user intent guides bounded work, subject to source authority, safety and available proof. `Local` is the active **remote GitHub branch**; `main` is stable/release-only. Never silently fall back to main.
+Current user intent guides bounded work, subject to source authority, safety and available proof. **`Local` is the only active working branch for development and repository verification.** Keep `main` untouched in its initial README-only state. Do not write workflow definitions, product source, generated artifacts, or release changes to `main`, and do not change the default branch or promote `Local` without a new explicit user instruction. Never silently fall back to `main`.
 
 For material writes read `GITHUB_RULES.md`, pin exact `Local` HEAD, and consult `docs/system/implementation-map.md` before broad searching. `CONTEXT.md` holds stable facts; `planning/development.md` holds current continuation. Current source wins if either document is stale.
 

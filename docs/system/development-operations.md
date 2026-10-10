@@ -68,7 +68,7 @@ GitHub workflow files in `.github/workflows/` are `workflow_dispatch` only and m
 
 GitHub requires a `workflow_dispatch` workflow file to exist on the repository's **default branch** before it can be manually triggered. Currently `main` is the default and contains no workflow files; only `Local` has `verify.yml` and `package-smoke.yml`. Their YAML being syntactically present in `Local` therefore **does not mean the Actions UI or API can run them yet**. See [GitHub's manual-run requirement](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/manually-run-a-workflow).
 
-Bootstrapping the workflow definitions on `main` is an explicit repository-infrastructure decision and must **not** silently promote product source, change the default branch or enable push-triggered CI. Once approved and bootstrapped, select ref `Local`, run the appropriate manual workflow and record the exact HEAD, job status and logs. Until then report `SOURCE_EXECUTION` and `PACKAGE_EXECUTION` as `NOT_EXECUTED`, and keep current progress in `planning/development.md`.
+**Decision (2026-10-10): keep all development on `Local`; leave `main` unchanged in its initial README-only state.** Do not bootstrap workflows on `main`, switch the default branch, or promote source merely to activate Actions. Keep the existing `Local` workflow YAML as optional source definitions, not runnable CI evidence. Execute source/build tests only through a separately authorized independent cloud/runner context that can check out the exact `Local` SHA, if one is actually available. Otherwise complete all GitHub-verifiable work and explicitly record executable proof as `NOT_EXECUTED`; never redirect ChatGPT-owned verification to the user's PC.
 
 ## Real-machine evidence
 

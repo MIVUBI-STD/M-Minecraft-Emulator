@@ -1,6 +1,6 @@
 # GitHub Rules — M-Minecraft-Emulator
 
-Canonical GitHub delivery and proof policy. **Development authority: `Local`; release authority: `main`.**
+Canonical GitHub delivery and proof policy. **Development and source-verification authority: `Local` only.** `main` is reserved for a future approved stable release and must remain untouched (currently initialized with only `README.md`). No workflow bootstrap, default-branch switch, or source promotion to `main` is authorized.
 
 ## Operating sequence
 
@@ -77,7 +77,7 @@ Next: <one action only when incomplete>
 
 Use the cheapest decisive evidence: exact-ref static path/contract review → targeted source test → full source check only when needed → manual package smoke → Windows/VMware acceptance → real Minecraft Education acceptance.
 
-GitHub Actions must remain `workflow_dispatch` only, with read-only default permissions and explicit user authorization to run. No push, pull_request, cron, auto-release or remote secret usage for routine source work. Changes to workflow YAML are not claims that jobs passed.
+GitHub Actions workflow source must remain `workflow_dispatch` only, with read-only default permissions; no push, pull_request, cron or auto-release. GitHub's default-branch requirement currently prevents dispatch because `main` intentionally has no workflows. **Do not solve this by editing `main`, installing workflows there, changing the default branch, or merging `Local`.** Continue source/static verification entirely against `Local`. If a separately authorized, suitable external/cloud execution environment is available, run tests against an exact pinned `Local` commit; otherwise record `SOURCE_EXECUTION` / `PACKAGE_EXECUTION` as `NOT_EXECUTED`. The inability to use GitHub Actions is not a reason to stop unrelated source development or make the user run commands on their PC.
 
 ## 8. Security
 

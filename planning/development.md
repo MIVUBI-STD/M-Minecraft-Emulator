@@ -38,7 +38,7 @@ No VM data migration, credential automation, newly implemented hypervisor, autom
 | Desktop npm lock and Rust/Tauri versions | `REMOTE_GITHUB STATIC`: 185 locked packages, 253 dependency edges resolved and no definite package semver mismatch; no observed incompatibility with Node 24.21.0. Dependency installation and executable build remain `NOT_EXECUTED`. |
 | Repository static verifier and desktop regression tests | Source authored; execution `NOT_EXECUTED` unless evidence is later obtained |
 | Installer required resources | `REMOTE_GITHUB STATIC`: pre-fix 12/15 package-contract files covered, fixed to 15/15 in commit `71507dfa`; Tauri resources and package-preparation static checks reconciled. Installer not built. |
-| GitHub manual workflow activation | `BLOCKED`: default branch `main` has only README, while `workflow_dispatch` workflows are only on `Local`. GitHub requires the workflow file on the default branch for manual dispatch. 0 workflow runs recorded. |
+| GitHub manual workflow activation | `UNAVAILABLE BY POLICY`: `main` is intentionally README-only and must not be modified; `workflow_dispatch` files remain on `Local`. No Actions run is claimed. This does not block GitHub source-level work. |
 | Source/backend compile and Rust tests | `NOT_EXECUTED` |
 | NSIS installer package smoke, Windows install/repair/uninstall | `NOT_EXECUTED` |
 | VMware Base/clone/lifecycle/identity and interactive Guest Agent | `NOT_EXECUTED` |
@@ -48,7 +48,7 @@ No VM data migration, credential automation, newly implemented hypervisor, autom
 ## Next substantive development route
 
 1. Verify the current `Local` exact HEAD's repository structure, consumed Cargo/Tauri resource paths, docs links and source test assumptions. Fix only concrete migration defects.
-2. When source execution can be completed independently, run the locked desktop TypeScript/Vitest/Tauri checks and Rust runtime `cargo check/test/fmt` on the **same SHA**. Manual GitHub Actions are an optional last-resort evidence path; do not demand a user PC as a ChatGPT source-work prerequisite.
+2. When source execution can be completed independently, run the locked desktop TypeScript/Vitest/Tauri checks and Rust runtime `cargo check/test/fmt` on the **same SHA**. GitHub Actions dispatch is intentionally unavailable while `main` remains untouched; use only an actually available independent authorized execution context, and never demand a user PC as a ChatGPT source-work prerequisite.
 3. If packaging is needed, run a separately authorized Windows NSIS package smoke, checking installed CLI/Guest Agent/scripts, data preservation and signature gates. Do not conflate an unsigned smoke with a release.
 4. For actual VM acceptance, follow [Acceptance](../docs/validation/acceptance.md), [Static Readiness](../docs/validation/static-readiness.md), and [Failure Matrix](../docs/validation/four-client-failure-matrix.md). Measure account isolation, guest launcher Windows session, CPU/RAM/GPU and Minecraft Education connectivity.
 5. Reopen architecture only for a diagnosed defect that the existing owner cannot correctly express. No speculative provider, VM manager or optimization system.
@@ -66,7 +66,9 @@ No VM data migration, credential automation, newly implemented hypervisor, autom
 
 **Execution blocker:** GitHub `workflow_dispatch` requires a workflow definition on the repository's default branch. The default `main` branch contains only `README.md`; workflows `.github/workflows/verify.yml` and `package-smoke.yml` exist only on `Local`. No connected GitHub workflow-dispatch action is exposed in this session. Do not report CI, build or tests as PASS.
 
-**Safest next action:** Obtain separate authorization for a minimal **manual workflow bootstrap on `main`** (workflow definitions only, not product source or release promotion), or use another authorized independent build runner. Only then execute the source verification on an exact `Local` SHA and inspect the actual run/job evidence. Keep `main` release authority and prohibit automatic push/pull_request triggers. After source PASS, separately request a Windows NSIS smoke; game/VM proof still requires its own environment.
+**Confirmed user decision (2026-10-10):** Development and source verification remain entirely on `Local`. **Do not touch `main`**, which currently contains only the initial README. No workflow bootstrap on `main`, default-branch switch, source promotion or release is authorized. Keep GitHub Actions dispatch marked unavailable under the present configuration; it is not a product development blocker.
+
+**Next action:** Continue bounded source and repository validation on the exact `Local` HEAD. Perform actual Node/Rust/Tauri build/test checks only when an independent, authorized cloud execution context is available without modifying `main`; otherwise leave the exact executable tests `NOT_EXECUTED`. After verified source execution, Windows NSIS smoke and VMware/Minecraft acceptance remain separate proof gates.
 
 Reference: https://docs.github.com/en/actions/how-tos/manage-workflow-runs/manually-run-a-workflow
 
