@@ -4,7 +4,7 @@
 
 `Local` is active development; `main` is stable/release-only. Product source changes use the [Emulator Development procedure](.agents/skills/emulator-development/SKILL.md), [GitHub Rules](GITHUB_RULES.md) and [Development Discipline](docs/system/development-discipline.md).
 
-ChatGPT's normal route is GitHub-first and source-verifiable. Do not make user-local Node/Rust/VMware execution a prerequisite for remote repository editing.
+ChatGPT's normal route is GitHub-first and source-verifiable. Do not make user-local Node/Rust/VMware execution a prerequisite for remote repository editing. In a fresh chat, a GitHub URL plus "amati" is read-only; recover ongoing work by topic, exact `Local` source, relevant commit `Work`/`State`/`Proof`, and `planning/development.md` rather than chat titles or an unrelated latest commit.
 
 ## Before any change
 

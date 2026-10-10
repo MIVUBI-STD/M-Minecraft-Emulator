@@ -46,11 +46,32 @@ Avoid second managers, inconsistent API aliases, undocumented state caches, or r
 
 Complete all source/static work directly in GitHub when possible. `Local` names a **GitHub branch**, not a physical PC. `npm`, `DEV.cmd`, source tests and local VMware are optional stronger-proof contexts, not gates placed on user workstations to complete ChatGPT repository edits. Keep truly unresolved runtime requirements `NOT_EXECUTED`.
 
+### Short-prompt repository startup and topic recovery
+
+For a GitHub URL + "amati"/inspect request, pin `Local` HEAD, read this file and `AGENTS.md`, resolve `docs/system/implementation-map.md`, inspect the relevant current owner, then report confirmed facts and specific `NOT_EXECUTED` proof without writing. Never infer an authorization from a historical `Next`, an unrelated recent commit, or a chat title.
+
+To continue work in another chat, recover the named topic from `planning/development.md` and relevant GitHub commits. Compare their decisions and source claims against newer changes and exact current files. Keep `PAUSED`/`BLOCKED` work inactive until the user resumes it; do not fabricate absent chat context, automatic chat naming, extra memory files or duplicate state owners.
+
 ## 6. Mutations, compatibility and commit discipline
 
 Update canonical owner plus necessary callers/tests/docs in a coherent logical commit. Prefer correcting an existing owner over creating another abstraction. Preserve each Virtual's account-bearing disks and snapshots; reprovision is explicitly destructive and must not be a side effect of routine setup. Release/update identity, Guest Agent wire contract, installed product identifier and disk paths require an explicit migration review, not a source-folder tidy-up.
 
 Use categorized commits (`refactor(repo): ...`, `fix(runtime): ...`, `test(desktop): ...`, `docs(system): ...`). Record continuity at significant milestones in `planning/development.md`. Git history preserves old source naming; do not leave obsolete code mirrors just for traceability.
+
+### Commit-based continuity
+
+For each material bounded commit, use one conventional subject and truthful revision-scoped trailers:
+
+```text
+Work: <stable feature or task topic>
+State: ACTIVE | BLOCKED | PAUSED | DONE
+Decision: <canonical owner / reason, when material>
+Proof: <actual evidence and execution ceiling>
+Unresolved: <specific unknown, when applicable>
+Next: <one action only when incomplete>
+```
+
+`Work`, `State` and `Proof` are required going forward. `DONE` closes the specific commit outcome, not the entire runtime/product. Git history records past decisions; `planning/development.md` owns current development intent and handoff, not a second implementation-status database. No checkpoint commits, automatic chat naming or duplicated TODO files.
 
 ## 7. Verification and CI
 

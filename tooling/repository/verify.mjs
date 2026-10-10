@@ -21,6 +21,17 @@ const required = [
 for (const file of required) {
   requireFact(existsSync(resolve(root, file)), "Missing canonical repository owner: " + file);
 }
+// Root governance continuity is source-owned; keep it within this verifier.
+for (const [file, markers] of Object.entries({
+  "AGENTS.md": ["ChatGPT-GitHub Work Continuity", "Short-prompt repository startup", "Cross-chat recovery"],
+  "GITHUB_RULES.md": ["Short-prompt repository startup", "Commit-based continuity", "Work:", "State:", "Proof:"],
+  "CONTRIBUTING.md": ["GitHub-first", "planning/development.md"]
+})) {
+  const content = read(file);
+  for (const marker of markers) {
+    requireFact(content.includes(marker), "Missing governance continuity marker in " + file + ": " + marker);
+  }
+}
 for (const retired of ["virtual-clients", "apps/virtual-clients", "tooling/verify-repository.mjs"]) {
   requireFact(!existsSync(resolve(root, retired)), "Obsolete monorepo path remains: " + retired);
 }

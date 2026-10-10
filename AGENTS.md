@@ -25,6 +25,14 @@ Never promote one rung into another. Absence of runtime or source execution evid
 
 GitHub/ChatGPT source work is remote-first. Do not demand the user's PC, a checkout, installs, or running Minecraft just to complete source-verifiable repository work. If an observed machine capability is genuinely needed, record the unresolved evidence instead of guessing.
 
+## ChatGPT-GitHub Work Continuity
+
+**Short-prompt repository startup.** A repository/`Local` URL with "amati", "cek repo", or "ikuti aturan" is a read-only inspection, not permission to change code or start VMware. Fetch the latest `Local` HEAD, read `AGENTS.md` and `GITHUB_RULES.md` fully, and route through `docs/system/implementation-map.md` to the minimum current owner. "Lanjutkan" retains only the identifiable user-approved topic.
+
+**Cross-chat recovery.** Recover by topic and source changes: compare `planning/development.md` with the current exact GitHub HEAD and relevant commit `Work` / `State` / `Proof` / `Unresolved` / `Next`. Historical `Next`, unrelated latest commits, chat titles, memory, and Project settings are not implementation truth or new authorization. Respect `PAUSED`/`BLOCKED` until explicitly resumed; if GitHub cannot be inspected, say the state is unverified. Project Instructions, if used, merely point to current repository rules, not duplicate them.
+
+Keep the existing ChatGPT + GitHub/cloud-only, no-user-PC policy. Unavailable VMware, Windows host, Education login/network and four-client proof stays `NOT_EXECUTED`; do not transfer source work to the user's machine.
+
 ## Operator routes
 
 | Request | Procedure | Owner / artifact |

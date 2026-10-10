@@ -19,6 +19,7 @@ Scope is **repository setup/navigation and source-path separation**, not proof t
 - `docs/`: one documentation router with `product/`, `system/`, and `validation/` domains; old product-local docs path retired.
 - `tooling/repository/`, `tooling/windows-toolchain/`, `tooling/acceptance/windows/`: verifier, optional developer commands, real-machine evidence collection.
 - `.agents/skills/emulator-development/`: one bounded development procedure; no duplicate VM state owner.
+- ChatGPT–GitHub continuity now uses topic-based cold-start recovery and `Work`/`State`/`Proof` commit trailers, retaining `planning/development.md` as current work owner. This is governance-only source work, not executed Windows/VMware/Minecraft acceptance.
 - Old monorepo-style `virtual-clients/` and `apps/virtual-clients/` source paths retired. Cargo/Tauri/NSIS sources and consumer tests updated to the new paths.
 - `verification-routing.test.ts` originally asserted a deleted `virtual-clients:verify` script. It now asserts the actual source verification command chain.
 
