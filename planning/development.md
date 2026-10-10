@@ -3,6 +3,21 @@
 Updated: 2026-10-10
 Authority: `MIVUBI-STD/M-Minecraft-Emulator`, branch `Local`. Current GitHub source HEAD always outranks this file.
 
+## Current source batch — bounded Guest Agent requests (2026-10-11)
+
+**Work:** `emulator/guest-agent-transport`  
+**State:** SOURCE_PATCHED / EXECUTION_UNPROVEN  
+**Parent Local:** `90193360265806d904bfd95e9a37db980bbe8111`. Final SHA is the current GitHub commit.
+
+- The Windows Guest Agent no longer assumes an HTTP request arrives in one TCP read. It accumulates segmented headers under a strict total deadline and length bound. Incomplete and oversized frames fail explicitly without waiting for the peer to close its send side.
+- The network accept loop uses a bounded eight-request concurrency limit and a completion guard rather than an unbounded worker pool. A launch gate prevents concurrent expensive Minecraft start requests without making status wait behind the active launch.
+- Existing token, request-ID header, HTTP endpoints, port and wire schema remain intact. Internal Minecraft launch errors produce HTTP 500 instead of an unexplained EOF. Authenticated fixed commands remain the only actions.
+- Added one focused segmented/oversized/EOF transport regression case in the existing binary test module. No new module, dependency, executor, feature, protocol alias or persisted state.
+- **Proof:** exact GitHub static/consumer inspection only; Rust compilation/tests, Windows VM and Minecraft acceptance **NOT_EXECUTED**. No automated CI and no user-machine work.
+
+**Next:** Inspect exact-head Guest Agent host/server behavior for a concrete compatibility defect, not speculative refactoring. Stop if no source-grounded defect remains.
+
+
 ## Current operating decision — ChatGPT + GitHub only (2026-10-11)
 
 **Authority:** Current user direction supersedes historical notes below that mention alternate execution pathways. Work against GitHub `Local` from ChatGPT; `main` stays untouched and there are no automatic workflows. No user-computer tasks and no assumed third-party execution services. Do not repeatedly propose an execution environment that is not available.

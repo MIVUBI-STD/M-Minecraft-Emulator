@@ -10,7 +10,9 @@ use sha2::{Digest, Sha256};
 use std::{
     io::{self, Read, Write},
     net::{Shutdown, TcpListener, TcpStream},
-    time::Duration,
+    sync::{atomic::{AtomicUsize, Ordering}, Arc, Mutex},
+    thread,
+    time::{Duration, Instant},
 };
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -20,13 +22,32 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     if std::env::args().any(|argument| argument == "--interactive-launcher") {
         return run_interactive_launcher();
     }
-    let token = guest_agent_token()?;
+    let token = Arc::new(guest_agent_token()?);
+    let active = Arc::new(AtomicUsize::new(0));
+    let launch_gate = Arc::new(Mutex::new(()));
     let listener = TcpListener::bind(("0.0.0.0", GUEST_AGENT_PORT))?;
 
-    for stream in listener.incoming() {
-        match stream {
-            Ok(stream) => {
-                let _ = handle(stream, &token);
+    for incoming in listener.incoming() {
+        match incoming {
+            Ok(mut stream) => {
+                // Bound worker count: a slow connection must not block all status calls.
+                if active.fetch_update(
+                    Ordering::AcqRel, Ordering::Acquire,
+                    |count| (count < MAX_ACTIVE_REQUESTS).then_some(count + 1),
+                ).is_err() {
+                    let _ = stream.set_write_timeout(Some(Duration::from_millis(250)));
+                    let _ = stream.write_all(SERVICE_UNAVAILABLE);
+                    continue;
+                }
+                let token = Arc::clone(&token);
+                let active = Arc::clone(&active);
+                let launch_gate = Arc::clone(&launch_gate);
+                thread::spawn(move || {
+                    let _permit = ActiveRequest(active);
+                    if let Err(error) = handle(stream, token.as_str(), launch_gate.as_ref()) {
+                        eprintln!("guest agent request failed: {error}");
+                    }
+                });
             }
             Err(error) => eprintln!("guest agent accept error: {error}"),
         }
@@ -37,7 +58,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 const INTERACTIVE_LAUNCHER_PORT: u16 = 47832;
 const MAX_GUEST_REQUEST_BYTES: usize = 4096;
+const MAX_ACTIVE_REQUESTS: usize = 8;
+const REQUEST_HEADER_TIMEOUT: Duration = Duration::from_secs(2);
+const SERVICE_UNAVAILABLE: &[u8] =
+    b"HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
 const MAX_INTERACTIVE_REQUEST_BYTES: u64 = 512;
+
+// Release capacity even when a handler returns early or panics.
+struct ActiveRequest(Arc<AtomicUsize>);
+impl Drop for ActiveRequest {
+    fn drop(&mut self) {
+        self.0.fetch_sub(1, Ordering::AcqRel);
+    }
+}
 const REQUEST_ID_HEADER: &str = "X-Virtual-Clients-Request-Id";
 const MINECRAFT_PROCESS_START_TIMEOUT: Duration = Duration::from_secs(30);
 const INTERACTIVE_LAUNCH_TIMEOUT: Duration = Duration::from_secs(35);
@@ -171,25 +204,59 @@ fn run_interactive_launcher() -> Result<(), Box<dyn std::error::Error>> {
     Err(io::Error::new(io::ErrorKind::Unsupported, "Interactive launcher currently targets Windows guests").into())
 }
 
-fn handle(mut stream: TcpStream, token: &str) -> Result<(), Box<dyn std::error::Error>> {
-    let timeout = Some(Duration::from_secs(2));
-    stream.set_read_timeout(timeout)?;
-    stream.set_write_timeout(timeout)?;
+// TCP may split headers across multiple reads. Do not wait for EOF because
+// the host waits for a response without half-closing its write side.
+fn read_guest_request(stream: &mut TcpStream) -> io::Result<Vec<u8>> {
+    let deadline = Instant::now() + REQUEST_HEADER_TIMEOUT;
+    let mut request = Vec::with_capacity(512);
+    let mut chunk = [0_u8; 512];
+    loop {
+        let remaining = deadline.saturating_duration_since(Instant::now());
+        if remaining.is_zero() {
+            return Err(io::Error::new(io::ErrorKind::TimedOut, "Guest Agent header timed out"));
+        }
+        stream.set_read_timeout(Some(remaining))?;
+        let limit = (MAX_GUEST_REQUEST_BYTES + 1 - request.len()).min(chunk.len());
+        let size = stream.read(&mut chunk[..limit])?;
+        if size == 0 {
+            return Err(io::Error::new(io::ErrorKind::UnexpectedEof, "Guest Agent header incomplete"));
+        }
+        request.extend_from_slice(&chunk[..size]);
+        if request.len() > MAX_GUEST_REQUEST_BYTES {
+            return Err(io::Error::new(io::ErrorKind::InvalidData, "Guest Agent request exceeds size limit"));
+        }
+        if request.windows(4).any(|bytes| bytes == b"\r\n\r\n") {
+            return Ok(request);
+        }
+    }
+}
 
-    let mut request = [0_u8; MAX_GUEST_REQUEST_BYTES];
-    let size = stream.read(&mut request)?;
-    if size == MAX_GUEST_REQUEST_BYTES {
-        stream.write_all(
-            b"HTTP/1.1 413 Payload Too Large\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
-        )?;
-        return Ok(());
-    }
-    let request = std::str::from_utf8(&request[..size]).map_err(|_| io::Error::new(io::ErrorKind::InvalidData, "Guest Agent request is not valid UTF-8"))?;
-    if !request.contains("\r\n\r\n") {
-        stream.write_all(b"HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")?;
-        return Ok(());
-    }
-    let (headers, body) = request.split_once("\r\n\r\n").unwrap();
+fn handle(mut stream: TcpStream, token: &str, launch_gate: &Mutex<()>) -> Result<(), Box<dyn std::error::Error>> {
+    stream.set_write_timeout(Some(Duration::from_secs(2)))?;
+    let request = match read_guest_request(&mut stream) {
+        Ok(request) => request,
+        Err(error) => {
+            let response = match error.kind() {
+                io::ErrorKind::InvalidData =>
+                    b"HTTP/1.1 413 Payload Too Large\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".as_slice(),
+                io::ErrorKind::TimedOut | io::ErrorKind::WouldBlock =>
+                    b"HTTP/1.1 408 Request Timeout\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".as_slice(),
+                _ =>
+                    b"HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".as_slice(),
+            };
+            stream.write_all(response)?;
+            return Ok(());
+        }
+    };
+    let request = match std::str::from_utf8(&request) {
+        Ok(value) => value,
+        Err(_) => {
+            stream.write_all(b"HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")?;
+            return Ok(());
+        }
+    };
+    let (headers, body) = request.split_once("\r\n\r\n")
+        .expect("read_guest_request returned a complete header");
     let first_line = headers.lines().next().unwrap_or_default();
     if !body.is_empty() {
         stream.write_all(b"HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")?;
@@ -253,8 +320,22 @@ fn handle(mut stream: TcpStream, token: &str) -> Result<(), Box<dyn std::error::
             write_json(&mut stream, request_id, &status)
         }
         "POST /minecraft/launch HTTP/1.1" => {
-            let result = launch_minecraft()?;
-            write_json(&mut stream, request_id, &result)
+            // One interactive launch at a time; status requests remain independent.
+            let _launch = match launch_gate.try_lock() {
+                Ok(guard) => guard,
+                Err(_) => {
+                    stream.write_all(SERVICE_UNAVAILABLE)?;
+                    return Ok(());
+                }
+            };
+            match launch_minecraft() {
+                Ok(result) => write_json(&mut stream, request_id, &result),
+                Err(error) => {
+                    eprintln!("Minecraft Education launch request failed: {error}");
+                    stream.write_all(b"HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")?;
+                    Ok(())
+                }
+            }
         }
         _ => {
             stream.write_all(
@@ -444,12 +525,49 @@ fn guest_agent_token() -> io::Result<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{timing_safe_token_eq, MAX_GUEST_REQUEST_BYTES, MAX_INTERACTIVE_REQUEST_BYTES};
+    use super::{read_guest_request, timing_safe_token_eq, MAX_ACTIVE_REQUESTS, MAX_GUEST_REQUEST_BYTES, MAX_INTERACTIVE_REQUEST_BYTES};
+    use std::{io::{self, Write}, net::{Shutdown, TcpListener, TcpStream}, thread};
 
     #[test]
     fn transport_limits_are_small_and_explicit() {
         assert_eq!(MAX_GUEST_REQUEST_BYTES, 4096);
+        assert_eq!(MAX_ACTIVE_REQUESTS, 8);
         assert_eq!(MAX_INTERACTIVE_REQUEST_BYTES, 512);
+    }
+
+    #[test]
+    fn bounded_http_reader_handles_segmented_headers_and_rejects_bad_frames() {
+        fn exchange(chunks: &[&[u8]]) -> io::Result<Vec<u8>> {
+            let listener = TcpListener::bind(("127.0.0.1", 0))?;
+            let address = listener.local_addr()?;
+            let server = thread::spawn(move || {
+                let (mut stream, _) = listener.accept()?;
+                read_guest_request(&mut stream)
+            });
+            let mut client = TcpStream::connect(address)?;
+            for part in chunks {
+                client.write_all(part)?;
+                thread::yield_now();
+            }
+            client.shutdown(Shutdown::Write)?;
+            server.join().expect("server thread panicked")
+        }
+
+        let header = b"GET /status HTTP/1.1\r\nHost: virtual-client\r\n\r\n";
+        assert_eq!(
+            exchange(&[b"GET /status HTTP/1.1\r\nHost:", b" virtual-client\r\n", b"\r\n"]).unwrap(),
+            header
+        );
+        assert_eq!(
+            exchange(&[&vec![b'X'; MAX_GUEST_REQUEST_BYTES + 1]])
+                .unwrap_err().kind(),
+            io::ErrorKind::InvalidData
+        );
+        assert_eq!(
+            exchange(&[b"GET /status HTTP/1.1\r\nHost: virtual-client\r\n"])
+                .unwrap_err().kind(),
+            io::ErrorKind::UnexpectedEof
+        );
     }
 
     #[test]

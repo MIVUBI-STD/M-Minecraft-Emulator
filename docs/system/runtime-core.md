@@ -39,7 +39,7 @@ Rust owns runtime truth.
 - `runtime.rs` — observation collection, lifecycle orchestration and mutation serialization.
 - `lifecycle_admission.rs` — pure lifecycle eligibility shared by action projection and execution; no provider, filesystem or Guest Agent access.
 - `profile.rs` — Native Minecraft detection, Base provenance and version parity.
-- `guest.rs` — bounded Guest Agent status and fixed Minecraft-launch protocol.
+- `guest.rs` — bounded Guest Agent status and fixed Minecraft-launch protocol. Its existing Windows binary `virtual-guest-agent.rs` now accepts segmented HTTP headers with a 4096-byte and two-second total bound, limits active request handlers to eight, and permits only one interactive Minecraft launch at a time. Concurrent status requests remain independent of launch processing; saturation returns HTTP 503. This does not change the wire schema, token authentication, request ID or supported commands.
 - `resources.rs` — host pressure policy.
 - `client.rs` — public instance/status contract.
 - `doctor.rs` — provider, Base, capacity and parity readiness.
