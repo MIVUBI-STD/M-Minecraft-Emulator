@@ -3,6 +3,70 @@
 Updated: 2026-10-10
 Authority: `MIVUBI-STD/M-Minecraft-Emulator`, branch `Local`. Current GitHub source HEAD always outranks this file.
 
+## Approved reliability and modularity program — 2026-10-10
+
+**Work:** emulator/runtime-reliability-modularity
+**State:** ACTIVE / DESIGN_REVIEWED; all listed source repairs PENDING.
+**Proof ceiling:** REMOTE_GITHUB inspection at Local `fe5392d944eeb9309af3d1f1c5cf32fa755e6087`; no executed Node/Rust/Windows/Minecraft tests. This section is an implementation plan, not a claim that bugs have been patched.
+
+### Product acceptance and architecture invariants
+
+Deliver one Native Minecraft Education Windows desktop client plus three isolated VMware Workstation Windows guests that remain responsive with independent licensed identities. Do not confuse a running VM/process, live Agent, matching versions or setup READY with rendered, signed-in, multiplayer-playable Minecraft. Preserve Local-only development, README-only main, existing installed identity, account-bearing disks, update trust and wire/public schema. No alternate hypervisor, CI/cloud service, localhost gateway, second scheduler or parallel state manager.
+
+**Modularity goal:** make existing Rust runtime roles narrow without proliferating files, abstractions or double authorities. Extract only when a concrete failure/test boundary benefits. No wholesale rewrite and no speculative module scaffolding.
+
+### Source-backed defect register
+
+| Priority | First owner | Confirmed source behavior / risk | Required acceptance |
+| --- | --- | --- | --- |
+| P0 | `runtime.rs::start_targets` | Batch startup rollback ends before per-client game launch and provider UI open; later failures can leave newly started VMs running without clear partial-result reconciliation | Inject launch/open failures for first and later clients; assert exact observed states and explicit recovery per client, not false atomic success |
+| P0 | `runtime.rs::stop_inner`, `restore_batch_state` | Stop-all invokes rollback helper that cannot restore a previously RUNNING client; calling it rollback overstates recovery | Fault-inject stop of second/third VM; return honest partial result or restore the previous RUNNING state by explicit policy; never silently claim rollback |
+| P0 | `runtime.rs::reprovision_inner`, `provider/workstation.rs::reprovision` | Profile and old VM are deleted before replacement clone success; confirmed-destructive operation still lacks failure-safe replacement | Stage and validate candidate before cutover; failure preserves inspectable old VM/profile; recovery remains explicit |
+| P1 | `provider/workstation.rs::stop` | Hard-stop follows a roughly 12s soft-stop wait; potential guest data interruption | Separate graceful timeout/force policy; hard-stop must be explicit or justified and reported |
+| P1 | `bin/virtual-guest-agent.rs` | Agent handles host connections serially and parses each TCP request with one read; launch can block status, segmented headers may fail | Deterministic segmented/slow client + concurrent launch/status tests; strict bounded IO, authenticated fixed commands |
+| P1 | `provider/workstation.rs::restart` | Provider-running state after soft reset does not prove guest restarted and is usable | Check guest transition/fresh agent evidence; no ready claim from power state alone |
+| P1 | `apps/desktop/src/App.svelte::startAll` | UI calculates eligible clients but invokes prefix-count Start for all 3 | Consistent selected-target handling and truthful per-client result; no new frontend state authority |
+| P1 | `lifecycle_admission.rs` | Incompatible data schema denies even Stop/Suspend; operator recovery can become blocked | Defined read-only/controlled safety-stop route that cannot bypass disk or identity guard |
+| P1 | `profile.rs` / Base update policy | Native version change currently routes to rebuild and account-destructive reprovision | Design safe migration/preservation policy before implementing; do not silently alter existing account VM |
+| P2 | `doctor.rs`, `virtual-guest-agent.rs` | Setup READY and wildcard game-process match are narrower evidence than playable game | Rename/present readiness precisely; distinguish process, window, login, graphics and multiplayer |
+| P2 | `provider/storage.rs`, desktop window arrangement | Staged linked clone path relocation and title-based VMware window discovery are unproven on Windows | Verify clone disk references and actual window identities with measured target evidence |
+
+### Target ownership map (logical boundaries, not an order to create every file)
+
+```text
+apps/desktop/              Svelte view, typed bridge, UI orchestration only
+   -> thin Tauri commands  (no lifecycle policy)
+engine/runtime-core/
+   runtime.rs              public façade, admission and operation dispatch
+   lifecycle_admission.rs  pure state/action eligibility
+   lifecycle/              OPTIONAL on-demand extraction of start, stop, rollback
+   provision/              OPTIONAL on-demand extraction of staging/cutover
+   provider/               VMware command/state, VMX and disk ownership
+   guest.rs                bounded host <-> guest protocol
+   bin/virtual-guest-agent.rs
+                           fixed authenticated service and per-user launcher
+   profile.rs / doctor.rs  provenance and setup projections, not gameplay truth
+engine/guest/windows/      guest installation and finalization scripts
+engine/distribution/       installer/update contracts
+tooling/acceptance/        independently observed machine/game evidence
+```
+
+Do not create `lifecycle/` or `provision/` until the first repair and focused tests demonstrate a real need. Keep one canonical public `VirtualClients` API, one lock, one persisted client profile, one provider and one owner of each admission decision. Optimize for less reading/context/AI usage through targeted owners and deterministic tests, not maximum file count.
+
+### Executable batches and STOP gates
+
+1. **B1a / first bounded source change:** fix stop-all's misleading rollback/partial-result behavior in `runtime.rs` with deterministic FakeProvider fault injection. Inspect before modifying: `restore_batch_state`, `stop_inner`, existing stop and batch tests, `client.rs` command-result semantics. No new module until tests need it. Review static diff and mark source execution honestly.
+2. **B1b:** cover post-start Minecraft launch/open failures and status reconciliation; test newly started vs preexisting Running clients. Never force-stop a preexisting user session just to make a batch appear atomic.
+3. **B1c:** redesign reprovision as staged and recoverable cutover with failpoint tests before touching destructive provider code. Keep confirmation and disk ownership safeguards; require stronger proof before any account-bearing runtime migration.
+4. **B2:** isolate Guest Agent request framing, concurrency and status vs launch timing; correct provider restart/stop safety; then frontend selected-target semantics. Each step one owner and relevant consumers/tests, not a horizontal rewrite.
+5. **B3:** execute pinned full source checks and Windows NSIS/package smoke when an authorized execution context exists; then one disposable VMware Windows Education client boot/install/login/world/graphics/input observation. Scale to three guests plus Native only if one guest truly works.
+
+**Performance acceptance** requires measured host memory/CPU/GPU, per-client frame responsiveness and recovery over repeated sessions, not static 4096MB/2vCPU settings or process counters. If VMware guest rendering fails, record the exact first failing boundary; architecture reconsideration requires new user approval, not an unrequested parallel engine.
+
+### Handoff policy
+
+For each bounded change: pin current Local HEAD; read first owner and consumers; write focused regression before claiming a fix; commit with truthful `Work`, `State`, `Proof`, `Unresolved`, `Next`; capture exact new SHA and remaining unexecuted proof; STOP. Preserve older entries as historical evidence rather than rewriting them as completed.
+
 ## Pre-local-test source readiness audit — 2026-10-10
 
 **Status: SOURCE_REVIEWED / BUILD_UNPROVEN; PRE_LOCAL_READY = NO.** Only the `Local` branch is authorized; `main` stays README-only. User requires completing all source and package preparation gates before first target-PC test, not repeated ad hoc local tests.
