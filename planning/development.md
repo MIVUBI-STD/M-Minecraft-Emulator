@@ -1,7 +1,23 @@
 # Emulator Development Handoff
 
-Updated: 2026-10-10
+Updated: 2026-10-11
 Authority: `MIVUBI-STD/M-Minecraft-Emulator`, branch `Local`. Current GitHub source HEAD always outranks this file.
+
+## Active bounded research — subsystem architecture and upstream references (2026-10-11)
+
+**Work:** `emulator/subsystem-reference-study`  
+**State:** RESEARCH_DESIGNED / NO_RUNTIME_MUTATION  
+**Source baseline:** `7dc6bd65af82cbe804c9931e9a95a46db16fc4e6` (before this documentation-only commit).  
+**Canonical research artifact:** [Subsystem Reference Study](../experiments/emulator-subsystem-reference-study.md). This lives in non-authoritative `experiments/` to avoid duplicating `docs/system/implementation-map.md` or runtime contracts.
+
+- Classified 23 analytical concerns across the current Desktop, Runtime, VMware, Guest, Reliability and Distribution owners; these are not new implementation modules or status gates.
+- Compared high-value source patterns from VMware Packer, Broadcom VDDK documentation, controller-runtime, QEMU Guest Agent, Microsoft Session 0 guidance, PowerToys and TUF. Reuse an algorithm only for a proven current owner; do not import their infrastructure.
+- Source-confirmed safety boundary: reprovision is disabled, unwired filesystem cutover does not establish VMDK backing-chain safety, and Workstation linked clones deliberately avoid relocations. **No reprovision enablement, platform replacement or new state owner is authorized.**
+- Minecraft Education's OpenGL 4.4 GPU minimum versus publicly documented VMware guest OpenGL 4.3 is a feasibility risk, **not** observed game failure. G1 and G3 remain `NOT_EXECUTED`; no GPU spoofing or runtime readiness claim.
+- G0 desktop Tauri Cargo.lock remains missing and must be generated from genuine dependency resolution. G0–G4 remain `NOT_EXECUTED`. This research is GitHub source plus external documentation only.
+- Repository policy remains unchanged: work via ChatGPT + GitHub on `Local`, leave `main` untouched; no CI, new dependencies, tests or execution environments introduced.
+
+**Next single task:** read-only, line-level audit of the current Workstation linked-clone and `provider/storage.rs` cutover assumptions against Packer and Broadcom disk-chain semantics; decide KEEP / source-grounded ADAPT / DEFER before modifying VM source. Preserve all previous unrelated blockers and source/evidence constraints.
 
 ## Current G0 correction — fail closed on uncommitted Tauri dependencies (2026-10-11)
 
