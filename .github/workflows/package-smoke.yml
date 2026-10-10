@@ -1,7 +1,9 @@
 name: Emulator Windows Package Smoke
 
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - Local
 
 permissions:
   contents: read
