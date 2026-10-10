@@ -3,6 +3,23 @@
 Updated: 2026-10-10
 Authority: `MIVUBI-STD/M-Minecraft-Emulator`, branch `Local`. Current GitHub source HEAD always outranks this file.
 
+## Current direction — outcome-driven validation, not micro-test accumulation
+
+**Current decision (2026-10-10):** Stop expanding speculative disk parsers and single-case regressions. Commit `986a44f` removed unconsumed text-VMDK preflight/inventory helpers and their four tests from `provider/storage.rs`; the underlying VMware disk-chain question remains UNKNOWN. Historical B1c entries below describe the sequence at their commit dates, **not** active validation capabilities. Public Reprovision is still disabled pending an actually safe implementation.
+
+**Use four product gates, ordered by dependency:**
+
+| Gate | Outcome | Minimum decisive evidence |
+| --- | --- | --- |
+| E1 — Engine correctness | VM provision/start/stop, failed operations and account data survive without false success | One focused lifecycle matrix covering failure recovery and on-disk provenance; actual Rust check/tests |
+| E2 — Distribution | A real installable Windows product contains its executable and Guest Agent, repairs safely | Same-SHA desktop/Rust build, NSIS package smoke, disposable Windows install/repair/uninstall |
+| E3 — Guest feasibility | One Windows VMware guest launches a real Minecraft Education world responsively | Interactive guest boot, license sign-in, rendering, input, bounded observation; real runtime evidence |
+| E4 — Product acceptance | Host Native + 3 Virtuals run independently together | Four accounts, performance, account persistence, networking and window usability observed |
+
+**Change discipline:** Start from the first product gate still failing. For each observed defect, identify one owner, patch its complete caller-to-outcome path, add the smallest representative regression (prefer table-driven/fault matrix over separate near-duplicates), then STOP. No validator without a production consumer and no test that exists solely to confirm an uncalled helper. Keep necessary security/failure cases, not arbitrary numeric targets for test counts. Do not equate static review with execution.
+
+**Immediate follow-up:** Review current source for genuine compile/build regressions on the pinned Local SHA and execute E1/E2 when an authorized environment exists. Do not extend B1c disk parsing or enable destructive Reprovision from static assumptions. Any further reprovision design must minimize disk relocation and preserve old state on failure.
+
 ## Approved reliability and modularity program — 2026-10-10
 
 **Work:** emulator/runtime-reliability-modularity
