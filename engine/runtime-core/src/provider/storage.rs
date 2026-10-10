@@ -84,6 +84,62 @@ fn cutover_staged_vm_with_rename(
     Ok(())
 }
 
+// Conservative read-only preflight for VMware linked-clone movement. A
+// relative VMDK parent is resolved from its descriptor directory; moving the
+// clone can change the target even when both moves succeed. This intentionally
+// rejects ambiguity rather than rewriting VMware disk metadata.
+#[allow(dead_code)]
+pub(crate) fn validate_linked_disk_move(
+    descriptor: &Path,
+    destination_dir: &Path,
+) -> io::Result<()> {
+    let source_dir = descriptor.parent().ok_or_else(|| io::Error::new(
+        io::ErrorKind::InvalidInput, "descriptor has no parent directory"))?;
+    let data = fs::read_to_string(descriptor)?;
+    let parent_lines: Vec<&str> = data.lines().map(str::trim)
+        .filter(|line| line.starts_with("parentFileNameHint=")
+            || line.starts_with("parentFileNameHint ="))
+        .collect();
+    if parent_lines.len() != 1 {
+        return Err(io::Error::new(io::ErrorKind::InvalidData,
+            "linked VMDK must have exactly one parentFileNameHint"));
+    }
+    let hint = parent_lines[0].split_once('=')
+        .map(|(_, value)| value.trim().trim_matches('"'))
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+            "linked VMDK parent path is missing"))?;
+    let hint_path = Path::new(hint);
+    // A parent with an absolute path may survive directory movement, but
+    // validating the referenced disk chain still requires VMware execution.
+    let before = if hint_path.is_absolute() {
+        hint_path.to_path_buf()
+    } else {
+        source_dir.join(hint_path)
+    };
+    let after = if hint_path.is_absolute() {
+        hint_path.to_path_buf()
+    } else {
+        destination_dir.join(hint_path)
+    };
+    if before != after {
+        // Use canonical paths only when both files actually exist, and still
+        // require independent VMware disk-chain validation before activation.
+        let same = fs::canonicalize(&before).ok()
+            .zip(fs::canonicalize(&after).ok())
+            .is_some_and(|(left, right)| left == right);
+        if !same {
+            return Err(io::Error::new(io::ErrorKind::InvalidData,
+                "moving linked VMDK changes its parent disk path; candidate must not be promoted"));
+        }
+    }
+    if !before.is_file() {
+        return Err(io::Error::new(io::ErrorKind::NotFound,
+            "linked VMDK parent descriptor does not exist"));
+    }
+    Ok(())
+}
+
 pub(crate) fn has_suspend_state(vmx: &Path) -> bool {
     let Ok(container) = vm_container(vmx) else { return false; };
     let Ok(entries) = fs::read_dir(container) else { return false; };
@@ -191,6 +247,34 @@ mod tests {
         assert!(super::cutover_staged_vm(&stage.join("Virtual-01.vmx"), &old.join("Virtual-01.vmx"), &backup).is_err());
         assert_eq!(fs::read_to_string(old.join("client-profile.json")).unwrap(), "old-profile");
         assert!(!backup.exists());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn relative_linked_disk_parent_move_is_rejected() {
+        let root = std::env::temp_dir().join(format!("vc-linked-{}-{}", std::process::id(),
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()));
+        let stage = root.join("stage");
+        let parent = root.join("parent.vmdk");
+        fs::create_dir_all(&stage).unwrap();
+        fs::write(&parent, "parent").unwrap();
+        let descriptor = stage.join("disk.vmdk");
+        fs::write(&descriptor, "parentFileNameHint=\"../parent.vmdk\"\n").unwrap();
+        let result = super::validate_linked_disk_move(&descriptor, &root.join("elsewhere").join("candidate"));
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("changes its parent disk path"));
+        assert_eq!(fs::read_to_string(parent).unwrap(), "parent");
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn missing_linked_disk_parent_is_rejected() {
+        let root = std::env::temp_dir().join(format!("vc-linked-missing-{}-{}", std::process::id(),
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()));
+        fs::create_dir_all(&root).unwrap();
+        let descriptor = root.join("disk.vmdk");
+        fs::write(&descriptor, "parentFileNameHint=\"missing.vmdk\"\n").unwrap();
+        assert!(super::validate_linked_disk_move(&descriptor, &root).is_err());
         fs::remove_dir_all(root).unwrap();
     }
 
