@@ -135,7 +135,9 @@ provision
 → host/join Minecraft Education multiplayer
 → disconnect/reconnect one Virtual
 → suspend one Virtual
-→ stop all
+→ verify stop-all rejects the suspended member before stopping other Virtuals
+→ explicitly resume that Virtual
+→ stop all gracefully without automatic hard power-off
 → start 3 again
 ```
 

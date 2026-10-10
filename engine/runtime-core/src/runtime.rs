@@ -296,6 +296,9 @@ fn stop_targets(
     targets: &[ClientId],
     mut admit: impl FnMut(ClientId) -> io::Result<()>,
 ) -> io::Result<()> {
+    // Deterministic admission must succeed for the whole batch before mutation.
+    // Recheck before each command to detect newly changed provider state.
+    for &client in targets { admit(client)?; }
     execute_non_atomic_power_batch(provider, targets, "Stop", |client| {
         admit(client)?;
         provider.stop(client).map(|_| ())
@@ -307,10 +310,25 @@ fn suspend_targets(
     targets: &[ClientId],
     mut admit: impl FnMut(ClientId) -> io::Result<()>,
 ) -> io::Result<()> {
+    for &client in targets { admit(client)?; }
     execute_non_atomic_power_batch(provider, targets, "Suspend", |client| {
         admit(client)?;
         provider.suspend(client).map(|_| ())
     })
+}
+
+// Guest verification can fail after a VM was already reset/restarted. Never
+// power it off as a hidden rollback; preserve the observed state in the error.
+fn observed_post_action_failure(
+    provider: &dyn Provider, client: ClientId, action: &str, error: io::Error,
+) -> io::Error {
+    let state = provider.status(client)
+        .map(|value| format!("{value:?}"))
+        .unwrap_or_else(|probe| format!("UNKNOWN({probe})"));
+    io::Error::new(error.kind(), format!(
+        "{action} failed for {}: {error}. Observed VM state: {state}. No automatic stop attempted; inspect status before retrying.",
+        client.as_str()
+    ))
 }
 
 fn with_rollback_context(error: io::Error, failed: &[&'static str]) -> io::Error {
@@ -1597,16 +1615,13 @@ impl VirtualClients {
             )
         })?;
         check_action_admission(provider.as_ref(), client, LifecycleAction::Restart)?;
-        provider.restart(client)?;
+        provider.restart(client).map_err(|error| {
+            observed_post_action_failure(provider.as_ref(), client, "Restart", error)
+        })?;
         if let Err(error) =
             wait_for_guest_compatibility(provider.as_ref(), client, Duration::from_secs(90), true)
         {
-            let failed = if provider.stop(client).is_err() {
-                vec![client.as_str()]
-            } else {
-                Vec::new()
-            };
-            return Err(with_rollback_context(error, &failed));
+            return Err(observed_post_action_failure(provider.as_ref(), client, "Restart", error));
         }
         if let Err(error) = crate::minecraft_runtime::ensure_running(provider.as_ref(), client) {
             return Err(io::Error::new(
@@ -1673,16 +1688,13 @@ impl VirtualClients {
             )
         })?;
         check_action_admission(provider.as_ref(), client, LifecycleAction::Reset)?;
-        provider.reset(client)?;
+        provider.reset(client).map_err(|error| {
+            observed_post_action_failure(provider.as_ref(), client, "Reset", error)
+        })?;
         if let Err(error) =
             wait_for_guest_compatibility(provider.as_ref(), client, Duration::from_secs(90), true)
         {
-            let failed = if provider.stop(client).is_err() {
-                vec![client.as_str()]
-            } else {
-                Vec::new()
-            };
-            return Err(with_rollback_context(error, &failed));
+            return Err(observed_post_action_failure(provider.as_ref(), client, "Reset", error));
         }
         if let Err(error) = crate::minecraft_runtime::ensure_running(provider.as_ref(), client) {
             return Err(io::Error::new(
@@ -1755,7 +1767,7 @@ impl VirtualClients {
 mod tests {
     use super::{
         classify_identity_state, guest_probe_error_is_terminal, restore_batch_state, stop_targets,
-        suspend_targets, vm_identity_state,
+        suspend_targets, validate_power_state, LifecycleAction, vm_identity_state,
     };
     use crate::profile::BaseState;
     use crate::{
@@ -2091,8 +2103,22 @@ mod tests {
             }
         }).unwrap_err();
         assert_eq!(error.kind(), io::ErrorKind::PermissionDenied);
-        assert!(error.to_string().contains("Virtual-01=Stopped"));
-        assert!(error.to_string().contains("Virtual-03=Running"));
+        assert_eq!(*provider.states.borrow(), [ClientState::Running; 3],
+            "preflight must not mutate any VM when target admission fails");
+    }
+
+    #[test]
+    fn suspended_stop_preflight_preserves_all_other_vm_sessions() {
+        let provider = FakeProvider::new(
+            [ClientState::Running, ClientState::Suspended, ClientState::Running],
+            [None, None, None],
+        );
+        let result = stop_targets(&provider, &ClientId::VIRTUAL, |client| {
+            validate_power_state(client, LifecycleAction::Stop, provider.state(client)?, false)
+        });
+        assert_eq!(result.unwrap_err().kind(), io::ErrorKind::InvalidInput);
+        assert_eq!(*provider.states.borrow(),
+            [ClientState::Running, ClientState::Suspended, ClientState::Running]);
     }
 
     #[test]
@@ -2134,13 +2160,28 @@ mod tests {
             }
         }).unwrap_err();
         assert_eq!(error.kind(), io::ErrorKind::PermissionDenied);
-        assert!(error.to_string().contains("Virtual-01=Suspended"));
-        assert!(error.to_string().contains("Virtual-02=Running"));
-        assert!(error.to_string().contains("Virtual-03=Running"));
-        assert_eq!(
-            *provider.states.borrow(),
-            [ClientState::Suspended, ClientState::Running, ClientState::Running]
+        assert_eq!(*provider.states.borrow(), [ClientState::Running; 3],
+            "suspend preflight must not mutate any VM on admission failure");
+    }
+
+    #[test]
+    fn post_action_failure_preserves_observed_vm_state() {
+        let provider = FakeProvider::new(
+            [ClientState::Running, ClientState::Suspended, ClientState::Stopped],
+            [None, None, None],
         );
+        for (client, action, state) in [
+            (ClientId::Virtual01, "Restart", "Running"),
+            (ClientId::Virtual02, "Reset", "Suspended"),
+        ] {
+            let error = super::observed_post_action_failure(&provider, client, action,
+                io::Error::new(io::ErrorKind::TimedOut, "guest not ready"));
+            assert_eq!(error.kind(), io::ErrorKind::TimedOut);
+            assert!(error.to_string().contains(&format!("Observed VM state: {state}")));
+            assert!(error.to_string().contains("No automatic stop attempted"));
+        }
+        assert_eq!(*provider.states.borrow(),
+            [ClientState::Running, ClientState::Suspended, ClientState::Stopped]);
     }
 
     #[test]

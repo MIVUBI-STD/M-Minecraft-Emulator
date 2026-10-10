@@ -143,7 +143,7 @@ Virtual Clients never silently kills existing running clients because of host pr
 - Pressure-aware staggered boot.
 - Batch rollback on start failure.
 - Rollback failure visibility.
-- Graceful stop with bounded hard fallback.
+- Graceful-only stop with bounded observation, never automatic hard power-off or implicit resume of a suspended VM.
 - Long timeout for clone/suspend/resume/snapshot operations.
 - Suspend/fast-resume path.
 - Clean QA_READY reset.
@@ -162,11 +162,11 @@ Virtual-03 = its own persistent guest/account state
 
 Virtual Clients never stores Microsoft passwords, access tokens, refresh tokens, or equivalent account secrets in runtime/profile data.
 
-Normal lifecycle operations (`start`, `stop`, `restart`, `suspend`, resume through `start`, and `open`) must not revert a snapshot, recreate the VM, or otherwise replace the selected Virtual's persistent guest disk.
+Normal lifecycle operations (`start`, `stop`, `restart`, `suspend`, resume through `start`, and `open`) must not revert a snapshot, recreate the VM, or otherwise replace the selected Virtual's persistent guest disk. Stop is graceful-only (90-second command/observation windows); a suspended VM must be resumed explicitly first. Stop-all and Suspend-all check all target admissions before changing any VM. Restart/Reset guest verification failures preserve the current VM and report observed power state; there is no hidden stop.
 
 `QA_READY` is created only after `verify-identities` has persisted verified VM + Windows identity fingerprints and that Virtual completes one-time account setup. `reset` therefore returns to the configured checkpoint. Microsoft/Minecraft may still invalidate or expire a session independently; that is a real account condition, not backend state.
 
-`reprovision` is destructive to the selected Virtual's guest/account state because it creates a fresh clone from Base. The public runtime contract requires an explicit destructive confirmation, and the CLI requires `--destroy-account-state`. It is recovery/setup, not normal daily lifecycle.
+`reprovision` is destructive to the selected Virtual's guest/account state because it creates a fresh clone from Base. The public runtime contract requires an explicit destructive confirmation, and the CLI requires `--destroy-account-state`. It is recovery/setup, not normal daily lifecycle. **Reprovision remains disabled at both runtime and provider levels** until an account-preserving candidate/rollback mechanism has been independently verified; a confirmation flag is not a bypass.
 
 ## Disk policy
 

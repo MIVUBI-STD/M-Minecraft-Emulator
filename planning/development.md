@@ -3,6 +3,22 @@
 Updated: 2026-10-10
 Authority: `MIVUBI-STD/M-Minecraft-Emulator`, branch `Local`. Current GitHub source HEAD always outranks this file.
 
+## Current implementation batch — safe VM lifecycle, no PC handoff (2026-10-11)
+
+**Work:** `emulator/safe-power-lifecycle` — **State: SOURCE_PATCHED / EXECUTION_UNPROVEN**.
+**Parent source:** `4db466ae31c48a3bd1622db589c163d86dd9be84`; use the GitHub commit for the final exact SHA.
+
+- Both VMware provider implementations now make `stop` and `stop_validation_vm` graceful-only, refuse implicit suspended-client resume, and surface timeout/error instead of hard-powering-off account-bearing VMs.
+- Both providers refuse destructive `reprovision`, preserving the original client; Fusion's legitimate cleanup of disposable staging VM files remains intact. The public runtime reprovision guard remains enabled.
+- Stop-all and Suspend-all preflight the entire target set; runtime still re-checks each client immediately before attempting a VM operation.
+- Failed Restart/Reset verification no longer triggers a hidden `provider.stop`, and reported errors include current provider state.
+- Existing Rust regression cases were updated for preflight semantics, with targeted cases for suspended Stop and post-Reset/Restart state. They are **authored, NOT_EXECUTED**. Exact-source checks, NSIS, Windows VM graphics, Education sign-in and four-client gameplay remain unproven.
+
+**No PC requirement during source development:** All work is committed to `Local` through ChatGPT + GitHub; `main` and CI workflows untouched. Product architecture stays Native Windows Education plus three VMware Workstation guests. Do not add an alternative provider until user authorizes an architecture switch following real evidence. Do not send incremental PC test requests.
+
+**Next:** execute same-SHA Node/Rust/Tauri build and Windows package checks using an authorized independent cloud execution context, then repair only evidenced failures. Only after source/package integrity is ready does one final targeted on-machine feasibility/acceptance exercise make sense; no present proof of Windows VM gameplay exists.
+
+
 ## Current implementation batch — safe suspend-all partial failure (2026-10-10)
 
 **Work:** `emulator/non-atomic-power-batch`  

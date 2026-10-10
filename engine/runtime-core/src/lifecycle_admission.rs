@@ -42,7 +42,7 @@ pub(super) fn validate_power_state(
         }
         LifecycleAction::Stop => matches!(
             state,
-            ClientState::Stopped | ClientState::Suspended | ClientState::Running
+            ClientState::Stopped | ClientState::Running
         ),
         LifecycleAction::Open => matches!(
             state,
@@ -307,7 +307,7 @@ mod tests {
             ClientState::Suspended,
             false,
         )
-        .is_ok());
+        .is_err());
         assert!(validate_power_state(
             ClientId::Virtual01,
             LifecycleAction::Stop,

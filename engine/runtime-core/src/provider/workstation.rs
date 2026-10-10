@@ -1,7 +1,7 @@
 use super::{
     apply_virtual_hardware_policy, base_vmx_path, client_vmx_path, command_output,
     command_output_with_timeout, ensure_parent, guest_tools_state_ready, has_suspend_state,
-    listed_as_running, parse_guest_ip, read_vmx_memory, remove_vm_container,
+    listed_as_running, parse_guest_ip, read_vmx_memory,
     snapshot_list_contains, vm_identity_key, wait_for_state, Provider,
     DISK_STATE_TIMEOUT,
 };
@@ -23,6 +23,9 @@ const GUI_CANDIDATES: [&str; 2] = [
     r"C:\Program Files (x86)\VMware\VMware Workstation\vmware.exe",
     r"C:\Program Files\VMware\VMware Workstation\vmware.exe",
 ];
+
+// Never escalate a routine client or Base shutdown into a hard power-off.
+const GRACEFUL_STOP_TIMEOUT: Duration = Duration::from_secs(90);
 
 #[derive(Debug, Default)]
 pub struct VmwareWorkstationProvider;
@@ -67,6 +70,51 @@ impl VmwareWorkstationProvider {
         let output = command_output(self.require_vmrun()?, ["-T", "ws", "list"])?;
         Ok(listed_as_running(&output, vmx))
     }
+
+    fn graceful_stop_vmx(&self, vmx: &Path) -> io::Result<()> {
+        if !self.running(vmx)? {
+            return if has_suspend_state(vmx) {
+                Err(io::Error::new(
+                    io::ErrorKind::InvalidInput,
+                    "VM is suspended. Resume explicitly before Stop; no VM was modified.",
+                ))
+            } else {
+                Ok(())
+            };
+        }
+
+        // A timeout can occur after VMware already changed guest power state.
+        // Reconcile it, but never silently force-kill a guest with account data.
+        let response = command_output_with_timeout(
+            self.require_vmrun()?,
+            ["-T", "ws", "stop", vmx.to_string_lossy().as_ref(), "soft"],
+            GRACEFUL_STOP_TIMEOUT,
+        );
+        if let Err(error) = response {
+            match self.running(vmx) {
+                Ok(false) if !has_suspend_state(vmx) => return Ok(()),
+                Ok(_) => return Err(io::Error::new(
+                    error.kind(),
+                    format!("Graceful stop failed: {error}. No hard stop attempted; inspect VM state."),
+                )),
+                Err(probe_error) => return Err(io::Error::new(
+                    error.kind(),
+                    format!("Graceful stop failed: {error}. VM state UNKNOWN ({probe_error}); no hard stop attempted."),
+                )),
+            }
+        }
+
+        wait_for_state(|| self.running(vmx), false, GRACEFUL_STOP_TIMEOUT)
+            .map_err(|error| io::Error::new(
+                error.kind(),
+                format!("Graceful stop not confirmed: {error}. No hard stop attempted; inspect VM state."),
+            ))?;
+        if has_suspend_state(vmx) {
+            return Err(io::Error::new(io::ErrorKind::InvalidData,
+                "VM entered Suspended state instead of Stopped; inspect VM state."));
+        }
+        Ok(())
+    }
 }
 
 impl Provider for VmwareWorkstationProvider {
@@ -106,24 +154,7 @@ impl Provider for VmwareWorkstationProvider {
     }
 
     fn stop_validation_vm(&self, vmx: &Path) -> io::Result<()> {
-        if !self.running(vmx)? {
-            return Ok(());
-        }
-
-        command_output(
-            self.require_vmrun()?,
-            ["-T", "ws", "stop", vmx.to_string_lossy().as_ref(), "soft"],
-        )?;
-
-        if wait_for_state(|| self.running(vmx), false, Duration::from_secs(20)).is_err() {
-            command_output(
-                self.require_vmrun()?,
-                ["-T", "ws", "stop", vmx.to_string_lossy().as_ref(), "hard"],
-            )?;
-            wait_for_state(|| self.running(vmx), false, Duration::from_secs(10))?;
-        }
-
-        Ok(())
+        self.graceful_stop_vmx(vmx)
     }
 
     fn guest_ip_for_path(&self, vmx: &Path) -> io::Result<Option<String>> {
@@ -227,19 +258,13 @@ impl Provider for VmwareWorkstationProvider {
         })
     }
 
-    fn reprovision(&self, client: ClientId) -> io::Result<ClientState> {
-        let vmx = client_vmx_path(client)?;
-        if vmx.is_file() && (self.running(&vmx)? || has_suspend_state(&vmx)) {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidInput,
-                format!(
-                    "{} must be fully stopped before reprovision",
-                    client.as_str()
-                ),
-            ));
-        }
-        remove_vm_container(&vmx)?;
-        self.provision(client)
+    fn reprovision(&self, _client: ClientId) -> io::Result<ClientState> {
+        // Public runtime also rejects reprovision; this closes provider bypasses.
+        // Never delete an account-bearing original before proving replacement.
+        Err(io::Error::new(
+            io::ErrorKind::Unsupported,
+            "Reprovision is disabled until a recoverable, account-safe cutover is proven.",
+        ))
     }
 
     fn memory_limit_mb(&self, client: ClientId) -> io::Result<u64> {
@@ -364,39 +389,7 @@ impl Provider for VmwareWorkstationProvider {
     }
 
     fn stop(&self, client: ClientId) -> io::Result<ClientState> {
-        let vmx = self.require_client(client)?;
-        if !self.running(&vmx)? {
-            if has_suspend_state(&vmx) {
-                command_output_with_timeout(
-                    self.require_vmrun()?,
-                    ["-T", "ws", "start", vmx.to_string_lossy().as_ref(), "nogui"],
-                    DISK_STATE_TIMEOUT,
-                )?;
-                wait_for_state(|| self.running(&vmx), true, DISK_STATE_TIMEOUT)?;
-            } else {
-                return Ok(ClientState::Stopped);
-            }
-        }
-
-        let soft_stop = command_output(
-            self.require_vmrun()?,
-            ["-T", "ws", "stop", vmx.to_string_lossy().as_ref(), "soft"],
-        );
-        if let Err(error) = soft_stop {
-            if !self.running(&vmx).unwrap_or(true) && !has_suspend_state(&vmx) {
-                return Ok(ClientState::Stopped);
-            }
-            return Err(error);
-        }
-
-        if wait_for_state(|| self.running(&vmx), false, Duration::from_secs(12)).is_err() {
-            command_output(
-                self.require_vmrun()?,
-                ["-T", "ws", "stop", vmx.to_string_lossy().as_ref(), "hard"],
-            )?;
-            wait_for_state(|| self.running(&vmx), false, Duration::from_secs(5))?;
-        }
-
+        self.graceful_stop_vmx(&self.require_client(client)?)?;
         Ok(ClientState::Stopped)
     }
 
