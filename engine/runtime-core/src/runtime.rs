@@ -257,28 +257,60 @@ fn restore_batch_state(
     failed
 }
 
-// Stopping multiple guests is not atomic: never silently restart a stopped
-// guest during recovery. Report observed provider states after a failure.
+// VM power batches are deliberately non-atomic. A failed provider command may
+// already have changed its VM; never mask that with an implicit restart.
+// Project observed states to the caller so a human can reconcile before retry.
+fn execute_non_atomic_power_batch(
+    provider: &dyn Provider,
+    targets: &[ClientId],
+    action: &str,
+    mut apply: impl FnMut(ClientId) -> io::Result<()>,
+) -> io::Result<()> {
+    for &client in targets {
+        if let Err(error) = apply(client) {
+            let observed = targets
+                .iter()
+                .map(|&target| {
+                    let state = provider
+                        .status(target)
+                        .map(|state| format!("{state:?}"))
+                        .unwrap_or_else(|read_error| format!("UNKNOWN({read_error})"));
+                    format!("{}={state}", target.as_str())
+                })
+                .collect::<Vec<_>>()
+                .join(", ");
+            return Err(io::Error::new(
+                error.kind(),
+                format!(
+                    "{action} batch interrupted at {}: {error}. Partial completion possible; observed VM states: {observed}. Inspect status before retrying.",
+                    client.as_str()
+                ),
+            ));
+        }
+    }
+    Ok(())
+}
+
 fn stop_targets(
     provider: &dyn Provider,
     targets: &[ClientId],
     mut admit: impl FnMut(ClientId) -> io::Result<()>,
 ) -> io::Result<()> {
-    for &client in targets {
-        if let Err(error) = admit(client).and_then(|_| provider.stop(client).map(|_| ())) {
-            let observed = targets.iter().map(|&target| {
-                let state = provider.status(target)
-                    .map(|state| format!("{state:?}"))
-                    .unwrap_or_else(|read_error| format!("UNKNOWN({read_error})"));
-                format!("{}={state}", target.as_str())
-            }).collect::<Vec<_>>().join(", ");
-            return Err(io::Error::new(error.kind(), format!(
-                "Stop batch interrupted at {}: {error}. Partial completion possible; observed VM states: {observed}. Inspect status before retrying.",
-                client.as_str()
-            )));
-        }
-    }
-    Ok(())
+    execute_non_atomic_power_batch(provider, targets, "Stop", |client| {
+        admit(client)?;
+        provider.stop(client).map(|_| ())
+    })
+}
+
+fn suspend_targets(
+    provider: &dyn Provider,
+    targets: &[ClientId],
+    mut admit: impl FnMut(ClientId) -> io::Result<()>,
+) -> io::Result<()> {
+    execute_non_atomic_power_batch(provider, targets, "Suspend", |client| {
+        admit(client)?;
+        provider.suspend(client).map(|_| ())
+    })
 }
 
 fn with_rollback_context(error: io::Error, failed: &[&'static str]) -> io::Error {
@@ -1489,27 +1521,10 @@ impl VirtualClients {
                 .collect(),
         };
 
-        let mut suspended_by_batch = Vec::new();
         let mut result = Vec::with_capacity(targets.len());
-
-        for client in &targets {
-            let client = *client;
-            let original_state = provider.status(client)?;
-            check_action_admission(provider.as_ref(), client, LifecycleAction::Suspend)?;
-            if let Err(error) = provider.suspend(client) {
-                let mut rollback_failed = Vec::new();
-                for suspended in suspended_by_batch.into_iter().rev() {
-                    if provider.start(suspended).is_err() {
-                        rollback_failed.push(suspended.as_str());
-                    }
-                }
-                return Err(with_rollback_context(error, &rollback_failed));
-            }
-
-            if original_state == ClientState::Running {
-                suspended_by_batch.push(client);
-            }
-        }
+        suspend_targets(provider.as_ref(), &targets, |client| {
+            check_action_admission(provider.as_ref(), client, LifecycleAction::Suspend)
+        })?;
 
         let working_sets = provider.host_working_sets_mb()?;
         let native_profile = native_minecraft_profile();
@@ -1740,7 +1755,7 @@ impl VirtualClients {
 mod tests {
     use super::{
         classify_identity_state, guest_probe_error_is_terminal, restore_batch_state, stop_targets,
-        vm_identity_state,
+        suspend_targets, vm_identity_state,
     };
     use crate::profile::BaseState;
     use crate::{
@@ -1758,6 +1773,7 @@ mod tests {
         fail_open: bool,
         fail_stop: Option<ClientId>,
         fail_suspend: Option<ClientId>,
+        fail_after_suspend: bool,
         identity_error: Option<ClientId>,
     }
 
@@ -1771,6 +1787,7 @@ mod tests {
                 fail_open: false,
                 fail_stop: None,
                 fail_suspend: None,
+                fail_after_suspend: false,
                 identity_error: None,
             }
         }
@@ -1866,6 +1883,9 @@ mod tests {
 
         fn suspend(&self, client: ClientId) -> io::Result<ClientState> {
             if self.fail_suspend == Some(client) {
+                if self.fail_after_suspend {
+                    self.set_state(client, ClientState::Suspended)?;
+                }
                 return Err(io::Error::new(
                     io::ErrorKind::Other,
                     "injected suspend failure",
@@ -2073,6 +2093,54 @@ mod tests {
         assert_eq!(error.kind(), io::ErrorKind::PermissionDenied);
         assert!(error.to_string().contains("Virtual-01=Stopped"));
         assert!(error.to_string().contains("Virtual-03=Running"));
+    }
+
+    #[test]
+    fn suspend_batch_reports_partial_states_without_implicit_restart() {
+        let targets = ClientId::VIRTUAL;
+        // The provider can fail before OR after mutating the second VM.
+        for mutated_before_error in [false, true] {
+            let provider = FakeProvider {
+                fail_suspend: Some(ClientId::Virtual02),
+                fail_after_suspend: mutated_before_error,
+                ..FakeProvider::new(
+                    [ClientState::Running; 3],
+                    [None, None, None],
+                )
+            };
+            let error = suspend_targets(&provider, &targets, |_| Ok(())).unwrap_err();
+            assert!(error.to_string().contains("Suspend batch interrupted at Virtual-02"));
+            assert!(error.to_string().contains("Partial completion possible"));
+            assert!(error.to_string().contains("Virtual-01=Suspended"));
+            assert!(error.to_string().contains(if mutated_before_error {
+                "Virtual-02=Suspended"
+            } else {
+                "Virtual-02=Running"
+            }));
+            assert!(error.to_string().contains("Virtual-03=Running"));
+            assert_eq!(provider.state(ClientId::Virtual01).unwrap(), ClientState::Suspended);
+            assert_eq!(provider.state(ClientId::Virtual03).unwrap(), ClientState::Running);
+        }
+    }
+
+    #[test]
+    fn suspend_batch_admission_failure_preserves_unattempted_clients() {
+        let provider = FakeProvider::new([ClientState::Running; 3], [None, None, None]);
+        let error = suspend_targets(&provider, &ClientId::VIRTUAL, |client| {
+            if client == ClientId::Virtual02 {
+                Err(io::Error::new(io::ErrorKind::PermissionDenied, "admission rejected"))
+            } else {
+                Ok(())
+            }
+        }).unwrap_err();
+        assert_eq!(error.kind(), io::ErrorKind::PermissionDenied);
+        assert!(error.to_string().contains("Virtual-01=Suspended"));
+        assert!(error.to_string().contains("Virtual-02=Running"));
+        assert!(error.to_string().contains("Virtual-03=Running"));
+        assert_eq!(
+            *provider.states.borrow(),
+            [ClientState::Suspended, ClientState::Running, ClientState::Running]
+        );
     }
 
     #[test]

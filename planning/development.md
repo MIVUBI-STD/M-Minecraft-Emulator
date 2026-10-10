@@ -3,6 +3,21 @@
 Updated: 2026-10-10
 Authority: `MIVUBI-STD/M-Minecraft-Emulator`, branch `Local`. Current GitHub source HEAD always outranks this file.
 
+## Current implementation batch — safe suspend-all partial failure (2026-10-10)
+
+**Work:** `emulator/non-atomic-power-batch`  
+**State:** SOURCE_PATCHED / EXECUTION_UNPROVEN  
+**Starting Local HEAD:** `dd70d9c654788f5ea90a0ed27783662ee7790c1a`
+
+The current Rust owner already contains start-batch compensation and stop-batch partial-state reporting; do **not** duplicate those historical B1a/B1b repairs. This batch reuses a single in-module non-atomic power-batch reporter for **Stop** and **Suspend**. A failed Suspend now reports each targeted provider state and leaves already-suspended VMs untouched, rather than automatically restarting a VM or claiming the batch rolled back. It also accounts for a provider returning an error *after* a state mutation. No public API, guest disk, installer, credential, provider, branch, or release contract changed.
+
+**Proof:** Source-only at pinned GitHub parent HEAD. Existing FakeProvider tests for Stop remain, and two bounded Suspend tests cover provider failure (before/after mutation) and admission failure. Test sources were authored, **not executed**: this ChatGPT execution environment has no Rust toolchain and does not have the pinned Node 24/npm 11 toolchain. There is no actual Windows/VMware/Minecraft proof or source verification PASS. No CI trigger, workflow, or `main` change.
+
+**Remaining:** Same-SHA `npm run verify:source`, Windows NSIS package verification, safe reprovision audit and the actual one-guest Minecraft Education feasibility gate remain unproven. Do not adopt App Sandbox or create a parallel VM provider without an explicit evidence-based architecture decision.
+
+**Next:** Execute locked source checks on the exact new `Local` commit in an independently available authorized environment; repair only observed failures.
+
+
 ## Prior verified Windows build failures repaired in source — 2026-10-10
 
 **Scope:** Exact `Local` source fix for failures observed in the previously completed GitHub Actions runs [Source Verification #38067894851](https://github.com/MIVUBI-STD/M-Minecraft-Emulator/actions/runs/38067894851) and [Package Smoke #38067894820](https://github.com/MIVUBI-STD/M-Minecraft-Emulator/actions/runs/38067894820), both at historical SHA `515e076`. These logged three Svelte typecheck errors (`positiveInteger` unknown narrowing and two undefined `arrayOf` calls) and five Rust compiler errors (`guest_token` imported from the wrong module, and generic `fs::rename` passed without a lifetime-compatible closure). This change corrects those exact source causes in existing owners. **No GitHub Actions or automatic CI was triggered by the fix.** Rust/TypeScript executable confirmation at the new SHA remains **NOT_EXECUTED**. These build errors are not evidence of VMware/Minecraft feasibility failure.
