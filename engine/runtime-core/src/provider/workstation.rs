@@ -211,13 +211,10 @@ impl Provider for VmwareWorkstationProvider {
             // An existing container with no VMX may be an interrupted clone.
             // It is not equivalent to a clean, unprovisioned client.
             if vmx.parent().is_some_and(Path::exists) {
-                return Err(io::Error::new(
-                    io::ErrorKind::InvalidData,
-                    format!(
-                        "{} has an incomplete VM directory; preserve its files and inspect the failed clone before retrying",
-                        client.as_str()
-                    ),
-                ));
+                // Expose incomplete clone residue through the existing ERROR
+                // state. Doctor and lifecycle projections must not mistake
+                // a provider diagnostic failure for clean NOT_PROVISIONED.
+                return Ok(ClientState::Error);
             }
             return Ok(ClientState::NotProvisioned);
         }
