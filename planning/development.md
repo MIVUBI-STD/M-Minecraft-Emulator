@@ -3,6 +3,21 @@
 Updated: 2026-10-10
 Authority: `MIVUBI-STD/M-Minecraft-Emulator`, branch `Local`. Current GitHub source HEAD always outranks this file.
 
+## Current G0 correction — fail closed on uncommitted Tauri dependencies (2026-10-11)
+
+**Work:** `emulator/g0-tauri-dependency-reproducibility`  
+**State:** SOURCE_PATCHED / EXECUTION_UNPROVEN  
+**Parent `Local`:** `2b12825eacc78039bd49a303dcb5d78bfec4c5a8` (new exact commit is authoritative).
+
+- Confirmed at the pinned GitHub tree: the runtime has `engine/runtime-core/Cargo.lock`, but there is no `apps/desktop/src-tauri/Cargo.lock`. Tauri's own v2 documentation recommends committing it; Cargo `--locked` must reject absence and stale resolutions.
+- Actual Cargo/Rust toolchain and dependency registry resolution are unavailable in this ChatGPT context. **No lockfile was fabricated**, no versions/checksums were guessed and there is no claim of successful compilation.
+- G0's existing `verify:source` route now requests a **G0-only** prerequisite from the existing repository verifier, so the aggregate source checkpoint fails early without Tauri Cargo.lock; standalone structural `verify:repository` remains usable. Existing desktop Rust check/test and Tauri build invoke Cargo with `--locked`; direct package preparation refuses missing Tauri lockfile before constructing binaries. Only the existing verification-routing assertion was adapted; no new test module/runner/state manager/CI.
+- **Proof ceiling:** exact GitHub source/config consumer review only. All product gates G0–G4 remain `NOT_EXECUTED`; Tauri dependency resolution is explicitly unresolved.
+- **Safety:** `main` untouched, no new workflows, no PC tasks, no changes to VM accounts/disks, providers or install identity.
+
+**Next:** Generate and commit a real Cargo-resolved desktop lockfile only when Cargo/registry access is genuinely available in the authorized ChatGPT + GitHub workflow; then execute G0 to see actual compiler/package results.
+
+
 ## Current source batch — G0 package inputs and Rust lock boundary (2026-10-11)
 
 **Work:** `emulator/g0-package-source-integrity`  

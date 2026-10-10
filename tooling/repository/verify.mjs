@@ -30,6 +30,14 @@ const required = [
 for (const file of required) {
   requireFact(existsSync(resolve(root, file)), "Missing canonical repository owner: " + file);
 }
+// The aggregate G0 source route requests an extra reproducibility prerequisite.
+// Keep normal repository structure inspections available independently while the
+// actual Tauri dependency graph has not yet been generated.
+if (process.argv.includes("--g0")) {
+  requireFact(existsSync(resolve(root, "apps/desktop/src-tauri/Cargo.lock")),
+    "G0 BLOCKED: committed Tauri Cargo.lock is missing. Resolve it with Cargo against apps/desktop/src-tauri/Cargo.toml; do not fabricate versions.");
+}
+
 // Root governance continuity is source-owned; keep it within this verifier.
 for (const [file, markers] of Object.entries({
   "AGENTS.md": ["ChatGPT-GitHub Work Continuity", "Short-prompt repository startup", "Cross-chat recovery"],
