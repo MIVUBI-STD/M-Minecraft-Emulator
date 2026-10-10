@@ -1,23 +1,23 @@
 # Virtual Clients Windows Acceptance Campaign
 
-This campaign is evidence collection, not simulation. A stage stays `NOT_RUN` until the required target-machine action has actually been performed.
+This campaign is evidence collection, not simulation. A stage stays `NOT_RUN` until its target-machine action has actually been performed. **The only five product-test progress gates are G0–G4 in [Acceptance](../../../docs/validation/acceptance.md)**; the existing stage IDs and recorder schema stay unchanged. Stage records are supporting evidence, not twelve independent release milestones.
 
 ## Stages
 
-| Stage | Purpose | Evidence owner |
-| --- | --- | --- |
-| CLIENT_FEASIBILITY | **Before production VM setup:** prove one scratch Windows VMware guest can render and interact with Minecraft Education; capture OpenGL separately | operator + read-only guest collector |
-| HOST | Record Windows, VMware, CPU, memory, GPU, hypervisor/VBS and Native Minecraft facts | collector |
-| SINGLE_VM | Prove one Virtual lifecycle on the target provider | operator + collector |
-| GUEST | Prove VMware Tools, Guest Agent and interactive launcher progression | collector |
-| MINECRAFT | Prove Minecraft launches in the intended interactive session without duplicate launch | operator + collector |
-| ACCOUNT | Prove one licensed account can sign in and persist through the intended recovery workflow | operator |
-| THREE_VMS | Prove Virtual-01/02/03 coexist with unique identities | operator + collector |
-| FOUR_MINECRAFT | Prove Native + three Virtual Minecraft clients coexist and remain interactive | operator + collector |
-| FOUR_ACCOUNTS | Prove four distinct licensed sessions remain isolated | operator |
-| MULTIPLAYER | Prove required Native↔Virtual and Virtual↔Virtual join paths | operator |
-| RECOVERY | Prove stop/start, suspend/resume, reset and host reboot behavior | operator + collector |
-| SOAK | Record long-run stability and repeated lifecycle cycles | operator + collector |
+| Stage | Supports gate | Purpose | Evidence owner |
+| --- | --- | --- | --- |
+| CLIENT_FEASIBILITY | G1 | **Before production VM setup:** prove one scratch Windows VMware guest can render and interact with Minecraft Education; capture OpenGL separately | operator + read-only guest collector |
+| HOST | G1 (baseline) | Record Windows, VMware, CPU, memory, GPU, hypervisor/VBS and Native Minecraft facts | collector |
+| SINGLE_VM | G2 | Prove one Virtual lifecycle on the target provider | operator + collector |
+| GUEST | G2 | Prove VMware Tools, Guest Agent and interactive launcher progression | collector |
+| MINECRAFT | G2 | Prove Minecraft launches in the intended interactive session without duplicate launch | operator + collector |
+| ACCOUNT | G2 | Prove one licensed account can sign in and persist through the intended recovery workflow | operator |
+| THREE_VMS | G2 | Prove Virtual-01/02/03 coexist with unique identities | operator + collector |
+| FOUR_MINECRAFT | G3 | Prove Native + three Virtual Minecraft clients coexist and remain interactive | operator + collector |
+| FOUR_ACCOUNTS | G3 | Prove four distinct licensed sessions remain isolated | operator |
+| MULTIPLAYER | G4 | Prove required Native↔Virtual and Virtual↔Virtual join paths | operator |
+| RECOVERY | G4 | Prove stop/start, suspend/resume, reset and host reboot behavior | operator + collector |
+| SOAK | G4 (supporting) | Record long-run stability and repeated lifecycle cycles | operator + collector |
 
 ## Single Windows desktop route
 
@@ -43,6 +43,8 @@ Review the JSON with `../evaluate-client-feasibility.mjs`. The reviewer never ce
 
 Canonical guide: [Client Feasibility](../../../docs/validation/client-feasibility.md). A scratch-guest failure stops further cloning and account setup until graphics/driver/VM compatibility is understood.
 
+G0 has no Windows evidence-recorder stage: it is derived from executed source, package, payload and disposable installer-safety checks in [G0 Readiness](../../../docs/validation/pre-local-test-readiness.md). `HOST` establishes a baseline; it does not prove G1 on its own. `SOAK` is supporting evidence and cannot replace G4's recovery and multiplayer observations.
+
 ## Result vocabulary
 
 **Safety:** `collect-acceptance.ps1` is observation-only by default. Optional `-VerifyIdentities` may update identity evidence and is blocked unless all three Virtual clients are provisioned and RUNNING. Every CLI response must have a valid schema-1 success envelope; malformed responses fail closed.
@@ -55,11 +57,11 @@ Use only:
 - `FAIL` — at least one exercised required assertion failed.
 - `BLOCKED` — the stage could not be exercised because an earlier dependency failed.
 
-Do not infer `PASS` from source tests, CI, documentation, configured NAT, process existence, or a successful collector run.
+Do not infer a **gate PASS** from a stage result, source tests, CI, documentation, configured NAT, process existence, or a successful collector run. The recorder's `NOT_RUN` means `NOT_EXECUTED` in the human-facing five-gate summary; partially observed stages do not promote their gate.
 
 ## Campaign order
 
-Run stages in table order. Stop escalation when a stage fails. Diagnose the first wrong owner before attempting later concurrency, account or multiplayer stages.
+Use the stages as **one campaign grouped by G1–G4**, not as a new test activity after each code patch. Stop escalation on a real failed required outcome; diagnose the first wrong owner and revisit affected/dependent gate outcomes. Do not re-run the entire campaign for source-only edits or repeatedly exercise already evidenced scenarios without a relevant change.
 
 Use `collect-acceptance.ps1` before and after meaningful runtime transitions. The collector must support HOST/baseline **before any VM is provisioned**: `resourcesCollected=false` and null resource measurements explicitly mean *not yet available*, not zero or success. Only after all three Virtual clients are provisioned may the optional `resources 3` command be queried. No unobserved multiplayer or provisioning-ready flags may be created. Preserve each output as evidence for the campaign rather than overwriting previous captures.
 

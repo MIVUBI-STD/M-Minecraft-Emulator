@@ -7,49 +7,35 @@ authority: CANONICAL
 lifecycle: ACTIVE
 ---
 
-# Pre-Local-Test Readiness — Windows Desktop VMware
+# G0 — Source & Package Integrity
 
-## Scope
+This document describes the **four mandatory checks within G0**, not four extra product gates. The five and only five product-testing gates are defined in [Acceptance G0–G4](./acceptance.md). Existing `Local` workflows and build scripts remain unchanged.
 
-This is the STOP gate before asking the operator to install or exercise M-Minecraft-Emulator on their Windows PC. It applies only to the approved product: **Native Windows Minecraft Education plus three isolated Windows VMware Workstation Minecraft Education desktop guests**, four distinct licensed accounts, all usable simultaneously.
+## Exact-SHA G0 checks
 
-**Do not interpret source presence, static scans, a green documentation checklist or GitHub commits as executable readiness.** The real guest and Minecraft compatibility question is intentionally answered **during** targeted Windows acceptance, *after* source and package preparation are complete.
-
-## Early diagnostic consistency
-
-Base registration and daily guest startup now reject Guest Agent versions that only provide `GET /status` but lack the supported fixed Minecraft Education launch action. A VM's power state, reachable Agent or a v1 status protocol must not be mistaken for game-launch readiness. This invariant is covered by a pure Rust unit test, but the unit test is **NOT_EXECUTED** until the locked Rust source check runs.
-
-## Four prerequisite checks (all mandatory before requesting a local PC test)
-
-| Gate | Evidence required | State for current GitHub-only context |
+| Check within G0 | Required executed evidence | Current status |
 | --- | --- | --- |
-| G1 — exact-source validation | On **one pinned Local SHA**, successfully execute `npm run verify:source` using `toolchain.json` pins: Node/npm, Svelte typecheck/Vitest/frontend build, Tauri Rust check/tests, runtime Rust check/tests/fmt, and feasibility evaluator tests | NOT_EXECUTED |
-| G2 — actual Windows package | On an independent, authorized Windows x64 build runner, successfully execute `npm run package:windows` and inspect the generated NSIS installer; build output/exit codes and package manifest recorded against same exact SHA | NOT_EXECUTED |
-| G3 — package integrity | Run Windows package-smoke/installer inspection: verify **all `engine/distribution/package-contract.json` mandatory installed files**, including CLI, Guest Agent executable, Base setup/finalization scripts and `acceptance/windows/collect-client-feasibility.ps1` | NOT_EXECUTED |
-| G4 — installation safety | Exercise install/repair/uninstall/reinstall in a disposable Windows environment; confirm no unexpected deletion of `M-Bedrock/VirtualClients` data or account-bearing VMs and no silent downgrade / unauthenticated updater behavior | NOT_EXECUTED |
+| **Source integrity** | `npm run verify:source` on one pinned `Local` SHA: repository invariants, Node/Svelte/Vitest, Tauri Rust checks/tests, runtime Rust checks/tests/fmt, and guest feasibility evaluator | NOT_EXECUTED |
+| **Windows package construction** | Successful `npm run package:windows`; actual NSIS output, build result, target identity and installer hash tied to that SHA | NOT_EXECUTED |
+| **Installed payload completeness** | Inspect all mandatory items in `engine/distribution/package-contract.json`, including host CLI, guest Agent, Base setup/finalization scripts and single-guest evidence collector | NOT_EXECUTED |
+| **Disposable installation safety** | Observe install/repair/uninstall/reinstall preserving `M-Bedrock/VirtualClients` guest/account data; no unexpected downgrade or untrusted updater behavior | NOT_EXECUTED |
 
-When a gate fails: fix the **first causal source owner** on `Local`, repeat relevant source execution, and record the new exact commit SHA. Do not ask for piecemeal user-PC testing to compensate for unrun build steps.
+**G0 PASS requires all four checks to have real positive evidence for the same revision.** A GitHub commit, authored unit test, static repository check, or absence of reported CI failure does not satisfy any unexecuted check. One failure is diagnosed in the first causal owner and G0 is re-evaluated on the corrected SHA. Do not count checks as G1–G4; those names are reserved for gameplay and lifecycle outcomes.
 
-Use the current canonical commands and workflows in [Development Operations](../system/development-operations.md) and [Target Acceptance](./acceptance.md). The GitHub `workflow_dispatch` YAML exists on `Local` but cannot currently be dispatched because GitHub requires its definition on default `main`, which the user explicitly wishes to leave README-only. **Do not modify main or switch the default branch to unlock CI.** An independently authorized cloud/Windows builder can provide the same exact-SHA proof.
+## Development boundary
 
-## After these gates: first real target-PC acceptance
+ChatGPT + GitHub `Local` is the available source-work mode. Workflow definitions are `workflow_dispatch` only and are not dispatchable with `main` kept README-only. Do **not** edit `main`, change the default branch, activate automatic CI, assume another execution service, or ask the user to perform incremental machine tests.
 
-Only then move a genuinely built and package-smoke-inspected candidate to target Windows acceptance. The very **first** interaction is a **disposable, account-clean Windows VMware guest**, not three provisioned production clients:
+When executable evidence is unavailable, **G0 stays `NOT_EXECUTED`**. This is neither a build failure nor permission to mark G1–G4 as passed. Source-level engineering can continue only for a grounded defect and must keep its proof ceiling explicit.
 
-1. Windows VMware guest opens to a responsive interactive desktop, with VMware Tools, virtual graphics and mouse/keyboard working.
-2. One official Minecraft Education Windows Desktop EXE (or Store variant **separately**, never both) installs inside the guest; a distinct licensed Microsoft organization account signs in to the real game UI.
-3. Load a real Minecraft Education world and observe rendering, movement and input response for an initial 10 minutes without blocking errors, freeze or crash; collect bounded display/driver/guest observations.
+## Subsequent gates, when real evidence exists
 
-The first two steps are **operator/game/UI observations**, not something to fake with a registry entry or Guest Agent process count. Microsoft sign-in, authentication prompts, real 3D rendering and responsiveness require an actual Windows machine with proper entitlement and cannot be proven by hosted static code checks.
+G1's first real gameplay question is a *disposable account-clean Windows VMware guest*, not three production clones. Observe Windows desktop boot and VMware Tools, install one legitimate Minecraft Education Windows variant, sign in with a properly licensed organization account, and interact with a rendered world for the documented initial observation period. The [Single Guest Feasibility](./client-feasibility.md) procedure and its existing collector separate operator statements from measured graphics/process facts. A G1 failure stops escalation to G2; no premature account-bearing cloning.
 
-See [One Guest Feasibility](./client-feasibility.md). If step 1–3 fails, stop. Do not promote to three VMs or four-account readiness. After a successful scratch guest, prepare the account-clean Base, create three guests, sign in with separate legitimate accounts and measure four-client concurrency.
+G2 tests Base-to-three-guest identity and provenance; G3 tests four simultaneous independently usable accounts; G4 tests recovery and required multiplayer paths. Their detailed assertions remain in [Acceptance](./acceptance.md), with existing scenario coverage in [Failure Matrix](./four-client-failure-matrix.md).
 
-## Host/baseline collection before any guest provisioning
+## Evidence handoff
 
-The `tooling/acceptance/windows/collect-acceptance.ps1` source now records a HOST baseline without requiring three pre-existing Virtual VMs. VM resource utilization remains null and `resourcesCollected=false` until all three clients exist, avoiding an early `resources 3` failure or fake zero. This correction is source-only until a Windows PowerShell + CLI execution verifies it.
+Record the pinned GitHub SHA, command/environment **only if actually executed**, exit result, installer hash and inspected payload when applicable, and unresolved proof in `planning/development.md`. Do not create a new gate database, runner, auto-generated PASS, or duplicate readiness flag.
 
-## Handoff recording requirements
-
-In `planning/development.md`, record the actual **exact SHA**, build environment, real command or package-smoke execution, exit status, artifact hash/path/identity where applicable and unresolved steps. One commit's code changes do not qualify as a test run. The state becomes `PRE_LOCAL_READY` only when G1–G4 have real positive evidence. Source/static-review alone is `SOURCE_REVIEWED / BUILD_UNPROVEN`.
-
-**Current outcome: NOT READY FOR USER-PC LOCAL TEST.** Not a game failure; genuine build/installer proof remains unavailable.
+**Current G0: NOT_EXECUTED.** The product is not yet accepted for executable-source, package, Windows guest or Minecraft runtime behavior; lack of execution evidence is not a claim of failure.

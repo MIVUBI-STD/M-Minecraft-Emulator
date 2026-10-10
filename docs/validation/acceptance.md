@@ -9,13 +9,35 @@ lifecycle: ACTIVE
 
 # Virtual Clients Acceptance
 
-## Earlier hard feasibility gate — Minecraft Education inside a VM
+## G0–G4 — the only product-test progress gates
+
+These five **sequential, outcome-based gates** are the sole indicators of product-test progress. Existing Cargo/Rust tests, Vitest, `verify:source`, package inspections, and Windows acceptance stages are **supporting evidence**, not additional product gates. No new runner, score, stored status schema, or readiness database is authorized.
+
+| Gate | Product question / exit criteria | Evidence boundary | Stop / decision |
+| --- | --- | --- | --- |
+| **G0 — Source & Package Integrity** | One exact `Local` SHA passes source checks, Windows NSIS build, mandatory installed-payload inspection, and disposable install/repair/uninstall data-preservation checks | Executed source/package checks; details in [G0 Preparation](./pre-local-test-readiness.md) | No runnable/preserved installer → do not promote candidate to game acceptance |
+| **G1 — One Guest Feasibility** | One disposable Windows VMware guest boots, an independently licensed Minecraft Education client signs in, and an actual world renders with responsive input | `CLIENT_FEASIBILITY` and host baseline; [single-guest procedure](./client-feasibility.md) | Rendering, login, or input fails → stop before building account-bearing clones |
+| **G2 — Provisioning & Identity** | A finalized, account-clean Base produces three isolated guests; VM/Windows identities, lineage, Guest Agent and per-VM tokens are unique; first-boot/account recovery points can be established without contaminating Base | `SINGLE_VM`, `GUEST`, `MINECRAFT`, `ACCOUNT`, `THREE_VMS`; detailed assertions below | Incomplete clone, identity collision, unsafe recovery or Base contamination → stop before four-client launch |
+| **G3 — Four-Client End-to-End** | Native plus three guest Minecraft Education windows are simultaneously signed in with four distinct licensed accounts, responsive and independently controllable | `FOUR_MINECRAFT`, `FOUR_ACCOUNTS`; real visual/account observations | Any client unusable, account crossing, or four-client contention failure → do not claim product acceptance |
+| **G4 — Recovery & Multiplayer** | Stop/start, suspend/resume, QA_READY reset and host reboot preserve independent account state; required Native↔Virtual and Virtual↔Virtual multiplayer paths work. Sustained-use observations support reliability, not a synthetic PASS | `RECOVERY`, `MULTIPLAYER`; `SOAK` supports performance/stability assessment | State loss, cross-client mutation, required multiplayer failure → release readiness fails |
+
+**Stage mapping is canonical in [Windows Acceptance Campaign](../../tooling/acceptance/windows/README.md).** `HOST` is a G1 baseline, not a separate product gate. An `SOAK` report supplements G4; it does not replace either recovery or multiplayer proof. Earlier documents' four source/package checks belong **inside G0**, not to independent G1–G4 gates.
+
+### Gate evidence and decision rules
+
+- Review each **gate on the same exact product SHA** and with its dependency evidence. `PASS` requires all mandatory outcomes observed and reviewed; an authored test, source-text assertion, successful CLI process, or operator declaration without reviewed gameplay evidence is insufficient.
+- `FAIL` means a required outcome actually failed. `BLOCKED` means execution could not proceed due to an established prerequisite failure. No execution or absent prerequisites means `NOT_EXECUTED`, not `PASS` or `FAIL`; partial real evidence can be noted as `OBSERVED` without promoting the gate.
+- The existing Windows recorder keeps its `NOT_RUN / OBSERVED / PASS / FAIL / BLOCKED` vocabulary and schema-1 records unchanged. For the five-gate **human-facing summary only**, `NOT_RUN` corresponds to `NOT_EXECUTED`. Individual stage PASS records cannot by themselves promote a whole gate.
+- Run a **coherent engineering batch first**; then run only the contract regressions needed for its risk. Do not repeat a full product campaign after every small edit. A failed gate creates one root-cause issue at its first owning module; retest the affected gate and dependent gates when a genuinely executed candidate is available.
+- This repository's working mode is ChatGPT + GitHub `Local` only. Executable builds, installers, Windows guests, license sign-in and real gameplay currently lack execution evidence; **all five gates remain `NOT_EXECUTED`**. Do not invent a machine, a test run or a passing result.
+
+## G1 detailed feasibility procedure — Minecraft Education inside a VM
 
 Before production Base registration, cloning or a four-client promise, follow [Single Guest Client Feasibility](./client-feasibility.md) with one **disposable** Windows VMware guest. Collect its measured OpenGL context, VMware video adapter/driver, and real Minecraft menu/world rendering and keyboard/mouse interaction. Stop multi-instance escalation if real rendering fails.
 
 This pilot does not need the manager's Base, Guest Agent or three-clone lifecycle and must not mutate production runtime state. Operator observations are not automatic game/VM support claims. Source-only development may continue independently even while target-machine pilot is `NOT_EXECUTED`.
 
-## Three primary Windows desktop guest acceptance gates
+### Three required observations within G1
 
 Before cloning three account-bearing Windows guests, use [One Guest Feasibility](./client-feasibility.md) and preserve actual machine evidence that:
 
@@ -25,7 +47,7 @@ Before cloning three account-bearing Windows guests, use [One Guest Feasibility]
 
 The repo collector distinguishes machine observation from user-declared account/login/gameplay. It cannot autonomously prove Microsoft authentication or frame-rate quality; do not award PASS from a process counter, report filename or runtime configuration flag.
 
-## Source proof
+## G0 supporting source assertions
 
 The canonical local source checkpoint must pass before target-machine acceptance:
 

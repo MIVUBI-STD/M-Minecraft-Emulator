@@ -9,7 +9,7 @@ lifecycle: ACTIVE
 
 # Virtual Clients — Four-Client Failure Matrix
 
-Status: REMOTE_GITHUB scenario model. This is not runtime proof.
+Status: REMOTE_GITHUB scenario model. This is not runtime proof. These scenarios are **supporting assertions** for the [five and only five product gates G0–G4](./acceptance.md), not additional micro-test milestones. Apply the first-owner and stop rules below; do not create a runner or separate scenario-status store.
 
 Target:
 `Native + Virtual-01 + Virtual-02 + Virtual-03` running Minecraft Education

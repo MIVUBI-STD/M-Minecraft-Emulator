@@ -9,7 +9,7 @@ lifecycle: ACTIVE
 
 # Virtual Clients — Static Readiness Freeze
 
-Status: REMOTE_GITHUB source boundary. This document is not target-machine proof.
+Status: REMOTE_GITHUB source boundary. This document is not target-machine proof. Source review supports **G0**, not a product-test PASS; only the [five campaign gates G0–G4](./acceptance.md) track testing progress. Individual unit and regression tests remain diagnostic supporting evidence.
 
 ## Static-covered
 
@@ -78,15 +78,13 @@ Do not promote LOCAL proof from documentation, source tests, package smoke, or h
 
 ## Pre-local-test separation
 
-Use [Pre-Local-Test Readiness](./pre-local-test-readiness.md). The source-to-target boundary requires real exact-SHA **desktop/Rust checks, Windows NSIS construction, package payload and disposable install-lifecycle smoke** before requesting user-PC acceptance. Static repository inspection may identify bugs but does not mark `PRE_LOCAL_READY`.
+Use [G0 Source & Package Integrity](./pre-local-test-readiness.md): a single real exact-SHA source execution, Windows NSIS construction, installed payload inspection and disposable install-lifecycle safety observation are required before G1 game acceptance. Static repository inspection can identify defects but cannot mark G0 as PASS.
 
 ## Build gate status
 
-The static architecture freeze does not imply a successful package build. A source revision is eligible for Windows acceptance only after the manually dispatched Virtual Clients Package Smoke workflow (or equivalent exact-head, machine-recorded package inspection) has actually executed successfully against that revision.
+The static architecture freeze does not imply a successful package build. Windows acceptance requires an **actually executed, same-SHA** source/package integrity result. GitHub's `workflow_dispatch` definitions on `Local` are **not currently runnable** while `main` remains intentionally README-only; do not suggest enabling them by modifying `main` or adding automatic CI.
 
-All commits remain `STATIC_REVIEWED / BUILD_UNPROVEN` until a manually requested workflow or equivalent source/build verification actually executes on the exact commit; the migration does not trigger CI automatically.
-
-Do not translate absence of workflow failures into PASS when no workflow ran.
+Current source remains `STATIC_REVIEWED / BUILD_UNPROVEN` and all five product-test gates remain `NOT_EXECUTED` until real evidence exists. No workflow run means **no executable PASS**, not a build failure.
 
 
 ## Static security freeze

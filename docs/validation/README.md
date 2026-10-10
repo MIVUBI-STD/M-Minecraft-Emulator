@@ -11,12 +11,15 @@ lifecycle: ACTIVE
 
 | Question | Authoritative reference |
 | --- | --- |
-| Is the source and Windows installer ready to be taken to the user's PC for the first local test? | [Pre-Local-Test Readiness](./pre-local-test-readiness.md) — mandatory G1–G4 gates |
+| What are the only product-test progress gates and their exit criteria? | [Acceptance G0–G4](./acceptance.md) — one canonical five-gate campaign |
+| What comprises the first source/package integrity gate? | [G0 Source & Package Readiness](./pre-local-test-readiness.md) — four mandatory checks within G0 |
 | Can one Windows VMware guest boot, install/sign in and play Minecraft Education responsively? | [Client Feasibility Gate](./client-feasibility.md) — before Base cloning |
 | What real tests must pass? | [Target-machine Acceptance](./acceptance.md) |
 | What is statically covered versus unproven? | [Static Readiness](./static-readiness.md) |
 | What specific four-client failures must be exercised? | [Four-Client Failure Matrix](./four-client-failure-matrix.md) |
 | What does the Minecraft/VMware platform officially require? | [Platform Prerequisites](./platform-prerequisites.md) |
+
+The existing Rust tests, Vitest, static checks, and Windows stage recorder provide supporting evidence. They do not introduce more product-progress gates; no new status schema or runner is used.
 
 ## Evidence hierarchy
 
@@ -32,4 +35,4 @@ Exact GitHub source / package verification
 
 A lower level cannot authorize the next. Machine collector source lives in `../../tooling/acceptance/windows/`; a completed collection proves only the fields directly observed. Player/gameplay acceptance still requires real Minecraft evidence.
 
-Verification jobs are manual-only; `planning/development.md` records open proof status, not this router.
+The available development mode is ChatGPT + GitHub `Local`. Existing GitHub workflow files are manual-only but cannot currently be dispatched under the protected `main` branch policy. Do not substitute a synthetic execution PASS; `planning/development.md` records the currently unexecuted gate evidence, not a second database.

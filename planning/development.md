@@ -3,6 +3,20 @@
 Updated: 2026-10-10
 Authority: `MIVUBI-STD/M-Minecraft-Emulator`, branch `Local`. Current GitHub source HEAD always outranks this file.
 
+## Current decision — five-gate integrated test campaign (2026-10-11)
+
+**Work:** `emulator/test-campaign-consolidation` — **State: DOCUMENTED / EXECUTION_UNPROVEN**.  
+**Exact source parent:** `86e7c536d6c1fac33e191fd8abfacbcf73622528`; GitHub commit owns final SHA.
+
+**Decision:** The **only product-test progress gates** are **G0 Source & Package Integrity → G1 One Guest Feasibility → G2 Provisioning & Identity → G3 Four-Client End-to-End → G4 Recovery & Multiplayer**. Canonical criteria and fail/stop/evidence rules: `docs/validation/acceptance.md`. Existing 12 Windows stage IDs and their schema-1 JSON recorder remain unchanged; the mapping to G1–G4 is in `tooling/acceptance/windows/README.md`, while the old four pre-machine G1–G4 checks are explicitly renamed as *four checks within G0*. G4 `SOAK` is supporting evidence, not a replacement for recovery/multiplayer.
+
+**Anti-micro-test rule:** Rust/Vitest/unit regressions and static checks support a gate but do not count as product PASS; test engineering in coherent batches, diagnose the first responsible owner and revisit relevant/dependent gates only when genuine execution is possible. No new test runner, project/plugin, dependency, database, score, stage API, or automated CI. `main` remains untouched; source development is ChatGPT + GitHub `Local` only.
+
+**Current exact evidence:** G0 = `NOT_EXECUTED`; G1 = `NOT_EXECUTED`; G2 = `NOT_EXECUTED`; G3 = `NOT_EXECUTED`; G4 = `NOT_EXECUTED`. Source/static review exists but no same-SHA compiled app, Windows installer, VMware client, Education sign-in, rendering or four-account interactive evidence. None is PASS, and no observed failure is being invented.
+
+**Next:** Continue only source-grounded development. When executable proof is genuinely available within allowed capability, evaluate G0 as one integrated gate rather than asking for piecemeal machine tests.
+
+
 ## Current implementation — recoverable VMX configuration writes (2026-10-11)
 
 **Work:** `emulator/vmx-transactional-persistence`  

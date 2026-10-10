@@ -75,7 +75,7 @@ Next: <one action only when incomplete>
 
 ## 7. Verification and CI
 
-Use the cheapest decisive evidence: exact-ref static path/contract review → targeted source test → full source check only when needed → manual package smoke → Windows/VMware acceptance → real Minecraft Education acceptance.
+Use the cheapest decisive evidence: exact-ref static path/contract review → targeted source test → full source check only when needed → actual package inspection → Windows/VMware acceptance → real Minecraft Education acceptance. **Only G0–G4 in `docs/validation/acceptance.md` are product-test progress gates.** Unit/regression tests, static checks and stage-recorder JSON are supporting evidence, not milestones, percentages or extra gate states. Finish a coherent engineering batch before evaluating affected gates; do not run repeated micro-tests to manufacture progress.
 
 GitHub Actions workflow source must remain `workflow_dispatch` only, with read-only default permissions; no push, pull_request, cron or auto-release. GitHub's default-branch requirement currently prevents dispatch because `main` intentionally has no workflows. **Do not solve this by editing `main`, installing workflows there, changing the default branch, or merging `Local`.** Continue source/static verification entirely against `Local`. Only actual executable capability already present in ChatGPT + GitHub may produce `SOURCE_EXECUTION` or `PACKAGE_EXECUTION` evidence at an exact pinned SHA. If it is unavailable, record `NOT_EXECUTED` and continue source-verifiable work; do not suggest another machine, service, runner, or alternate deployment path. Inability to run GitHub Actions is not permission to modify `main`, add automated CI, or manufacture build evidence.
 
