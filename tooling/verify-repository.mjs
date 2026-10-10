@@ -34,6 +34,7 @@ for (const [name, range] of Object.entries({ ...app.dependencies, ...app.devDepe
 }
 must(lock.packages?.["node_modules/vitest"], "Test runner is not locked");
 must(release.repository === "MIVUBI-STD/M-Minecraft-Emulator", "Release update authority points to old repository");
+must(read("virtual-clients/runtime-core/src/update.rs").includes('policy.repository != "MIVUBI-STD/M-Minecraft-Emulator"'), "Backend release-channel pin is not migrated");
 must(release.selfUpdateRuntimeEnabled === false, "Runtime self-update must remain disabled");
 must(toolchain.node.trim() === read(".node-version").trim(), "Node selector/toolchain mismatch");
 must(toolchain.ciPolicy === "manual-only", "CI policy drift");

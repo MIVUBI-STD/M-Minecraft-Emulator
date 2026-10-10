@@ -6,6 +6,7 @@
 *.nvram
 *.vmss
 *.vmxf
+*.vmx
 *.vmx.lck/
 *.vmwarevm/
 *.mcworld

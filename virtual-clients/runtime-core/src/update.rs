@@ -615,7 +615,7 @@ fn validate_policy(policy: &ReleaseChannel) -> io::Result<()> {
 
     if policy.schema != 1
         || policy.channel != "stable"
-        || policy.repository != "MIVUBI-STD/M-Bedrock-Dev"
+        || policy.repository != "MIVUBI-STD/M-Minecraft-Emulator"
         || policy.release_tag_prefix != "virtual-clients-v"
         || policy.platform != "windows-x86_64"
         || policy.manifest_asset != "latest.json"
@@ -719,19 +719,25 @@ mod tests {
         let policy = release_channel().unwrap();
         let valid = PlatformManifest {
             authenticode_thumbprint: "a".repeat(40),
-            url: "https://github.com/MIVUBI-STD/M-Bedrock-Dev/releases/download/virtual-clients-v1.2.3/M-Bedrock-Virtual-Clients-1.2.3-windows-x86_64.exe".into(),
+            url: "https://github.com/MIVUBI-STD/M-Minecraft-Emulator/releases/download/virtual-clients-v1.2.3/M-Bedrock-Virtual-Clients-1.2.3-windows-x86_64.exe".into(),
             sha256: "a".repeat(64),
         };
         validate_platform_manifest(&policy, "1.2.3", &valid).unwrap();
+        let foreign_repository = PlatformManifest {
+            url: "https://github.com/MIVUBI-STD/M-Bedrock-Dev/releases/download/virtual-clients-v1.2.3/M-Bedrock-Virtual-Clients-1.2.3-windows-x86_64.exe".into(),
+            ..valid.clone()
+        };
+        assert!(validate_platform_manifest(&policy, "1.2.3", &foreign_repository).is_err());
+
 
         let prefix_confusion = PlatformManifest {
-            url: "https://github.com/MIVUBI-STD/M-Bedrock-Dev/releases/download/virtual-clients-v1.2.30/M-Bedrock-Virtual-Clients-1.2.3-windows-x86_64.exe".into(),
+            url: "https://github.com/MIVUBI-STD/M-Minecraft-Emulator/releases/download/virtual-clients-v1.2.30/M-Bedrock-Virtual-Clients-1.2.3-windows-x86_64.exe".into(),
             ..valid.clone()
         };
         assert!(validate_platform_manifest(&policy, "1.2.3", &prefix_confusion).is_err());
 
         let wrong_asset = PlatformManifest {
-            url: "https://github.com/MIVUBI-STD/M-Bedrock-Dev/releases/download/virtual-clients-v1.2.3/Other-Installer.exe".into(),
+            url: "https://github.com/MIVUBI-STD/M-Minecraft-Emulator/releases/download/virtual-clients-v1.2.3/Other-Installer.exe".into(),
             ..valid
         };
         assert!(validate_platform_manifest(&policy, "1.2.3", &wrong_asset).is_err());
