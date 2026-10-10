@@ -51,6 +51,7 @@
   let error: RuntimeErrorPresentation | undefined;
   let supportPath = "";
   let arrangeMessage = "";
+  let launcherMessage = "";
   let layoutDialogOpen = false;
   let layoutDisplays: DisplayInfo[] = [];
   let layoutPreference: WindowLayoutPreference = loadWindowLayoutPreference();
@@ -223,6 +224,30 @@
     error = undefined;
     try {
       await desktop.openSetupTools();
+    } catch (value) {
+      error = presentRuntimeError(value);
+    }
+  }
+
+  async function openNativeMinecraft() {
+    if (busy || loading) return;
+    error = undefined;
+    launcherMessage = "";
+    try {
+      await desktop.openNativeMinecraft();
+      launcherMessage = "Minecraft Education launch requested. Confirm that a separate game window opened and that its account is still signed in; the request is not proof of a second instance.";
+    } catch (value) {
+      error = presentRuntimeError(value);
+    }
+  }
+
+  async function openAndroidInstanceManager() {
+    if (busy || loading) return;
+    error = undefined;
+    launcherMessage = "";
+    try {
+      await desktop.openAndroidInstances();
+      launcherMessage = "BlueStacks Multi-instance Manager launch requested. Verify Minecraft Education installs, signs in, and runs in one Android instance before creating more. Android emulators are not officially supported by Minecraft Education.";
     } catch (value) {
       error = presentRuntimeError(value);
     }
@@ -416,6 +441,13 @@
       </section>
     {/if}
 
+    {#if launcherMessage}
+      <section class="notice" aria-live="polite">
+        <div><strong>Launch requested, not verified</strong><span>{launcherMessage}</span></div>
+        <button on:click={() => (launcherMessage = "")}>Dismiss</button>
+      </section>
+    {/if}
+
     {#if arrangeMessage}
       <section class="notice" aria-live="polite">
         <div><strong>Windows arranged</strong><span>{arrangeMessage}</span></div>
@@ -447,6 +479,8 @@
           onSupport={() => selectPage("support")}
           onOpenBaseLocation={openBaseLocation}
           onOpenSetupTools={openSetupTools}
+          onOpenNative={openNativeMinecraft}
+          onOpenAndroid={openAndroidInstanceManager}
           onOpenBaseFinalization={openBaseFinalization}
         />
       {:else if page === "clients"}
@@ -461,6 +495,8 @@
           {runningVirtuals}
           {busy}
           onStartAll={startAll}
+          onOpenNative={openNativeMinecraft}
+          onOpenAndroid={openAndroidInstanceManager}
           onArrange={arrangeWindows}
           onConfigureLayout={openWindowLayout}
           onStopAll={() => mutate("stop-all", (onProgress) => backend.stop(undefined, onProgress))}

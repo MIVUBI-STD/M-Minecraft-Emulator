@@ -32,6 +32,18 @@ This campaign is evidence collection, not simulation. A stage stays `NOT_RUN` un
 
 When `TRY_SECOND` cannot find a unique Start-menu AppID, do not guess an executable or patch single-instance safeguards. The native experiment is `INCONCLUSIVE` until real windows and accounts are observed. These commands are future acceptance steps; adding the scripts to source does not execute them.
 
+## Android multi-instance feasibility (before VMware)
+
+BlueStacks 5 [Multi-instance Manager](https://support.bluestacks.com/hc/en-us/articles/360052834092-How-to-create-and-manage-instances-using-the-Multi-instance-Manager-on-BlueStacks-5) can create fresh Android instance profiles. Its website lists Minecraft Education, **but Mojang/Minecraft Education does not officially support Android emulators**. The version-specific game install, interactive licensed sign-in, graphics, session persistence, and four-instance performance require observed proof.
+
+Use `probe-android-instances.ps1` for read-only host observations of an existing BlueStacks 5 installation. It never reads account data, internal BlueStacks configuration, worlds or instance disks; it cannot prove Minecraft is installed or a user is logged in.
+
+```powershell
+.\probe-android-instances.ps1
+```
+
+Run one fresh Android instance first; install the official game from Google Play, sign in manually and play. Only if this works should a second fresh Android instance with a **different** licensed account be attempted, followed by four. Never clone a signed-in Android profile or treat an emulator window as a signed-in player. Reuse BlueStacks' existing instance shortcuts/arrangement instead of introducing an Android lifecycle manager prematurely.
+
 ## Early client-graphics feasibility pilot
 
 Use `collect-client-feasibility.ps1` **inside one interactive Windows scratch guest**. It is read-only except its temporary report and does not require Guest Agent, account-name capture or a configured three-VM application. Collect `ENVIRONMENT`, then manually open Minecraft Education, observe a usable world and collect `INTERACTIVE` with explicitly operator-attributed observations.

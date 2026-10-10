@@ -21,6 +21,8 @@
   export let runningVirtuals: number;
   export let busy: string;
   export let onStartAll: () => void | Promise<void>;
+  export let onOpenNative: () => void | Promise<void>;
+  export let onOpenAndroid: () => void | Promise<void>;
   export let onArrange: () => void | Promise<void>;
   export let onConfigureLayout: () => void;
   export let onStopAll: () => void | Promise<void>;
@@ -47,7 +49,8 @@
 
 <section class="hero compact clients-heading">
   <h2>Four Minecraft Education clients</h2>
-  <p>One native client on this PC and three isolated virtual clients. Each needs its own licensed account.</p>
+  <p>Four separately signed-in game windows on one PC. The rows below show the current VMware route; direct Windows/Android options remain available until actual compatibility is proven.</p>
+  <button class="secondary" disabled={Boolean(busy)} on:click={onOpenAndroid}>Open Android instances</button>
 </section>
 
 {#if setupAction === "VERIFY_IDENTITIES"}
@@ -115,7 +118,9 @@
       <small>Installed version: {native?.minecraftVersion ?? "Not detected"} · Open Minecraft Education normally on this PC.</small>
       <small>Native game process and account sign-in are not automatically verified by the VM backend.</small>
     </div>
-    <div class="row-action"><span>Manual</span></div>
+    <div class="row-action">
+      <button class="primary" disabled={Boolean(busy)} on:click={onOpenNative}>Open Minecraft</button>
+    </div>
   </article>
 
   {#each virtuals as client}

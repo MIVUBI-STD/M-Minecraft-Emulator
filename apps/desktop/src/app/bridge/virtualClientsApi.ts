@@ -73,7 +73,9 @@ export const desktop = {
   displays: () => invokeDesktop<DisplayInfo[]>("window_displays", payload.displayList),
   arrangeWindows: (request: WindowLayoutRequest, overlay: ScreenOverlayPreference, identify = false) => invokeDesktop<WindowArrangementResult>("window_apply_layout", payload.windowArrangement, { request: { layout: request, overlay, identify } }),
   openBaseLocation: () => invokeDesktop<void>("setup_open_base_location", payload.voidResult),
-  openSetupTools: () => invokeDesktop<void>("setup_open_guest_tools", payload.voidResult)
+  openSetupTools: () => invokeDesktop<void>("setup_open_guest_tools", payload.voidResult),
+  openNativeMinecraft: () => invokeDesktop<void>("desktop_open_native_minecraft", payload.voidResult),
+  openAndroidInstances: () => invokeDesktop<void>("desktop_open_android_instances", payload.voidResult)
 };
 
 export const backend = {

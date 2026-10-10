@@ -31,6 +31,22 @@ describe("Virtual Clients first-run presentation", () => {
     expect(wizard).not.toContain('experience.owner === "CLIENTS"');
   });
 
+  it("wires a real native launcher and optional Android manager before VM setup", () => {
+    const app = readFileSync(new URL("../src/App.svelte", import.meta.url), "utf8");
+    const wizard = readFileSync(new URL("../src/app/surfaces/SetupSurface.svelte", import.meta.url), "utf8");
+    const clients = readFileSync(new URL("../src/app/surfaces/ClientsSurface.svelte", import.meta.url), "utf8");
+    for (const name of ["onOpenNative","onOpenAndroid"]) {
+      expect(app).toContain(name);
+      expect(wizard).toContain(name);
+      expect(clients).toContain(name);
+    }
+    expect(app).toContain("await desktop.openNativeMinecraft()");
+    expect(app).toContain("await desktop.openAndroidInstances()");
+    expect(app).toContain("Launch requested, not verified");
+    expect(wizard).toContain("OPTIONAL VMWARE SETUP");
+    expect(wizard).not.toContain("Set up your virtual clients");
+  });
+
   it("presents the one-native-plus-three-virtual objective without faking a native login", () => {
     const app = readFileSync(new URL("../src/App.svelte", import.meta.url), "utf8");
     const clients = readFileSync(new URL("../src/app/surfaces/ClientsSurface.svelte", import.meta.url), "utf8");

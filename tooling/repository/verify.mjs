@@ -20,6 +20,9 @@ const required = [
   "docs/validation/client-feasibility.md",
   "docs/product/four-concurrent-accounts.md",
   "tooling/acceptance/windows/probe-native-multi-instance.ps1",
+  "tooling/acceptance/windows/probe-android-instances.ps1",
+  "apps/desktop/src-tauri/src/engine/native_clients.rs",
+  "apps/desktop/src-tauri/src/commands/native_clients.rs",
   "tooling/acceptance/windows/collect-client-feasibility.ps1",
   "tooling/acceptance/evaluate-client-feasibility.mjs",
   "tooling/acceptance/evaluate-client-feasibility.test.mjs"
@@ -88,6 +91,34 @@ requireFact(nativeProbe.includes("[string]$Mode = 'OBSERVE'") &&
 requireFact(read("docs/product/four-concurrent-accounts.md").includes(
   "four independent Minecraft Education game windows"),
   "Four-client end-user outcome was removed from canonical product contract");
+const androidProbe = read("tooling/acceptance/windows/probe-android-instances.ps1");
+requireFact(androidProbe.includes("distinctEducationAccountsVerified = 'NOT_VERIFIED'") &&
+  androidProbe.includes("verdict = 'INCONCLUSIVE'") &&
+  androidProbe.includes("officialAndroidEmulatorSupport = 'NOT_SUPPORTED'"),
+  "Android external-instance probe must not manufacture game, login or official support proof");
+const nativeDesktop = read("apps/desktop/src-tauri/src/engine/native_clients.rs");
+const desktopFacade = read("apps/desktop/src/app/bridge/virtualClientsApi.ts");
+const desktopBootstrap = read("apps/desktop/src-tauri/src/app_bootstrap.rs");
+for (const command of ["desktop_open_native_minecraft", "desktop_open_android_instances"]) {
+  requireFact(read("apps/desktop/src-tauri/src/commands/native_clients.rs").includes("fn " + command + "(") &&
+    desktopFacade.includes('"' + command + '"') &&
+    desktopBootstrap.includes("commands::native_clients::" + command + ","),
+    "Desktop native/Android launch consumer was not registered: " + command);
+}
+requireFact(nativeDesktop.includes("HD-MultiInstanceManager.exe") &&
+  !nativeDesktop.includes("Get-Credential") &&
+  !nativeDesktop.includes("vmrun.exe"),
+  "Desktop candidate launcher must not own VM lifecycle or credentials");
+
+// Catch stale relative source references that survive a monorepo extraction.
+// GitHub search indexing alone cannot certify that current tests have no dead imports.
+for (const name of readdirSync(resolve(root, "apps/desktop/test"))) {
+  if (!name.endsWith(".test.ts")) continue;
+  const source = read("apps/desktop/test/" + name);
+  requireFact(!source.includes("../../../virtual-clients/runtime-core/") &&
+    !source.includes("apps/virtual-clients/"),
+    "Desktop test still references the retired monorepo source: " + name);
+}
 requireFact(read("tooling/acceptance/windows/new-stage-result.ps1").includes("'CLIENT_FEASIBILITY'"),
   "Client feasibility evidence stage not recognized by acceptance recorder");
 

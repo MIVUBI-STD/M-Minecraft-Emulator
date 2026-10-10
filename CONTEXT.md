@@ -17,7 +17,7 @@ Host Native Minecraft Education
 + VMware Virtual-03
 ```
 
-Virtual clients have independent Windows guest disks, guest identities, Microsoft/Minecraft user sessions and snapshots. The app does not capture passwords, Microsoft tokens or automate sign-in/MFA. Up to three guests is the current backend limit, not a claim of accepted performance. Before requiring guests, first check whether the installed 2026 Education client can open a second independent window and separately authenticated session directly on Windows; that capability is unverified. No automated Microsoft sign-in or credential storage is in scope.
+Virtual clients have independent Windows guest disks, guest identities, Microsoft/Minecraft user sessions and snapshots. The app does not capture passwords, Microsoft tokens or automate sign-in/MFA. Up to three guests is the current backend limit, not a claim of accepted performance. Before requiring guests, first check whether the installed 2026 Education client can open a second independent window and separately authenticated session directly on Windows. BlueStacks 5 offers a third-party Android multi-instance candidate that is explicitly **not officially supported by Minecraft Education**; the game's ability to run/log in there is unverified. No automated Microsoft sign-in or credential storage is in scope. No automated Microsoft sign-in or credential storage is in scope.
 
 ## Branch and execution authority
 

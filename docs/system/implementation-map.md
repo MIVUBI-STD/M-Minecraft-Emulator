@@ -16,6 +16,7 @@ This is a **navigation guide**, not a second registry or copy of implementation 
 | Question / fault | Primary implementation owner | Consumer / companion |
 | --- | --- | --- |
 | Determine whether native Windows can open **two distinct Education windows/accounts** without VMs | `tooling/acceptance/windows/probe-native-multi-instance.ps1` | [Four-account objective](../product/four-concurrent-accounts.md); no credential automation, window count alone not proof |
+| Check one Android Education guest in BlueStacks before adding VM infrastructure | `apps/desktop/src-tauri/src/engine/native_clients.rs`, `tooling/acceptance/windows/probe-android-instances.ps1` | [Four-account objective](../product/four-concurrent-accounts.md); third-party Android emulator is not officially supported |
 | Determine whether Minecraft Education can actually render within **one VMware Windows guest** | `tooling/acceptance/windows/collect-client-feasibility.ps1`, `tooling/acceptance/evaluate-client-feasibility.mjs` | [Client Feasibility](../validation/client-feasibility.md); no production VM mutation |
 | VM status, start/stop/suspend/restart/reprovision and rollback | `engine/runtime-core/src/runtime.rs` | `lifecycle_admission.rs`, provider implementation |
 | Lifecycle eligibility / guard decisions | `engine/runtime-core/src/lifecycle_admission.rs` | `runtime.rs`, `client.rs` |
@@ -29,6 +30,7 @@ This is a **navigation guide**, not a second registry or copy of implementation 
 | RAM/CPU resource pressure and start admission | `engine/runtime-core/src/resources.rs`, `policy.rs` | `runtime.rs`, `capacity.rs` |
 | State schema, durable profile and recovery | `engine/runtime-core/src/schema.rs`, `persistence.rs` | `journal.rs`, `runtime.rs` |
 | Update policy, signed-asset manifest, installer integrity | `engine/runtime-core/src/update.rs`, `engine/distribution/` | Tauri package configurations, package smoke |
+| Launch registered native Education and open existing BlueStacks Manager, without claiming login readiness | `apps/desktop/src-tauri/src/engine/native_clients.rs` + desktop Tauri command adapter | `apps/desktop/src/app/bridge/virtualClientsApi.ts`, UI native/Android actions |
 | Product desktop navigation / visual state | `apps/desktop/src/App.svelte`, `src/app/surfaces/` | `src/contracts.ts`, `src/view-model.ts` |
 | Typed frontend/backend IPC and contract validation | `apps/desktop/src/app/bridge/` | `apps/desktop/src-tauri/src/commands/` |
 | Desktop-native window layout, DPI and overlay | `apps/desktop/src-tauri/src/engine/` | `src-tauri/src/commands/window_arrangement.rs` |

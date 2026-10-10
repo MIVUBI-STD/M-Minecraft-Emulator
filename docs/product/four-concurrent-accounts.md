@@ -37,14 +37,29 @@ Multiplayer join between four independent accounts is an additional valuable acc
 
 Use `tooling/acceptance/windows/probe-native-multi-instance.ps1`. By default it only observes process/window candidates; `-Mode TRY_SECOND` explicitly requests one Start-menu activation. **All of its outputs are diagnostic `INCONCLUSIVE`**, never account or game proof.
 
-### Route 2: One native Windows client + three isolated VMware guests (existing source, conditional)
+### Route 2: Native Windows + three Android instances via BlueStacks 5 (pilot after native)
+
+- BlueStacks officially offers **Multi-instance Manager**, distinct Android instance profiles, per-instance shortcuts, and per-instance graphics/CPU/memory controls. Its own catalog lists Minecraft Education for Android, but that catalog entry was updated in **2023/2024**, and it does not prove current 2026 app, Microsoft 365 login, rendering or multi-user functionality.
+- Minecraft Education's **official system requirements explicitly do not support third-party Android emulators**. Treat this as a *compatibility experiment*, not a guaranteed supported solution or a recommendation to rely on unverified third-party accounts.
+- Run **one** fresh BlueStacks 5 Android instance first; install the legitimate Minecraft Education app from Google Play. Verify one correctly licensed organization account signs in and a world is playable. Do not clone a signed-in instance to manufacture identical account sessions.
+- If one works, create a second **fresh, independent** instance, sign in with another licensed Education account, confirm both remain active and playable alongside the Windows Native client. Then try **three Android guests plus one Windows Native** (four accounts total), minimizing emulator overhead. Four Android guests is an alternative only if that proves superior on the actual host.
+- The app's optional "Open Android instances" action opens a locally installed BlueStacks 5 Multi-instance Manager; it does not install the emulator or assert successful game operation. `tooling/acceptance/windows/probe-android-instances.ps1` observes host process/window candidates with no account or disk reads.
+- BlueStacks offers application/instance desktop shortcuts and built-in multi-instance arrangement; reuse those instead of building another lifecycle manager or inventing internal command-line switches before provider behavior is proven.
+
+References:
+- https://www.bluestacks.com/apps/education/minecraft-education-edition-on-pc.html
+- https://support.bluestacks.com/hc/en-us/articles/360052834092-How-to-create-and-manage-instances-using-the-Multi-instance-Manager-on-BlueStacks-5
+- https://support.bluestacks.com/hc/en-us/articles/4402959142541-How-to-create-desktop-shortcut-for-a-specific-instance-on-BlueStacks-5
+- https://edusupport.minecraft.net/hc/en-us/articles/360047556591-System-Requirements
+
+### Route 3: One native Windows client + three isolated VMware guests (existing source, conditional)
 
 - Retain `apps/desktop/` + `engine/runtime-core/` as the currently implemented fallback.
 - Before provisioning an immutable Base, prove one disposable VMware Windows guest actually renders and accepts Minecraft Education input; see [Single Guest Feasibility](../validation/client-feasibility.md).
 - Only after one guest runs the game and logs into one distinct licensed account should two then three guests be attempted with measured performance.
 - VMware guest Minecraft Education Client is **not officially supported in the same way as the Dedicated Server**, so no guarantees or automatic claims of compatibility.
 
-If neither route meets all four requirements on the target hardware, call out technical infeasibility rather than pretending a process counter is the product.
+If none of these routes meets all four requirements on the target hardware, report the limitation rather than claiming a process counter, four emulator windows, or four sequential account switches satisfy the goal.
 
 ## Minimal user experience
 
@@ -62,7 +77,7 @@ Any first-time installation or login assistance should be clearly separated from
 
 ## Status
 
-**Source and Windows runtime acceptance are different.** As of 2026-10-10, the native second-window experiment and Windows/VMware game session have NOT been executed against the target machine. The existing VM backend, GUI and pilot tooling are source implementation only. No four-client success claim is justified yet.
+**Source and Windows runtime acceptance are different.** As of 2026-10-10, native second-window, BlueStacks Android instance, and Windows/VMware game experiments have NOT been executed against the target machine. The existing VM backend, GUI and pilot tooling are source implementation only. No four-client success claim is justified yet.
 
 Official references:
 - Historical Minecraft Education multi-instance response: https://edusupport.minecraft.net/hc/en-us/community/posts/360072475972-Multi-World-Setup

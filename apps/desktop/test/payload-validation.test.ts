@@ -181,7 +181,7 @@ describe("Frontend boundary wiring", () => {
     const facade = readFileSync(new URL("../src/app/bridge/virtualClientsApi.ts", import.meta.url), "utf8");
     const adapters = readFileSync(new URL("../src-tauri/src/commands/virtual_clients.rs", import.meta.url), "utf8");
     const bootstrap = readFileSync(new URL("../src-tauri/src/app_bootstrap.rs", import.meta.url), "utf8");
-    const core = readFileSync(new URL("../../../virtual-clients/runtime-core/src/command.rs", import.meta.url), "utf8");
+    const core = readFileSync(new URL("../../../engine/runtime-core/src/command.rs", import.meta.url), "utf8");
     const commands = [...facade.matchAll(/invokePublic<[^>]+>\("([^"]+)"/g)].map((match) => match[1]);
     expect(commands).toHaveLength(23);
     for (const command of commands) {
@@ -191,6 +191,22 @@ describe("Frontend boundary wiring", () => {
     for (const match of adapters.matchAll(/run\("([^"]+)"/g)) {
       expect(core).toContain(`"${match[1]}" =>`);
     }
+  });
+
+  it("registers native and Android manager launch on the existing desktop-only boundary", () => {
+    const facade = readFileSync(new URL("../src/app/bridge/virtualClientsApi.ts", import.meta.url), "utf8");
+    const bootstrap = readFileSync(new URL("../src-tauri/src/app_bootstrap.rs", import.meta.url), "utf8");
+    const commands = readFileSync(new URL("../src-tauri/src/commands/native_clients.rs", import.meta.url), "utf8");
+    const desktopOwner = readFileSync(new URL("../src-tauri/src/engine/native_clients.rs", import.meta.url), "utf8");
+    for (const name of ["desktop_open_native_minecraft", "desktop_open_android_instances"]) {
+      expect(facade).toContain(`"${name}"`);
+      expect(commands).toContain(`fn ${name}(`);
+      expect(bootstrap).toContain(`commands::native_clients::${name},`);
+    }
+    expect(facade).toContain("payload.voidResult");
+    expect(desktopOwner).toContain("BlueStacks_nxt");
+    expect(desktopOwner).not.toContain("Get-Credential");
+    expect(desktopOwner).not.toContain("vmrun.exe");
   });
 
   it("keeps Window Layout on one registered desktop mutation path", () => {

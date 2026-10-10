@@ -11,6 +11,8 @@
   export let onSupport: () => void;
   export let onOpenBaseLocation: () => void | Promise<void>;
   export let onOpenSetupTools: () => void | Promise<void>;
+  export let onOpenNative: () => void | Promise<void>;
+  export let onOpenAndroid: () => void | Promise<void>;
   export let onOpenBaseFinalization: () => void | Promise<void>;
 
   $: action = snapshot.doctor.nextSetupAction;
@@ -19,9 +21,20 @@
 </script>
 
 <section class="hero setup-intro">
-  <span class="eyebrow">SETUP · STEP {Math.min(phaseIndex + 1, 4)} OF 4</span>
-  <h2>Set up your virtual clients</h2>
-  <p>Follow one step at a time. Virtual Clients checks each result before continuing.</p>
+  <span class="eyebrow">GOAL · ONE PC · FOUR ACCOUNTS</span>
+  <h2>Open four Minecraft Education clients</h2>
+  <p>First check whether Windows can open a second independent Education window. If not, test one Android instance alongside the Windows client, then up to three Android instances. Use VMware only when simpler routes cannot work.</p>
+  <div class="batch-actions">
+    <button class="primary" disabled={Boolean(busy)} on:click={onOpenNative}>Open Education on this PC</button>
+    <button class="secondary" disabled={Boolean(busy)} on:click={onOpenAndroid}>Open Android instances</button>
+  </div>
+  <small>Neither action verifies another account or a playable game. Sign-in stays manual. Minecraft Education does not officially support Android emulators.</small>
+</section>
+
+<section class="hero setup-intro">
+  <span class="eyebrow">OPTIONAL VMWARE SETUP · STEP {Math.min(phaseIndex + 1, 4)} OF 4</span>
+  <h2>Windows VM alternative</h2>
+  <p>Use this setup only after one Windows VMware guest proves Minecraft Education can render and accept a distinct account. The backend checks each step.</p>
 </section>
 
 <section class="setup-focus">
