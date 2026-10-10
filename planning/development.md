@@ -67,6 +67,10 @@ Do not create `lifecycle/` or `provision/` until the first repair and focused te
 
 For each bounded change: pin current Local HEAD; read first owner and consumers; write focused regression before claiming a fix; commit with truthful `Work`, `State`, `Proof`, `Unresolved`, `Next`; capture exact new SHA and remaining unexecuted proof; STOP. Preserve older entries as historical evidence rather than rewriting them as completed.
 
+## B1c rename-failure regression — 2026-10-10
+
+**State: SOURCE_TEST_AUTHORED / EXECUTION_UNPROVEN / REPROVISION_DISABLED.** Commit `898ef1d` adds an injected rename boundary inside the existing `provider/storage.rs` filesystem cutover and a deterministic test that fails the second rename after original VM backup, then verifies restoration of the original VMX plus client-profile.json, staging retention and absent leftover backup. No public API changes. Rust tests NOT_EXECUTED; no Windows/VMware acceptance. This does not establish safe VMware linked clone references or safe provider reprovision. **Next:** examine and validate linked-disk references for the staged-to-final move, then integrate provider candidate preparation only after verified evidence.
+
 ## B1c recoverable filesystem cutover primitive — 2026-10-10
 
 **State: PARTIAL_SOURCE_IMPLEMENTATION / REPROVISION_DISABLED.** Commit `f15b4b0` adds `provider/storage.rs::cutover_staged_vm`, an intentionally non-wired filesystem cutover that checks for VMX + co-located client profile, moves the original directory to a sibling backup, promotes the staged directory, and attempts to restore the original if promotion fails. Two isolated directory regression tests were authored but NOT_EXECUTED. The original backup is deliberately retained after success; no automatic cleanup or destructive retry.
