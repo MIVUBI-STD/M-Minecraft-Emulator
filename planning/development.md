@@ -3,10 +3,6 @@
 Updated: 2026-10-10
 Authority: `MIVUBI-STD/M-Minecraft-Emulator`, branch `Local`. Current GitHub source HEAD always outranks this file.
 
-## GitHub Actions Local-only authorization — 2026-10-10
-
-User explicitly approved source/build verification through GitHub Actions triggered only by push to Local. Main stays untouched; no automatic deployment or release. Actual run conclusions must be collected before PASS claims. This supersedes historical manual-only workflow restrictions below.
-
 ## E1 incomplete clone UI/status reconciliation — 2026-10-10
 
 **SOURCE_PATCHED / NOT_EXECUTED.** Commit `c8bcbd8` changes Workstation provider status for an existing VM directory with no VMX from an error result (which Doctor previously discarded) to the existing `ClientState::Error`. Doctor can now surface the occupied, unhealthy client as an issue instead of recommending clean provisioning. Runtime provisioning refuses to overwrite it; user VM files are preserved. No new state, schema, validator, or micro-test. This does **not** reconstruct missing VMX/profile or prove Windows behavior. Node/Rust/Tauri/Windows execution still NOT_EXECUTED.

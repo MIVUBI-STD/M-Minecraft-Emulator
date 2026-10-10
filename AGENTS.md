@@ -31,7 +31,7 @@ GitHub/ChatGPT source work is remote-first. Do not demand the user's PC, a check
 
 **Cross-chat recovery.** Recover by topic and source changes: compare `planning/development.md` with the current exact GitHub HEAD and relevant commit `Work` / `State` / `Proof` / `Unresolved` / `Next`. Historical `Next`, unrelated latest commits, chat titles, memory, and Project settings are not implementation truth or new authorization. Respect `PAUSED`/`BLOCKED` until explicitly resumed; if GitHub cannot be inspected, say the state is unverified. Project Instructions, if used, merely point to current repository rules, not duplicate them.
 
-Keep the existing ChatGPT + GitHub/cloud-only, no-user-PC policy. User expressly authorized GitHub Actions verification on pushes to Local only; do not change main. Unavailable VMware, Windows host, Education login/network and four-client proof stays `NOT_EXECUTED`; do not transfer source work to the user's machine.
+Keep the existing ChatGPT + GitHub/cloud-only, no-user-PC policy. Unavailable VMware, Windows host, Education login/network and four-client proof stays `NOT_EXECUTED`; do not transfer source work to the user's machine.
 
 ## Operator routes
 

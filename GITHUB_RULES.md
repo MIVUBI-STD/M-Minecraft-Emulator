@@ -77,7 +77,7 @@ Next: <one action only when incomplete>
 
 Use the cheapest decisive evidence: exact-ref static path/contract review → targeted source test → full source check only when needed → manual package smoke → Windows/VMware acceptance → real Minecraft Education acceptance.
 
-User-authorized exception (2026-10-10): verification workflows may trigger on `push` to **Local only**. Default permissions must remain read-only. No changes to main, additional branches, pull requests, schedule, release, or deployment. Executed run conclusions are required before claiming tests pass.
+GitHub Actions workflow source must remain `workflow_dispatch` only, with read-only default permissions; no push, pull_request, cron or auto-release. GitHub's default-branch requirement currently prevents dispatch because `main` intentionally has no workflows. **Do not solve this by editing `main`, installing workflows there, changing the default branch, or merging `Local`.** Continue source/static verification entirely against `Local`. If a separately authorized, suitable external/cloud execution environment is available, run tests against an exact pinned `Local` commit; otherwise record `SOURCE_EXECUTION` / `PACKAGE_EXECUTION` as `NOT_EXECUTED`. The inability to use GitHub Actions is not a reason to stop unrelated source development or make the user run commands on their PC.
 
 ## 8. Security
 

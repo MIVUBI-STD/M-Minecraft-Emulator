@@ -1,9 +1,7 @@
 name: Emulator Source Verification (manual)
 
 on:
-  push:
-    branches:
-      - Local
+  workflow_dispatch:
 
 permissions:
   contents: read
