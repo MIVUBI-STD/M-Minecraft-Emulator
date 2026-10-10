@@ -1444,7 +1444,9 @@ impl VirtualClients {
         let native_profile = native_minecraft_profile();
         let target_count = targets.len();
         let mut completed = 0;
-        let statuses = execute_start_batch(
+        // Keep game launch and window opening inside the same rollback boundary
+        // as VM startup. A pre-existing RUNNING client is never stopped here.
+        execute_start_batch(
             provider.as_ref(),
             &targets,
             |client, _| {
@@ -1458,6 +1460,18 @@ impl VirtualClients {
                     Duration::from_secs(90),
                     true,
                 )?;
+                crate::minecraft_runtime::ensure_running(provider.as_ref(), client).map_err(|error| {
+                    io::Error::new(error.kind(), format!(
+                        "{} VM started, but Minecraft Education launch failed: {error}",
+                        client.as_str()
+                    ))
+                })?;
+                provider.open(client).map_err(|error| {
+                    io::Error::new(error.kind(), format!(
+                        "{} Minecraft launch was requested, but VMware window could not be opened: {error}",
+                        client.as_str()
+                    ))
+                })?;
                 let working_sets = provider.host_working_sets_mb()?;
                 let status = client_status(
                     provider.as_ref(),
@@ -1471,32 +1485,7 @@ impl VirtualClients {
                 }
                 Ok(status)
             },
-        )?;
-
-        for (index, client) in targets.iter().enumerate() {
-            if let Err(error) = crate::minecraft_runtime::ensure_running(provider.as_ref(), *client) {
-                return Err(io::Error::new(
-                    error.kind(),
-                    format!(
-                        "{} is running, but Minecraft Education could not be opened: {error}",
-                        client.as_str()
-                    ),
-                ));
-            }
-            if let Err(error) = provider.open(*client) {
-                return Err(io::Error::new(
-                    error.kind(),
-                    format!(
-                        "{} and Minecraft Education are running, but the client window could not be opened: {error}",
-                        client.as_str()
-                    ),
-                ));
-            }
-            if index + 1 < targets.len() {
-                wait_until_start_is_safe()?;
-            }
-        }
-        Ok(statuses)
+        )
     }
 
     fn suspend_inner(&self, client: Option<ClientId>) -> io::Result<Vec<ClientStatus>> {
@@ -2204,6 +2193,52 @@ mod tests {
             [ClientState::Stopped; 3],
             [Some("uuid-a|mac-a"), Some("uuid-b|mac-b"), Some("uuid-c|mac-c")],
         )
+    }
+
+    #[test]
+    fn start_batch_launch_failure_restores_new_vm_and_preserves_existing_running() {
+        let provider = FakeProvider::new(
+            [ClientState::Running, ClientState::Stopped, ClientState::Stopped],
+            [None, None, None],
+        );
+        let error = super::execute_start_batch(
+            &provider,
+            &ClientId::VIRTUAL,
+            |_, _| Ok(()),
+            |client| {
+                if client == ClientId::Virtual02 {
+                    Err(io::Error::new(io::ErrorKind::Other, "injected Minecraft launch failure"))
+                } else {
+                    provider.state(client)
+                }
+            },
+        ).unwrap_err();
+        assert!(error.to_string().contains("Minecraft launch failure"));
+        assert_eq!(*provider.states.borrow(), [
+            ClientState::Running, ClientState::Stopped, ClientState::Stopped
+        ]);
+    }
+
+    #[test]
+    fn start_batch_window_failure_rolls_back_prior_successful_vm() {
+        let provider = stopped_provider();
+        let error = super::execute_start_batch(
+            &provider,
+            &ClientId::VIRTUAL,
+            |_, _| Ok(()),
+            |client| {
+                if client == ClientId::Virtual02 {
+                    provider.open(client)?;
+                    Ok(provider.state(client)?)
+                } else if client == ClientId::Virtual03 {
+                    Err(io::Error::new(io::ErrorKind::Other, "injected window open failure"))
+                } else {
+                    provider.state(client)
+                }
+            },
+        ).unwrap_err();
+        assert!(error.to_string().contains("window open failure"));
+        assert_eq!(*provider.states.borrow(), [ClientState::Stopped; 3]);
     }
 
     #[test]
