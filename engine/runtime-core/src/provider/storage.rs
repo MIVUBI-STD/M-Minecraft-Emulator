@@ -38,6 +38,17 @@ pub(crate) fn cutover_staged_vm(
     final_vmx: &Path,
     backup_dir: &Path,
 ) -> io::Result<()> {
+    cutover_staged_vm_with_rename(staged_vmx, final_vmx, backup_dir, fs::rename)
+}
+
+// Rename injection belongs to the existing filesystem owner, not a new
+// lifecycle manager. It proves recovery when promotion fails after backup.
+fn cutover_staged_vm_with_rename(
+    staged_vmx: &Path,
+    final_vmx: &Path,
+    backup_dir: &Path,
+    mut rename: impl FnMut(&Path, &Path) -> io::Result<()>,
+) -> io::Result<()> {
     let staged_dir = vm_container(staged_vmx)?;
     let final_dir = vm_container(final_vmx)?;
     if !staged_vmx.is_file() || !staged_dir.join("client-profile.json").is_file() {
@@ -60,10 +71,10 @@ pub(crate) fn cutover_staged_vm(
         return Err(io::Error::new(io::ErrorKind::InvalidInput,
             "recovery backup must be beside the original VM"));
     }
-    fs::rename(final_dir, backup_dir)?;
-    if let Err(error) = fs::rename(staged_dir, final_dir) {
+    rename(final_dir, backup_dir)?;
+    if let Err(error) = rename(staged_dir, final_dir) {
         // Do not hide recovery failure: backup is intentionally preserved.
-        match fs::rename(backup_dir, final_dir) {
+        match rename(backup_dir, final_dir) {
             Ok(()) => return Err(io::Error::new(error.kind(),
                 format!("replacement promotion failed; original restored: {error}"))),
             Err(restore_error) => return Err(io::Error::new(error.kind(),
@@ -125,6 +136,43 @@ mod tests {
         super::cutover_staged_vm(&stage.join("Virtual-01.vmx"), &old.join("Virtual-01.vmx"), &backup).unwrap();
         assert_eq!(fs::read_to_string(old.join("client-profile.json")).unwrap(), "replacement");
         assert_eq!(fs::read_to_string(backup.join("client-profile.json")).unwrap(), "original");
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn failed_promotion_restores_original_vm_and_profile() {
+        let root = std::env::temp_dir().join(format!("vc-cutover-fault-{}-{}", std::process::id(),
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()));
+        let old = root.join("Virtual-01");
+        let stage = root.join("Virtual-01-new");
+        let backup = root.join("Virtual-01-backup");
+        fs::create_dir_all(&old).unwrap();
+        fs::create_dir_all(&stage).unwrap();
+        for (dir, value) in [(&old, "old"), (&stage, "new")] {
+            fs::write(dir.join("Virtual-01.vmx"), value).unwrap();
+            fs::write(dir.join("client-profile.json"), value).unwrap();
+        }
+        let mut calls = 0;
+        let error = super::cutover_staged_vm_with_rename(
+            &stage.join("Virtual-01.vmx"),
+            &old.join("Virtual-01.vmx"),
+            &backup,
+            |from, to| {
+                calls += 1;
+                if calls == 2 {
+                    Err(io::Error::new(io::ErrorKind::PermissionDenied, "injected promotion failure"))
+                } else {
+                    fs::rename(from, to)
+                }
+            },
+        ).unwrap_err();
+        assert_eq!(error.kind(), io::ErrorKind::PermissionDenied);
+        assert_eq!(calls, 3);
+        assert!(error.to_string().contains("original restored"));
+        assert_eq!(fs::read_to_string(old.join("Virtual-01.vmx")).unwrap(), "old");
+        assert_eq!(fs::read_to_string(old.join("client-profile.json")).unwrap(), "old");
+        assert_eq!(fs::read_to_string(stage.join("client-profile.json")).unwrap(), "new");
+        assert!(!backup.exists());
         fs::remove_dir_all(root).unwrap();
     }
 
