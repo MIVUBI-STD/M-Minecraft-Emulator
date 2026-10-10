@@ -1125,14 +1125,29 @@ impl VirtualClients {
 
         for client in ClientId::VIRTUAL {
             let previous = provider.status(client)?;
-            provider.provision(client)?;
-            if previous == ClientState::NotProvisioned {
-                if let Err(error) = write_client_profile(client, &native.version, &base_generation_id) {
-                    return Err(io::Error::new(
+            // An existing VMX with absent/corrupt profile is not a completed
+            // provision. Never treat a provider no-op as provenance recovery.
+            if previous != ClientState::NotProvisioned {
+                require_client_matches_native(client).map_err(|error| {
+                    io::Error::new(
                         error.kind(),
-                        format!("{} was provisioned but lineage provenance could not be committed; start remains blocked until provenance is repaired: {error}", client.as_str()),
-                    ));
-                }
+                        format!(
+                            "{} already exists but its lineage is not usable: {error}. Existing VM and account data were preserved.",
+                            client.as_str()
+                        ),
+                    )
+                })?;
+                continue;
+            }
+            provider.provision(client)?;
+            if let Err(error) = write_client_profile(client, &native.version, &base_generation_id) {
+                return Err(io::Error::new(
+                    error.kind(),
+                    format!(
+                        "{} VM was created but its lineage profile was not committed; existing VM files were preserved and further provisioning is blocked until recovery: {error}",
+                        client.as_str()
+                    ),
+                ));
             }
         }
 
