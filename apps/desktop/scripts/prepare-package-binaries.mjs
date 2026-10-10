@@ -1,4 +1,4 @@
-import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync } from "node:fs";
 import { resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 
@@ -15,18 +15,39 @@ const tauriPackage = JSON.parse(readFileSync(resolve(appRoot, "src-tauri", "taur
 if (packageContract.schema !== 1 || !Array.isArray(packageContract.requiredFiles)) {
   throw new Error("Unsupported or invalid Virtual Clients package contract.");
 }
-const resourceDestinations = new Set([
-  ...Object.values(tauriBase.bundle?.resources ?? {}),
-  ...Object.values(tauriPackage.bundle?.resources ?? {}),
-]);
+// The configured resource destination alone does not prove that the mapped
+// source file exists. Resolve every required payload through the actual Tauri
+// origin -> destination mapping before starting a potentially expensive build.
+const tauriRoot = resolve(appRoot, "src-tauri");
+const resourceRoutes = [
+  ...Object.entries(tauriBase.bundle?.resources ?? {}),
+  ...Object.entries(tauriPackage.bundle?.resources ?? {}),
+];
 const generatedExecutables = new Set(["m-bedrock-virtual-clients.exe", "virtual-clients.exe"]);
+const guestAgentDestination = "guest/windows/virtual-guest-agent.exe";
+const guestAgentOrigin = "package-resources/guest/windows/virtual-guest-agent.exe";
 for (const requiredFile of packageContract.requiredFiles) {
   if (generatedExecutables.has(requiredFile)) continue;
-  const packaged = [...resourceDestinations].some(
-    (destination) => destination === requiredFile || (destination.endsWith("/") && requiredFile.startsWith(destination)),
-  );
+  if (requiredFile.startsWith("/") || requiredFile.split("/").some((part) => part === ".." || part === "")) {
+    throw new Error(`Invalid installed package path: ${requiredFile}`);
+  }
+  const packaged = resourceRoutes.some(([origin, destination]) => {
+    const remainder = destination === requiredFile
+      ? ""
+      : destination.endsWith("/") && requiredFile.startsWith(destination)
+        ? requiredFile.slice(destination.length)
+        : null;
+    if (remainder === null) return false;
+    if (requiredFile === guestAgentDestination) {
+      // This artifact is built and staged by this command below, not checked
+      // before its build. Require the explicit package resource route.
+      return origin === guestAgentOrigin && destination === guestAgentDestination;
+    }
+    const source = resolve(tauriRoot, origin, remainder);
+    return existsSync(source) && statSync(source).isFile();
+  });
   if (!packaged) {
-    throw new Error(`Tauri resources do not cover required installed file: ${requiredFile}`);
+    throw new Error(`Tauri package source is missing or unmapped: ${requiredFile}`);
   }
 }
 const backendCargo = readFileSync(manifest, "utf8");
@@ -56,6 +77,7 @@ run(
   "cargo",
   [
     "build",
+    "--locked",
     "--manifest-path",
     manifest,
     "--release",

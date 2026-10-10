@@ -3,6 +3,20 @@
 Updated: 2026-10-10
 Authority: `MIVUBI-STD/M-Minecraft-Emulator`, branch `Local`. Current GitHub source HEAD always outranks this file.
 
+## Current source batch — G0 package inputs and Rust lock boundary (2026-10-11)
+
+**Work:** `emulator/g0-package-source-integrity`  
+**State:** SOURCE_PATCHED / EXECUTION_UNPROVEN  
+**Parent `Local`:** `572ab4f11454ab76e9074c42c3c6872d545ad0b0`. Current GitHub commit owns the completed revision.
+
+- During the G0 route audit, package preparation was observed to accept a Tauri resource *destination* prefix even when the required *source file* was absent. `apps/desktop/scripts/prepare-package-binaries.mjs` now verifies every required mapped resource against its actual on-disk origin **before compiling**, except the Guest Agent binary explicitly produced by the same script. The existing generated host/CLI executable paths retain their packaging checks.
+- The backend CLI + guest Agent `cargo build` call now uses `--locked` with the already committed `engine/runtime-core/Cargo.lock`; dependency resolution may no longer silently update that backend lockfile.
+- **Known unclosed boundary:** Tauri has no `apps/desktop/src-tauri/Cargo.lock` in `Local`. Its full dependency graph cannot yet be honestly described as pinned to the same SHA. Do not invent a lockfile or add Tauri `--locked` until actual Cargo resolution produces a valid lockfile. No new runner, macro/micro test, CI, staging scheme or separate G0 database was added.
+- **Evidence:** exact-source package-route/static review (`REMOTE_GITHUB` only). Node/Rust executed checks, executable installer content, Windows/VMware and Minecraft remain `NOT_EXECUTED`. All product G0–G4 statuses stay `NOT_EXECUTED`.
+
+**Next:** Only after an actually generated Tauri Cargo.lock is available can exact-SHA desktop Rust dependency locking be closed; until then focus on grounded source defects, not repetitive test writing.
+
+
 ## Current decision — five-gate integrated test campaign (2026-10-11)
 
 **Work:** `emulator/test-campaign-consolidation` — **State: DOCUMENTED / EXECUTION_UNPROVEN**.  
