@@ -61,7 +61,7 @@ requireFact(version === rootPackage.version && version === appPackage.version &&
   version === cargoVersion("engine/runtime-core/Cargo.toml"), "Product version mismatch");
 requireFact(toolchain.node.version === read(".node-version").trim(), "Node pin mismatch");
 requireFact(toolchain.npm.lockfile === "apps/desktop/package-lock.json", "App lockfile path drift");
-requireFact(toolchain.policy.ciPolicy === "manual-only", "Manual-only CI policy drift");
+requireFact(toolchain.policy.ciPolicy === "local-push-only", "Local-only CI policy drift");
 requireFact(lock.packages[""]?.version === appPackage.version, "Desktop lockfile version mismatch");
 for (const [name, range] of Object.entries({ ...appPackage.dependencies, ...appPackage.devDependencies })) {
   requireFact(lock.packages[""]?.dependencies?.[name] === range ||
@@ -174,9 +174,9 @@ requireFact(tauri.bundle?.windows?.nsis?.installMode === "currentUser", "Windows
 requireFact(tauri.bundle?.windows?.allowDowngrades === false, "Downgrade restriction changed");
 for (const path of [".github/workflows/verify.yml", ".github/workflows/package-smoke.yml"]) {
   const workflow = read(path);
-  requireFact(/^on:\s*\n\s+workflow_dispatch:/m.test(workflow), "Workflow is not manual: " + path);
-  requireFact(!/^\s{2}(?:push|pull_request|schedule):/m.test(workflow),
-    "Automatic workflow trigger detected: " + path);
+  requireFact(/^on:\s*\n\s+push:\s*\n\s+branches:\s*\n\s+- Local\s*$/m.test(workflow), "Workflow must only trigger on Local pushes: " + path);
+  requireFact(!/^\s{2}(?:pull_request|pull_request_target|schedule|workflow_dispatch|workflow_call):/m.test(workflow),
+    "Unexpected workflow trigger: " + path);
 }
 
 function markdownFiles(dir) {
