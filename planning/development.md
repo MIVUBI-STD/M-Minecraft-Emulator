@@ -3,6 +3,19 @@
 Updated: 2026-10-10
 Authority: `MIVUBI-STD/M-Minecraft-Emulator`, branch `Local`. Current GitHub source HEAD always outranks this file.
 
+## Current operating decision — ChatGPT + GitHub only (2026-10-11)
+
+**Authority:** Current user direction supersedes historical notes below that mention alternate execution pathways. Work against GitHub `Local` from ChatGPT; `main` stays untouched and there are no automatic workflows. No user-computer tasks and no assumed third-party execution services. Do not repeatedly propose an execution environment that is not available.
+
+**Work completed in this sequence:** desktop compatibility diagnostics and accurate status presentation (commit `9be8be487f3021da068b19098d293e534d51521d`) plus consolidation of existing source-work instructions (this commit). No new lifecycle state, provider, test harness, dependency, platform, or release channel was introduced.
+
+**Proof ceiling:** GitHub exact-source inspections and content/consumer checks only. Node, Rust, Tauri, Windows package, Windows guest, real Education sign-in/rendering and four-client usability are `NOT_EXECUTED`; do not describe authored tests or static scans as executable PASS.
+
+**Prioritization:** First repair an *identified current-source defect* within its existing owner; avoid new modules, speculative features, duplicated plans, cosmetic changes, or unconsumed tests. If no further actionable source defect can be grounded, stop rather than manufacturing work. Existing historical `Next` sections remain records of their commit date and do not override this decision.
+
+**Next:** Inspect actual current source consumers only when a specific defect is identified; otherwise hand off the remaining real execution evidence as `NOT_EXECUTED`.
+
+
 ## Current batch — truthful desktop bulk actions (2026-10-11)
 
 **Work:** `emulator/desktop-bulk-lifecycle`  

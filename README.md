@@ -82,7 +82,7 @@ All human-facing documentation routes start at `docs/README.md`. Product policie
 ## Development verification
 
 ```bash
-npm run setup                    # app lockfile install (optional local/cloud execution)
+npm run setup                    # optional source-toolchain command; not required for ChatGPT + GitHub edits
 npm run verify:repository        # static repository and cross-file contract verification
 npm run test:feasibility          # pure Node evidence classification regressions
 npm run test                     # desktop contract tests
