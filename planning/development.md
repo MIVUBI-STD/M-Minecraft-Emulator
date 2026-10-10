@@ -3,6 +3,12 @@
 Updated: 2026-10-10
 Authority: `MIVUBI-STD/M-Minecraft-Emulator`, branch `Local`. Current GitHub source HEAD always outranks this file.
 
+## E1 incomplete clone UI/status reconciliation — 2026-10-10
+
+**SOURCE_PATCHED / NOT_EXECUTED.** Commit `c8bcbd8` changes Workstation provider status for an existing VM directory with no VMX from an error result (which Doctor previously discarded) to the existing `ClientState::Error`. Doctor can now surface the occupied, unhealthy client as an issue instead of recommending clean provisioning. Runtime provisioning refuses to overwrite it; user VM files are preserved. No new state, schema, validator, or micro-test. This does **not** reconstruct missing VMX/profile or prove Windows behavior. Node/Rust/Tauri/Windows execution still NOT_EXECUTED.
+
+**Next:** Verify the exact SHA with executable source checks when available; then address any real output failures. Keep Reprovision blocked pending recoverable implementation, and do not modify `main`.
+
 ## E1 incomplete clone state and verification ceiling — 2026-10-10
 
 **Status: SOURCE_PATCHED / BUILD_NOT_EXECUTED.** Commit `63393d1` changes Workstation provider status to return an explicit error when the client VM directory exists but its VMX is missing, rather than reporting NOT_PROVISIONED. This protects residue from being misclassified as a clean new client. Existing provider provisioning already refuses to overwrite the directory. Rust compiler/Cargo and pinned source execution were not available in the current execution context, and direct network clone access is unavailable; no Rust tests, NSIS build or VMware execution were performed. Doctor still degrades provider-status errors into missing/unknown observations; product readiness must not infer a successful VM from such a result.
