@@ -46,7 +46,10 @@
       "../../../engine/guest/windows/": "guest/windows/",
       "../../../tooling/acceptance/windows/": "acceptance/windows/",
       "../../../engine/distribution/release-channel.json": "distribution/release-channel.json",
-      "../../../engine/distribution/package-contract.json": "distribution/package-contract.json"
+      "../../../engine/distribution/package-contract.json": "distribution/package-contract.json",
+      "../../../engine/distribution/install-lifecycle-policy.json": "distribution/install-lifecycle-policy.json",
+      "../../../engine/distribution/test-upgrade.ps1": "distribution/test-upgrade.ps1",
+      "../../../engine/distribution/write-payload-manifest.ps1": "distribution/write-payload-manifest.ps1"
     },
     "windows": {
       "allowDowngrades": false,

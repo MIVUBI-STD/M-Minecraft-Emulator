@@ -82,6 +82,17 @@ const resourceRoots = [
 ];
 const baseResources = tauri.bundle?.resources ?? {};
 const packageResources = tauriPackage.bundle?.resources ?? {};
+const packageContract = json("engine/distribution/package-contract.json");
+requireFact(packageContract.schema === 1 && Array.isArray(packageContract.requiredFiles),
+  "Unsupported or invalid installed package contract");
+const resourceDestinations = new Set([...Object.values(baseResources), ...Object.values(packageResources)]);
+const generatedExecutables = new Set(["m-bedrock-virtual-clients.exe", "virtual-clients.exe"]);
+for (const requiredFile of packageContract.requiredFiles) {
+  if (generatedExecutables.has(requiredFile)) continue;
+  requireFact([...resourceDestinations].some((destination) =>
+    destination === requiredFile || (destination.endsWith("/") && requiredFile.startsWith(destination))),
+    "Tauri resources do not cover required installed file: " + requiredFile);
+}
 for (const origin of resourceRoots) {
   requireFact(origin in baseResources && origin in packageResources,
     "Installer resource route is missing: " + origin);

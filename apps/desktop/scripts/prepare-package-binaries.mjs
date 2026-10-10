@@ -19,9 +19,14 @@ const resourceDestinations = new Set([
   ...Object.values(tauriBase.bundle?.resources ?? {}),
   ...Object.values(tauriPackage.bundle?.resources ?? {}),
 ]);
-for (const requiredRoot of ["guest/windows/", "acceptance/windows/", "distribution/release-channel.json", "distribution/package-contract.json"]) {
-  if (![...resourceDestinations].some((destination) => destination === requiredRoot || destination.startsWith(requiredRoot))) {
-    throw new Error(`Tauri package resources do not cover required package root: ${requiredRoot}`);
+const generatedExecutables = new Set(["m-bedrock-virtual-clients.exe", "virtual-clients.exe"]);
+for (const requiredFile of packageContract.requiredFiles) {
+  if (generatedExecutables.has(requiredFile)) continue;
+  const packaged = [...resourceDestinations].some(
+    (destination) => destination === requiredFile || (destination.endsWith("/") && requiredFile.startsWith(destination)),
+  );
+  if (!packaged) {
+    throw new Error(`Tauri resources do not cover required installed file: ${requiredFile}`);
   }
 }
 const backendCargo = readFileSync(manifest, "utf8");
