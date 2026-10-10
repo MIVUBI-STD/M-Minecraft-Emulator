@@ -159,17 +159,27 @@ export function updateLabel(state: UpdateState): string {
   return labels[state];
 }
 
-/** A suspended client is still eligible for Stop; use backend action authority. */
+/** Only backend-admitted non-running clients may receive normal Start. */
+export function startableVirtualClientIds(
+  clients: readonly ClientStatus[],
+  actions: readonly ClientLifecycleActions[],
+): ClientLifecycleActions["id"][] {
+  return clients.flatMap((client) => {
+    if (client.native || (client.state !== "STOPPED" && client.state !== "SUSPENDED")) return [];
+    const available = actionForClient(actions, client.id);
+    // First-time setup uses StartSetup, not normal daily Start.
+    return available?.start.allowed === true && !available.startSetup ? [available.id] : [];
+  });
+}
+
+/** Backend Stop-all preflights every provisioned guest, even stopped/paused ones. */
 export function hasStoppableClient(
   clients: readonly ClientStatus[],
   actions: readonly ClientLifecycleActions[],
 ): boolean {
-  return clients.some(
-    (client) =>
-      !client.native &&
-      client.state !== "STOPPED" &&
-      actionForClient(actions, client.id)?.stop.allowed === true,
-  );
+  const targets = clients.filter((client) => !client.native && client.state !== "NOT_PROVISIONED");
+  return targets.some((client) => client.state === "RUNNING")
+    && targets.every((client) => actionForClient(actions, client.id)?.stop.allowed === true);
 }
 
 export function primaryClientBlocker(

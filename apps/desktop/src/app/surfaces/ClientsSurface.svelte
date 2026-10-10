@@ -4,6 +4,7 @@
     actionForClient,
     blockerLabel,
     hasStoppableClient,
+    startableVirtualClientIds,
     clientDisplayName,
     primaryClientAction,
     connectionHealthLabel,
@@ -35,7 +36,7 @@
   export let onSupport: () => void;
   export let onVerifyIdentities: () => void | Promise<void>;
   $: canStopAll = hasStoppableClient(virtuals, actions);
-  $: startableVirtuals = virtuals.filter((client) => actionForClient(actions, client.id)?.start.allowed === true).length;
+  $: startableVirtuals = startableVirtualClientIds(virtuals, actions).length;
   $: pausedVirtuals = virtuals.filter((client) => client.state === "SUSPENDED").length;
   $: hostPressure = snapshot.diagnostics.runtime.pressure;
   $: hostResourceMessage =
@@ -76,7 +77,7 @@
     <div>
       <span class="eyebrow">SETUP · RECREATE</span>
       <strong>One or more clients need to be recreated</strong>
-      <small>Use Recreate virtual client only on affected clients. This removes that client's saved Windows and Minecraft session.</small>
+      <small>Recreation is currently unavailable to protect saved Windows and Minecraft sessions. Open Support for the current diagnostic state; do not delete VM files manually.</small>
     </div>
   </section>
 {/if}
@@ -89,7 +90,7 @@
   <div class="batch-actions">
     {#if setupAction !== "VERIFY_IDENTITIES" && startableVirtuals > 0}
       <button class="primary" disabled={Boolean(busy) || !policy} on:click={onStartAll}>
-        {busy === "start-all" ? "Starting virtuals…" : startableVirtuals === virtuals.length ? "Start virtual clients" : "Start remaining virtuals"}
+        {busy === "start-all" ? "Starting virtuals…" : startableVirtuals === virtuals.length ? "Start virtual clients" : "Start available virtuals"}
       </button>
     {/if}
     {#if runningVirtuals > 0}

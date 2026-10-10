@@ -3,6 +3,21 @@
 Updated: 2026-10-10
 Authority: `MIVUBI-STD/M-Minecraft-Emulator`, branch `Local`. Current GitHub source HEAD always outranks this file.
 
+## Current batch — truthful desktop bulk actions (2026-10-11)
+
+**Work:** `emulator/desktop-bulk-lifecycle`  
+**State:** SOURCE_PATCHED / EXECUTION_UNPROVEN  
+**Parent:** `69c88f6b597d39df1665766e88dfd8f9d071f2eb` (check the current GitHub commit for exact final source SHA).
+
+- Fixed an actual UI/backend mismatch: the Start available clients button previously issued `start(maxVirtualClients)` regardless of which guests were running. It now selects only STOPPED/SUSPENDED clients admitted by backend action projections (without pending first boot) and uses the existing `startClient` IPC command sequentially, with per-client runtime admission.
+- The batch operation is deliberately non-atomic. If a later start fails, already started guests are not stopped; the UI reports partial completion and the existing mutation wrapper refreshes actual backend state.
+- Stop-all is offered only when every provisioned guest has backend Stop admission and at least one is RUNNING. A suspended/error guest prevents offering a batch that would be rejected before mutation by the Rust runtime.
+- Updated misleading recreate guidance to reflect the existing disabled destructive lifecycle path; no change to guest disks, provider code, API schemas or permissions.
+- Regression cases updated in the existing view-model test suite rather than creating new files/frameworks. **Evidence: REMOTE_GITHUB static source inspection only; tests not executed.** No developer machine required, no automatic CI, and `main` untouched.
+
+**Next:** inspect a concrete source-level mismatch in desktop/engine setup, keeping higher-context execution evidence `NOT_EXECUTED` until actually available.
+
+
 ## Current implementation batch — safe VM lifecycle, no PC handoff (2026-10-11)
 
 **Work:** `emulator/safe-power-lifecycle` — **State: SOURCE_PATCHED / EXECUTION_UNPROVEN**.

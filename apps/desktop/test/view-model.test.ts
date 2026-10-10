@@ -4,6 +4,7 @@ import {
   actionLabel,
   blockerLabel,
   hasStoppableClient,
+  startableVirtualClientIds,
   clientDisplayName,
   issueLabel,
   primaryClientAction,
@@ -118,16 +119,49 @@ describe("Virtual Clients presentation projection", () => {
   });
 });
 
-describe("Stop all availability", () => {
+describe("Bulk lifecycle controls", () => {
+  const second = { ...clientStatus("STOPPED"), id: "Virtual-02" as const };
+  const third = { ...clientStatus("RUNNING"), id: "Virtual-03" as const };
+  const admitted = [
+    { ...actions[0], start: allow },
+    { ...actions[0], id: "Virtual-02" as const, start: allow },
+    { ...actions[0], id: "Virtual-03" as const, start: allow },
+  ];
 
-  it("allows stopping when only suspended clients remain", () => {
-    expect(hasStoppableClient([clientStatus("SUSPENDED")], actions)).toBe(true);
+  it("selects available stopped or suspended targets, never running guests", () => {
+    expect(startableVirtualClientIds(
+      [clientStatus("RUNNING"), second, { ...third, state: "SUSPENDED" }],
+      admitted,
+    )).toEqual(["Virtual-02", "Virtual-03"]);
+    expect(startableVirtualClientIds(
+      [clientStatus("RUNNING"), { ...second, state: "ERROR" }, third],
+      admitted,
+    )).toEqual([]);
   });
 
-  it("does not enable stop for stopped clients or missing backend permission", () => {
-    expect(hasStoppableClient([clientStatus("STOPPED")], actions)).toBe(false);
-    expect(hasStoppableClient([clientStatus("RUNNING")], [{ ...actions[0], stop: deny }])).toBe(false);
-    expect(hasStoppableClient([clientStatus("SUSPENDED")], [])).toBe(false);
+  it("does not bypass first-time setup or blocked admission", () => {
+    const firstBoot = { ...admitted[1], startSetup: deny };
+    expect(startableVirtualClientIds([second], [firstBoot])).toEqual([]);
+    expect(startableVirtualClientIds([second], [
+      { ...firstBoot, startSetup: undefined, start: deny },
+    ])).toEqual([]);
+  });
+
+  it("only enables Stop-all if every provisioned guest is admitted", () => {
+    const running = clientStatus("RUNNING");
+    const admittedStop = { ...admitted[0], stop: allow };
+    const secondStop = { ...admitted[1], stop: allow };
+    expect(hasStoppableClient([running, second], [admittedStop, secondStop])).toBe(true);
+    expect(hasStoppableClient(
+      [running, { ...second, state: "SUSPENDED" }],
+      [admittedStop, { ...secondStop, stop: deny }],
+    )).toBe(false);
+    expect(hasStoppableClient([running, second], [admittedStop])).toBe(false);
+    expect(hasStoppableClient([clientStatus("STOPPED")], [admittedStop])).toBe(false);
+    expect(hasStoppableClient(
+      [running, { ...second, state: "NOT_PROVISIONED" }],
+      [admittedStop],
+    )).toBe(true);
   });
 });
 

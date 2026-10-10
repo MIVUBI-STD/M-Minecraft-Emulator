@@ -23,7 +23,7 @@
     DisplayInfo,
     UpdateCheck,
   } from "./contracts.js";
-  import { actionForClient, clientDisplayName, primaryClientAction } from "./view-model.js";
+  import { actionForClient, clientDisplayName, primaryClientAction, startableVirtualClientIds } from "./view-model.js";
   import type { Page } from "./app/navigation.js";
   import { presentRuntimeError, type RuntimeErrorPresentation } from "./app/runtimeErrorPresentation.js";
   import { setupExperience, shouldShowClientControls } from "./app/setupFlow.js";
@@ -203,8 +203,27 @@
 
   async function startAll() {
     if (!policy) return;
-    const count = policy.maxVirtualClients;
-    await mutate("start-all", (onProgress) => backend.start(count, onProgress));
+    const selected = startableVirtualClientIds(virtuals, actions);
+    if (selected.length === 0) return;
+    await mutate("start-all", async (onProgress) => {
+      const completed: string[] = [];
+      for (const client of selected) {
+        try {
+          // The backend rechecks admission/resource pressure for each individual guest.
+          await backend.startClient(client, onProgress);
+          completed.push(clientDisplayName(client));
+        } catch (cause) {
+          if (completed.length === 0) throw cause;
+          // Bulk start is non-atomic; preserve earlier sessions and report partial work.
+          const detail = cause instanceof Error ? cause.message : String(cause);
+          const message = `Started ${completed.join(", ")}. ${clientDisplayName(client)} failed: ${detail} Earlier clients were not stopped; review refreshed status before retrying.`;
+          if (cause instanceof BackendBridgeError) {
+            throw new BackendBridgeError(cause.code, message, cause.retryable);
+          }
+          throw new Error(message);
+        }
+      }
+    });
   }
 
   async function openBaseFinalization() {
