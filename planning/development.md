@@ -67,6 +67,12 @@ Do not create `lifecycle/` or `provision/` until the first repair and focused te
 
 For each bounded change: pin current Local HEAD; read first owner and consumers; write focused regression before claiming a fix; commit with truthful `Work`, `State`, `Proof`, `Unresolved`, `Next`; capture exact new SHA and remaining unexecuted proof; STOP. Preserve older entries as historical evidence rather than rewriting them as completed.
 
+## B1c inventory-wide candidate disk rejection — 2026-10-10
+
+**State:** SOURCE_GUARD_AUTHORED / NOT_EXECUTED / REPROVISION_DISABLED. Commit `43c206d` introduces read-only `validate_staged_disk_inventory` in the canonical provider storage owner. It traverses the staged directory and refuses symlinks, no VMDKs, binary/unknown descriptors, absent parent hints, absent referenced parents and paths that change their meaning on final movement. Two Rust regression cases were authored but **NOT_EXECUTED**. This does not prove VMware extent formats, snapshot chains, complete descriptor grammar, child-parent IDs, or actual guest boot. The helper is not wired into production cutover, and must not be described as full VMDK-chain validation.
+
+**Next action:** validate assumptions against VMware descriptor/extent semantics and obtain executable Rust verification; only then determine whether staging should avoid relocation entirely. Do not bypass the public reprovision safety guard.
+
 ## B1c linked-VMDK movement preflight — 2026-10-10
 
 **State: PARTIAL_SOURCE_IMPLEMENTATION / REPROVISION_DISABLED.** Commit `ef656e8` adds read-only `provider/storage.rs::validate_linked_disk_move` to inspect a single text-format VMDK descriptor parent hint and reject a move when the parent path would no longer resolve to the same existing file. Two targeted Rust regression tests were authored for changed relative paths and missing parents, **NOT_EXECUTED**. This does **not** validate all descriptors, extents, snapshots, VMware metadata, or the actual VM clone, and is not yet called by cutover. It is a prerequisite utility, not proof of disk safety. The public reprovision admission guard remains active.
