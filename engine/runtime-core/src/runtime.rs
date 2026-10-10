@@ -7,7 +7,7 @@ use crate::{
     diagnostics::{collect as collect_diagnostics, DiagnosticsReport},
     doctor::{doctor, DoctorReport},
     guest::{
-        guest_agent_protocol_compatible, query_guest_status, GuestStatus,
+        guest_agent_launch_compatible, query_guest_status, GuestStatus,
         GUEST_AGENT_PROTOCOL_VERSION,
     },
     identity::classify_identity_state,
@@ -22,7 +22,7 @@ use crate::{
     profile::{
         client_lineage_parity, current_base_vmx_path, identity_fingerprint, load_base_profile,
         load_client_profile, native_minecraft_profile, profile_status,
-        remove_client_profile, require_base_matches_native, require_client_matches_native, write_client_profile,
+        remove_client_profile, require_base_launch_protocol, require_base_matches_native, require_client_matches_native, write_client_profile,
         write_verified_base_profile, write_verified_client_identities, BaseProfile, BaseState,
         MinecraftProfile, ProfileParity, ProfileStatus,
     },
@@ -403,11 +403,11 @@ fn wait_for_guest_compatibility(
                         )
                     })?;
 
-                    if !guest_agent_protocol_compatible(status.protocol_version) {
+                    if !guest_agent_launch_compatible(status.protocol_version) {
                         return Err(io::Error::new(
                             io::ErrorKind::InvalidData,
                             format!(
-                                "{} Guest Agent protocol {} is incompatible with backend protocol {}",
+                                "{} Guest Agent protocol {} cannot launch Minecraft Education; backend launch protocol {} required",
                                 client.as_str(),
                                 status.protocol_version,
                                 GUEST_AGENT_PROTOCOL_VERSION
@@ -972,16 +972,9 @@ impl VirtualClients {
                 if let Some(ip) = provider.guest_ip_for_path(&base)? {
                     match query_guest_status(&ip, &token, Duration::from_secs(2)) {
                         Ok(status) => {
-                            if !guest_agent_protocol_compatible(status.protocol_version) {
-                                return Err(io::Error::new(
-                                    io::ErrorKind::InvalidData,
-                                    format!(
-                                        "Base Guest Agent protocol {} is incompatible with backend protocol {}",
-                                        status.protocol_version,
-                                        GUEST_AGENT_PROTOCOL_VERSION
-                                    ),
-                                ));
-                            }
+                            // Do not mark a Base REGISTERED if its Agent can
+                            // report status but cannot launch the actual game.
+                            require_base_launch_protocol(status.protocol_version)?;
 
                             let minecraft = status.minecraft.as_ref().ok_or_else(|| {
                                 io::Error::new(

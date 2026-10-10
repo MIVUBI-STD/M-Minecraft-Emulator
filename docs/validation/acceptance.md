@@ -70,7 +70,7 @@ For every Virtual:
 start
 → VMware Tools ready
 → Guest Agent reachable
-→ Guest Agent protocol = compatible backend protocol
+→ Guest Agent protocol supports Minecraft's fixed launcher request (status-only v1 is not accepted for Base registration/daily start)
 → live Minecraft version = Native version
 → versionParity = MATCH
 ```

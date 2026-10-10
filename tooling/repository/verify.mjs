@@ -16,8 +16,10 @@ const required = [
   "apps/desktop/src-tauri/Cargo.toml", "apps/desktop/src-tauri/tauri.conf.json",
   "engine/runtime-core/Cargo.toml", "engine/distribution/release-channel.json",
   "tooling/acceptance/windows/collect-acceptance.ps1",
+  "engine/guest/windows/prepare-base.ps1",
   ".github/workflows/verify.yml", ".github/workflows/package-smoke.yml",
   "docs/validation/client-feasibility.md",
+  "docs/validation/pre-local-test-readiness.md",
   "docs/product/four-concurrent-accounts.md",
   "apps/desktop/src-tauri/src/engine/native_clients.rs",
   "apps/desktop/src-tauri/src/commands/native_clients.rs",
@@ -81,6 +83,11 @@ requireFact(rootPackage.scripts["verify:source"].includes("npm run test:feasibil
 requireFact(read("apps/desktop/src/App.svelte").includes(
   "!shouldShowClientControls(snapshot.doctor.nextSetupAction)"),
   "Client-owned setup actions must show real client controls, not the setup wizard");
+const prepareBase = read("engine/guest/windows/prepare-base.ps1");
+requireFact(prepareBase.includes("[Microsoft.Win32.RegistryView]::Registry32") &&
+  prepareBase.includes("GetValue('Version', '')") &&
+  read("engine/runtime-core/src/profile.rs").includes('"/reg:32"'),
+  "Minecraft Education Base preparation must use the documented 32-bit Desktop registry view");
 requireFact(read("docs/product/four-concurrent-accounts.md").includes(
   "four separate Minecraft Education Windows desktop clients concurrently"),
   "Four-client end-user outcome was removed from canonical product contract");

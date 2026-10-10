@@ -76,6 +76,10 @@ Use `tooling/acceptance/windows/collect-acceptance.ps1` for machine evidence. A 
 Do not promote LOCAL proof from documentation, source tests, package smoke, or hosted CI.
 
 
+## Pre-local-test separation
+
+Use [Pre-Local-Test Readiness](./pre-local-test-readiness.md). The source-to-target boundary requires real exact-SHA **desktop/Rust checks, Windows NSIS construction, package payload and disposable install-lifecycle smoke** before requesting user-PC acceptance. Static repository inspection may identify bugs but does not mark `PRE_LOCAL_READY`.
+
 ## Build gate status
 
 The static architecture freeze does not imply a successful package build. A source revision is eligible for Windows acceptance only after the manually dispatched Virtual Clients Package Smoke workflow (or equivalent exact-head, machine-recorded package inspection) has actually executed successfully against that revision.

@@ -27,7 +27,7 @@ Base must keep:
 
 - supported Windows installation;
 - VMware Tools;
-- Virtual Guest Agent;
+- Virtual Guest Agent with a launch-compatible protocol (current runtime requires v2; status-only v1 is insufficient);
 - working virtual GPU / 3D acceleration;
 - keyboard, mouse and controller input;
 - networking;

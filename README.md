@@ -28,6 +28,7 @@ An operator does **not** need a local checkout to complete repository/source-ver
 | --- | --- | --- |
 | Develop, refactor, repair, or improve repository | [AGENTS.md](AGENTS.md) → [.agents development procedure](.agents/skills/emulator-development/SKILL.md) | Existing source owner in `apps/` or `engine/` |
 | Examine VM behavior or diagnose setup | [Implementation Map](docs/system/implementation-map.md) → [Runtime Core](docs/system/runtime-core.md) | `engine/runtime-core/`, observed provider/guest evidence |
+| Confirm source and NSIS installer readiness **before** asking for a PC test | [Pre-Local-Test Gate](docs/validation/pre-local-test-readiness.md) | Executed pinned source checks, Windows package smoke and install lifecycle required; currently unproven |
 | Prove one Windows VMware guest can boot, install/login and play Education responsively before scaling | [Client Feasibility](docs/validation/client-feasibility.md) | Scratch VM; diagnostics separate from manual game observation |
 | Verify Windows/VMware/Minecraft usability | [Validation](docs/validation/README.md) | Real machine and game observations; `tooling/acceptance/` collects bounded evidence |
 | Prepare package or validate update trust | [Distribution](engine/distribution/README.md) | Machine-readable contracts in `engine/distribution/` and Tauri package config |

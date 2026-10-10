@@ -11,6 +11,7 @@ lifecycle: ACTIVE
 
 | Question | Authoritative reference |
 | --- | --- |
+| Is the source and Windows installer ready to be taken to the user's PC for the first local test? | [Pre-Local-Test Readiness](./pre-local-test-readiness.md) — mandatory G1–G4 gates |
 | Can one Windows VMware guest boot, install/sign in and play Minecraft Education responsively? | [Client Feasibility Gate](./client-feasibility.md) — before Base cloning |
 | What real tests must pass? | [Target-machine Acceptance](./acceptance.md) |
 | What is statically covered versus unproven? | [Static Readiness](./static-readiness.md) |

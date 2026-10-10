@@ -182,10 +182,26 @@ pub fn load_base_profile() -> io::Result<BaseProfile> {
     Ok(profile)
 }
 
+pub(crate) fn require_base_launch_protocol(protocol: u32) -> io::Result<()> {
+    if guest_agent_launch_compatible(protocol) {
+        Ok(())
+    } else {
+        Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!(
+                "Base Guest Agent protocol {protocol} cannot launch Minecraft Education; update the guest Agent before registering this Base"
+            ),
+        ))
+    }
+}
+
 pub fn write_verified_base_profile(
     native: &MinecraftProfile,
     guest_agent_protocol: u32,
 ) -> io::Result<BaseProfile> {
+    // The writer must enforce the same invariant as registration: a status
+    // endpoint is insufficient to create a reusable playable Base profile.
+    require_base_launch_protocol(guest_agent_protocol)?;
     let base = base_vmx_path_for_version(&native.version)?;
     if !base.is_file() {
         return Err(io::Error::new(
@@ -558,6 +574,17 @@ mod tests {
         CLIENT_PROFILE_SCHEMA,
     };
     use crate::guest::{GUEST_AGENT_PROTOCOL_VERSION, GUEST_STATUS_SCHEMA};
+
+    #[test]
+    fn base_profile_rejects_status_only_guest_agents_before_registration() {
+        assert!(super::require_base_launch_protocol(2).is_ok());
+        for unsupported in [0, 1, 3, 99] {
+            assert_eq!(
+                super::require_base_launch_protocol(unsupported).unwrap_err().kind(),
+                std::io::ErrorKind::InvalidData
+            );
+        }
+    }
 
     #[test]
     fn version_normalization_is_strict() {

@@ -17,6 +17,8 @@ Minecraft Education's official system requirements document lists Windows 10/11 
 
 Source: https://edusupport.minecraft.net/hc/en-us/articles/360047556591-System-Requirements
 
+The managed Base installer is the official **Windows Desktop .exe** with `/qn INSTALL_UPDATER="NONE"`; official documentation marks its machine version registry detection as a **32-bit app on 64-bit clients**, so both the Base preparation script and Rust backend must explicitly use the 32-bit machine registry view. Store/AppX and Desktop installations remain mutually exclusive.
+
 The existing Virtual Clients policy caps each virtual guest at 4096 MB and configures two vCPUs. This is a purposeful multi-guest trade-off **below the published device-level RAM recommendation**, not proof of acceptable frame times, renderer compatibility, server hosting, or four-client concurrency. Measure real guest/host RAM, graphics and responsiveness before tuning policy.
 
 The official requirements also caution that using emulators to run Minecraft Education on Linux is unsupported. This project does not claim official Minecraft Education support for running the game inside a VMware guest; Windows VMware support and Minecraft usability require actual compatibility evidence.

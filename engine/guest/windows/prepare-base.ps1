@@ -18,6 +18,9 @@ if (!$principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 if (!(Test-Path -LiteralPath $MinecraftInstaller -PathType Leaf)) {
   throw "Minecraft Education installer not found: $MinecraftInstaller"
 }
+if ([IO.Path]::GetExtension($MinecraftInstaller) -ine '.exe') {
+  throw 'Managed Base preparation requires the official Minecraft Education Windows Desktop .exe installer, not an MSI, Store AppX, or other launcher.'
+}
 
 if (!(Test-Path -LiteralPath $GuestAgentSource -PathType Leaf)) {
   throw "Virtual Guest Agent not found: $GuestAgentSource"
@@ -55,8 +58,28 @@ if ($updaterTask) {
   Disable-ScheduledTask -InputObject $updaterTask | Out-Null
 }
 
-$registryPath = 'HKLM:\SOFTWARE\Microsoft\Microsoft Studios\Minecraft Education Edition'
-$version = (Get-ItemProperty -LiteralPath $registryPath -Name Version -ErrorAction Stop).Version
+# The official Minecraft Education EXE installer registers the Desktop
+# version as a 32-bit application on 64-bit Windows. Use the same registry
+# view as runtime-core profile.rs (/reg:32) regardless of PowerShell bitness.
+$registry = [Microsoft.Win32.RegistryKey]::OpenBaseKey(
+  [Microsoft.Win32.RegistryHive]::LocalMachine,
+  [Microsoft.Win32.RegistryView]::Registry32
+)
+try {
+  $desktopKey = $registry.OpenSubKey('SOFTWARE\Microsoft\Microsoft Studios\Minecraft Education Edition')
+  if ($null -eq $desktopKey) {
+    throw 'Minecraft Education Desktop is missing from the 32-bit machine registry after installation.'
+  }
+  try {
+    $version = [string]$desktopKey.GetValue('Version', '')
+  }
+  finally {
+    $desktopKey.Dispose()
+  }
+}
+finally {
+  $registry.Dispose()
+}
 if (!$version -or $version -notmatch '^\d+(\.\d+)+$') {
   throw 'Minecraft Education desktop version could not be verified after installation.'
 }

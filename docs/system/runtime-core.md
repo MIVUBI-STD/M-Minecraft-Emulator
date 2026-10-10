@@ -67,7 +67,7 @@ Verified daily boot paths require:
 2. registered Base profile present;
 3. Native/Base versions equal;
 4. Guest Agent reachable after boot;
-5. Guest Agent protocol is compatible with the backend protocol;
+5. Guest Agent protocol supports the backend's fixed Minecraft launch request (protocol v2 at this checkpoint; status-only v1 is insufficient);
 6. Virtual Minecraft version equals Native.
 
 ## Base provenance
