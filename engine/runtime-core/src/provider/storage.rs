@@ -140,6 +140,56 @@ pub(crate) fn validate_linked_disk_move(
     Ok(())
 }
 
+// Conservative inventory preflight: every VMDK encountered must be a
+// parseable linked descriptor with a parent that retains its meaning after
+// movement. Binary or standalone VMDKs are UNKNOWN, never silently accepted.
+// This is not VMware's authoritative disk/snapshot chain verification.
+#[allow(dead_code)]
+pub(crate) fn validate_staged_disk_inventory(
+    staging_vmx: &Path,
+    final_vmx: &Path,
+) -> io::Result<usize> {
+    let source = vm_container(staging_vmx)?;
+    let dest = vm_container(final_vmx)?;
+    if !staging_vmx.is_file() {
+        return Err(io::Error::new(io::ErrorKind::NotFound,
+            "staged VMX does not exist"));
+    }
+    let mut discovered = 0_usize;
+    let mut pending = vec![source.to_path_buf()];
+    while let Some(dir) = pending.pop() {
+        for entry in fs::read_dir(&dir)? {
+            let entry = entry?;
+            let path = entry.path();
+            let kind = entry.file_type()?;
+            if kind.is_symlink() {
+                return Err(io::Error::new(io::ErrorKind::InvalidData,
+                    "symlink inside candidate VM directory needs manual review"));
+            }
+            if kind.is_dir() {
+                pending.push(path);
+            } else if kind.is_file() && path.extension()
+                .and_then(OsStr::to_str)
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("vmdk"))
+            {
+                let relative = path.strip_prefix(source).map_err(|_| io::Error::new(
+                    io::ErrorKind::InvalidData, "candidate disk escaped staging root"))?;
+                let dest_dir = dest.join(relative).parent()
+                    .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput,
+                        "candidate disk destination has no parent"))?
+                    .to_path_buf();
+                validate_linked_disk_move(&path, &dest_dir)?;
+                discovered += 1;
+            }
+        }
+    }
+    if discovered == 0 {
+        return Err(io::Error::new(io::ErrorKind::InvalidData,
+            "candidate VM has no VMDK descriptor; cutover cannot be authorized"));
+    }
+    Ok(discovered)
+}
+
 pub(crate) fn has_suspend_state(vmx: &Path) -> bool {
     let Ok(container) = vm_container(vmx) else { return false; };
     let Ok(entries) = fs::read_dir(container) else { return false; };
@@ -275,6 +325,39 @@ mod tests {
         let descriptor = root.join("disk.vmdk");
         fs::write(&descriptor, "parentFileNameHint=\"missing.vmdk\"\n").unwrap();
         assert!(super::validate_linked_disk_move(&descriptor, &root).is_err());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn disk_inventory_rejects_missing_and_unknown_disk_chains() {
+        let root = std::env::temp_dir().join(format!("vc-inventory-{}-{}", std::process::id(),
+            SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos()));
+        let stage = root.join("stage");
+        let final_dir = root.join("final");
+        fs::create_dir_all(&stage).unwrap();
+        let vmx = stage.join("Virtual-01.vmx");
+        fs::write(&vmx, "config.version = \"8\"").unwrap();
+        let target = final_dir.join("Virtual-01.vmx");
+        assert!(super::validate_staged_disk_inventory(&vmx, &target).is_err());
+        fs::write(stage.join("disk.vmdk"), [0_u8, 255_u8, 1_u8]).unwrap();
+        assert!(super::validate_staged_disk_inventory(&vmx, &target).is_err());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn disk_inventory_rejects_one_bad_descriptor_among_many() {
+        let root = std::env::temp_dir().join(format!("vc-inventory-mixed-{}-{}", std::process::id(),
+            SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos()));
+        let stage = root.join("stage");
+        let final_dir = root.join("final");
+        fs::create_dir_all(&stage).unwrap();
+        fs::write(root.join("base.vmdk"), "parent").unwrap();
+        let vmx = stage.join("Virtual-01.vmx");
+        fs::write(&vmx, "config.version = \"8\"").unwrap();
+        fs::write(stage.join("first.vmdk"), "parentFileNameHint=\"../base.vmdk\"\n").unwrap();
+        fs::write(stage.join("second.vmdk"), "parentFileNameHint=\"missing.vmdk\"\n").unwrap();
+        assert!(super::validate_staged_disk_inventory(&vmx, &final_dir.join("Virtual-01.vmx")).is_err());
+        assert!(vmx.is_file());
         fs::remove_dir_all(root).unwrap();
     }
 
