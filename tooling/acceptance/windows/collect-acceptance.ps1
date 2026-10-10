@@ -27,22 +27,20 @@ function Invoke-VirtualClientsJson {
   }
 
   try {
-    return Get-Content -LiteralPath $stdout -Raw | ConvertFrom-Json
+    $envelope = Get-Content -LiteralPath $stdout -Raw | ConvertFrom-Json -ErrorAction Stop
   } catch {
     throw "$Name did not return valid JSON."
   }
+  if ($null -eq $envelope -or $envelope.schema -ne 1 -or $null -eq $envelope.data) {
+    throw "$Name returned an invalid CLI success envelope; expected schema 1 and non-null data."
+  }
+  return $envelope
 }
 
 $doctor = (Invoke-VirtualClientsJson -Name 'doctor' -Arguments @('doctor')).data
 $status = (Invoke-VirtualClientsJson -Name 'status' -Arguments @('status')).data
 
 $identityProof = $null
-if ($VerifyIdentities) {
-  $identityProof = (Invoke-VirtualClientsJson -Name 'verify-identities' -Arguments @('verify-identities')).data
-  $doctor = (Invoke-VirtualClientsJson -Name 'doctor-after-verify' -Arguments @('doctor')).data
-  $status = (Invoke-VirtualClientsJson -Name 'status-after-verify' -Arguments @('status')).data
-}
-
 $diagnostics = (Invoke-VirtualClientsJson -Name 'diagnostics' -Arguments @('diagnostics')).data
 # resources 3 is only valid after three clients are provisioned. Preserve an
 # early HOST/baseline report instead of failing the entire campaign.
@@ -53,6 +51,16 @@ if ($virtuals.Count -ne 3) {
   throw "Expected exactly three Virtual client status slots, found $($virtuals.Count)."
 }
 $provisionedCount = @($virtuals | Where-Object { $_.state -ne 'NOT_PROVISIONED' -and $_.state -ne 'ERROR' }).Count
+if ($VerifyIdentities) {
+  $runningCount = @($virtuals | Where-Object { $_.state -eq 'RUNNING' }).Count
+  if ($provisionedCount -ne 3 -or $runningCount -ne 3) {
+    throw 'Identity verification requires all three Virtual clients to be provisioned and RUNNING. Do not run it during HOST/baseline collection.'
+  }
+  $identityProof = (Invoke-VirtualClientsJson -Name 'verify-identities' -Arguments @('verify-identities')).data
+  $doctor = (Invoke-VirtualClientsJson -Name 'doctor-after-verify' -Arguments @('doctor')).data
+  $status = (Invoke-VirtualClientsJson -Name 'status-after-verify' -Arguments @('status')).data
+  $virtuals = @($status.clients | Where-Object { $_.native -eq $false })
+}
 if ($provisionedCount -eq 3) {
   $resources = (Invoke-VirtualClientsJson -Name 'resources-3' -Arguments @('resources', '3')).data
 }

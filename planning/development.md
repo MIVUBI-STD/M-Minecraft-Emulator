@@ -19,6 +19,10 @@ Authority: `MIVUBI-STD/M-Minecraft-Emulator`, branch `Local`. Current GitHub sou
 
 **Stop before first PC acceptance until:** locked desktop typecheck/Vitest/frontend build; Rust runtime + Tauri checks/tests/fmt; real Windows NSIS package-build/package smoke (including guest-agent and all mandatory payloads); installer identity/safety and target acceptance scripts are **actually executed successfully on exact same Local SHA** in a suitable independent execution environment. Any unexecuted job remains `NOT_EXECUTED`, not PASS. The real Windows/VMware/Minecraft login and rendering evidence then becomes the *target* test, not a source-preparation test.
 
+## CLI envelope and identity verification guards — 2026-10-10
+
+The host collector now validates the actual CLI `{schema:1,data:...}` envelope before projecting any diagnostic field. `-VerifyIdentities` can no longer run during HOST baseline or with stopped/unprovisioned guests: all three must be explicitly RUNNING. Default diagnostic collection remains read-only; no identity mutation or provisioning is triggered. Source-only change; Windows PowerShell and CLI executable run not yet available.
+
 ## Host preflight collector correction — 2026-10-10
 
 A concrete acceptance blocker existed in `tooling/acceptance/windows/collect-acceptance.ps1`: it unconditionally queried `resources 3`, even at HOST baseline with no provisioned virtual clients; the Rust `VirtualClients::resources(3)` explicitly rejects unprovisioned clients. Collector now outputs the actual three virtual status slots and may omit resources with null measurements/`resourcesCollected=false` until all three guests exist. Removed unsupported manufactured `readyForProvisioning`, `multiplayerVerified`, `graphicsPolicyReady` and `networkConfigurationObserved` fields. Added static regression contract. No actual Windows VM or CLI run is claimed.

@@ -45,6 +45,8 @@ Canonical guide: [Client Feasibility](../../../docs/validation/client-feasibilit
 
 ## Result vocabulary
 
+**Safety:** `collect-acceptance.ps1` is observation-only by default. Optional `-VerifyIdentities` may update identity evidence and is blocked unless all three Virtual clients are provisioned and RUNNING. Every CLI response must have a valid schema-1 success envelope; malformed responses fail closed.
+
 Use only:
 
 - `NOT_RUN` — target-machine action has not been performed.

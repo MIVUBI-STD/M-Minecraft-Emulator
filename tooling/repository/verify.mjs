@@ -123,6 +123,8 @@ requireFact(read("tooling/acceptance/windows/new-stage-result.ps1").includes("'C
   "Client feasibility evidence stage not recognized by acceptance recorder");
 const hostAcceptance = read("tooling/acceptance/windows/collect-acceptance.ps1");
 requireFact(hostAcceptance.includes("if ($provisionedCount -eq 3)") &&
+  hostAcceptance.includes("$runningCount -ne 3") &&
+  hostAcceptance.includes("invalid CLI success envelope") &&
   hostAcceptance.includes("$resources = $null") &&
   hostAcceptance.includes("resourcesCollected = ($null -ne $resources)") &&
   !hostAcceptance.includes("readyForProvisioning = [bool]$doctor.readyForProvisioning") &&
