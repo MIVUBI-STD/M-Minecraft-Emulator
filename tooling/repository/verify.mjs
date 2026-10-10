@@ -19,8 +19,6 @@ const required = [
   ".github/workflows/verify.yml", ".github/workflows/package-smoke.yml",
   "docs/validation/client-feasibility.md",
   "docs/product/four-concurrent-accounts.md",
-  "tooling/acceptance/windows/probe-native-multi-instance.ps1",
-  "tooling/acceptance/windows/probe-android-instances.ps1",
   "apps/desktop/src-tauri/src/engine/native_clients.rs",
   "apps/desktop/src-tauri/src/commands/native_clients.rs",
   "tooling/acceptance/windows/collect-client-feasibility.ps1",
@@ -83,32 +81,27 @@ requireFact(rootPackage.scripts["verify:source"].includes("npm run test:feasibil
 requireFact(read("apps/desktop/src/App.svelte").includes(
   "!shouldShowClientControls(snapshot.doctor.nextSetupAction)"),
   "Client-owned setup actions must show real client controls, not the setup wizard");
-const nativeProbe = read("tooling/acceptance/windows/probe-native-multi-instance.ps1");
-requireFact(nativeProbe.includes("[string]$Mode = 'OBSERVE'") &&
-  nativeProbe.includes("simultaneousDistinctAccounts = 'NOT_VERIFIED'") &&
-  nativeProbe.includes("verdict = 'INCONCLUSIVE'"),
-  "Native multi-instance probe must remain read-only by default and unverified");
 requireFact(read("docs/product/four-concurrent-accounts.md").includes(
-  "four independent Minecraft Education game windows"),
+  "four separate Minecraft Education Windows desktop clients concurrently"),
   "Four-client end-user outcome was removed from canonical product contract");
-const androidProbe = read("tooling/acceptance/windows/probe-android-instances.ps1");
-requireFact(androidProbe.includes("distinctEducationAccountsVerified = 'NOT_VERIFIED'") &&
-  androidProbe.includes("verdict = 'INCONCLUSIVE'") &&
-  androidProbe.includes("officialAndroidEmulatorSupport = 'NOT_SUPPORTED'"),
-  "Android external-instance probe must not manufacture game, login or official support proof");
 const nativeDesktop = read("apps/desktop/src-tauri/src/engine/native_clients.rs");
 const desktopFacade = read("apps/desktop/src/app/bridge/virtualClientsApi.ts");
 const desktopBootstrap = read("apps/desktop/src-tauri/src/app_bootstrap.rs");
-for (const command of ["desktop_open_native_minecraft", "desktop_open_android_instances"]) {
-  requireFact(read("apps/desktop/src-tauri/src/commands/native_clients.rs").includes("fn " + command + "(") &&
-    desktopFacade.includes('"' + command + '"') &&
-    desktopBootstrap.includes("commands::native_clients::" + command + ","),
-    "Desktop native/Android launch consumer was not registered: " + command);
+requireFact(read("apps/desktop/src-tauri/src/commands/native_clients.rs").includes("fn desktop_open_native_minecraft(") &&
+  desktopFacade.includes('"desktop_open_native_minecraft"') &&
+  desktopBootstrap.includes("commands::native_clients::desktop_open_native_minecraft,"),
+  "Only native Windows Minecraft desktop launcher may be exposed outside the canonical VMware runtime");
+requireFact(!nativeDesktop.includes("BlueStacks") && !nativeDesktop.includes("open_android") &&
+  !nativeDesktop.includes("Get-Credential") && !nativeDesktop.includes("vmrun.exe"),
+  "Desktop native launcher must not own another emulator, credential or VM lifecycle");
+for (const file of ["apps/desktop/src/App.svelte", "apps/desktop/src/app/surfaces/SetupSurface.svelte",
+  "apps/desktop/src/app/surfaces/ClientsSurface.svelte", "apps/desktop/src/app/bridge/virtualClientsApi.ts"]) {
+  requireFact(!/BlueStacks|onOpenAndroid|openAndroidInstances|desktop_open_android_instances/.test(read(file)),
+    "Retired alternative client backend remains in desktop source: " + file);
 }
-requireFact(nativeDesktop.includes("HD-MultiInstanceManager.exe") &&
-  !nativeDesktop.includes("Get-Credential") &&
-  !nativeDesktop.includes("vmrun.exe"),
-  "Desktop candidate launcher must not own VM lifecycle or credentials");
+requireFact(!existsSync(resolve(root,"tooling/acceptance/windows/probe-android-instances.ps1")) &&
+  !existsSync(resolve(root,"tooling/acceptance/windows/probe-native-multi-instance.ps1")),
+  "Competing multi-instance acceptance probes must be retired");
 
 // Catch stale relative source references that survive a monorepo extraction.
 // GitHub search indexing alone cannot certify that current tests have no dead imports.
@@ -121,6 +114,13 @@ for (const name of readdirSync(resolve(root, "apps/desktop/test"))) {
 }
 requireFact(read("tooling/acceptance/windows/new-stage-result.ps1").includes("'CLIENT_FEASIBILITY'"),
   "Client feasibility evidence stage not recognized by acceptance recorder");
+const guestProofSource = read("tooling/acceptance/windows/collect-client-feasibility.ps1");
+const evaluatorSource = read("tooling/acceptance/evaluate-client-feasibility.mjs");
+for (const fact of ["vmDesktopOpened", "educationInstalled", "educationSignedIn",
+  "crashOrFreezeObserved", "observedMinutes"]) {
+  requireFact(guestProofSource.includes(fact) && evaluatorSource.includes(fact),
+    "Single Windows guest boot, install/login and gameplay proof owner drift: " + fact);
+}
 
 requireFact(read("apps/desktop/src-tauri/Cargo.toml").includes('path = "../../../engine/runtime-core"'),
   "Tauri backend dependency points outside canonical engine");

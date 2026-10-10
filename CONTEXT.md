@@ -4,9 +4,9 @@ Verified design model: 2026-10-10. This file contains **stable product and repos
 
 ## Product and target
 
-**Primary user outcome:** Four distinct Minecraft Education game windows on one Windows PC, each concurrently signed in with a different legitimately licensed account, independently interactive. Which isolation mechanism works is not yet proven.
+**Approved product:** Four Windows desktop Minecraft Education game windows on one PC, each concurrently signed into a distinct licensed account, independently playable. Fixed implementation: one native Windows client plus three isolated VMware Workstation Windows guests. Whether guests are compatible is still unproven.
 
-The current implementation is a dedicated VMware multi-instance manager for Minecraft Education QA, not a game-engine emulator or general virtualization platform. **It is a fallback implementation candidate**, not a requirement that every user must manage VMs.
+The implementation is a dedicated Windows VMware multi-instance manager for Minecraft Education QA, not a game-engine emulator or general-purpose hypervisor. VMware is the single selected implementation; user-facing setup should hide its unnecessary complexity.
 
 The existing implementation path is:
 
@@ -17,7 +17,6 @@ Host Native Minecraft Education
 + VMware Virtual-03
 ```
 
-Virtual clients have independent Windows guest disks, guest identities, Microsoft/Minecraft user sessions and snapshots. The app does not capture passwords, Microsoft tokens or automate sign-in/MFA. Up to three guests is the current backend limit, not a claim of accepted performance. Before requiring guests, first check whether the installed 2026 Education client can open a second independent window and separately authenticated session directly on Windows. BlueStacks 5 offers a third-party Android multi-instance candidate that is explicitly **not officially supported by Minecraft Education**; the game's ability to run/log in there is unverified. No automated Microsoft sign-in or credential storage is in scope. No automated Microsoft sign-in or credential storage is in scope.
 
 ## Branch and execution authority
 

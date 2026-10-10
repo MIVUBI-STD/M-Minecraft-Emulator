@@ -4,17 +4,6 @@ import { actionLabel } from "../src/view-model.js";
 import { setupExperience, setupPhaseIndex, shouldShowClientControls } from "../src/app/setupFlow.js";
 
 describe("Virtual Clients first-run presentation", () => {
-  it("keeps the native multi-instance experiment separate from account or VM proof", () => {
-    const probe = readFileSync(new URL("../../../tooling/acceptance/windows/probe-native-multi-instance.ps1", import.meta.url), "utf8");
-    expect(probe).toContain("[string]$Mode = 'OBSERVE'");
-    expect(probe).toContain("Start-Process -FilePath 'explorer.exe'");
-    expect(probe).toContain("simultaneousDistinctAccounts = 'NOT_VERIFIED'");
-    expect(probe).toContain("minecraftGameplay = 'NOT_VERIFIED'");
-    expect(probe).toContain("verdict = 'INCONCLUSIVE'");
-    expect(probe).not.toContain("Get-Credential");
-    expect(probe).not.toContain("Stop-Process");
-  });
-
   it("routes client-owned setup phases to actual client controls instead of a looping wizard", () => {
     for (const action of ["VERIFY_IDENTITIES", "CREATE_READY_SNAPSHOTS", "REPROVISION_VIRTUALS", "READY"] as const) {
       expect(shouldShowClientControls(action)).toBe(true);
@@ -31,20 +20,18 @@ describe("Virtual Clients first-run presentation", () => {
     expect(wizard).not.toContain('experience.owner === "CLIENTS"');
   });
 
-  it("wires a real native launcher and optional Android manager before VM setup", () => {
+  it("routes the native Windows launch without an Android or parallel product path", () => {
     const app = readFileSync(new URL("../src/App.svelte", import.meta.url), "utf8");
     const wizard = readFileSync(new URL("../src/app/surfaces/SetupSurface.svelte", import.meta.url), "utf8");
     const clients = readFileSync(new URL("../src/app/surfaces/ClientsSurface.svelte", import.meta.url), "utf8");
-    for (const name of ["onOpenNative","onOpenAndroid"]) {
-      expect(app).toContain(name);
-      expect(wizard).toContain(name);
-      expect(clients).toContain(name);
+    for (const content of [app, wizard, clients]) {
+      expect(content).toContain("onOpenNative");
+      expect(content).not.toMatch(/onOpenAndroid|openAndroidInstances|BlueStacks/);
     }
     expect(app).toContain("await desktop.openNativeMinecraft()");
-    expect(app).toContain("await desktop.openAndroidInstances()");
     expect(app).toContain("Launch requested, not verified");
-    expect(wizard).toContain("OPTIONAL VMWARE SETUP");
-    expect(wizard).not.toContain("Set up your virtual clients");
+    expect(wizard).toContain("WINDOWS VMWARE SETUP");
+    expect(wizard).toContain("one native client plus three separate Windows VMware clients");
   });
 
   it("presents the one-native-plus-three-virtual objective without faking a native login", () => {

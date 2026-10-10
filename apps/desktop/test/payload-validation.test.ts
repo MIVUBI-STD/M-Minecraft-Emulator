@@ -193,18 +193,17 @@ describe("Frontend boundary wiring", () => {
     }
   });
 
-  it("registers native and Android manager launch on the existing desktop-only boundary", () => {
+  it("registers only the Windows desktop native launcher", () => {
     const facade = readFileSync(new URL("../src/app/bridge/virtualClientsApi.ts", import.meta.url), "utf8");
     const bootstrap = readFileSync(new URL("../src-tauri/src/app_bootstrap.rs", import.meta.url), "utf8");
     const commands = readFileSync(new URL("../src-tauri/src/commands/native_clients.rs", import.meta.url), "utf8");
     const desktopOwner = readFileSync(new URL("../src-tauri/src/engine/native_clients.rs", import.meta.url), "utf8");
-    for (const name of ["desktop_open_native_minecraft", "desktop_open_android_instances"]) {
-      expect(facade).toContain(`"${name}"`);
-      expect(commands).toContain(`fn ${name}(`);
-      expect(bootstrap).toContain(`commands::native_clients::${name},`);
+    expect(facade).toContain('"desktop_open_native_minecraft"');
+    expect(commands).toContain("fn desktop_open_native_minecraft(");
+    expect(bootstrap).toContain("commands::native_clients::desktop_open_native_minecraft,");
+    for (const content of [facade, bootstrap, commands, desktopOwner]) {
+      expect(content).not.toMatch(/BlueStacks|[aA]ndroid|[mM]ultiInstanceManager/);
     }
-    expect(facade).toContain("payload.voidResult");
-    expect(desktopOwner).toContain("BlueStacks_nxt");
     expect(desktopOwner).not.toContain("Get-Credential");
     expect(desktopOwner).not.toContain("vmrun.exe");
   });

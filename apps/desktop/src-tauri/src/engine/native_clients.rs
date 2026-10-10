@@ -1,7 +1,7 @@
 use std::io;
 
 // Desktop-only conveniences: requesting an application launch does not
-// prove that Minecraft rendered, signed in, or started a second instance.
+// prove that Minecraft rendered, signed in, or is ready for gameplay.
 // VM lifecycle authority remains in engine/runtime-core.
 
 #[cfg(target_os = "windows")]
@@ -41,38 +41,6 @@ Start-Process -FilePath 'explorer.exe' -ArgumentList ('shell:AppsFolder\' + $app
 
 #[cfg(not(target_os = "windows"))]
 pub fn open_native_minecraft() -> io::Result<()> {
-    Err(io::Error::new(
-        io::ErrorKind::Unsupported,
-        "The four-account MVP currently targets a Windows PC.",
-    ))
-}
-
-#[cfg(target_os = "windows")]
-pub fn open_android_instance_manager() -> io::Result<()> {
-    use std::{env, path::PathBuf, process::Command};
-
-    // BlueStacks is an optional independent third-party installation, not an
-    // embedded dependency or evidence of Minecraft Education compatibility.
-    // Never search user-writable PATH entries or execute untrusted shortcuts.
-    for key in ["ProgramW6432", "ProgramFiles", "ProgramFiles(x86)"] {
-        if let Some(root) = env::var_os(key) {
-            let candidate = PathBuf::from(root)
-                .join("BlueStacks_nxt")
-                .join("HD-MultiInstanceManager.exe");
-            if candidate.is_file() {
-                Command::new(candidate).spawn()?;
-                return Ok(());
-            }
-        }
-    }
-    Err(io::Error::new(
-        io::ErrorKind::NotFound,
-        "BlueStacks 5 Multi-instance Manager was not found in the standard Windows installation folders. Open the manager manually if it was installed in another location.",
-    ))
-}
-
-#[cfg(not(target_os = "windows"))]
-pub fn open_android_instance_manager() -> io::Result<()> {
     Err(io::Error::new(
         io::ErrorKind::Unsupported,
         "The four-account MVP currently targets a Windows PC.",

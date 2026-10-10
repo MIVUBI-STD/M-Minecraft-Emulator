@@ -11,7 +11,7 @@ lifecycle: ACTIVE
 
 ## Product scope
 
-**End-user objective:** four Minecraft Education windows on one Windows PC, each using a distinct concurrently signed-in account. See [Four-account Product Goal](../product/four-concurrent-accounts.md). The current implementation offers one Native and up to three VMware Virtual clients **as a conditional route**; direct native multi-instance has not been disproved for the installed 2026 app and is the first, simpler proof target. This is not an implementation of the game engine or a hypervisor. The source structure exists but no four-client runtime acceptance exists.
+**End-user objective:** Four Windows desktop Minecraft Education clients and four distinct concurrent accounts on one Windows host. Chosen architecture: one native Windows desktop client + three Windows VMware Workstation guests. Windows guest client compatibility and graphics are not yet proven. See [Four-account Product Goal](../product/four-concurrent-accounts.md).
 
 ## One runtime owner per responsibility
 

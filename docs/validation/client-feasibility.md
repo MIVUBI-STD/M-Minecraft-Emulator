@@ -7,11 +7,11 @@ authority: CANONICAL
 lifecycle: ACTIVE
 ---
 
-# Minecraft Education — Single Guest Feasibility Gate (Conditional VMware Route)
+# Minecraft Education Windows desktop — one VMware guest feasibility
 
-## Use this gate only when direct native instances do not solve the goal
+## One selected Windows desktop architecture
 
-The [primary product goal](../product/four-concurrent-accounts.md) is four independently logged-in Minecraft Education windows on one PC. **Check native Windows multi-instance first**, without VM overhead. The following Windows-guest compatibility gate becomes necessary only if the direct route cannot provide separate windows and accounts. Do not start production cloning before this gate.
+This is the mandatory first proof gate for the **one native Windows Minecraft Education desktop client plus three independent Windows VMware Workstation guests** architecture. No Android, BlueStacks or competing multi-instance methods are being developed. **Prove one scratch Windows guest** opens, installs Minecraft Education, accepts a licensed login and plays responsively before creating any account-bearing production clones. The [four-account product contract](../product/four-concurrent-accounts.md) is the sole scope authority.
 
 ## Why this comes first
 
@@ -34,10 +34,11 @@ This is a **disposable single-guest compatibility pilot**, not a new production 
 ## Ordered execution (when real Windows guest evidence becomes available)
 
 1. **Environment observation:** from an interactive Windows session *inside the scratch guest*, run the shipped read-only `collect-client-feasibility.ps1` with `-Stage ENVIRONMENT`. Confirm that the guest OS is 64-bit, VMware Tools is running, a video driver is detected and the OpenGL probe returns a version if possible.
-2. **Rendering observation:** manually open Minecraft Education in that same guest; observe the actual application menu, load a playable scene/world (using a legitimate account if required), move the camera and use keyboard/mouse. Record whether there is a blocking renderer/black-screen error. Do not infer this from VMX flags, GPU names, installed packages or process existence.
-3. **Capture interactive evidence:** run the collector with `-Stage INTERACTIVE` and operator-declared `YES`/`NO`/`UNKNOWN` for menu, world rendering, input and blocking graphics errors. Supply only a non-sensitive reference label for the supporting observation (e.g., `guest-proof-001`). This label is not a screenshot and does not independently prove it.
-4. **Review:** transfer only privacy-reviewed JSON (no account or world content) to an authorized reviewer. Use `evaluate-client-feasibility.mjs` to check completeness and distinguish operator reports from actual graphics/process measurements. It **never** returns an official-support PASS.
-5. **Decision:** keep `CLIENT_FEASIBILITY` stage `OBSERVED` until the reviewer has examined the actual interactive result. Only record `PASS` through the existing `new-stage-result.ps1` with a real evidence reference and reviewed observation; this certifies a *particular tested guest*, not official product support.
+2. **Three mandatory operator observations:** first prove the Windows guest boots into an interactive desktop, then install one official Minecraft Education Windows edition (desktop installer **or** Store, not both) and sign in using a separate legitimately licensed school/organization account. Finally, play a real Minecraft Education world for an initial **10-minute usability observation**, checking camera, keyboard, mouse, rendering, and whether the game freezes or crashes. These are not automatically measurable from Minecraft process existence.
+3. **Rendering observation:** manually open Minecraft Education in that same guest; observe the actual application menu, load a playable scene/world (using a legitimate account if required), move the camera and use keyboard/mouse. Record whether there is a blocking renderer/black-screen error. Do not infer this from VMX flags, GPU names, installed packages or process existence.
+4. **Capture interactive evidence:** run the collector with `-Stage INTERACTIVE` and operator-declared `YES`/`NO`/`UNKNOWN` for menu, world rendering, input and blocking graphics errors. Supply only a non-sensitive reference label for the supporting observation (e.g., `guest-proof-001`). This label is not a screenshot and does not independently prove it.
+5. **Review:** transfer only privacy-reviewed JSON (no account or world content) to an authorized reviewer. Use `evaluate-client-feasibility.mjs` to check completeness and distinguish operator reports from actual graphics/process measurements. It **never** returns an official-support PASS.
+6. **Decision:** keep `CLIENT_FEASIBILITY` stage `OBSERVED` until the reviewer has examined the actual interactive result. Only record `PASS` through the existing `new-stage-result.ps1` with a real evidence reference and reviewed observation; this certifies a *particular tested guest*, not official product support.
 
 The first two collection runs can be performed without the emulator desktop application, Guest Agent, cloned Base, or the other two VMs. This allows early failure detection.
 
@@ -50,7 +51,10 @@ Run inside the single scratch Windows guest, not automatically as part of GitHub
 # After actually opening Minecraft Education and interacting with a world:
 .\collect-client-feasibility.ps1 -Stage INTERACTIVE `
   -MenuRendered YES -WorldRendered YES -InputResponsive YES `
-  -BlockingGraphicsError NO -EvidenceReference guest-proof-001
+  -BlockingGraphicsError NO -VmDesktopOpened YES `
+  -EducationInstalled YES -EducationSignedIn YES `
+  -CrashOrFreezeObserved NO -ObservedMinutes 15 `
+  -EvidenceReference guest-proof-001
 ```
 
 Run the pure-Node reviewer on the captured (privacy-reviewed) JSON from an authorized development environment:
@@ -70,7 +74,7 @@ The OpenGL context probe uses a Windows user32/gdi32/opengl32 context in the exe
 | --- | --- |
 | `INCONCLUSIVE` | Source alone, candidate process, display flag, unknown OpenGL or incomplete operator observation; gather more evidence |
 | `OPERATOR_REPORTED_FAILURE` | User actually observed failed menu, missing rendered world, unresponsive input or blocking graphics error. Stop scaling and classify first causal boundary |
-| `OPERATOR_REPORTED_PLAYABLE` | All declared game observations exist along with an interactive session, candidate process and reference label. **Still an operator report**, not official VM-client support or a multi-VM PASS |
+| `OPERATOR_REPORTED_PLAYABLE` | All three mandatory gates (Windows boot, Minecraft Education install/sign-in, responsive world for at least 10 observed minutes) are explicitly declared, with an interactive session, candidate process and reference label. **Still an operator report**, not official VM-client support or a multi-VM PASS |
 | `OPENGL_BELOW_PUBLISHED_4_4_REFERENCE` risk | OpenGL string reports below published minimum. Treat as priority compatibility investigation, even if DX11/another render path appears usable |
 | `OPENGL_UNMEASURED` risk | Probe unavailable. Requires visual app proof and independent graphics diagnosis; absence of result is not OpenGL 1.1 or PASS |
 

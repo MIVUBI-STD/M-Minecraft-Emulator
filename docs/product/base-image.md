@@ -11,9 +11,9 @@ lifecycle: ACTIVE
 
 Base is the immutable parent for Virtual-01, Virtual-02, and Virtual-03.
 
-## Conditional backend only
+## Approved Windows desktop implementation
 
-Base images are not the product. The [four-account objective](./four-concurrent-accounts.md) takes priority, and a direct Windows multi-instance capability should be investigated first. This Base applies only if native sessions fail to provide four independent logged-in windows and the Windows VMware guest feasibility pilot succeeds.
+This Base is the one approved VMware Workstation Windows desktop implementation for the [four-account objective](./four-concurrent-accounts.md). Before creating an account-clean Base or linked clones, prove the guest game can boot, install, sign in and play responsively through [One Guest Feasibility](../validation/client-feasibility.md).
 
 ## Prerequisite: prove one Minecraft Education guest
 

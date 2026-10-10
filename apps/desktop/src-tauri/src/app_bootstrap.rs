@@ -42,7 +42,6 @@ pub fn run() {
             commands::virtual_clients::virtual_clients_launch_minecraft,
             commands::virtual_clients::virtual_clients_reprovision,
             commands::native_clients::desktop_open_native_minecraft,
-            commands::native_clients::desktop_open_android_instances,
             commands::setup_tools::setup_open_base_location,
             commands::setup_tools::setup_open_guest_tools,
             commands::window_arrangement::window_displays,

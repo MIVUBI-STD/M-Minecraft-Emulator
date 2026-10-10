@@ -22,7 +22,6 @@
   export let busy: string;
   export let onStartAll: () => void | Promise<void>;
   export let onOpenNative: () => void | Promise<void>;
-  export let onOpenAndroid: () => void | Promise<void>;
   export let onArrange: () => void | Promise<void>;
   export let onConfigureLayout: () => void;
   export let onStopAll: () => void | Promise<void>;
@@ -49,8 +48,7 @@
 
 <section class="hero compact clients-heading">
   <h2>Four Minecraft Education clients</h2>
-  <p>Four separately signed-in game windows on one PC. The rows below show the current VMware route; direct Windows/Android options remain available until actual compatibility is proven.</p>
-  <button class="secondary" disabled={Boolean(busy)} on:click={onOpenAndroid}>Open Android instances</button>
+  <p>Windows desktop only: one native Minecraft Education client and three separate Windows VMware guests. Account sign-in and game rendering require real verification.</p>
 </section>
 
 {#if setupAction === "VERIFY_IDENTITIES"}

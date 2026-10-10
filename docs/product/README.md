@@ -9,8 +9,8 @@ lifecycle: ACTIVE
 
 # Product and User Setup
 
-Start with the [Four Simultaneous Accounts Product Goal](./four-concurrent-accounts.md): four distinct real Minecraft Education windows and four accounts simultaneously on one Windows PC. Native multi-instance must be checked before declaring VMware required.
+Start with the [Single Windows Desktop Four-Account Product Goal](./four-concurrent-accounts.md): one native Minecraft Education desktop client plus three VMware Windows desktop guests, with four distinct accounts simultaneously active.
 
-If the native route fails and a single Windows guest can actually run the game, read [Base Image Setup](./base-image.md) for the **conditional VMware fallback**, preparation prerequisites and account setup boundary.
+Read [One Windows Guest Feasibility](../validation/client-feasibility.md) before [Base Image Setup](./base-image.md). Boot, game installation/login, rendering and responsive gameplay must be observed before cloning three guests.
 
 Machine-readable lifecycle, setup decisions and ready-state authority are implemented in `../../engine/runtime-core/`, not this document. For actual acceptance, use [Validation](../validation/README.md).

@@ -10,6 +10,16 @@ param(
   [string]$InputResponsive = 'UNKNOWN',
   [ValidateSet('YES', 'NO', 'UNKNOWN')]
   [string]$BlockingGraphicsError = 'UNKNOWN',
+  [ValidateSet('YES', 'NO', 'UNKNOWN')]
+  [string]$VmDesktopOpened = 'UNKNOWN',
+  [ValidateSet('YES', 'NO', 'UNKNOWN')]
+  [string]$EducationInstalled = 'UNKNOWN',
+  [ValidateSet('YES', 'NO', 'UNKNOWN')]
+  [string]$EducationSignedIn = 'UNKNOWN',
+  [ValidateSet('YES', 'NO', 'UNKNOWN')]
+  [string]$CrashOrFreezeObserved = 'UNKNOWN',
+  [ValidateRange(0, 1440)]
+  [int]$ObservedMinutes = 0,
   [ValidatePattern('^(?:$|[a-zA-Z0-9_.-]{1,80})$')]
   [string]$EvidenceReference = '',
   [string]$OutputDirectory = ''
@@ -22,7 +32,9 @@ if ($env:OS -ne 'Windows_NT') {
 if ($Stage -eq 'ENVIRONMENT' -and (
   $MenuRendered -ne 'UNKNOWN' -or $WorldRendered -ne 'UNKNOWN' -or
   $InputResponsive -ne 'UNKNOWN' -or $BlockingGraphicsError -ne 'UNKNOWN' -or
-  $EvidenceReference
+  $VmDesktopOpened -ne 'UNKNOWN' -or $EducationInstalled -ne 'UNKNOWN' -or
+  $EducationSignedIn -ne 'UNKNOWN' -or $CrashOrFreezeObserved -ne 'UNKNOWN' -or
+  $ObservedMinutes -ne 0 -or $EvidenceReference
 )) {
   throw 'Operator game observations belong to INTERACTIVE, not ENVIRONMENT.'
 }
@@ -236,6 +248,11 @@ $report = [ordered]@{
     worldRendered = $WorldRendered
     inputResponsive = $InputResponsive
     blockingGraphicsError = $BlockingGraphicsError
+    vmDesktopOpened = $VmDesktopOpened
+    educationInstalled = $EducationInstalled
+    educationSignedIn = $EducationSignedIn
+    crashOrFreezeObserved = $CrashOrFreezeObserved
+    observedMinutes = $ObservedMinutes
     evidenceReference = if ($EvidenceReference) { $EvidenceReference } else { $null }
     attribution = 'OPERATOR_DECLARED_NOT_MACHINE_VERIFIED'
   }

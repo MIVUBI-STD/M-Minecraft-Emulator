@@ -19,30 +19,21 @@ This campaign is evidence collection, not simulation. A stage stays `NOT_RUN` un
 | RECOVERY | Prove stop/start, suspend/resume, reset and host reboot behavior | operator + collector |
 | SOAK | Record long-run stability and repeated lifecycle cycles | operator + collector |
 
-## Four-accounts-first acceptance route
+## Single Windows desktop route
 
-[Product objective](../../../docs/product/four-concurrent-accounts.md): four different Education accounts must stay logged in concurrently in four separate **real, interactive Windows windows**.
+The only accepted design is **one Windows-native Minecraft Education desktop client plus three separate Windows VMware Workstation guest clients**. Do not run Android, BlueStacks or second-native-instance probes. Start with a disposable scratch Windows guest, before production Base preparation. Confirm **VM opens → Minecraft Education installs and signs in → a world is playable and responsive**.
 
-**Before starting VMware:** use `probe-native-multi-instance.ps1` on the Windows host. Its default `OBSERVE` mode only counts candidate visible Education windows; `TRY_SECOND` explicitly requests one additional launch using the unique registered Start-menu entry, if available. Neither a launch request nor an extra candidate process/window establishes account independence. Verify actual distinct game windows and two simultaneously signed-in different authorized accounts by direct observation, without capturing credentials. If both succeed, test reaching four with native isolation; if not, move to the one-guest pilot below.
+The [Product Goal](../../../docs/product/four-concurrent-accounts.md) and [One Guest Feasibility Gate](../../../docs/validation/client-feasibility.md) specify evidence and stop criteria. The guest collector cannot observe account sign-in or game rendering directly: its operator declarations are **not automatically verified**. Do not record PASS until actual operator/game evidence has been reviewed.
 
-```powershell
-.\probe-native-multi-instance.ps1 -Mode OBSERVE
-.\probe-native-multi-instance.ps1 -Mode TRY_SECOND
-```
+## Mandatory one-Windows-guest proof
 
-When `TRY_SECOND` cannot find a unique Start-menu AppID, do not guess an executable or patch single-instance safeguards. The native experiment is `INCONCLUSIVE` until real windows and accounts are observed. These commands are future acceptance steps; adding the scripts to source does not execute them.
+Before creating three account-bearing Windows VMware clones, record these **in order** on a disposable scratch Windows guest:
 
-## Android multi-instance feasibility (before VMware)
+1. **VM opens** — guest boots to a responsive Windows desktop; VMware Tools and input function.
+2. **Desktop Education installs and signs in** — choose exactly one official Windows installer type, launch the real Minecraft Education client, sign in manually with a distinct legitimately licensed organization account.
+3. **World plays responsively** — load a Minecraft world, test camera/keyboard/mouse and 3D rendering for an initial 10 observed minutes without an obvious crash, freeze or severe input lag.
 
-BlueStacks 5 [Multi-instance Manager](https://support.bluestacks.com/hc/en-us/articles/360052834092-How-to-create-and-manage-instances-using-the-Multi-instance-Manager-on-BlueStacks-5) can create fresh Android instance profiles. Its website lists Minecraft Education, **but Mojang/Minecraft Education does not officially support Android emulators**. The version-specific game install, interactive licensed sign-in, graphics, session persistence, and four-instance performance require observed proof.
-
-Use `probe-android-instances.ps1` for read-only host observations of an existing BlueStacks 5 installation. It never reads account data, internal BlueStacks configuration, worlds or instance disks; it cannot prove Minecraft is installed or a user is logged in.
-
-```powershell
-.\probe-android-instances.ps1
-```
-
-Run one fresh Android instance first; install the official game from Google Play, sign in manually and play. Only if this works should a second fresh Android instance with a **different** licensed account be attempted, followed by four. Never clone a signed-in Android profile or treat an emulator window as a signed-in player. Reuse BlueStacks' existing instance shortcuts/arrangement instead of introducing an Android lifecycle manager prematurely.
+The `collect-client-feasibility.ps1` `INTERACTIVE` stage now asks for explicit operator observations (`-VmDesktopOpened`, `-EducationInstalled`, `-EducationSignedIn`, `-CrashOrFreezeObserved`, `-ObservedMinutes`) alongside the previous rendering flags. These are claims to review, not machine-certified PASS. Never submit identities, license keys or credentials. Stop escalation if any gate fails.
 
 ## Early client-graphics feasibility pilot
 

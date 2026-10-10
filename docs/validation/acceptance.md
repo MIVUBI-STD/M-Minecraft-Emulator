@@ -15,6 +15,16 @@ Before production Base registration, cloning or a four-client promise, follow [S
 
 This pilot does not need the manager's Base, Guest Agent or three-clone lifecycle and must not mutate production runtime state. Operator observations are not automatic game/VM support claims. Source-only development may continue independently even while target-machine pilot is `NOT_EXECUTED`.
 
+## Three primary Windows desktop guest acceptance gates
+
+Before cloning three account-bearing Windows guests, use [One Guest Feasibility](./client-feasibility.md) and preserve actual machine evidence that:
+
+1. One VMware Workstation Windows guest **boots into an interactive desktop** with graphics, VMware Tools and input available.
+2. Minecraft Education **Windows desktop or Microsoft Store edition** is installed **inside that Windows guest** (never both), and an independent licensed organization account signs in to the actual game menu.
+3. A playable Minecraft world **renders, accepts input and remains responsive** during an observed session with no blocking graphics error, crash or freeze.
+
+The repo collector distinguishes machine observation from user-declared account/login/gameplay. It cannot autonomously prove Microsoft authentication or frame-rate quality; do not award PASS from a process counter, report filename or runtime configuration flag.
+
 ## Source proof
 
 The canonical local source checkpoint must pass before target-machine acceptance:

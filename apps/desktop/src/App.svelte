@@ -235,19 +235,7 @@
     launcherMessage = "";
     try {
       await desktop.openNativeMinecraft();
-      launcherMessage = "Minecraft Education launch requested. Confirm that a separate game window opened and that its account is still signed in; the request is not proof of a second instance.";
-    } catch (value) {
-      error = presentRuntimeError(value);
-    }
-  }
-
-  async function openAndroidInstanceManager() {
-    if (busy || loading) return;
-    error = undefined;
-    launcherMessage = "";
-    try {
-      await desktop.openAndroidInstances();
-      launcherMessage = "BlueStacks Multi-instance Manager launch requested. Verify Minecraft Education installs, signs in, and runs in one Android instance before creating more. Android emulators are not officially supported by Minecraft Education.";
+      launcherMessage = "Windows Minecraft Education launch requested. Confirm the native game window opened; this is not proof of sign-in or gameplay.";
     } catch (value) {
       error = presentRuntimeError(value);
     }
@@ -480,7 +468,6 @@
           onOpenBaseLocation={openBaseLocation}
           onOpenSetupTools={openSetupTools}
           onOpenNative={openNativeMinecraft}
-          onOpenAndroid={openAndroidInstanceManager}
           onOpenBaseFinalization={openBaseFinalization}
         />
       {:else if page === "clients"}
@@ -496,7 +483,6 @@
           {busy}
           onStartAll={startAll}
           onOpenNative={openNativeMinecraft}
-          onOpenAndroid={openAndroidInstanceManager}
           onArrange={arrangeWindows}
           onConfigureLayout={openWindowLayout}
           onStopAll={() => mutate("stop-all", (onProgress) => backend.stop(undefined, onProgress))}

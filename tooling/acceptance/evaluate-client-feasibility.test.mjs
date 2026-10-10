@@ -28,6 +28,11 @@ const fixture = () => ({
     "worldRendered": "YES",
     "inputResponsive": "YES",
     "blockingGraphicsError": "NO",
+    "vmDesktopOpened": "YES",
+    "educationInstalled": "YES",
+    "educationSignedIn": "YES",
+    "crashOrFreezeObserved": "NO",
+    "observedMinutes": 15,
     "evidenceReference": "proof-01",
     "attribution": "OPERATOR_DECLARED_NOT_MACHINE_VERIFIED"
   }
@@ -59,7 +64,8 @@ test("missing evidence, process, or interactive session never produces playabili
 });
 test("environment snapshot cannot claim gameplay; unknown GL remains explicitly flagged", () => {
   const x = fixture(); x.stage="ENVIRONMENT";
-  for(const k of ["menuRendered","worldRendered","inputResponsive","blockingGraphicsError"])x.operator[k]="UNKNOWN";
+  for(const k of ["menuRendered","worldRendered","inputResponsive","blockingGraphicsError","vmDesktopOpened","educationInstalled","educationSignedIn","crashOrFreezeObserved"])x.operator[k]="UNKNOWN";
+  x.operator.observedMinutes=0;
   x.operator.evidenceReference=null;
   x.graphics.openGl={status:"UNKNOWN",version:null};
   const o=evaluateClientFeasibility(x);
@@ -71,4 +77,25 @@ test("unknown schema, forged automatic pass and sensitive evidence paths rejecte
     const x=fixture();mutation(x);
     assert.throws(()=>evaluateClientFeasibility(x),TypeError);
   }
+});
+test("VM boot, installer and distinct sign-in are mandatory even when a world seems rendered", () => {
+  for (const key of ["vmDesktopOpened", "educationInstalled", "educationSignedIn"]) {
+    const x=fixture(); x.operator[key]="UNKNOWN";
+    assert.equal(evaluateClientFeasibility(x).verdict, "INCONCLUSIVE");
+    x.operator[key]="NO";
+    assert.equal(evaluateClientFeasibility(x).verdict, "OPERATOR_REPORTED_FAILURE");
+  }
+});
+test("short or crashing game sessions cannot count as responsive", () => {
+  const short=fixture(); short.operator.observedMinutes=3;
+  assert.equal(evaluateClientFeasibility(short).verdict,"INCONCLUSIVE");
+  const crashed=fixture(); crashed.operator.crashOrFreezeObserved="YES";
+  assert.equal(evaluateClientFeasibility(crashed).verdict,"OPERATOR_REPORTED_FAILURE");
+});
+test("conflicting Store and desktop installations cannot satisfy the install gate", () => {
+  const x=fixture(); x.minecraft.desktopInstallVersion="26.32.0";
+  x.minecraft.storeInstallVersion="26.32.0";
+  const out=evaluateClientFeasibility(x);
+  assert.equal(out.verdict,"INCONCLUSIVE");
+  assert.ok(out.risks.includes("DESKTOP_STORE_INSTALL_CONFLICT"));
 });

@@ -12,7 +12,6 @@
   export let onOpenBaseLocation: () => void | Promise<void>;
   export let onOpenSetupTools: () => void | Promise<void>;
   export let onOpenNative: () => void | Promise<void>;
-  export let onOpenAndroid: () => void | Promise<void>;
   export let onOpenBaseFinalization: () => void | Promise<void>;
 
   $: action = snapshot.doctor.nextSetupAction;
@@ -21,20 +20,19 @@
 </script>
 
 <section class="hero setup-intro">
-  <span class="eyebrow">GOAL · ONE PC · FOUR ACCOUNTS</span>
-  <h2>Open four Minecraft Education clients</h2>
-  <p>First check whether Windows can open a second independent Education window. If not, test one Android instance alongside the Windows client, then up to three Android instances. Use VMware only when simpler routes cannot work.</p>
+  <span class="eyebrow">WINDOWS DESKTOP · FOUR EDUCATION ACCOUNTS</span>
+  <h2>One Windows PC · four desktop clients</h2>
+  <p>The selected architecture is Minecraft Education for Windows: one native client plus three separate Windows VMware clients. Every instance must preserve a different licensed sign-in.</p>
   <div class="batch-actions">
-    <button class="primary" disabled={Boolean(busy)} on:click={onOpenNative}>Open Education on this PC</button>
-    <button class="secondary" disabled={Boolean(busy)} on:click={onOpenAndroid}>Open Android instances</button>
+    <button class="primary" disabled={Boolean(busy)} on:click={onOpenNative}>Open native Minecraft Education</button>
   </div>
-  <small>Neither action verifies another account or a playable game. Sign-in stays manual. Minecraft Education does not officially support Android emulators.</small>
+  <small>Guest compatibility is not yet confirmed. First prove one Windows guest can boot, install and sign in, and play responsively before preparing all three.</small>
 </section>
 
 <section class="hero setup-intro">
-  <span class="eyebrow">OPTIONAL VMWARE SETUP · STEP {Math.min(phaseIndex + 1, 4)} OF 4</span>
-  <h2>Windows VM alternative</h2>
-  <p>Use this setup only after one Windows VMware guest proves Minecraft Education can render and accept a distinct account. The backend checks each step.</p>
+  <span class="eyebrow">WINDOWS VMWARE SETUP · STEP {Math.min(phaseIndex + 1, 4)} OF 4</span>
+  <h2>Prepare isolated Windows clients</h2>
+  <p>Follow the verified Windows setup steps below. Microsoft sign-in stays manual and isolated inside each guest.</p>
 </section>
 
 <section class="setup-focus">
