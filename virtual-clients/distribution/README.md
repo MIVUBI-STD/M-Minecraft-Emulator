@@ -10,7 +10,7 @@ Stable release authority is one signed tag:
 virtual-clients-vMAJOR.MINOR.PATCH
 ```
 
-The tag must point at the exact `Experimental` commit to release. That tag is the only release trigger for Virtual Clients. Release source, installer version, and Rust package version must be identical.
+The tag must point at an approved exact `Local` commit at release preparation time. The new repository does not enable the original automatic trusted-release/tag-push workflow; signing and publishing require a separately reviewed, explicit manual release procedure. Release source, installer version, and Rust package version must be identical.
 
 ## Update policy
 
@@ -92,7 +92,7 @@ Deleting VM/runtime data is a separate explicit destructive action.
 Current backend distribution now includes:
 
 - current-user Windows installer definition;
-- tag-bound trusted release workflow;
+- documented trusted-release identity (publishing workflow not enabled in this repository);
 - release provenance + SHA256SUMS + installed-payload integrity manifest;
 - read-only startup update check;
 - internal HTTPS transport using the operating-system trust store;

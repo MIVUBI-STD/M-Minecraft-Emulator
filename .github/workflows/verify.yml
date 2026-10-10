@@ -1,0 +1,34 @@
+name: Emulator Source Verification (manual)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: emulator-source-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  source-windows:
+    runs-on: windows-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24.21.0
+          cache: npm
+          cache-dependency-path: apps/virtual-clients/package-lock.json
+      - name: Rust toolchain
+        shell: pwsh
+        run: |
+          rustup toolchain install 1.98.1 --profile minimal --component rustfmt
+          rustup default 1.98.1
+      - name: Install exact desktop dependency lock
+        run: npm --prefix apps/virtual-clients ci --no-audit --no-fund
+      - name: Verify exact repository contract
+        run: npm run verify:layout
+      - name: Complete source checks (desktop and canonical backend)
+        run: npm run verify:source

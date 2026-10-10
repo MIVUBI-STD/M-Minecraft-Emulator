@@ -69,9 +69,9 @@ Do not promote LOCAL proof from documentation, source tests, package smoke, or h
 
 ## Build gate status
 
-The static architecture freeze does not imply a successful package build. A source revision is eligible for Windows acceptance only after the canonical Virtual Clients Package Smoke workflow has executed against that revision and completed successfully.
+The static architecture freeze does not imply a successful package build. A source revision is eligible for Windows acceptance only after the manually dispatched Virtual Clients Package Smoke workflow (or equivalent exact-head, machine-recorded package inspection) has actually executed successfully against that revision.
 
-Commits intentionally marked `[skip ci]` remain `STATIC_REVIEWED / BUILD_UNPROVEN` until an explicit non-skipped verification commit or equivalent canonical workflow execution covers the resulting source tree.
+All commits remain `STATIC_REVIEWED / BUILD_UNPROVEN` until a manually requested workflow or equivalent source/build verification actually executes on the exact commit; the migration does not trigger CI automatically.
 
 Do not translate absence of workflow failures into PASS when no workflow ran.
 
