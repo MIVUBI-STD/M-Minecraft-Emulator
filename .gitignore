@@ -1,0 +1,36 @@
+# VM guests and secrets
+*.vmdk
+*.vmsd
+*.vmsn
+*.vmem
+*.nvram
+*.vmss
+*.vmxf
+*.vmx.lck/
+*.vmwarevm/
+*.mcworld
+*.mctemplate
+*.mcpack
+*.mcaddon
+*.pfx
+*.p12
+*.pem
+*.key
+.env
+.env.*
+!.env.example
+
+# Source outputs
+node_modules/
+dist/
+target/
+coverage/
+*.log
+*.tmp
+.DS_Store
+Thumbs.db
+
+# Acceptance/telemetry — do not store real machine or account evidence
+workspace/evidence/
+workspace/captures/
+workspace/private/

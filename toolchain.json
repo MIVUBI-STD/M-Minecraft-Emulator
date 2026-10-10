@@ -1,0 +1,15 @@
+{
+  "schema": 1,
+  "node": "24.21.0",
+  "npm": "11.19.0",
+  "rust": "1.98.1",
+  "rustComponents": [
+    "rustfmt"
+  ],
+  "windowsPackage": "NSIS",
+  "providers": [
+    "VMware Workstation (Windows)",
+    "VMware Fusion (macOS)"
+  ],
+  "ciPolicy": "manual-only"
+}
