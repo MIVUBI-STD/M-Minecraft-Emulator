@@ -23,7 +23,10 @@ export function evaluateClientFeasibility(report) {
   if (report.stage === "ENVIRONMENT" && (flags.some(k => operator[k] !== "UNKNOWN") || operator.observedMinutes !== 0 || reference !== null)) fail("Environment probe cannot contain operator gameplay claims.");
   const risks = ["VIRTUAL_MINECRAFT_CLIENT_NOT_OFFICIALLY_SUPPORTED"];
   if (!win.interactiveSession) risks.push("NON_INTERACTIVE_WINDOWS_SESSION");
-  if (!/\b64[- ]bit\b/i.test(win.architecture ?? "")) risks.push("WINDOWS_64_BIT_UNVERIFIED");
+  // Supported Windows guests must report 64-bit. A 32-bit or unknown OS
+  // cannot be promoted by manually entered gameplay observations.
+  const supportedWindowsArchitecture = typeof win.architecture === "string" && /\b64[- ]bit\b/i.test(win.architecture);
+  if (!supportedWindowsArchitecture) risks.push("WINDOWS_64_BIT_UNVERIFIED");
   if (win.vmwareToolsRunning !== true) risks.push("VMWARE_TOOLS_UNVERIFIED");
   if (gl.status === "MEASURED") {
     const match = /^\s*(\d+)\.(\d+)(?:\D|$)/.exec(gl.version);
@@ -40,7 +43,7 @@ export function evaluateClientFeasibility(report) {
     else if (["vmDesktopOpened", "educationInstalled", "educationSignedIn", "menuRendered", "worldRendered", "inputResponsive"].every(k => operator[k] === "YES") &&
       operator.blockingGraphicsError === "NO" && operator.crashOrFreezeObserved === "NO" &&
       operator.observedMinutes >= 10 && reference !== null && win.interactiveSession &&
-      mc.candidateProcessCount > 0 && !(mc.desktopInstallVersion && mc.storeInstallVersion)) verdict = "OPERATOR_REPORTED_PLAYABLE";
+      supportedWindowsArchitecture && mc.candidateProcessCount > 0 && !(mc.desktopInstallVersion && mc.storeInstallVersion)) verdict = "OPERATOR_REPORTED_PLAYABLE";
   }
   return {
     schema: 1,

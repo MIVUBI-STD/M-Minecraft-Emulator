@@ -5,6 +5,12 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+# Education removed Windows 32-bit support in February 2026.
+# Reject an unsupported Base before touching its software or account state.
+if (-not [Environment]::Is64BitOperatingSystem) {
+  throw 'Minecraft Education Base preparation requires Windows 10/11 64-bit; 32-bit Windows is unsupported.'
+}
+
 if ([string]::IsNullOrWhiteSpace($GuestAgentSource)) {
   $GuestAgentSource = Join-Path $PSScriptRoot 'virtual-guest-agent.exe'
 }

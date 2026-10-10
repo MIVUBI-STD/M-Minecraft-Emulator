@@ -3,6 +3,20 @@
 Updated: 2026-10-11
 Authority: `MIVUBI-STD/M-Minecraft-Emulator`, branch `Local`. Current GitHub source HEAD always outranks this file.
 
+## P0 source correction — Windows x64 and guest GPU feasibility (2026-10-11)
+
+**Work:** `emulator/x64-and-opengl-feasibility-boundary`  
+**State:** SOURCE_PATCHED / REAL_GAME_UNPROVEN  
+**Baseline:** `ebdcfbe10365fdbb46de028e8f983693a6d2d868` before this commit; current `Local` HEAD remains authoritative.
+
+- Minecraft Education has required Windows 10/11 **64-bit** since February 2026, and publishes OpenGL 4.4 as a minimum GPU specification. VMware Workstation 26H1 itself is 64-bit but its publicly advertised guest graphics remains DX11 / OpenGL 4.3 with partial higher-version extensions. OpenGL 4.3 is a compatibility risk, not proven game failure, and no GPU spoofing is permitted.
+- Existing owner-only changes: Windows Base preparation rejects 32-bit OS prior to installation; existing G1 evidence evaluator no longer reports 32-bit/unknown guest OS as playable; NSIS command explicitly targets `x86_64-pc-windows-msvc`, and sidecar preparation rejects mismatched Rust host triples. Reuse old G1 collector, status and report schema, no new GPU engine or lifecycle policy.
+- Targeted evidence regression added for Windows guest architecture without new runner or testing gate. x64 sidecar packaging and actual Windows OS/runtime behavior are unexecuted.
+- **Proof:** REMOTE_GITHUB source and official VMware/Minecraft documentation; Node/Rust executable tests, NSIS installer PE inspections, observed guest OpenGL, licensed Minecraft rendering and G0–G4 remain **NOT_EXECUTED**. Tauri desktop Cargo.lock still missing.
+- **Stop:** Do not treat x64 source guards or a VMX 3D flag as proof of OpenGL 4.4 or playable Minecraft. No alternate virtualization provider or GPU software stack is authorized by this correction.
+
+**Next:** Keep game compatibility gated on the existing one-disposable-guest G1 outcome after actually executable G0 is available; no other feature work should be justified as a GPU compatibility fix without real evidence.
+
 ## Active bounded research — subsystem architecture and upstream references (2026-10-11)
 
 **Work:** `emulator/subsystem-reference-study`  

@@ -77,6 +77,11 @@ if (rustc.error) throw rustc.error;
 if (rustc.status !== 0) process.exit(rustc.status ?? 1);
 const host = /^host:\s*(.+)$/m.exec(rustc.stdout)?.[1]?.trim();
 if (!host) throw new Error("Rust host target triple could not be resolved.");
+// NSIS desktop, host CLI and Guest Agent must be the same Windows x64 ABI.
+// Cross-target packaging is not implemented; fail closed on host mismatch.
+if (host !== "x86_64-pc-windows-msvc") {
+  throw new Error(`Windows package requires an x86_64-pc-windows-msvc Rust host; observed ${host}. No cross-target packaging is implemented.`);
+}
 
 run(
   "cargo",

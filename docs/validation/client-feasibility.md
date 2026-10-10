@@ -15,18 +15,20 @@ This is the mandatory first proof gate for the **one native Windows Minecraft Ed
 
 ## Why this comes first
 
-**Do not scale to three Virtual clients until one Minecraft Education Windows client is actually usable in VMware.** Official Minecraft Education guidance distinguishes VM-hosted Dedicated Server (supported) from VM-hosted Minecraft Education Client (not officially supported). Minecraft Education's published PC minimum lists GPU OpenGL **4.4**; VMware Workstation/Fusion product documentation lists OpenGL guest **4.3** and DirectX 11. This difference is a feasibility warning, not proof that a particular Minecraft Education build cannot render through another graphics path.
+**Do not scale to three Virtual clients until one Minecraft Education Windows client is actually usable in VMware.** Official Minecraft Education guidance distinguishes VM-hosted Dedicated Server (supported) from VM-hosted Minecraft Education Client (not officially supported). Minecraft Education's published PC minimum lists GPU OpenGL **4.4**; VMware Workstation/Fusion product documentation lists OpenGL guest **4.3** and DirectX 11. This difference is a feasibility warning, not proof that a particular Minecraft Education build cannot render through another graphics path. VMware's public product comparison still lists DX11 / OpenGL 4.3; OpenGL 4.4 is **not guaranteed in these guests** as of October 2026. Do not spoof driver versions, install speculative GPU replacements, or claim gameplay works without actual observations.
 
 Sources:
 - Minecraft Education: https://edusupport.minecraft.net/hc/en-us/articles/360047556591-System-Requirements
 - Minecraft Education server/client VM support distinction: https://edusupport.minecraft.net/hc/en-us/articles/46913335157140-Dedicated-Server-System-Requirements
 - VMware graphics capability: https://www.vmware.com/products/desktop-hypervisor/workstation-and-fusion
+- Minecraft Education 64-bit requirement (February 2026): https://edusupport.minecraft.net/hc/en-us/articles/360047556591-System-Requirements
+- VMware 25H2/26H1 OpenGL discussion (September 2026): https://community.broadcom.com/vmware-cloud-foundation/question/any-plans-for-opengl-44-support-in-guests
 
 ## Scope and isolation
 
 This is a **disposable single-guest compatibility pilot**, not a new production VM lifecycle, state manager, installer, or account automation.
 
-- One Windows 10/11 64-bit VMware Workstation guest. Use a scratch VM, **not** the immutable Base or any Virtual-01/02/03 whose account state matters.
+- One Windows 10/11 **64-bit** VMware Workstation guest. Minecraft Education removed Windows 32-bit support in February 2026. This is a mandatory, observed guest prerequisite, not merely a preferred configuration. Use a scratch VM, **not** the immutable Base or any Virtual-01/02/03 whose account state matters.
 - Test Minecraft Education obtained through its legitimate desktop installer or Microsoft Store, with VMware Tools installed and 3D acceleration configured. The official Windows install guide distinguishes those two installation variants.
 - Nothing in this gate installs, modifies, provisions, snapshots, launches or destroys a VM. Testing Minecraft sign-in and gameplay remains an explicit interactive action with a legitimate licensed account where required.
 - The intended full product target remains Native + 3 Virtuals. A single-VM pilot cannot establish multi-instance performance or networking.
@@ -75,6 +77,7 @@ The OpenGL context probe uses a Windows user32/gdi32/opengl32 context in the exe
 | `INCONCLUSIVE` | Source alone, candidate process, display flag, unknown OpenGL or incomplete operator observation; gather more evidence |
 | `OPERATOR_REPORTED_FAILURE` | User actually observed failed menu, missing rendered world, unresponsive input or blocking graphics error. Stop scaling and classify first causal boundary |
 | `OPERATOR_REPORTED_PLAYABLE` | All three mandatory gates (Windows boot, Minecraft Education install/sign-in, responsive world for at least 10 observed minutes) are explicitly declared, with an interactive session, candidate process and reference label. **Still an operator report**, not official VM-client support or a multi-VM PASS |
+| `WINDOWS_64_BIT_UNVERIFIED` risk | The guest reports 32-bit Windows or its architecture is unavailable. This prevents an `OPERATOR_REPORTED_PLAYABLE` verdict even if gameplay observations were entered; use a supported 64-bit Windows guest. |
 | `OPENGL_BELOW_PUBLISHED_4_4_REFERENCE` risk | OpenGL string reports below published minimum. Treat as priority compatibility investigation, even if DX11/another render path appears usable |
 | `OPENGL_UNMEASURED` risk | Probe unavailable. Requires visual app proof and independent graphics diagnosis; absence of result is not OpenGL 1.1 or PASS |
 

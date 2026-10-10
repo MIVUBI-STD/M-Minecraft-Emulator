@@ -43,6 +43,15 @@ test("working-game evidence never implies official virtual-client support", () =
   assert.equal(x.officialVmClientSupport, "NOT_CLAIMED");
   assert.ok(x.risks.includes("OPENGL_BELOW_PUBLISHED_4_4_REFERENCE"));
 });
+test("unsupported or unknown Windows bitness cannot be reported playable", () => {
+  for (const architecture of ["32-bit", null, "unknown"]) {
+    const report = fixture();
+    report.windows.architecture = architecture;
+    const result = evaluateClientFeasibility(report);
+    assert.equal(result.verdict, "INCONCLUSIVE");
+    assert.ok(result.risks.includes("WINDOWS_64_BIT_UNVERIFIED"));
+  }
+});
 test("process alone never proves visible Minecraft", () => {
   const x = fixture(); x.operator.menuRendered = "UNKNOWN";
   assert.equal(evaluateClientFeasibility(x).verdict, "INCONCLUSIVE");

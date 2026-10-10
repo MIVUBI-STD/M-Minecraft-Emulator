@@ -12,7 +12,7 @@
     "dev:app": "npm run prepare:icons && tauri dev",
     "build:frontend": "vite build",
     "preview:frontend": "vite preview",
-    "build:app": "npm run prepare:icons && npm run prepare:package-binaries && tauri build --bundles nsis --config src-tauri/tauri.package.conf.json -- --locked",
+    "build:app": "npm run prepare:icons && npm run prepare:package-binaries && tauri build --target x86_64-pc-windows-msvc --bundles nsis --config src-tauri/tauri.package.conf.json -- --locked",
     "typecheck": "svelte-check --tsconfig ./tsconfig.json",
     "check:rust": "npm run prepare:icons && cargo check --all-targets --locked --manifest-path src-tauri/Cargo.toml",
     "test:rust": "cargo test --all-targets --locked --manifest-path src-tauri/Cargo.toml",
