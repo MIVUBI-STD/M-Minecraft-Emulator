@@ -23,22 +23,25 @@ const snapshot = () => ({
     platform: "windows", provider: null, logicalCpus: 8,
     totalMemoryGb: 32, availableMemoryGb: 16, maxRecommendedVirtualClients: 3,
     baseVmPresent: false, baseVmStopped: null, baseState: null,
-    readyForProvisioning: false, nextSetupAction: "INSTALL_PROVIDER", issues: [],
+    nextSetupAction: "INSTALL_PROVIDER", issues: [],
   },
   diagnostics: {
     appVersion: "0.1.0",
     runtime: {
       provider: null,
       runtimeProfile: { native: null, base: null, parity: "UNKNOWN" },
-      pressure: { level: "NORMAL", canStartVirtual: true },
+      pressure: {
+        totalMemoryMb: 32768, availableMemoryMb: 16384,
+        availablePercent: 50, cpuUsagePercent: 15, startDecision: "START_NOW",
+      },
       clients: ["Native", "Virtual-01", "Virtual-02", "Virtual-03"].map(clientFor),
     },
     host: { os: "Windows", osVersion: null, cpu: null, logicalCpus: 8, totalMemoryMb: 32768, availableMemoryMb: 16384, graphics: [], hypervisorPresent: null, vbsStatus: null },
     provider: { id: null, version: null },
     virtualHardware: [
-      { id: "Virtual-01", networkMode: "nat", networkRequiresAcceptance: true, networkConfigurationObserved: true, multiplayerVerified: false, graphics3dEnabled: true, graphicsPolicyReady: true },
-      { id: "Virtual-02", networkMode: "nat", networkRequiresAcceptance: true, networkConfigurationObserved: true, multiplayerVerified: false, graphics3dEnabled: true, graphicsPolicyReady: true },
-      { id: "Virtual-03", networkMode: "nat", networkRequiresAcceptance: true, networkConfigurationObserved: true, multiplayerVerified: false, graphics3dEnabled: true, graphicsPolicyReady: true },
+      { id: "Virtual-01", networkMode: "nat", graphics3dEnabled: true },
+      { id: "Virtual-02", networkMode: "nat", graphics3dEnabled: true },
+      { id: "Virtual-03", networkMode: "nat", graphics3dEnabled: true },
     ],
   },
 });
@@ -46,6 +49,13 @@ const snapshot = () => ({
 describe("Backend payload shapes", () => {
   it("accepts the consumed snapshot fields and additive backend fields", () => {
     expect(engineSnapshot({ ...snapshot(), extraBackendField: true })).toBe(true);
+  });
+
+  it("accepts actual backend virtual-hardware fields without invented gameplay flags", () => {
+    const actual = snapshot();
+    expect(engineSnapshot(actual)).toBe(true);
+    delete (actual.diagnostics.virtualHardware[0] as { graphics3dEnabled?: boolean }).graphics3dEnabled;
+    expect(engineSnapshot(actual)).toBe(false);
   });
 
   it("rejects missing nested fields and unknown setup actions", () => {
@@ -62,7 +72,7 @@ describe("Backend payload shapes", () => {
     invalid.diagnostics.host.availableMemoryMb = Infinity;
     expect(engineSnapshot(invalid)).toBe(false);
     invalid.diagnostics.host.availableMemoryMb = 16;
-    invalid.diagnostics.runtime.pressure.level = "MAYBE";
+    invalid.diagnostics.runtime.pressure.startDecision = "MAYBE";
     expect(engineSnapshot(invalid)).toBe(false);
   });
 

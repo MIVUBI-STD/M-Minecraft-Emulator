@@ -77,7 +77,7 @@
     <div>
       <span class="eyebrow">SETUP · COMPATIBILITY</span>
       <strong>Review client compatibility</strong>
-      <small>One or more clients have unverified or mismatched environment lineage. Recreation is disabled to preserve saved Windows and Minecraft sessions; do not delete VM files manually.</small>
+      <small>One or more clients may have an incomplete clone, uncertain VM state, or mismatched lineage. Recreation is disabled to preserve saved sessions; inspect the affected VM before any manual recovery. Do not delete VM files automatically.</small>
     </div>
     <button class="secondary" disabled={Boolean(busy)} on:click={onSupport}>Open Support</button>
   </section>

@@ -51,10 +51,8 @@ pub(super) fn validate_power_state(
         LifecycleAction::Restart => state == ClientState::Running,
         LifecycleAction::SetReady => state == ClientState::Stopped && !ready_snapshot,
         LifecycleAction::Reset => {
-            matches!(
-                state,
-                ClientState::Stopped | ClientState::Suspended | ClientState::Running
-            ) && ready_snapshot
+            // VMware cannot safely stop a suspended VM for snapshot restore.
+            matches!(state, ClientState::Stopped | ClientState::Running) && ready_snapshot
         }
         LifecycleAction::Reprovision => state == ClientState::Stopped,
     };
@@ -375,6 +373,12 @@ mod tests {
             true,
         )
         .is_ok());
+        assert!(validate_power_state(
+            ClientId::Virtual01,
+            LifecycleAction::Reset,
+            ClientState::Suspended,
+            true,
+        ).is_err());
         assert!(validate_power_state(
             ClientId::Virtual01,
             LifecycleAction::Reset,

@@ -17,6 +17,9 @@ use sysinfo::System;
 pub struct DoctorClient {
     pub id: &'static str,
     pub provisioned: bool,
+    // Internal provider observation; do not change Doctor's serialized JSON.
+    #[serde(skip_serializing)]
+    pub(crate) provider_state: ClientState,
     pub ready_snapshot: bool,
     pub lineage_parity: ProfileParity,
     pub identity_provenance: bool,
@@ -57,6 +60,7 @@ pub enum HealthIssueCode {
     BaseFinalizationInterrupted,
     BaseProfileMismatch,
     VirtualNotProvisioned,
+    VirtualProviderStateUncertain,
     VirtualLineageMismatch,
     IdentityProofMissing,
     ReadySnapshotMissing,
@@ -133,6 +137,9 @@ fn select_setup_action(
         SetupAction::RegisterBase
     } else if base_state == Some(BaseState::Registered) {
         SetupAction::FinalizeBase
+    } else if clients.iter().any(|client| client.provider_state == ClientState::Error) {
+        // A partial clone or unreadable VM state must never initiate provisioning.
+        SetupAction::ReprovisionVirtuals
     } else if clients.iter().any(|client| !client.provisioned) {
         SetupAction::ProvisionVirtuals
     } else if clients
@@ -230,6 +237,14 @@ fn collect_health_issues(
 
     if provider_available {
         for client in clients {
+            if client.provider_state == ClientState::Error {
+                push(
+                    HealthIssueCode::VirtualProviderStateUncertain,
+                    HealthSeverity::Blocker,
+                    Some(client.id),
+                );
+                continue;
+            }
             if !client.provisioned {
                 push(
                     HealthIssueCode::VirtualNotProvisioned,
@@ -319,7 +334,12 @@ pub fn doctor() -> DoctorReport {
                 .as_ref()
                 .and_then(|states| states.iter().find(|(id, _)| *id == client).map(|(_, state)| *state))
                 .or_else(|| provider.as_ref().and_then(|provider| provider.status(client).ok()));
-            let provisioned = state.is_some_and(|state| state != ClientState::NotProvisioned);
+            // Missing evidence is UNKNOWN/ERROR, never a clean VM slot.
+            let provider_state = state.unwrap_or(ClientState::Error);
+            let provisioned = matches!(
+                provider_state,
+                ClientState::Stopped | ClientState::Suspended | ClientState::Running
+            );
             let ready_snapshot = if provisioned {
                 provider
                     .as_ref()
@@ -348,6 +368,7 @@ pub fn doctor() -> DoctorReport {
             DoctorClient {
                 id: client.as_str(),
                 provisioned,
+                provider_state,
                 ready_snapshot,
                 lineage_parity,
                 identity_provenance,
@@ -422,6 +443,7 @@ mod tests {
         DoctorClient {
             id: "Virtual-test",
             provisioned: true,
+            provider_state: crate::client::ClientState::Stopped,
             ready_snapshot,
             lineage_parity: ProfileParity::Match,
             identity_provenance,
@@ -840,4 +862,27 @@ mod tests {
         }
     }
 
+
+    #[test]
+    fn incomplete_vm_requires_review_not_new_provisioning() {
+        let mut clients = vec![client(true, true), client(true, true), client(true, true)];
+        clients[1].provider_state = crate::client::ClientState::Error;
+        clients[1].provisioned = false;
+        assert_eq!(
+            select_setup_action(
+                &compatible_schema(), true, true, true, ProfileParity::Match,
+                Some(BaseState::Finalized), &clients,
+            ),
+            SetupAction::ReprovisionVirtuals,
+        );
+        let issues = collect_health_issues(
+            &compatible_schema(), true, true, true, Some(true),
+            Some(BaseState::Finalized), ProfileParity::Match, &clients, 3,
+        );
+        assert!(issues.iter().any(|issue| {
+            issue.client == Some("Virtual-test")
+                && issue.code == HealthIssueCode::VirtualProviderStateUncertain
+                && issue.severity == HealthSeverity::Blocker
+        }));
+    }
 }

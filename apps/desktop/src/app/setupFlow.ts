@@ -94,7 +94,7 @@ const flows: Record<SetupAction, SetupExperience> = {
     owner: "CLIENTS",
     phase: "CLIENTS",
     title: "Review client compatibility",
-    description: "At least one virtual client's saved environment does not have verified matching lineage. Recreation is disabled to protect its Windows and Minecraft account data. Review diagnostics; no automatic repair is available.",
+    description: "At least one virtual client has uncertain provider state, an incomplete clone, or incompatible lineage. Recreation is disabled to protect Windows and Minecraft account data. Open Support; inspect the affected VM and preserve its files. No automatic repair is available.",
     primaryLabel: "Review clients",
     steps: [],
   },

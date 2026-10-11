@@ -89,6 +89,7 @@ export function issueLabel(issue: HealthIssue): string {
     BASE_FINALIZATION_INTERRUPTED: "Virtual environment setup was interrupted",
     BASE_PROFILE_MISMATCH: "The virtual environment no longer matches this PC and needs rebuilding",
     VIRTUAL_NOT_PROVISIONED: "Virtual client has not been created yet",
+    VIRTUAL_PROVIDER_STATE_UNCERTAIN: "Virtual client state is uncertain (possibly an incomplete clone). Preserve its files and inspect the VM directory before retrying",
     VIRTUAL_LINEAGE_MISMATCH: "Virtual client is using an outdated Minecraft environment",
     IDENTITY_PROOF_MISSING: "Virtual client identity has not been checked yet",
     READY_SNAPSHOT_MISSING: "Recovery point has not been saved yet",

@@ -121,9 +121,7 @@ export const engineSnapshot = shape<EngineSnapshot>({
     }),
     provider: shape({ id: nullable(text), version: nullable(text) }),
     virtualHardware: array(shape({
-      id: virtualId, networkMode: nullable(text), networkRequiresAcceptance: boolean,
-      networkConfigurationObserved: boolean, multiplayerVerified: boolean,
-      graphics3dEnabled: nullable(boolean),
+      id: virtualId, networkMode: nullable(text), graphics3dEnabled: nullable(boolean),
     })),
   }),
 });

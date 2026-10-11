@@ -1429,8 +1429,12 @@ impl VirtualClients {
         check_action_admission(provider.as_ref(), client, LifecycleAction::StartSetup)?;
         // Reuse the same mutation/rollback owner. Missing Guest Agent during
         // interactive Windows first boot is not a failed daily-start verification.
-        let state = execute_setup_start(provider.as_ref(), client, |client, _| {
-            check_action_admission(provider.as_ref(), client, LifecycleAction::StartSetup)
+        let state = execute_setup_start(provider.as_ref(), client, |client, original_state| {
+            check_action_admission(provider.as_ref(), client, LifecycleAction::StartSetup)?;
+            if original_state != ClientState::Running {
+                wait_until_start_is_safe()?;
+            }
+            Ok(())
         })?;
         // Return power observations only. Do not write identity provenance or
         // claim guest/version readiness before verify-identities completes.
@@ -1470,15 +1474,19 @@ impl VirtualClients {
         }
 
         let native_profile = native_minecraft_profile();
-        let target_count = targets.len();
-        let mut completed = 0;
         // Keep game launch and window opening inside the same rollback boundary
         // as VM startup. A pre-existing RUNNING client is never stopped here.
         execute_start_batch(
             provider.as_ref(),
             &targets,
-            |client, _| {
-                check_action_admission(provider.as_ref(), client, LifecycleAction::Start)
+            |client, original_state| {
+                check_action_admission(provider.as_ref(), client, LifecycleAction::Start)?;
+                // Apply one bounded resource wait to every new/resumed start,
+                // including single-client calls from the desktop Start All.
+                if original_state != ClientState::Running {
+                    wait_until_start_is_safe()?;
+                }
+                Ok(())
             },
             |client| {
                 check_action_admission(provider.as_ref(), client, LifecycleAction::Start)?;
@@ -1507,10 +1515,6 @@ impl VirtualClients {
                     native_profile.as_ref(),
                     client,
                 )?;
-                completed += 1;
-                if completed < target_count {
-                    wait_until_start_is_safe()?;
-                }
                 Ok(status)
             },
         )

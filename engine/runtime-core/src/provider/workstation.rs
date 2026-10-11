@@ -507,7 +507,14 @@ impl Provider for VmwareWorkstationProvider {
             ));
         }
 
-        if self.running(&vmx)? || has_suspend_state(&vmx) {
+        // Mirror public admission for direct provider callers.
+        if has_suspend_state(&vmx) {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "Resume the suspended Virtual and shut it down before restoring QA_READY.",
+            ));
+        }
+        if self.running(&vmx)? {
             self.stop(client)?;
         }
 
