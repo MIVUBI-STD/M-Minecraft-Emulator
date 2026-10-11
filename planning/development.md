@@ -1,3 +1,8 @@
+## Toolchain pin on initial desktop lock generation — 2026-10-11
+
+Before generating the missing desktop Cargo.lock with `DEV.cmd lock`, the same existing toolchain verifier now checks pinned Node, npm and Rust inputs while allowing only the expected absence of the desktop lockfile. This prevents a different compiler version from silently resolving the first application dependency graph. The lockfile is still not generated or committed by ChatGPT, and Windows/G0-G4 execution is NOT_EXECUTED.
+
+
 ## Pre-local G0 operator path — 2026-10-11
 
 **Source work:** Extended the existing optional Windows `DEV.cmd` -> `tooling/windows-toolchain/dev.ps1` route with `lock` (Cargo's real dependency resolution, no auto-commit) and `g0` (one pinned, clean Local source-build-package pass). The pinned Rust compiler version is checked alongside Node/npm. No VM/guest/account operation occurs. Exact clean Git HEAD and committed Cargo.lock are mandatory for g0. Existing source/package commands remain canonical; this is an orchestrating entrypoint, not a second test framework or another acceptance gate.

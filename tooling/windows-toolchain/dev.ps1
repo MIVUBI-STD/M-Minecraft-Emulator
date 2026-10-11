@@ -48,6 +48,7 @@ function Assert-CleanSourceAtHead {
 }
 
 function Test-DeveloperToolchain {
+    param([switch]$AllowMissingDesktopLock)
     $toolchain = Get-Content (Join-Path $Root "toolchain.json") -Raw | ConvertFrom-Json
     $errors = [System.Collections.Generic.List[string]]::new()
 
@@ -85,7 +86,7 @@ function Test-DeveloperToolchain {
     if (-not (Test-Path "engine/runtime-core/Cargo.lock")) {
         $errors.Add("Canonical backend Cargo.lock is missing.")
     }
-    if (-not (Test-Path $DesktopLock)) {
+    if (-not $AllowMissingDesktopLock -and -not (Test-Path $DesktopLock)) {
         $errors.Add("Desktop Cargo.lock is missing. DEV.cmd lock can generate it using real Cargo.")
     }
 
@@ -100,6 +101,7 @@ function Test-DeveloperToolchain {
 # modify the user's VM storage, commit automatically or promote Local to main.
 function New-DesktopCargoLock {
     [void](Assert-LocalCheckout)
+    Test-DeveloperToolchain -AllowMissingDesktopLock
     if (-not (Get-Command cargo -ErrorAction SilentlyContinue)) {
         throw "Cargo is required for genuine desktop dependency resolution."
     }
