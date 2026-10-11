@@ -62,6 +62,20 @@ The pilot's host session is local-loopback authenticated, with no HTTP proxy or 
 
 Treat pilot running, IDD display ready and SSH `online` as **separate observations**. A viable G1 outcome also requires **actual hardware Direct3D 11 FL 11_0 and NVIDIA-backed OpenGL >=4.4 within Windows guest**, not WARP/llvmpipe, plus Minecraft Education licensed sign-in, world rendering and usable keyboard/mouse. Capture actual machine evidence before cloning any account-bearing VHDX. If one guest cannot pass, stop the three-guest scaling plan and diagnose the graphics/driver failure.
 
-The legacy VMware G0–G4 verification text and artifacts have **not** yet been migrated for App Sandbox. Source-only inspection and authored Rust regressions cannot make G0/G1 pass. All G0–G4 remain `NOT_EXECUTED` until executable evidence on the same candidate exists.
+**Use the existing G1 collector with explicit provider attribution**, inside the interactive Windows pilot guest. The `ENVIRONMENT` and `INTERACTIVE` observations must use the same `-Provider APP_SANDBOX_GPU_PV` selection:
+
+```powershell
+.\collect-client-feasibility.ps1 -Provider APP_SANDBOX_GPU_PV -Stage ENVIRONMENT
+# After personally verifying Minecraft Education and 10+ minutes of a playable world:
+.\collect-client-feasibility.ps1 -Provider APP_SANDBOX_GPU_PV -Stage INTERACTIVE `
+  -VmDesktopOpened YES -EducationInstalled YES -EducationSignedIn YES `
+  -MenuRendered YES -WorldRendered YES -InputResponsive YES `
+  -BlockingGraphicsError NO -CrashOrFreezeObserved NO `
+  -ObservedMinutes 15 -EvidenceReference gpu-pv-pilot-01
+```
+
+The collector now runs a **hardware-only D3D11 FL11_0 device probe** (no WARP/REFERENCE fallback) plus an interactive WGL OpenGL context. The unchanged schema-1 report includes `provider=APP_SANDBOX_GPU_PV`, `graphics.direct3D11`, and OpenGL `version/vendor/renderer`. The evaluator refuses `OPERATOR_REPORTED_PLAYABLE` for GPU-PV unless its guest observation has a hardware D3D11 FL11_0 device, NVIDIA vendor/renderer context at OpenGL 4.4+, and the existing 10-minute signed-in, responsive-game operator evidence. A host GPU name or App Sandbox `gpuMode=1` never fills a missing observation. Even an operator-reported playable result remains **not G1 PASS** until the evidence is separately reviewed.
+
+The production G2–G4 validation and recovery workflows remain VMware-specific; they have **not** been migrated for App Sandbox. Source-only inspection and authored Rust regressions cannot make G0/G1 pass. All G0–G4 remain `NOT_EXECUTED` until executable evidence on the same candidate exists.
 
 Do **not** use this disposable pilot as a recovery/reset mechanism for a production account. The pilot consent file is not proof of HCS disk attachment, VM identity continuity, or Microsoft account preservation.

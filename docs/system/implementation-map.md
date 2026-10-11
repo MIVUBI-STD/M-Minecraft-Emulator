@@ -15,7 +15,7 @@ This is a **navigation guide**, not a second registry or copy of implementation 
 
 | Question / fault | Primary implementation owner | Consumer / companion |
 | --- | --- | --- |
-| Prove one VMware Windows desktop guest can boot, install/sign in to Minecraft Education and render playable content | `tooling/acceptance/windows/collect-client-feasibility.ps1`, `tooling/acceptance/evaluate-client-feasibility.mjs` | [Client Feasibility](../validation/client-feasibility.md); no production VM mutation |
+| Prove one disposable Windows guest can boot, sign in and render Minecraft Education on VMware or App Sandbox GPU-PV, with provider-specific graphics evidence | `tooling/acceptance/windows/collect-client-feasibility.ps1`, `tooling/acceptance/evaluate-client-feasibility.mjs` | [Client Feasibility](../validation/client-feasibility.md); no production VM mutation |
 | VM status, start/stop/suspend/restart/reprovision and rollback | `engine/runtime-core/src/runtime.rs` | `lifecycle_admission.rs`, provider implementation |
 | Lifecycle eligibility / guard decisions | `engine/runtime-core/src/lifecycle_admission.rs` | `runtime.rs`, `client.rs` |
 | Client-owned setup phases stranded in wizard | `apps/desktop/src/app/setupFlow.ts` and `apps/desktop/src/App.svelte` | `shouldShowClientControls` and `apps/desktop/test/setup-flow.test.ts` regression |

@@ -6,7 +6,7 @@ This campaign is evidence collection, not simulation. A stage stays `NOT_RUN` un
 
 | Stage | Supports gate | Purpose | Evidence owner |
 | --- | --- | --- | --- |
-| CLIENT_FEASIBILITY | G1 | **Before production VM setup:** prove one scratch Windows VMware guest can render and interact with Minecraft Education; capture OpenGL separately | operator + read-only guest collector |
+| CLIENT_FEASIBILITY | G1 | **Before production VM setup:** prove one disposable Windows guest on the candidate provider renders Minecraft Education; capture actual OpenGL and D3D11 hardware when using GPU-PV | operator + read-only guest collector |
 | HOST | G1 (baseline) | Record Windows, VMware, CPU, memory, GPU, hypervisor/VBS and Native Minecraft facts | collector |
 | SINGLE_VM | G2 | Prove one Virtual lifecycle on the target provider | operator + collector |
 | GUEST | G2 | Prove VMware Tools, Guest Agent and interactive launcher progression | collector |
@@ -21,7 +21,7 @@ This campaign is evidence collection, not simulation. A stage stays `NOT_RUN` un
 
 ## Single Windows desktop route
 
-The only accepted design is **one Windows-native Minecraft Education desktop client plus three separate Windows VMware Workstation guest clients**. Do not run Android, BlueStacks or second-native-instance probes. Start with a disposable scratch Windows guest, before production Base preparation. Confirm **VM opens → Minecraft Education installs and signs in → a world is playable and responsive**.
+The product target is **one Windows-native Minecraft Education desktop client plus three isolated Windows guest clients**. The installed production code remains VMware; the approved App Sandbox GPU-PV direction is limited to a disposable pilot until G1 proof. Do not run Android, BlueStacks or second-native-instance probes. Start with a disposable scratch Windows guest, before production Base preparation. Confirm **VM opens → Minecraft Education installs and signs in → a world is playable and responsive**.
 
 The [Product Goal](../../../docs/product/four-concurrent-accounts.md) and [One Guest Feasibility Gate](../../../docs/validation/client-feasibility.md) specify evidence and stop criteria. The guest collector cannot observe account sign-in or game rendering directly: its operator declarations are **not automatically verified**. Do not record PASS until actual operator/game evidence has been reviewed.
 
@@ -37,7 +37,9 @@ The `collect-client-feasibility.ps1` `INTERACTIVE` stage now asks for explicit o
 
 ## Early client-graphics feasibility pilot
 
-Use `collect-client-feasibility.ps1` **inside one interactive Windows scratch guest**. It is read-only except its temporary report and does not require Guest Agent, account-name capture or a configured three-VM application. Collect `ENVIRONMENT`, then manually open Minecraft Education, observe a usable world and collect `INTERACTIVE` with explicitly operator-attributed observations.
+Use `collect-client-feasibility.ps1` **inside one interactive Windows scratch guest** with `-Provider VMWARE` (default) or `-Provider APP_SANDBOX_GPU_PV`. It is read-only except its temporary report and does not require Guest Agent, account-name capture or a configured three-VM application. Collect `ENVIRONMENT`, then manually open Minecraft Education, observe a usable world and collect `INTERACTIVE` with explicitly operator-attributed observations.
+
+For GPU-PV, the collector measures a **D3D11 hardware FL11_0** device and WGL OpenGL version/vendor/renderer and the evaluator refuses a reported-playable GPU-PV outcome when hardware evidence is missing. Do not substitute VMware Tools, host GPU names or App Sandbox flags for guest graphics observations.
 
 Review the JSON with `../evaluate-client-feasibility.mjs`. The reviewer never certifies official client support; it reports `OPERATOR_REPORTED_PLAYABLE`, `OPERATOR_REPORTED_FAILURE` or `INCONCLUSIVE`, never a synthetic PASS. The existing `new-stage-result.ps1 -Stage CLIENT_FEASIBILITY` records a **separately reviewed** decision with an actual evidence reference.
 

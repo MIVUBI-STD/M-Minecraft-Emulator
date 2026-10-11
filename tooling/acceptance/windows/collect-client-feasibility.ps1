@@ -1,5 +1,7 @@
 [CmdletBinding()]
 param(
+  [ValidateSet('VMWARE', 'APP_SANDBOX_GPU_PV')]
+  [string]$Provider = 'VMWARE',
   [ValidateSet('ENVIRONMENT', 'INTERACTIVE')]
   [string]$Stage = 'ENVIRONMENT',
   [ValidateSet('YES', 'NO', 'UNKNOWN')]
@@ -160,6 +162,64 @@ public static class MinecraftGuestOpenGlProbe {
   return $result
 }
 
+function Get-Direct3D11Observation {
+  $result = [ordered]@{
+    status = 'UNKNOWN'
+    featureLevel = $null
+    driverType = $null
+    reasonCode = 'PROBE_NOT_EXECUTED'
+  }
+  if ([System.Diagnostics.Process]::GetCurrentProcess().SessionId -eq 0) {
+    $result.reasonCode = 'NON_INTERACTIVE_SESSION'
+    return $result
+  }
+  if (-not [Environment]::Is64BitProcess) {
+    $result.reasonCode = 'REQUIRES_64_BIT_POWERSHELL'
+    return $result
+  }
+  # D3D_DRIVER_TYPE_HARDWARE=1, D3D_FEATURE_LEVEL_11_0=0xB000,
+  # D3D11_SDK_VERSION=7. No WARP/REFERENCE/SOFTWARE fallback.
+  # Microsoft D3D11CreateDevice: learn.microsoft.com/en-us/windows/win32/api/d3d11/nf-d3d11-d3d11createdevice
+  $source = @'
+using System;
+using System.Runtime.InteropServices;
+public static class MinecraftGuestD3D11HardwareProbe {
+    [DllImport("d3d11.dll", ExactSpelling = true)]
+    private static extern int D3D11CreateDevice(
+        IntPtr adapter, int driverType, IntPtr software, uint flags,
+        [In, MarshalAs(UnmanagedType.LPArray)] uint[] levels, uint count,
+        uint sdkVersion, out IntPtr device, out uint selected, out IntPtr context);
+
+    public static bool SupportsHardware11_0() {
+        IntPtr device = IntPtr.Zero, context = IntPtr.Zero;
+        try {
+            uint selected;
+            int hr = D3D11CreateDevice(IntPtr.Zero, 1, IntPtr.Zero, 0,
+                new uint[] { 0xB000 }, 1, 7, out device, out selected, out context);
+            return hr >= 0 && selected == 0xB000 && device != IntPtr.Zero;
+        } finally {
+            if (context != IntPtr.Zero) Marshal.Release(context);
+            if (device != IntPtr.Zero) Marshal.Release(device);
+        }
+    }
+}
+'@
+  try {
+    Add-Type -TypeDefinition $source -Language CSharp -ErrorAction Stop
+    if ([MinecraftGuestD3D11HardwareProbe]::SupportsHardware11_0()) {
+      $result.status = 'MEASURED'
+      $result.featureLevel = '11_0'
+      $result.driverType = 'HARDWARE'
+      $result.reasonCode = $null
+    } else {
+      $result.reasonCode = 'D3D11_HARDWARE_FL11_0_UNAVAILABLE'
+    }
+  } catch {
+    $result.reasonCode = 'D3D11_HARDWARE_PROBE_FAILED'
+  }
+  return $result
+}
+
 function Get-SafeWindowsObservation {
   $osInfo = $null
   try { $osInfo = Get-CimInstance Win32_OperatingSystem -ErrorAction Stop } catch {}
@@ -233,12 +293,14 @@ $report = [ordered]@{
   schema = 1
   scope = 'CLIENT_FEASIBILITY'
   stage = $Stage
+  provider = $Provider
   collectedAtUtc = [DateTime]::UtcNow.ToString('o')
   evidenceOrigin = 'WINDOWS_GUEST'
   automaticVerdict = 'NOT_PROVIDED'
   windows = Get-SafeWindowsObservation
   graphics = [ordered]@{
     openGl = Get-OpenGlObservation
+    direct3D11 = Get-Direct3D11Observation
     publishedMinecraftOpenGlReference = '4.4'
     referenceIsNotAnAutomaticVerdict = $true
   }

@@ -108,3 +108,51 @@ test("conflicting Store and desktop installations cannot satisfy the install gat
   assert.equal(out.verdict,"INCONCLUSIVE");
   assert.ok(out.risks.includes("DESKTOP_STORE_INSTALL_CONFLICT"));
 });
+
+test("GPU-PV requires actual guest D3D11 hardware and NVIDIA OpenGL >=4.4", () => {
+  const ready = fixture();
+  ready.provider = "APP_SANDBOX_GPU_PV";
+  ready.windows.vmwareToolsRunning = null;
+  ready.graphics.openGl = {
+    status: "MEASURED", version: "4.6.0 NVIDIA", vendor: "NVIDIA Corporation",
+    renderer: "NVIDIA RTX 3070"
+  };
+  ready.graphics.direct3D11 = {
+    status: "MEASURED", featureLevel: "11_0", driverType: "HARDWARE", reasonCode: null
+  };
+  const result = evaluateClientFeasibility(ready);
+  assert.equal(result.provider, "APP_SANDBOX_GPU_PV");
+  assert.equal(result.verdict, "OPERATOR_REPORTED_PLAYABLE");
+  assert.equal(result.gates.hardwareGpuGraphics, "GUEST_DIAGNOSTICS_OBSERVED");
+  assert.ok(!result.risks.includes("VMWARE_TOOLS_UNVERIFIED"));
+  assert.equal(result.officialVmClientSupport, "NOT_CLAIMED");
+  const withoutD3D = structuredClone(ready);
+  withoutD3D.graphics.direct3D11 = { status: "UNKNOWN" };
+  const d3d = evaluateClientFeasibility(withoutD3D);
+  assert.equal(d3d.verdict, "INCONCLUSIVE");
+  assert.ok(d3d.risks.includes("D3D11_HARDWARE_FL11_0_UNVERIFIED"));
+  const wrongRenderer = structuredClone(ready);
+  wrongRenderer.graphics.openGl.renderer = "GDI Generic";
+  wrongRenderer.graphics.openGl.vendor = "Microsoft Corporation";
+  const gl = evaluateClientFeasibility(wrongRenderer);
+  assert.equal(gl.verdict, "INCONCLUSIVE");
+  assert.ok(gl.risks.includes("OPENGL_NVIDIA_HARDWARE_UNVERIFIED"));
+  const oldVersion = structuredClone(ready);
+  oldVersion.graphics.openGl.version = "4.3 NVIDIA";
+  assert.equal(evaluateClientFeasibility(oldVersion).verdict, "INCONCLUSIVE");
+});
+
+test("unknown provider and unmeasured GPU-PV cannot be declared playable", () => {
+  const invalid = fixture();
+  invalid.provider = "HCS_100_PERCENT";
+  assert.throws(() => evaluateClientFeasibility(invalid), TypeError);
+  const unknown = fixture();
+  unknown.provider = "APP_SANDBOX_GPU_PV";
+  unknown.windows.vmwareToolsRunning = null;
+  unknown.graphics.openGl = { status: "UNKNOWN", version: null };
+  assert.equal(evaluateClientFeasibility(unknown).verdict, "INCONCLUSIVE");
+  const old = fixture();
+  delete old.provider;
+  assert.equal(evaluateClientFeasibility(old).provider, "VMWARE");
+  assert.equal(evaluateClientFeasibility(old).verdict, "OPERATOR_REPORTED_PLAYABLE");
+});

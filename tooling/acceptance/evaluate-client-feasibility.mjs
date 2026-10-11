@@ -7,8 +7,12 @@ export function evaluateClientFeasibility(report) {
   const fail = (message) => { throw new TypeError(message); };
   if (!report || typeof report !== "object" || report.schema !== 1 || report.scope !== "CLIENT_FEASIBILITY" || report.evidenceOrigin !== "WINDOWS_GUEST" || report.automaticVerdict !== "NOT_PROVIDED") fail("Unknown or untrusted feasibility-report contract.");
   if (!["ENVIRONMENT", "INTERACTIVE"].includes(report.stage)) fail("Invalid feasibility stage.");
+  // Old schema-1 VMware reports omitted provider; preserve their meaning.
+  const provider = report.provider ?? "VMWARE";
+  if (!["VMWARE", "APP_SANDBOX_GPU_PV"].includes(provider)) fail("Unknown virtualization provider.");
   const win = report.windows;
   const gl = report.graphics?.openGl;
+  const d3d = report.graphics?.direct3D11;
   const mc = report.minecraft;
   const operator = report.operator;
   if (!win || typeof win.interactiveSession !== "boolean" || !gl || !["MEASURED", "UNKNOWN"].includes(gl.status) || !mc || mc.processEvidenceClass !== "CANDIDATE_ONLY" || !operator || operator.attribution !== "OPERATOR_DECLARED_NOT_MACHINE_VERIFIED") fail("Missing or invalid source attribution.");
@@ -27,11 +31,26 @@ export function evaluateClientFeasibility(report) {
   // cannot be promoted by manually entered gameplay observations.
   const supportedWindowsArchitecture = typeof win.architecture === "string" && /\b64[- ]bit\b/i.test(win.architecture);
   if (!supportedWindowsArchitecture) risks.push("WINDOWS_64_BIT_UNVERIFIED");
-  if (win.vmwareToolsRunning !== true) risks.push("VMWARE_TOOLS_UNVERIFIED");
+  if (provider === "VMWARE" && win.vmwareToolsRunning !== true) risks.push("VMWARE_TOOLS_UNVERIFIED");
+  // Graphics capability must be observed from the interactive guest itself.
+  // An App Sandbox config gpuMode=1, host RTX adapter, or online HCS agent
+  // does not establish native NVIDIA OpenGL or D3D11 FL11_0.
+  const d3dHardware11 = d3d?.status === "MEASURED"
+    && d3d.featureLevel === "11_0" && d3d.driverType === "HARDWARE";
+  const nvidiaOpenGl = gl.status === "MEASURED"
+    && typeof gl.vendor === "string" && /\bnvidia\b/i.test(gl.vendor)
+    && typeof gl.renderer === "string" && gl.renderer.trim().length > 0
+    && !/llvmpipe|softpipe|software|gdi generic|swiftshader|warp/i.test(gl.renderer);
+  if (provider === "APP_SANDBOX_GPU_PV") {
+    if (!d3dHardware11) risks.push("D3D11_HARDWARE_FL11_0_UNVERIFIED");
+    if (!nvidiaOpenGl) risks.push("OPENGL_NVIDIA_HARDWARE_UNVERIFIED");
+  }
+  let openGl44 = false;
   if (gl.status === "MEASURED") {
     const match = /^\s*(\d+)\.(\d+)(?:\D|$)/.exec(gl.version);
     if (!match) risks.push("OPENGL_VERSION_UNPARSEABLE");
     else if (+match[1] < 4 || (+match[1] === 4 && +match[2] < 4)) risks.push("OPENGL_BELOW_PUBLISHED_4_4_REFERENCE");
+    else openGl44 = true;
   } else risks.push("OPENGL_UNMEASURED");
   if (mc.candidateProcessCount === null || mc.candidateProcessCount === 0) risks.push("MINECRAFT_PROCESS_NOT_OBSERVED");
   if (mc.desktopInstallVersion && mc.storeInstallVersion) risks.push("DESKTOP_STORE_INSTALL_CONFLICT");
@@ -43,12 +62,14 @@ export function evaluateClientFeasibility(report) {
     else if (["vmDesktopOpened", "educationInstalled", "educationSignedIn", "menuRendered", "worldRendered", "inputResponsive"].every(k => operator[k] === "YES") &&
       operator.blockingGraphicsError === "NO" && operator.crashOrFreezeObserved === "NO" &&
       operator.observedMinutes >= 10 && reference !== null && win.interactiveSession &&
-      supportedWindowsArchitecture && mc.candidateProcessCount > 0 && !(mc.desktopInstallVersion && mc.storeInstallVersion)) verdict = "OPERATOR_REPORTED_PLAYABLE";
+      supportedWindowsArchitecture && mc.candidateProcessCount > 0 && !(mc.desktopInstallVersion && mc.storeInstallVersion)
+      && (provider !== "APP_SANDBOX_GPU_PV" || (d3dHardware11 && nvidiaOpenGl && openGl44))) verdict = "OPERATOR_REPORTED_PLAYABLE";
   }
   return {
     schema: 1,
     scope: "CLIENT_FEASIBILITY",
     stage: report.stage,
+    provider,
     verdict,
     proofCeiling: "OPERATOR_DECLARED_AND_GUEST_DIAGNOSTICS_ONLY",
     officialVmClientSupport: "NOT_CLAIMED",
@@ -56,10 +77,14 @@ export function evaluateClientFeasibility(report) {
       windowsDesktop: operator.vmDesktopOpened === "YES" ? "OPERATOR_REPORTED" : "UNVERIFIED_OR_FAILED",
       educationInstallAndSignIn: operator.educationInstalled === "YES" && operator.educationSignedIn === "YES" ? "OPERATOR_REPORTED" : "UNVERIFIED_OR_FAILED",
       responsiveGameplay: operator.worldRendered === "YES" && operator.inputResponsive === "YES" &&
-        operator.crashOrFreezeObserved === "NO" && operator.observedMinutes >= 10 ? "OPERATOR_REPORTED" : "UNVERIFIED_OR_FAILED"
+        operator.crashOrFreezeObserved === "NO" && operator.observedMinutes >= 10 ? "OPERATOR_REPORTED" : "UNVERIFIED_OR_FAILED",
+      hardwareGpuGraphics: provider === "APP_SANDBOX_GPU_PV"
+        ? (d3dHardware11 && nvidiaOpenGl && openGl44 ? "GUEST_DIAGNOSTICS_OBSERVED" : "UNVERIFIED_OR_FAILED")
+        : "NOT_APPLICABLE"
     },
     risks,
-    next: verdict === "OPERATOR_REPORTED_PLAYABLE" ? "REVIEW_EVIDENCE_BEFORE_PRODUCTION_BASE" : verdict === "OPERATOR_REPORTED_FAILURE" ? "STOP_AND_DIAGNOSE_RENDER_OR_INPUT" : "COLLECT_MISSING_INTERACTIVE_EVIDENCE"
+    next: verdict === "OPERATOR_REPORTED_PLAYABLE"
+      ? (provider === "VMWARE" ? "REVIEW_EVIDENCE_BEFORE_PRODUCTION_BASE" : "REVIEW_GPU_PV_EVIDENCE_BEFORE_THREE_GUESTS") : verdict === "OPERATOR_REPORTED_FAILURE" ? "STOP_AND_DIAGNOSE_RENDER_OR_INPUT" : "COLLECT_MISSING_INTERACTIVE_EVIDENCE"
   };
 }
 
