@@ -68,6 +68,10 @@ fn execute_value(command: &str, args: &[String]) -> io::Result<Value> {
             require_no_args(command, args)?;
             to_value(app.lifecycle_actions()?)
         }
+        "app-sandbox-pilot" => {
+            // Explicit CLI only; not the production Virtual lifecycle.
+            to_value(crate::provider::app_sandbox_pilot_command(args)?)
+        }
         "diagnostics" => {
             require_no_args(command, args)?;
             // Explicit CLI diagnostics only. The frequent desktop snapshot and

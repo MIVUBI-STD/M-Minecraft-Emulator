@@ -8,6 +8,8 @@ fn print_help() {
     println!("  policy");
     println!("  actions");
     println!("  diagnostics");
+    println!("  app-sandbox-pilot inspect");
+    println!("  app-sandbox-pilot start|shutdown|display --confirm-disposable-pilot");
     println!("  snapshot");
     println!("  support-bundle");
     println!("  history");

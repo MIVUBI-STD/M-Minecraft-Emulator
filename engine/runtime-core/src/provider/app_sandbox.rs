@@ -58,7 +58,7 @@ struct Capabilities {
     templates: bool,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct HostCapacity {
     host_cores: u64,
@@ -440,7 +440,18 @@ fn get_json(agent: &ureq::Agent, endpoint: &str, route: &str, token: Option<&str
     Ok(bytes)
 }
 
-fn inspect_inner() -> Result<AppSandboxInspection, &'static str> {
+// A short-lived, never-serialized connection to the upstream single-owner daemon.
+// Both diagnostics and the explicitly invoked disposable pilot use this one
+// discovery/version/auth boundary; no token or agent is persisted or cached.
+pub(super) struct AsbSession {
+    pub(super) agent: ureq::Agent,
+    pub(super) endpoint: String,
+    pub(super) token: String,
+    pub(super) version: String,
+    pub(super) host: HostCapacity,
+}
+
+pub(super) fn authenticated_session() -> Result<AsbSession, &'static str> {
     let discovery = discover()?;
     let agent = ureq::AgentBuilder::new()
         .try_proxy_from_env(false)
@@ -451,9 +462,30 @@ fn inspect_inner() -> Result<AppSandboxInspection, &'static str> {
         .build();
     let version_bytes = get_json(&agent, &discovery.endpoint, "version", None)?;
     let version = parse_version(&version_bytes)?;
-    let host_bytes = get_json(&agent, &discovery.endpoint, "host", Some(&discovery.token))?;
-    let host = parse_host(&host_bytes)?;
-    let list_bytes = get_json(&agent, &discovery.endpoint, "vms", Some(&discovery.token))?;
+    // Version is deliberately unauthenticated upstream. Prove the bearer
+    // session with an authenticated response before making pilot decisions.
+    let host_json = get_json(&agent, &discovery.endpoint, "host", Some(&discovery.token))?;
+    let host = parse_host(&host_json)?;
+    Ok(AsbSession {
+        agent,
+        endpoint: discovery.endpoint,
+        token: discovery.token,
+        version: version.version,
+        host,
+    })
+}
+
+impl AsbSession {
+    pub(super) fn get(&self, route: &str) -> Result<Vec<u8>, &'static str> {
+        get_json(&self.agent, &self.endpoint, route, Some(&self.token))
+    }
+}
+
+fn inspect_inner() -> Result<AppSandboxInspection, &'static str> {
+    let session = authenticated_session()?;
+    let version = session.version.clone();
+    let host = session.host.clone();
+    let list_bytes = session.get("vms")?;
     let records = parse_vm_list(&list_bytes)?;
     let mut guests = Vec::new();
     // This file is mutable and occasionally rewritten by the upstream host.
@@ -467,7 +499,7 @@ fn inspect_inner() -> Result<AppSandboxInspection, &'static str> {
             continue;
         }
         let route = format!("vms/{}", item.name);
-        let status_bytes = get_json(&agent, &discovery.endpoint, &route, Some(&discovery.token))?;
+        let status_bytes = session.get(&route)?;
         let status = parse_vm(&status_bytes)?;
         if status.name != item.name || status.os_type != "Windows"
             || normalized_disk_root(&status.disk_directory)
@@ -488,13 +520,13 @@ fn inspect_inner() -> Result<AppSandboxInspection, &'static str> {
             }
         }
         let snapshot_route = format!("vms/{}/snapshots", item.name);
-        let snapshot_bytes = get_json(&agent, &discovery.endpoint, &snapshot_route, Some(&discovery.token))?;
+        let snapshot_bytes = session.get(&snapshot_route)?;
         let snapshot = parse_snapshot_pointer(&snapshot_bytes)?;
         let display_route = format!("vms/{}/display", item.name);
-        let display_bytes = get_json(&agent, &discovery.endpoint, &display_route, Some(&discovery.token))?;
+        let display_bytes = session.get(&display_route)?;
         let display = parse_display(&display_bytes)?;
         let ssh_route = format!("vms/{}/sshInfo", item.name);
-        let ssh_bytes = get_json(&agent, &discovery.endpoint, &ssh_route, Some(&discovery.token))?;
+        let ssh_bytes = session.get(&ssh_route)?;
         let mut ssh = parse_ssh_info(&ssh_bytes)?;
         let mut windows_identity_observed = false;
         if ssh.key_forwarding_ready {
@@ -560,7 +592,7 @@ fn inspect_inner() -> Result<AppSandboxInspection, &'static str> {
     Ok(AppSandboxInspection {
         state: "OBSERVED",
         reason: "VM_API_ONLY_NO_GAME_OR_GPU_PROOF",
-        version: Some(version.version),
+        version: Some(version),
         host: Some(host),
         guests,
         game_and_gpu_verified: false,

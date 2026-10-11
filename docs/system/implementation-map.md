@@ -22,6 +22,7 @@ This is a **navigation guide**, not a second registry or copy of implementation 
 | First-run setup decision, environment problems | `engine/runtime-core/src/doctor.rs` | Desktop `src/app/setupFlow.ts`, `src/app/surfaces/SetupSurface.svelte` |
 | Base provenance, immutable finalized image and parity | `engine/runtime-core/src/profile.rs`, `base_preparation.rs` | `engine/guest/windows/prepare-base.ps1`, `finalize-base.ps1` |
 | VMware Workstation/Fusion operations and VMX | `engine/runtime-core/src/provider/` | `runtime.rs`, `diagnostics.rs` |
+| Explicit disposable App Sandbox pilot (`inspect/start/graceful shutdown/display`) | `engine/runtime-core/src/provider/app_sandbox_pilot.rs` | [GPU-PV Disposable Pilot](../validation/gpu-pv-disposable-pilot.md), CLI only; no production VM controls |
 | Identity and guest disk isolation | `engine/runtime-core/src/identity.rs`, `provider/vmx.rs` | `profile.rs`, `engine/guest/windows/` |
 | Guest Agent authenticated status/launch | `engine/runtime-core/src/guest.rs`, `src/bin/virtual-guest-agent.rs` | `engine/guest/windows/install-guest-agent.ps1` |
 | Native Minecraft detection and executable constraints | `engine/runtime-core/src/minecraft_runtime.rs`, `profile.rs` | `guest.rs`, `doctor.rs` |

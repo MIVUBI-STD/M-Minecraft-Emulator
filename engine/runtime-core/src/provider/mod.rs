@@ -8,6 +8,9 @@ mod vmx;
 mod app_sandbox;
 mod app_sandbox_ssh;
 mod app_sandbox_registry;
+mod app_sandbox_pilot;
+
+pub(crate) use app_sandbox_pilot::execute as app_sandbox_pilot_command;
 
 pub(crate) use app_sandbox::inspect as inspect_app_sandbox;
 
