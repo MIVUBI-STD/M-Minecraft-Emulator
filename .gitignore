@@ -26,6 +26,7 @@ node_modules/
 dist/
 target/
 coverage/
+apps/desktop/src-tauri/icons/
 *.log
 *.tmp
 .DS_Store
