@@ -64,6 +64,64 @@ No shadow lifecycle database. Provider status must be **observed from upstream**
 
 The existing `Provider` trait and Rust runtime are VMware-semantic today (`vmx`, `vmrun`, `guest_token`, `BaseState`, `QA_READY`, VMware window discovery and path conventions). **They cannot simply receive an App Sandbox class with no contract redesign.** Trace the actual use sites and replace only the first wrong owners in a coherent batch; prevent a permanent layer of fake VMX compatibility or duplicated setup/agent managers. Keep guest account disks and historical VMware implementation inspectable through Git history; do not rename/delete installed data and guest image resources as a folder tidy-up.
 
+## M0 source mapping — Provider trait to App Sandbox v0.1.9 headless API
+
+**Audit basis:** current `engine/runtime-core/src/provider/mod.rs`, `runtime.rs`, `lifecycle_admission.rs`, `doctor.rs`, `profile.rs`, `guest.rs`, `minecraft_runtime.rs`, `diagnostics.rs`; upstream `tools/headless-api/{README.md,asb.py}`, `src/backend_win/hcs_vm.c`, `src/backend_win/snapshot.c`. Source inspection only: no test execution or actual App Sandbox session. Mapping is a research tool, **not** a second provider interface.
+
+### Provider trait method mapping
+
+| Current Rust method | App Sandbox v0.1.9 API / facts | Treatment | Safety / first consumer |
+| --- | --- | --- | --- |
+| `id(), version(), detect()` | `GET /version` reports `product, version, apiVersion, hostOs, capabilities`; discovery at local `host.json` | ADAPT | Fail closed on absent/incompatible upstream; `current_platform_provider`, Doctor |
+| `provision(client)` | `create` with `osType=Windows`, ISO/template, `ramMb/cpuCores/gpuMode/networkMode`; **async + auto-start** | DESIGN CHANGE | Existing `provision_inner` assumes stopped finalized VMware Base and synchronous clone; do not call until new image/identity lifecycle is explicit |
+| `reprovision(client)` | `delete_vm` is destructive; upstream templates/snapshot branches differ from VMware cutover | BLOCK | Never delete account-bearing VM on path to recreate; old guard remains |
+| `memory_limit_mb(client)` | `status(name).ramMb` | ADAPT | Configured guest limit, not observed working set |
+| `host_working_sets_mb()` | `GET /host` has host RAM, free space, declared VM RAM and core sums, not VMware vmware-vmx process memory | NO EQUIVALENT | Do not present configured RAM as observed RSS; change resource evidence owner explicitly |
+| `guest_tools_ready(client)` | `agentOnline`, display readiness has separate `idd_ready` | ADAPT | Upstream guest agent readiness is not Education or custom Minecraft launch readiness |
+| `guest_ip_address(client)` | `ssh_info` provides loopback-forwarded SSH; `status` has `sshState` | NO EQUIVALENT | Existing `guest.rs` and `minecraft_runtime.rs` expect guest IP + authenticated TCP protocol. Do not silently substitute `127.0.0.1` or break isolation |
+| `identity_key(client)` | `status.name` and upstream preserved MAC in v0.1.8; separate Windows machine identity proof required | REDESIGN PROVENANCE | A friendly name alone is not UUID/MAC/Windows identity or immutable disk provenance |
+| `network_mode(client)` | `status.networkMode`: 0 none, 1 NAT, 2 external, 3 internal | ADAPT | Do not infer multiplayer reachable from network mode |
+| `graphics_3d_enabled(client)` | `status.gpuMode`: 0 none, 1 default paravirtual, 2 try all | ADAPT AS CONFIG ONLY | GPU-PV config does NOT prove NVIDIA acceleration, Direct3D11 FL11_0 or hardware GL>=4.4 |
+| `status(client)` | `GET /vms/{name}`: building/stopped/installing/booting/online/stopping plus flags | REDESIGN PROJECTION | Existing `ClientState` misses intermediary states; do not map building to RUNNING or `online` to Minecraft-ready |
+| `start(client)` | `POST /vms/{name}/start`; HTTP 202 Accepted, then status/events | ADAPT ASYNC | Reobserve after acceptance; never treat 202 as successful completed startup |
+| `suspend(client)` | No suspend operation in examined headless SDK/API | BLOCK/REMOVE IN MIGRATION | Don't simulate using snapshot, force stop or guest power-off |
+| `stop(client)` | `shutdown(name)` graceful; `stop(name)` **hard power-off** | MAP TO SHUTDOWN ONLY | No destructive stop on normal UI action; preserve guest account disk |
+| `restart(client)` | No direct headless `restart`; could request graceful shutdown then verified start | DEFER | Needs observed shutdown completion, idempotence and no automatic retries on unknown state |
+| `set_ready(client)` | `snap_take` for stopped VM; branches use VHDX differencing | REDESIGN | Must not assume VMware `QA_READY` semantics. Snapshot with account state has privacy and guest-version implications |
+| `has_ready(client)` | `GET /vms/{name}/snapshots` | DEFER | Named snapshot existence != verified account recovery |
+| `reset(client)` | `start` can select a snapshot or branch | BLOCK | Could discard or redirect account-bearing disk lineage; design explicit safe recovery semantics first |
+| `open(client)` | `POST /vms/{name}/display` | ADAPT | Interactive admin daemon session only; check `agentOnline` and `idd_ready`; window identity differs from VMware |
+| `open_vm_ui(vmx)` | No VMX path; `open_display(name)` | REPLACE CALLERS | Base finalization and window arrangement directly depend on VMware VMX/window paths |
+| `is_running_path(vmx)` | `status(name)`, upstream uses VM names | REPLACE CALLERS | Remove reliance on a path as identity; preserve old disks in legacy path |
+| `start_validation_vm(vmx)` | `start(name)` async | REWRITE BASE FLOW | Current Base may be finalized/stopped and may not be booted; lifecycle must be re-proven for HCS templates |
+| `stop_validation_vm(vmx)` | `shutdown(name)` | ADAPT GRACEFULLY | Wait for confirmed stopped state; no forced stop on timeout |
+| `guest_ip_for_path(vmx)` | Not exposed as equivalent guest-IP API | BLOCK DIRECT PORT | Base registration currently calls Guest Agent via IP/token; redesign channel before admission |
+
+**Additional upstream capabilities deliberately not promoted yet:** `edit` (guest must be stopped), `create` template, SSH key deployment, GPU selection, snapshot branch delete, force stop, `shutdown_daemon(force)`, and `events` stream. No speculative public VM feature panel.
+
+### Cross-owner dependency cuts to make before executable provider work
+
+1. **Backend provider selection and action admission:** `provider/mod.rs::current_platform_provider` currently selects VMware on Windows; `LifecycleFacts` and `runtime.rs::collect_lifecycle_facts` assume `current_base_vmx_path`, VMX finalized state and `QA_READY` on almost every operation. A new adapter class alone is insufficient. Preserve one admission policy while converting VMware-specific prerequisites to explicit provider capability and observed facts **only when actually needed**; no second manager.
+2. **Image lifecycle and persistence:** `runtime.rs::register_base_inner/open_base_for_finalization_inner/provision_inner`, `doctor.rs::select_setup_action`, `profile.rs`, `base_preparation.rs` and `engine/guest/windows` are VMware Base-specific. App Sandbox can create a Windows guest from an ISO or template, but its `create` immediately starts it. Need account-clean template, OS licensing, correct Windows identity and explicit provenance, before account-bearing three-guest creation.
+3. **Minecraft launch boundary:** existing `guest.rs` expects a per-VM IP/token and custom Windows interactive launcher. Upstream App Sandbox agent covers transport/display, **not an API equivalent to launching Minecraft in the signed-in interactive Windows session**. First G1 can use manual launch; automate only after there is a source-proven secure user-session mechanism that doesn't duplicate upstream agent role.
+4. **Recovery/data rights:** old VMware `QA_READY` is guest-specific and held by provider; App Sandbox snapshot branches are VHDX-backed. `lifecycle_admission.rs::Reset/SetReady` cannot reuse the old assumptions. Keep disabled until non-destructive behavior is proved and new VHDX lineage/account restoration is reasoned about.
+5. **Desktop/windows:** existing `apps/desktop/src-tauri/src/engine/window_arrangement.rs` discovers VMware windows and their HWND ownership; App Sandbox display windows use different process/title and interactive-session guarantees. Do not assume a selected GPU-PV guest has a separate HWND or that `online` means display-ready.
+6. **Diagnostics and resource accounting:** `diagnostics.rs` reads VMX's `mks.enable3d`; `resources.rs` and `provider/mod.rs::host_working_sets_mb` collect VMware process memory; upstream `host()` has **declared**, not equivalent observed RSS or dedicated VRAM quota. Preserve `UNKNOWN` for measurements without owner.
+7. **Distribution and installed identity:** `engine/distribution`, Tauri package resources, `apps/desktop/package.json`, and source verifier include VMware Guest Agent/setup and old name/path compatibility boundaries. They remain until approved coherent cutover; do not rename installed app or auto-delete VMware data.
+8. **Privileged control:** App Sandbox elevated daemon owns HCS VM and `host.json` local bearer token. The Tauri UI must not open that file or bypass Rust typed IPC. `202` responses require observed completion; disappearance of daemon while guests are running must be surfaced, not treated as successful stop.
+
+### Minimal adapter design to consider for M1
+
+**Only one narrow read-only integration first, inside existing Rust `engine/runtime-core/src/provider/` ownership.** Discover the trusted local App Sandbox daemon metadata, validate constrained `127.0.0.1` endpoint and token **in memory only**, query `GET /version` and `GET /vms` / `GET /vms/{name}`, validate API/schema/capabilities and return typed observations. No raw backend error/token in logs or diagnostics. Pin upstream v0.1.9 and fail closed if API changes. This is the planned implementation, **not code delivered by M0**.
+
+Do not introduce a second frontend bridge, general-purpose HTTP relay, service manager, installer, dual-provider UI toggle, writable VM registry, daemon auto-bootstrap, GPU provisioning system or simulated readiness. If the existing `Provider` trait cannot represent read-only App Sandbox state without violating VMware invariants, first refactor that *single existing source owner* to separate neutral observation from provider-specific mutation, in the **same coherent migration**, not a second trait hierarchy retained forever.
+
+### M0 outcome / next single bounded task
+
+**Source map complete at method and primary-caller level.** Critical mismatches: non-existent suspend, `stop` hard-off hazard, asynchronous 202 start/create, no guest IP equivalence, VMware Base + VMX path facts, missing Minecraft per-user launcher route, non-equivalent QA_READY snapshot and upstream process/admin lifecycle. These are real architectural differences, not evidence that the GPU itself fails.
+
+**Next:** design the precise **non-mutating Rust read-only adapter contract** (`version/host/list/status`, auth discovery and errors), including a fail-closed upstream schema and Tauri integration boundary, before any provisioning, snapshot, launch or Windows driver code is changed. Keep the current VMware implementation untouched until the new provider can meet the required product contract.
+
 ## Coherent migration phases (not new acceptance gates)
 
 **M0 — Research and source ownership design (NOW).** Freeze VMware feature work and preserve historical commit/SHA. Inventory all VMware-specific provider, profile, admission, doctor, window, package, Guest Agent, VMX/QA_READY and tests. Map App Sandbox API semantics and external source risk. Decide how the existing Rust Public Contract can be kept or version-migrated. Finish on GitHub with a single source-grounded plan; no VM mutation.

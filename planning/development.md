@@ -17,7 +17,9 @@ Authority: `MIVUBI-STD/M-Minecraft-Emulator`, branch `Local`. Current GitHub sou
 - Software App Sandbox is MIT/free but **three Windows guest licenses and four Minecraft Education entitlements are separate rights**; verify existing eligibility before declaring the complete system free of additional costs.
 - **Proof:** current GitHub code review and upstream/vendor docs only. Node/Rust/installer builds, App Sandbox/GPU-PV/DirectX/OpenGL, Education gameplay, account isolation and all G0–G4 remain `NOT_EXECUTED`. No runtime or other source module touched.
 
-**Next:** read-only `Provider` and VMware-specific runtime callsite → App Sandbox headless API capability matrix. Determine minimal owner migration before writing code or creating any VM.
+**M0 source audit completed:** `experiments/gpu-pv-migration-design.md` now contains method-by-method mapping of the existing Rust `Provider` trait and primary runtime consumers to App Sandbox v0.1.9 API, including no suspend, asynchronous `202`, graceful vs forced stop, non-equivalent guest IP/agent transport, identity, VHDX snapshots, VMware Base/VMX assumptions, and admin daemon lifetime. Mapping is design/source proof only; no GPU or game execution. Windows 11 Enterprise edition is user-confirmed, but its **specific license entitlement for three guest installations is NOT VERIFIED**; product activation alone does not establish virtualization rights.
+
+**Next:** design the smallest non-mutating Rust `version/host/list/status` adapter contract and failure behavior using existing `engine/runtime-core/src/provider/` ownership; leave mutation paths blocked and preserve VMware data until complete migration.
 
 ## P0 source correction — Windows x64 and guest GPU feasibility (2026-10-11)
 
