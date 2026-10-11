@@ -1,3 +1,16 @@
+## Source hardening: interrupted metadata and direct-child cleanup — 2026-10-11
+
+**Scope:** Canonical Rust runtime recovery and subprocess code only. A backup-only runtime schema is now read before classifying it as missing, so a newer schema cannot be overwritten during initialization. A backup-only operation journal is restored rather than silently returned empty. Writes detect unfinished PID-scoped temporary metadata from any process (not just the current PID), and a new temporary candidate is preserved if promotion fails. These are data-preserving, fail-closed behaviors, not automatic VM disk recovery.
+
+**Process boundary:** Bounded command execution now avoids an unconditional wait if killing the direct child fails, and it tolerates child exit between status check and kill. It never kills VMware descendants. A descendant holding stdout/stderr can still retain a detached reader thread: the lifecycle owner must not claim this is solved without target-Windows evidence.
+
+**Proof:** REMOTE_GITHUB source and consumers reviewed, targeted Rust regressions authored for backup-only newer/current schema, backup-only history, prior-PID temp, and direct-child exit races. Rust/Cargo, Node/Tauri, NSIS, Windows GPU/VMware/Minecraft and G0-G4 tests NOT_EXECUTED. Cargo is not installed in this ChatGPT runtime, and network DNS prevented obtaining a Rust toolchain/registry; no lockfile has been fabricated.
+
+**Compatibility:** No VMX, VMDK, VHDX, snapshots, account/guest identity, wire schema, provider selection, installed app identity, or main branch changed.
+
+**Next:** Generate and commit the real desktop Cargo.lock only in an environment where Cargo registry resolution works, then perform one exact-SHA G0 source check.
+
+
 ## Interrupted metadata temporary-file preservation — 2026-10-11
 
 Source fix: write_text_transactional now fails closed when its PID-derived temporary metadata file already exists, before any backup recovery/discard. The old primary and the unfinished temporary contents remain untouched for manual reconciliation. This prevents PID reuse or crash leftovers from silently erasing a possibly newer metadata candidate. No automatic restoration, provider switch, VM disk deletion or account mutation. A targeted Rust regression test is authored.

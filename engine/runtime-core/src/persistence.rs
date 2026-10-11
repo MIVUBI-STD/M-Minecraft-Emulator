@@ -35,6 +35,30 @@ fn temporary_path(path: &Path) -> io::Result<PathBuf> {
     Ok(parent.join(format!(".{name}.{}.tmp", std::process::id())))
 }
 
+fn unresolved_temporary(path: &Path) -> io::Result<Option<PathBuf>> {
+    let parent = path.parent().ok_or_else(|| {
+        io::Error::new(io::ErrorKind::InvalidInput, "metadata path has no parent")
+    })?;
+    let name = path.file_name().and_then(|name| name.to_str()).ok_or_else(|| {
+        io::Error::new(io::ErrorKind::InvalidInput, "metadata filename is invalid")
+    })?;
+    let prefix = format!(".{name}.");
+    for entry in fs::read_dir(parent)? {
+        let entry = entry?;
+        let filename = entry.file_name();
+        let Some(filename) = filename.to_str() else { continue };
+        let Some(pid) = filename.strip_prefix(&prefix)
+            .and_then(|value| value.strip_suffix(".tmp")) else { continue };
+        if pid.is_empty() || !pid.bytes().all(|byte| byte.is_ascii_digit()) {
+            continue;
+        }
+        let candidate = entry.path();
+        reject_unsafe_existing_file(&candidate)?;
+        return Ok(Some(candidate));
+    }
+    Ok(None)
+}
+
 pub(crate) fn reject_unsafe_existing_file(path: &Path) -> io::Result<()> {
     let metadata = match fs::symlink_metadata(path) {
         Ok(metadata) => metadata,
@@ -103,11 +127,10 @@ pub(crate) fn write_text_transactional(path: &Path, contents: &str) -> io::Resul
     // Do not delete or reuse it (including after PID reuse); leave both old
     // metadata and unfinished content available for explicit reconciliation.
     let temporary = temporary_path(path)?;
-    reject_unsafe_existing_file(&temporary)?;
-    if temporary.exists() {
+    if let Some(unresolved) = unresolved_temporary(path)? {
         return Err(io::Error::new(
             io::ErrorKind::AlreadyExists,
-            format!("interrupted metadata write preserved at {}; inspect before retrying", temporary.display()),
+            format!("interrupted metadata write preserved at {}; inspect before retrying", unresolved.display()),
         ));
     }
 
@@ -140,11 +163,19 @@ pub(crate) fn write_text_transactional(path: &Path, contents: &str) -> io::Resul
             Ok(())
         }
         Err(error) => {
-            let _ = fs::remove_file(&temporary);
+            // Preserve the complete new candidate after failed promotion.
             if had_existing && backup.exists() && !path.exists() {
-                let _ = fs::rename(&backup, path);
+                if let Err(restore_error) = fs::rename(&backup, path) {
+                    return Err(io::Error::new(
+                        error.kind(),
+                        format!("metadata promotion failed ({error}); original backup and candidate preserved; restore failed ({restore_error})"),
+                    ));
+                }
             }
-            Err(error)
+            Err(io::Error::new(
+                error.kind(),
+                format!("metadata promotion failed ({error}); temporary candidate preserved at {}", temporary.display()),
+            ))
         }
     }
 }
@@ -183,6 +214,26 @@ mod tests {
         assert!(path.is_file());
         assert!(!backup.exists());
 
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn previous_process_temporary_metadata_blocks_replacement() {
+        let root = unique_temp_dir("old-pid-temporary");
+        fs::create_dir_all(&root).unwrap();
+        let path = root.join("state.json");
+        let current_pid = std::process::id();
+        let previous_pid = if current_pid == 1 { 2 } else { current_pid - 1 };
+        let temporary = root.join(format!(".state.json.{previous_pid}.tmp"));
+        fs::write(&path, r#"{"original":true}"#).unwrap();
+        fs::write(&temporary, r#"{"candidate":true}"#).unwrap();
+        assert_eq!(
+            write_text_transactional(&path, r#"{"replacement":true}"#)
+                .unwrap_err().kind(),
+            std::io::ErrorKind::AlreadyExists
+        );
+        assert_eq!(fs::read_to_string(&path).unwrap(), r#"{"original":true}"#);
+        assert_eq!(fs::read_to_string(&temporary).unwrap(), r#"{"candidate":true}"#);
         fs::remove_dir_all(root).unwrap();
     }
 

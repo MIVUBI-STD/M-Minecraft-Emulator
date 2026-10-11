@@ -104,14 +104,18 @@ fn with_history_lock<T>(operation: impl FnOnce() -> io::Result<T>) -> io::Result
     }
 }
 
-fn read_operation_history_unlocked() -> io::Result<Vec<OperationRecord>> {
-    let path = history_path()?;
-    reject_unsafe_existing_file(&path)?;
-    if !path.is_file() {
-        return Ok(Vec::new());
+fn read_history_at(path: &std::path::Path) -> io::Result<Vec<OperationRecord>> {
+    // Backup recovery must precede "missing history" classification.
+    match read_text_recovering(path) {
+        Ok(raw) => serde_json::from_str(&raw)
+            .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error)),
+        Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(Vec::new()),
+        Err(error) => Err(error),
     }
-    let raw = read_text_recovering(&path)?;
-    serde_json::from_str(&raw).map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))
+}
+
+fn read_operation_history_unlocked() -> io::Result<Vec<OperationRecord>> {
+    read_history_at(&history_path()?)
 }
 
 pub fn read_operation_history() -> io::Result<Vec<OperationRecord>> {
@@ -171,13 +175,37 @@ pub(crate) fn record_operation<T>(
 
 #[cfg(test)]
 mod tests {
-    use super::{OperationKind, OperationOutcome, OperationRecord, HISTORY_LIMIT, HISTORY_LOCK_ATTEMPTS, HISTORY_LOCK_INTERVAL};
+    use super::{read_history_at, OperationKind, OperationOutcome, OperationRecord, HISTORY_LIMIT, HISTORY_LOCK_ATTEMPTS, HISTORY_LOCK_INTERVAL};
+    use std::{fs, time::{SystemTime, UNIX_EPOCH}};
 
     #[test]
     fn lock_contention_has_a_small_explicit_budget() {
         assert!(HISTORY_LOCK_ATTEMPTS > 1);
         assert!(HISTORY_LOCK_ATTEMPTS <= 5);
         assert!(HISTORY_LOCK_INTERVAL.as_millis() <= 20);
+    }
+
+    #[test]
+    fn backup_only_history_is_restored_not_discarded() {
+        let root = std::env::temp_dir().join(format!(
+            "history-backup-{}-{}", std::process::id(),
+            SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos()
+        ));
+        fs::create_dir_all(&root).unwrap();
+        let path = root.join("operation-history.json");
+        let backup = root.join(".operation-history.json.bak");
+        let record = OperationRecord {
+            schema: 1, timestamp_unix_ms: 7,
+            operation: OperationKind::Start, target: Some("Virtual-01".into()),
+            outcome: OperationOutcome::Success, error_code: None, retryable: false,
+        };
+        fs::write(&backup, serde_json::to_string(&vec![record]).unwrap()).unwrap();
+        let restored = read_history_at(&path).unwrap();
+        assert_eq!(restored.len(), 1);
+        assert_eq!(restored[0].timestamp_unix_ms, 7);
+        assert!(path.is_file());
+        assert!(!backup.exists());
+        fs::remove_dir_all(root).unwrap();
     }
 
     #[test]

@@ -2,7 +2,7 @@ use std::{
     ffi::OsStr,
     io,
     path::Path,
-    process::{Command, Stdio},
+    process::{Child, Command, Stdio},
     thread,
     io::Read,
     sync::mpsc,
@@ -48,21 +48,7 @@ where
         let observed_status = match child.try_wait() {
             Ok(status) => status,
             Err(error) => {
-                // A failed status probe must not leave the child unmanaged.
-                let kill_result = child.kill();
-                let wait_result = child.wait();
-                if let Err(cleanup_error) = wait_result {
-                    return Err(io::Error::new(
-                        cleanup_error.kind(),
-                        format!("{} status check failed ({error}); child termination is unconfirmed: {cleanup_error}", program.display()),
-                    ));
-                }
-                if let Err(cleanup_error) = kill_result {
-                    return Err(io::Error::new(
-                        cleanup_error.kind(),
-                        format!("{} status check failed ({error}); child kill failed: {cleanup_error}", program.display()),
-                    ));
-                }
+                terminate_direct_child(&mut child, program, "status check")?;
                 return Err(error);
             }
         };
@@ -82,28 +68,38 @@ where
             return require_success(program, status.success(), &stdout, &stderr);
         }
         if started.elapsed() >= timeout {
-            let kill_result = child.kill();
-            let wait_result = child.wait();
-            // A failed wait leaves process termination unconfirmed. Do not present
-            // that situation as an ordinary, safely recovered command timeout.
-            if let Err(error) = wait_result {
-                return Err(io::Error::new(
-                    error.kind(),
-                    format!("{} timed out; child termination could not be confirmed: {error}", program.display()),
-                ));
-            }
-            if let Err(error) = kill_result {
-                return Err(io::Error::new(
-                    error.kind(),
-                    format!("{} timed out; child kill failed: {error}", program.display()),
-                ));
-            }
+            terminate_direct_child(&mut child, program, "timeout")?;
             return Err(io::Error::new(
                 io::ErrorKind::TimedOut,
                 format!("{} exceeded {}s timeout; child process reaped", program.display(), timeout.as_secs()),
             ));
         }
         thread::sleep(Duration::from_millis(100));
+    }
+}
+
+// Only manage the direct child created here, never VMware descendants.
+// A failed kill must not lead to an unconditional, potentially infinite wait.
+// An already-exited child is the harmless race between try_wait and kill.
+fn terminate_direct_child(child: &mut Child, program: &Path, context: &str) -> io::Result<()> {
+    match child.kill() {
+        Ok(()) => child.wait().map(|_| ()).map_err(|error| {
+            io::Error::new(
+                error.kind(),
+                format!("{} {context}; child reap unconfirmed: {error}", program.display()),
+            )
+        }),
+        Err(kill_error) => match child.try_wait() {
+            Ok(Some(_)) => Ok(()),
+            Ok(None) => Err(io::Error::new(
+                kill_error.kind(),
+                format!("{} {context}; child is still running and could not be terminated: {kill_error}", program.display()),
+            )),
+            Err(probe_error) => Err(io::Error::new(
+                probe_error.kind(),
+                format!("{} {context}; child status unknown (kill: {kill_error}; probe: {probe_error})", program.display()),
+            )),
+        },
     }
 }
 
@@ -163,7 +159,8 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::command_output_with_timeout;
+    use super::{command_output_with_timeout, terminate_direct_child};
+    use std::process::{Command, Stdio};
     use std::{io, path::Path, time::Duration};
 
     #[test]
@@ -223,6 +220,21 @@ mod tests {
             .expect_err("oversized command output must not be treated as complete");
         assert_eq!(error.kind(), io::ErrorKind::InvalidData);
         assert!(error.to_string().contains("refusing truncated provider evidence"));
+    }
+
+    #[test]
+    fn cleanup_accepts_child_that_already_exited() {
+        #[cfg(windows)]
+        let (program, args): (&Path, &[&str]) = (Path::new("cmd.exe"), &["/C", "exit /B 0"]);
+        #[cfg(not(windows))]
+        let (program, args): (&Path, &[&str]) = (Path::new("sh"), &["-c", "exit 0"]);
+        let mut child = Command::new(program)
+            .args(args)
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn().unwrap();
+        child.wait().unwrap();
+        terminate_direct_child(&mut child, program, "already exited").unwrap();
     }
 
     #[test]

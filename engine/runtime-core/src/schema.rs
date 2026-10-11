@@ -39,18 +39,12 @@ pub fn schema_path(root: &Path) -> PathBuf {
 
 pub fn inspect_runtime_schema(root: &Path) -> SchemaStatus {
     let path = schema_path(root);
-    if !path.is_file() {
-        return SchemaStatus {
-            state: SchemaState::Missing,
-            schema: None,
-        };
-    }
-
-    let Ok(raw) = read_text_recovering(&path) else {
-        return SchemaStatus {
-            state: SchemaState::Invalid,
-            schema: None,
-        };
+    // Crash recovery may have left only a .bak file, including a newer schema.
+    let raw = match read_text_recovering(&path) {
+        Ok(raw) => raw,
+        Err(error) if error.kind() == io::ErrorKind::NotFound =>
+            return SchemaStatus { state: SchemaState::Missing, schema: None },
+        Err(_) => return SchemaStatus { state: SchemaState::Invalid, schema: None },
     };
     let Ok(schema) = serde_json::from_str::<RuntimeSchema>(&raw) else {
         return SchemaStatus {
@@ -77,8 +71,8 @@ pub fn ensure_runtime_schema(root: &Path) -> io::Result<RuntimeSchema> {
     fs::create_dir_all(root)?;
     let path = schema_path(root);
 
-    if path.is_file() {
-        let raw = read_text_recovering(&path)?;
+    match read_text_recovering(&path) {
+        Ok(raw) => {
         let schema: RuntimeSchema = serde_json::from_str(&raw).map_err(|error| {
             io::Error::new(
                 io::ErrorKind::InvalidData,
@@ -101,6 +95,9 @@ pub fn ensure_runtime_schema(root: &Path) -> io::Result<RuntimeSchema> {
         }
 
         return Ok(schema);
+        }
+        Err(error) if error.kind() == io::ErrorKind::NotFound => {}
+        Err(error) => return Err(error),
     }
 
     let version = env!("CARGO_PKG_VERSION").to_string();
@@ -197,6 +194,39 @@ mod tests {
         fs::write(&path, "{not-json").unwrap();
         assert_eq!(inspect_runtime_schema(&root).state, SchemaState::Invalid);
 
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn backup_only_newer_schema_blocks_initialization() {
+        let root = unique_temp_dir("schema-backup-newer");
+        fs::create_dir_all(&root).unwrap();
+        let path = root.join(SCHEMA_FILE);
+        let backup = root.join(format!(".{SCHEMA_FILE}.bak"));
+        let content = format!(
+            r#"{{"schema":{},"createdBy":"future","lastMigratedBy":"future"}}"#,
+            CURRENT_RUNTIME_SCHEMA + 1
+        );
+        fs::write(&backup, &content).unwrap();
+        assert_eq!(ensure_runtime_schema(&root).unwrap_err().kind(), std::io::ErrorKind::InvalidData);
+        assert_eq!(inspect_runtime_schema(&root).state, SchemaState::NewerThanApp);
+        assert_eq!(fs::read_to_string(&path).unwrap(), content);
+        assert!(!backup.exists());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn backup_only_current_schema_is_ready_not_missing() {
+        let root = unique_temp_dir("schema-backup-current");
+        fs::create_dir_all(&root).unwrap();
+        let backup = root.join(format!(".{SCHEMA_FILE}.bak"));
+        fs::write(&backup, format!(
+            r#"{{"schema":{},"createdBy":"previous","lastMigratedBy":"previous"}}"#,
+            CURRENT_RUNTIME_SCHEMA
+        )).unwrap();
+        assert_eq!(inspect_runtime_schema(&root).state, SchemaState::Ready);
+        assert!(!backup.exists());
+        assert!(root.join(SCHEMA_FILE).is_file());
         fs::remove_dir_all(root).unwrap();
     }
 
