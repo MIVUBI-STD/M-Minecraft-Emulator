@@ -67,7 +67,23 @@ fn recover_interrupted_replace(path: &Path) -> io::Result<()> {
 
     match (path.exists(), backup.exists()) {
         (false, true) => fs::rename(backup, path),
-        (true, true) => fs::remove_file(backup),
+        (true, true) => {
+            // A crash may leave an incomplete primary beside the original.
+            // Preserve the last candidate backup if the primary is corrupt.
+            let current = fs::read_to_string(path)?;
+            if path.extension().is_some_and(|ext| ext.eq_ignore_ascii_case("json")) {
+                serde_json::from_str::<serde_json::Value>(&current).map_err(|error| {
+                    io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        format!(
+                            "replacement JSON is invalid; recovery backup preserved at {}: {error}",
+                            backup.display()
+                        ),
+                    )
+                })?;
+            }
+            fs::remove_file(backup)
+        },
         _ => Ok(()),
     }
 }
@@ -164,16 +180,44 @@ mod tests {
     }
 
     #[test]
+    fn corrupted_primary_keeps_backup_until_explicit_recovery() {
+        let root = unique_temp_dir("preserve-backup");
+        fs::create_dir_all(&root).unwrap();
+        let path = root.join("state.json");
+        let backup = backup_path(&path).unwrap();
+        fs::write(&path, "{not valid json").unwrap();
+        fs::write(&backup, r#"{"account":"original"}"#).unwrap();
+
+        assert_eq!(
+            read_text_recovering(&path).unwrap_err().kind(),
+            std::io::ErrorKind::InvalidData
+        );
+        assert_eq!(
+            write_text_transactional(&path, r#"{"account":"replacement"}"#)
+                .unwrap_err()
+                .kind(),
+            std::io::ErrorKind::InvalidData
+        );
+        assert_eq!(fs::read_to_string(&backup).unwrap(), r#"{"account":"original"}"#);
+        assert_eq!(fs::read_to_string(&path).unwrap(), "{not valid json");
+
+        fs::remove_file(&path).unwrap();
+        assert_eq!(read_text_recovering(&path).unwrap(), r#"{"account":"original"}"#);
+        assert!(!backup.exists());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn read_discards_stale_backup_after_successful_replace() {
         let root = unique_temp_dir("stale-backup");
         fs::create_dir_all(&root).unwrap();
         let path = root.join("state.json");
         let backup = backup_path(&path).unwrap();
 
-        fs::write(&path, "new\n").unwrap();
-        fs::write(&backup, "old\n").unwrap();
+        fs::write(&path, r#"{"state":"new"}"#).unwrap();
+        fs::write(&backup, r#"{"state":"old"}"#).unwrap();
 
-        assert_eq!(read_text_recovering(&path).unwrap(), "new\n");
+        assert_eq!(read_text_recovering(&path).unwrap(), r#"{"state":"new"}"#);
         assert!(!backup.exists());
 
         fs::remove_dir_all(root).unwrap();

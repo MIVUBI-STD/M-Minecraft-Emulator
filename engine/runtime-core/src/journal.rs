@@ -6,13 +6,16 @@ use crate::{
 use fs2::FileExt;
 use serde::{Deserialize, Serialize};
 use std::{
-    fs::OpenOptions,
+    fs::{self, File, OpenOptions},
     io,
-    time::{SystemTime, UNIX_EPOCH},
+    thread,
+    time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
 const HISTORY_LIMIT: usize = 200;
 const HISTORY_SCHEMA: u32 = 1;
+const HISTORY_LOCK_ATTEMPTS: usize = 5;
+const HISTORY_LOCK_INTERVAL: Duration = Duration::from_millis(20);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
@@ -65,92 +68,117 @@ fn history_path() -> io::Result<std::path::PathBuf> {
     Ok(runtime_root()?.join("operation-history.json"))
 }
 
-pub fn read_operation_history() -> io::Result<Vec<OperationRecord>> {
+fn lock_history_with_deadline(file: &File) -> io::Result<()> {
+    for attempt in 0..HISTORY_LOCK_ATTEMPTS {
+        match FileExt::try_lock_exclusive(file) {
+            Ok(()) => return Ok(()),
+            Err(error) if error.kind() == io::ErrorKind::WouldBlock
+                && attempt + 1 < HISTORY_LOCK_ATTEMPTS =>
+            {
+                thread::sleep(HISTORY_LOCK_INTERVAL);
+            }
+            Err(error) => return Err(error),
+        }
+    }
+    Err(io::Error::new(io::ErrorKind::WouldBlock, "operation history is busy"))
+}
+
+// Reading may recover .bak files; reads must not race a writer's rename.
+fn with_history_lock<T>(operation: impl FnOnce() -> io::Result<T>) -> io::Result<T> {
+    let root = runtime_root()?;
+    fs::create_dir_all(&root)?;
+    let lock_path = root.join(".operation-history.lock");
+    reject_unsafe_existing_file(&lock_path)?;
+    let file = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .open(&lock_path)?;
+    lock_history_with_deadline(&file)?;
+    let outcome = operation();
+    let release = FileExt::unlock(&file);
+    match (outcome, release) {
+        (Err(error), _) => Err(error),
+        (Ok(_), Err(error)) => Err(error),
+        (Ok(value), Ok(())) => Ok(value),
+    }
+}
+
+fn read_operation_history_unlocked() -> io::Result<Vec<OperationRecord>> {
     let path = history_path()?;
+    reject_unsafe_existing_file(&path)?;
     if !path.is_file() {
         return Ok(Vec::new());
     }
-
     let raw = read_text_recovering(&path)?;
     serde_json::from_str(&raw).map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))
 }
 
+pub fn read_operation_history() -> io::Result<Vec<OperationRecord>> {
+    with_history_lock(read_operation_history_unlocked)
+}
+
+fn record_operation_inner<T>(
+    operation: OperationKind,
+    target: Option<String>,
+    result: &io::Result<T>,
+) -> io::Result<()> {
+    let (outcome, error_code, retryable) = match result {
+        Ok(_) => (OperationOutcome::Success, None, false),
+        Err(error) => {
+            let report = ErrorReport::from_io(error);
+            (OperationOutcome::Failed, Some(report.code), report.retryable)
+        }
+    };
+    let timestamp_unix_ms = timestamp_ms()?;
+
+    with_history_lock(|| {
+        // Never discard a corrupt history file to manufacture a fresh record.
+        let mut history = read_operation_history_unlocked()?;
+        history.push(OperationRecord {
+            schema: HISTORY_SCHEMA,
+            timestamp_unix_ms,
+            operation,
+            target,
+            outcome,
+            error_code,
+            retryable,
+        });
+        if history.len() > HISTORY_LIMIT {
+            let remove = history.len() - HISTORY_LIMIT;
+            history.drain(0..remove);
+        }
+        let json = serde_json::to_string_pretty(&history)
+            .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))?;
+        write_text_transactional(&history_path()?, &format!("{json}\n"))
+    })
+}
+
+// The VM result must not be replayed because best-effort journaling failed.
+// Emit only an error kind, never guest paths, user identifiers or tokens.
 pub(crate) fn record_operation<T>(
     operation: OperationKind,
     target: Option<String>,
     result: &io::Result<T>,
 ) {
-    let Ok(root) = runtime_root() else {
-        return;
-    };
-    if std::fs::create_dir_all(&root).is_err() {
-        return;
+    if let Err(error) = record_operation_inner(operation, target, result) {
+        eprintln!(
+            "Virtual Clients operation history unavailable ({:?}); VM result unchanged",
+            error.kind()
+        );
     }
-    let lock_path = root.join(".operation-history.lock");
-    if reject_unsafe_existing_file(&lock_path).is_err() {
-        return;
-    }
-    let Ok(lock) = OpenOptions::new()
-        .read(true)
-        .write(true)
-        .create(true)
-        .open(lock_path)
-    else {
-        return;
-    };
-    if FileExt::try_lock_exclusive(&lock).is_err() {
-        return;
-    }
-
-    let (outcome, error_code, retryable) = match result {
-        Ok(_) => (OperationOutcome::Success, None, false),
-        Err(error) => {
-            let report = ErrorReport::from_io(error);
-            (
-                OperationOutcome::Failed,
-                Some(report.code),
-                report.retryable,
-            )
-        }
-    };
-
-    let Ok(timestamp_unix_ms) = timestamp_ms() else {
-        return;
-    };
-    let Ok(path) = history_path() else {
-        return;
-    };
-
-    let mut history = match read_operation_history() {
-        Ok(history) => history,
-        Err(error) if error.kind() == io::ErrorKind::NotFound => Vec::new(),
-        Err(_) => return,
-    };
-    history.push(OperationRecord {
-        schema: HISTORY_SCHEMA,
-        timestamp_unix_ms,
-        operation,
-        target,
-        outcome,
-        error_code,
-        retryable,
-    });
-
-    if history.len() > HISTORY_LIMIT {
-        let remove = history.len() - HISTORY_LIMIT;
-        history.drain(0..remove);
-    }
-
-    let Ok(json) = serde_json::to_string_pretty(&history) else {
-        return;
-    };
-    let _ = write_text_transactional(&path, &format!("{json}\n"));
-    let _ = FileExt::unlock(&lock);
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{OperationKind, OperationOutcome, OperationRecord, HISTORY_LIMIT};
+    use super::{OperationKind, OperationOutcome, OperationRecord, HISTORY_LIMIT, HISTORY_LOCK_ATTEMPTS, HISTORY_LOCK_INTERVAL};
+
+    #[test]
+    fn lock_contention_has_a_small_explicit_budget() {
+        assert!(HISTORY_LOCK_ATTEMPTS > 1);
+        assert!(HISTORY_LOCK_ATTEMPTS <= 5);
+        assert!(HISTORY_LOCK_INTERVAL.as_millis() <= 20);
+    }
 
     #[test]
     fn history_contract_is_bounded_and_non_sensitive() {

@@ -1,3 +1,16 @@
+## Long-session metadata and operation-history integrity — 2026-10-11
+
+Source fix: The canonical journal now serializes readers and writers under its existing lock, since reads can rename transactional backups. Contended lock admission is bounded to five attempts with a 20 ms interval. Write failures report only a non-sensitive error kind and do not alter the observed VM result. Invalid history is not overwritten with empty records. Existing history schema and 200-record retention are unchanged.
+
+Metadata protection: If primary JSON and a transactional .bak coexist, the primary must be readable and valid JSON before the backup is discarded. Invalid primary and backup are both preserved, with no automatic account-data replacement. This is a syntax guard, not a validation of VMware disk chains or domain schemas.
+
+Safety: No VM disks, snapshots, account-bearing files, Guest Agent wire schema, installed product identity, provider switch or release branch changed.
+
+Proof: REMOTE_GITHUB exact-source/consumer review. Targeted Rust regression sources added; Cargo, Windows/VMware, packaging and G0-G4 remain NOT_EXECUTED. Inherited subprocess handles remain an unresolved platform boundary.
+
+Next: Obtain genuine Cargo source execution for build and package gate, or diagnose process-tree ownership on Windows before applying cancellation to descendants.
+
+
 ## VMware power-state batch observation — 2026-10-11
 
 Status: SOURCE PATCH. Provider now offers one request-scoped read-only multi-client state observation. VMware Workstation implements it using a single vmrun list for provisioned guests and preserves incomplete-clone ERROR vs NOT_PROVISIONED discrimination and suspended-file precedence. Runtime snapshot uses this observation for status; Doctor uses it with old per-client fallback on error. Existing per-action lifecycle admission and mutation reconciliation still call live state; no stale cache is persisted or shared across requests. Fusion/test providers retain default sequential observation behavior. Node/Rust/Windows and G0–G4 NOT_EXECUTED; actual latency savings remain unmeasured. Next: examine provider subprocess pipe ownership and journal failure visibility before package acceptance.
