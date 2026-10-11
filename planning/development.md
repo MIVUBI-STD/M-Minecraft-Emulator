@@ -1,3 +1,51 @@
+## Codex next session — one-pass G0 and localtest handoff (2026-10-12)
+
+**Work:** `emulator/codex-localtest-handoff`; **State: READY_TO_EXECUTE / TESTS_NOT_EXECUTED**. This is the **only current next-session task**. Historical sections below are source change history, not requests to reopen old work. Source baseline before this handoff: `Local` @ `dcf81792ee8f8f40f94d4d2028b0fd771a4d41a6`; always re-read the **live** HEAD because this documentation commit and future work advance it.
+
+**Goal:** make the exact `Local` revision demonstrably buildable into an unsigned Windows x64 NSIS package, check its installed contents/data-preservation on **disposable** Windows, and hand over the first single-guest Minecraft Education test. Do **not** assert product readiness or four-client performance before observed evidence.
+
+### Minimal reading and Codex token budget
+
+1. Read `AGENTS.md`, `GITHUB_RULES.md`, and **this section only** at the top of `planning/development.md` (e.g. `Get-Content planning/development.md -TotalCount 130`). Do not ingest the entire historical ~100 KB development log.
+2. For G0 use `docs/validation/pre-local-test-readiness.md`, `toolchain.json`, `tooling/windows-toolchain/dev.ps1`, and the relevant error's *single* source owner from `docs/system/implementation-map.md`. For later G1–G4 use `docs/validation/acceptance.md` and `docs/validation/client-feasibility.md` only at their actual stage.
+3. Do not repeat broad repository audits, compare unrelated repositories, redesign UI, benchmark speculative providers, duplicate instructions/tests, or perform full-suite re-runs after tiny edits. Execute **one coherent batch**, diagnose the **first real failing command**, repair the smallest owner and dependent regression, then re-run the affected check and **one** pinned G0 batch.
+
+### Phase A — pin revision and resolve the real Cargo graph
+
+- On a clean checkout of `Local`, record `git branch --show-current`, `git rev-parse HEAD`, and `git status --porcelain`. Refuse another branch, a dirty checkout, or a changed HEAD. If `origin/Local` advanced, reconcile using a fast-forward; no force push and no edits to `main`.
+- **Confirmed source blocker as of the baseline:** `apps/desktop/src-tauri/Cargo.lock` is absent; `engine/runtime-core/Cargo.lock` and `apps/desktop/package-lock.json` are present. Never fabricate a Tauri lockfile, dependency graph, checksums, or a test success. Do not copy a lockfile from another project.
+- On Windows x64 with PowerShell 7+, pinned Rust/Cargo **1.98.1** (`x86_64-pc-windows-msvc`) and working authentic registry resolution, run `.\DEV.cmd lock` **once** in the clean checkout. This command does not install guests, launch VMs or commit. Verify the generated desktop lockfile is nonempty and authentic, review its diff, then commit/push **only that generated file** to `Local` when permitted. Re-pin the new HEAD and require a clean checkout. If Cargo/network/toolchain cannot resolve it, report `BLOCKED` with the exact error, and stop; do not weaken `--locked`.
+- The package toolchain additionally requires Node **24.21.0**, npm **11.19.0**, Rust **1.98.1**, PowerShell 7+, MSVC C++ Build Tools, Windows SDK, and appropriate WebView2/NSIS prerequisites. `DEV.cmd` checks pinned language tools but does not prove every OS/SDK prerequisite. Do not silently install system dependencies or change the pins.
+
+### Phase B — run G0 once on the pinned, clean Windows x64 checkout
+
+```powershell
+# From repository root; only after a real committed desktop Cargo.lock exists:
+.\DEV.cmd g0
+```
+
+- `g0` performs toolchain checks, `npm ci`, complete source/typecheck/Vitest/Rust verification, unsigned Windows NSIS build, fresh nonempty installer check, staged CLI + Guest Agent checks and installer SHA-256 output. Record **actual** process exit/result, pinned SHA, installer path/hash and only the necessary failing excerpt; do not label a command as PASS if it did not execute.
+- This batch does **not** inspect an *installed* payload or test uninstall safety. On a truly **disposable** Windows installation/test profile with **no existing account-bearing Virtual Clients data**, separately exercise install → required installed files (`engine/distribution/package-contract.json`) → same-version repair → uninstall → reinstall, verifying the runtime-data sentinel is preserved. Follow the existing `.github/workflows/package-smoke.yml` script's checks as a **reference** if manually reproducing them; the GitHub workflow is dispatch-unavailable while `main` is README-only. Never run an installation/uninstall/cleanup experiment against the user's existing profile, VMware Base, Virtual-01/02/03 or private account storage.
+- **G0 PASS** needs all four real checks at the same exact revision: source, NSIS construction, installed payload, disposable installer preservation. If only `g0` builds successfully, report `G0 PARTIAL OBSERVED`, **not PASS**. Do not sign, release, publish, auto-update, or alter `main`.
+
+### Phase C — first interactive Windows pilot; do not skip to 3 VMs
+
+- Once G0 is genuinely accepted and an explicitly disposable test VM is available, G1 tests **one** Windows 10/11 x64 VMware Workstation scratch guest, *not* an account-bearing Base or Virtual-01/02/03. Boot an interactive desktop, check VMware Tools, install **one** official Windows Minecraft Education variant, and manually sign in with one appropriately licensed organization account. Keep account credentials and device identifiers out of Git.
+- In that **guest's interactive session**, collect read-only `tooling/acceptance/windows/collect-client-feasibility.ps1 -Stage ENVIRONMENT`. Then manually confirm menu, real world rendering and keyboard/mouse interaction for at least **10 minutes** without blocking errors. After real observation collect `-Stage INTERACTIVE` with truthful operator inputs; follow `docs/validation/client-feasibility.md`. VMware guest OpenGL 4.3 vs the Minecraft Education published 4.4 requirement remains an **unproven rendering risk**, not automatically PASS or FAIL. A running process or VM power state is not proof of playable Minecraft.
+- **STOP if G1 fails or is inconclusive.** Only after reviewed G1 proof may G2 (clean Base + 3 unique isolated guests), G3 (Native + 3 licensed usable accounts simultaneously) and G4 (recovery, network and sustained-use observations) be attempted, in the order documented by `docs/validation/acceptance.md`. User/operator must explicitly control account sign-in and any VM operation; never automatically clone, reset, reprovision, delete or modify existing account-bearing disks.
+
+### Strict stop/efficiency rules
+
+- Keep **Local only**, **manual-only** GitHub Actions, current Windows+VMware implementation, and current app/Guest Agent/protocol/installer identities. No automatic CI, App Sandbox provider migration, Android route, new lifecycle authority, release publication, speculative performance threshold changes, mass refactor, or `git clean -fdx`.
+- Distinguish `NOT_EXECUTED` (never run) from `BLOCKED` (known prerequisite failure), `FAIL` (observed required outcome failure) and reviewed `PASS`. Tests at a different SHA do not transfer. Repair concrete regressions at the canonical owner only; do not modify tests merely to force green output.
+- **End-of-run response, short and factual:** (1) branch + before/after SHA and commit paths; (2) commands actually executed with PASS/FAIL/BLOCKED and exact first error; (3) G0's four subchecks and G1–G4 statuses; (4) sanitized evidence paths / installer hash if real; (5) **one** next action or a STOP condition. Record a meaningful new outcome at the top of this file **once per completed batch**, not after every probe. Do not commit raw logs, tokens, VM images, screenshots containing account information or test guest data.
+
+### Single prompt to paste into Codex
+
+> Work only on `MIVUBI-STD/M-Minecraft-Emulator` branch `Local`. Follow `AGENTS.md` and `GITHUB_RULES.md`, then read **only the top "Codex next session" section** of `planning/development.md`. Execute the Phase A → B handoff as far as your *actual* environment allows, and prepare Phase C without starting or altering account-bearing VMs. Use the existing commands/contracts; no broad audit, CI changes, new features, duplicate files or invented success. Commit only grounded minimal fixes to `Local` with real evidence; stop at the first external/runtime blocker and report exact SHA, what ran, G0–G4 status and one next action.
+
+---
+
 ## Pre-local idle resource efficiency — 2026-10-12
 
 **Work:** `emulator/pre-local-runtime-idle-efficiency`; **State: SOURCE_PATCHED / EXECUTION_UNPROVEN**. Canonical CPU/RAM pressure and CPU/memory capacity probes use a minimally initialized `sysinfo::System` and explicitly refresh only the metrics required, avoiding full host process enumeration in snapshot/start admission. The existing Windows Screen Overlay worker now blocks on its existing command channel while no overlay windows exist; active overlay paint polling remains unchanged. The G0 host-target detection from the prior batch was also clarified to capture the Rust host triple explicitly. Public schemas, admission thresholds, installed identity and VM disks are untouched.

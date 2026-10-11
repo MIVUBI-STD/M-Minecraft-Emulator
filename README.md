@@ -20,7 +20,7 @@ AGENTS.md → GITHUB_RULES.md → docs/system/implementation-map.md
 
 An operator does **not** need a local checkout to complete repository/source-verifiable tasks. Windows or Minecraft acceptance is a separate, higher proof context. `DEV.cmd` is an optional local developer convenience, never the remote GitHub completion requirement.
 
-**Definition of DONE:** [Four simultaneous Minecraft Education accounts](docs/product/four-concurrent-accounts.md). Documentation: [docs/README.md](docs/README.md). Current work and continuation: [planning/development.md](planning/development.md).
+**Definition of DONE:** [Four simultaneous Minecraft Education accounts](docs/product/four-concurrent-accounts.md). Documentation: [docs/README.md](docs/README.md). **Next Codex/localtest handoff:** [read the opening section of planning/development.md](planning/development.md#codex-next-session--one-pass-g0-and-localtest-handoff-2026-10-12) rather than the full development history; full continuation remains in that same canonical file.
 
 ## Choose one work route
 
