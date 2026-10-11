@@ -61,13 +61,20 @@ fn finish(
     macs: &mut HashSet<String>, disks: &mut HashSet<String>,
 ) -> Result<(), &'static str> {
     let name = block.get("Name").ok_or("INVALID_VM_REGISTRY")?;
-    if name.is_empty() || name.len() > 15
-        || !name.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-')
+    let os = block.get("OsType").ok_or("INVALID_VM_REGISTRY")?;
+    let max_name_len = match *os {
+        "Windows" => 15,
+        "Linux" => 63,
+        _ => return Err("INVALID_VM_REGISTRY"),
+    };
+    if name.is_empty() || name.len() > max_name_len
+        || name.starts_with('-') || name.ends_with('-')
+        || name.bytes().all(|ch| ch.is_ascii_digit())
+        || !name.bytes().all(|ch| ch.is_ascii_alphanumeric() || ch == b'-')
+        || (*os == "Linux" && name.bytes().any(|ch| ch.is_ascii_uppercase()))
     {
         return Err("INVALID_VM_REGISTRY");
     }
-    let os = block.get("OsType").ok_or("INVALID_VM_REGISTRY")?;
-    if !["Windows", "Linux"].contains(os) { return Err("INVALID_VM_REGISTRY"); }
     let vhdx = block.get("VhdxPath").ok_or("INVALID_VM_REGISTRY")?;
     let (active_vhdx, vm_root, shared_parent) = disk_path(name, vhdx)?;
     let mac = match block.get("MacAddress") {
@@ -189,6 +196,15 @@ mod tests {
         assert!(parse_config(&format!("[VM]\n{FIRST}\n[VM]\n{}", FIRST.replace("Virtual-01","virtual-01"))).is_err());
         assert!(parse_config(&format!("[VM]\n{}", FIRST.replace("disk.vhdx", r"..\disk.vhdx"))).is_err());
         assert!(parse_config(&format!("[VM]\n{FIRST}MacAddress=02-AA-BB-CC-DD-09\n")).is_err());
+    }
+    #[test]
+    fn unrelated_linux_hostnames_do_not_invalidate_valid_windows_vm_records() {
+        let linux_name = "my-long-linux-virtual-machine-created-by-another-user";
+        let linux = format!("Name={linux_name}\nOsType=Linux\nVhdxPath=C:\\VMs\\{linux_name}\\disk.vhdx\n");
+        let report = parse_config(&format!("[VM]\n{FIRST}\n[VM]\n{linux}")).unwrap();
+        assert_eq!(report.entries.len(), 2);
+        assert!(report.vm("Virtual-01").is_some());
+        assert!(parse_config(&format!("[VM]\n{}", linux.replace("OsType=Linux", "OsType=Windows"))).is_err());
     }
     #[test]
     fn accept_bom_encodings_and_differencing_disks_without_writing() {
