@@ -5,6 +5,9 @@ mod workstation;
 mod process;
 mod storage;
 mod vmx;
+mod app_sandbox;
+
+pub(crate) use app_sandbox::inspect as inspect_app_sandbox;
 
 pub(crate) use process::{command_output, command_output_with_timeout, wait_for_state};
 pub(crate) use storage::{cleanup_staging, ensure_parent, has_suspend_state, promote_staging_vm, remove_vm_container, staging_residue_count};

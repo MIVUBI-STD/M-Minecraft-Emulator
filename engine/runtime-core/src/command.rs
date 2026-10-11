@@ -70,7 +70,16 @@ fn execute_value(command: &str, args: &[String]) -> io::Result<Value> {
         }
         "diagnostics" => {
             require_no_args(command, args)?;
-            to_value(app.diagnostics()?)
+            // Explicit CLI diagnostics only. The frequent desktop snapshot and
+            // support bundle never contact the privileged App Sandbox daemon.
+            let mut value = to_value(app.diagnostics()?)?;
+            if let Value::Object(ref mut fields) = value {
+                fields.insert(
+                    "appSandboxInspection".to_string(),
+                    to_value(crate::provider::inspect_app_sandbox())?,
+                );
+            }
+            Ok(value)
         }
         "snapshot" => {
             require_no_args(command, args)?;
