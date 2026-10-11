@@ -1,3 +1,12 @@
+## Pre-local G0 operator path — 2026-10-11
+
+**Source work:** Extended the existing optional Windows `DEV.cmd` -> `tooling/windows-toolchain/dev.ps1` route with `lock` (Cargo's real dependency resolution, no auto-commit) and `g0` (one pinned, clean Local source-build-package pass). The pinned Rust compiler version is checked alongside Node/npm. No VM/guest/account operation occurs. Exact clean Git HEAD and committed Cargo.lock are mandatory for g0. Existing source/package commands remain canonical; this is an orchestrating entrypoint, not a second test framework or another acceptance gate.
+
+**Environment/proof:** This ChatGPT execution container has Node 22.16.0, no cargo/rustc/pwsh, and no network DNS to github.com/index.crates.io. Desktop Cargo.lock cannot be generated here; it remains absent. The PowerShell script is source-authored only, not executed on Windows. G0-G4 remain NOT_EXECUTED. No installation or release to main.
+
+**Next:** In an environment with genuine Cargo registry access, generate/commit the real desktop Cargo.lock on Local; then execute one `DEV.cmd g0` batch and inspect the unsigned installer and disposable installation behavior before any Minecraft gameplay acceptance.
+
+
 ## Source hardening: interrupted metadata and direct-child cleanup — 2026-10-11
 
 **Scope:** Canonical Rust runtime recovery and subprocess code only. A backup-only runtime schema is now read before classifying it as missing, so a newer schema cannot be overwritten during initialization. A backup-only operation journal is restored rather than silently returned empty. Writes detect unfinished PID-scoped temporary metadata from any process (not just the current PID), and a new temporary candidate is preserved if promotion fails. These are data-preserving, fail-closed behaviors, not automatic VM disk recovery.
