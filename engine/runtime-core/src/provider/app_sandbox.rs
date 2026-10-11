@@ -109,6 +109,46 @@ struct DisplayState {
     ready: bool,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SshInfo {
+    host: String,
+    port: u16,
+    #[serde(rename = "user")]
+    _user: String,
+    ssh_state: u8,
+    enabled: bool,
+    key_deployed: bool,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct SshObservation {
+    // Only a forwarding/configuration signal. This is NOT remote-command
+    // authorization and never establishes trusted host identity.
+    key_forwarding_ready: bool,
+    host_key_verified: bool,
+    minecraft_commands_enabled: bool,
+}
+
+fn parse_ssh_info(data: &[u8]) -> Result<SshObservation, &'static str> {
+    let ssh: SshInfo = serde_json::from_slice(data)
+        .map_err(|_| "INVALID_PROVIDER_RESPONSE")?;
+    if ssh.host != "127.0.0.1"
+        || ssh.ssh_state > 4
+        || (ssh.ssh_state == 4 && !ssh.key_deployed)
+        || (ssh.ssh_state == 4 && (!ssh.enabled || ssh.port == 0))
+    {
+        return Err("INVALID_PROVIDER_RESPONSE");
+    }
+    Ok(SshObservation {
+        key_forwarding_ready: ssh.enabled && ssh.ssh_state == 4
+            && ssh.key_deployed && ssh.port > 0,
+        host_key_verified: false,
+        minecraft_commands_enabled: false,
+    })
+}
+
 fn parse_display(data: &[u8]) -> Result<DisplayState, &'static str> {
     let display: DisplayState =
         serde_json::from_slice(data).map_err(|_| "INVALID_PROVIDER_RESPONSE")?;
@@ -139,6 +179,7 @@ pub(crate) struct GuestObservation {
     agent_online: bool,
     display_open: bool,
     display_ready: bool,
+    ssh: SshObservation,
     // No App Sandbox lifecycle command is wired to the product runtime yet.
     // In particular, the upstream stop endpoint is a hard power-off.
     lifecycle_controls_enabled: bool,
@@ -351,7 +392,10 @@ fn inspect_inner() -> Result<AppSandboxInspection, &'static str> {
         let display_route = format!("vms/{}/display", item.name);
         let display_bytes = get_json(&agent, &discovery.endpoint, &display_route, Some(&discovery.token))?;
         let display = parse_display(&display_bytes)?;
-        // The status and display reads are not an atomic snapshot. Keep the
+        let ssh_route = format!("vms/{}/sshInfo", item.name);
+        let ssh_bytes = get_json(&agent, &discovery.endpoint, &ssh_route, Some(&discovery.token))?;
+        let ssh = parse_ssh_info(&ssh_bytes)?;
+        // Status, display and SSH reads are not an atomic snapshot. Keep the
         // latter as a direct, read-only observation; neither allows controls.
         // VM names are observations, not trusted bindings to our account disks.
         guests.push(GuestObservation {
@@ -362,6 +406,7 @@ fn inspect_inner() -> Result<AppSandboxInspection, &'static str> {
             agent_online: status.agent_online,
             display_open: display.open,
             display_ready: display.ready,
+            ssh,
             lifecycle_controls_enabled: false,
             ram_mb: status.ram_mb,
             cpu_cores: status.cpu_cores,
@@ -390,7 +435,7 @@ pub(crate) fn inspect() -> AppSandboxInspection {
 
 #[cfg(test)]
 mod tests {
-    use super::{parse_discovery, parse_display, parse_host, parse_version, parse_vm, parse_vm_list, vm_power_state, VmPowerState};
+    use super::{parse_discovery, parse_display, parse_host, parse_ssh_info, parse_version, parse_vm, parse_vm_list, vm_power_state, VmPowerState};
     use serde_json::json;
 
     #[test]
@@ -480,6 +525,7 @@ mod tests {
             agent_online: true,
             display_open: false,
             display_ready: true,
+            ssh: parse_ssh_info(br#"{"host":"127.0.0.1","port":24000,"user":"Administrator","sshState":4,"enabled":true,"keyDeployed":true}"#).unwrap(),
             lifecycle_controls_enabled: false,
             ram_mb: 4096,
             cpu_cores: 2,
@@ -492,6 +538,27 @@ mod tests {
         assert_eq!(json["ownershipVerified"], false);
         assert_eq!(json["powerState"], "POWERED_ON");
         assert!(json.get("minecraftRunning").is_none());
+        assert_eq!(json["ssh"]["keyForwardingReady"], true);
+        assert_eq!(json["ssh"]["hostKeyVerified"], false);
+        assert_eq!(json["ssh"]["minecraftCommandsEnabled"], false);
+    }
+
+    #[test]
+    fn ssh_forwarding_is_never_equated_with_authenticated_commands() {
+        let ready = br#"{"host":"127.0.0.1","port":24000,"user":"Administrator","sshState":4,"enabled":true,"keyDeployed":true}"#;
+        let parsed = parse_ssh_info(ready).unwrap();
+        assert!(parsed.key_forwarding_ready);
+        assert!(!parsed.host_key_verified);
+        assert!(!parsed.minecraft_commands_enabled);
+        for bad in [
+            br#"{"host":"example.com","port":24000,"user":"Administrator","sshState":4,"enabled":true,"keyDeployed":true}"#.as_slice(),
+            br#"{"host":"127.0.0.1","port":24000,"user":"Administrator","sshState":4,"enabled":true,"keyDeployed":false}"#.as_slice(),
+            br#"{"host":"127.0.0.1","port":0,"user":"Administrator","sshState":4,"enabled":true,"keyDeployed":true}"#.as_slice(),
+        ] {
+            assert!(parse_ssh_info(bad).is_err());
+        }
+        let disabled = br#"{"host":"127.0.0.1","port":0,"user":"Administrator","sshState":0,"enabled":false,"keyDeployed":false}"#;
+        assert!(!parse_ssh_info(disabled).unwrap().key_forwarding_ready);
     }
 
     #[test]

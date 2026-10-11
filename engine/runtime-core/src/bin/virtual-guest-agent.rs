@@ -15,12 +15,54 @@ use std::{
     time::{Duration, Instant},
 };
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    if std::env::args().any(|argument| argument == "--register-interactive-launcher") {
-        return register_interactive_launcher();
+// SSH command execution takes place in sshd's non-interactive session.
+// Reuse the existing signed-in-user launcher for gameplay; no second SYSTEM
+// service, account sign-in automation or listener is created here.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum RunMode { VMwareService, RegisterLauncher, InteractiveLauncher, SshStatus, SshLaunch }
+
+fn run_mode(args: &[String]) -> io::Result<RunMode> {
+    match args {
+        [] => Ok(RunMode::VmwareService),
+        [flag] if flag == "--register-interactive-launcher" => Ok(RunMode::RegisterLauncher),
+        [flag] if flag == "--interactive-launcher" => Ok(RunMode::InteractiveLauncher),
+        [flag] if flag == "--ssh-status" => Ok(RunMode::SshStatus),
+        [flag] if flag == "--ssh-launch-minecraft" => Ok(RunMode::SshLaunch),
+        _ => Err(io::Error::new(io::ErrorKind::InvalidInput, "unsupported guest utility command")),
     }
-    if std::env::args().any(|argument| argument == "--interactive-launcher") {
-        return run_interactive_launcher();
+}
+
+fn current_guest_status() -> GuestStatus {
+    GuestStatus {
+        schema: GUEST_STATUS_SCHEMA,
+        protocol_version: GUEST_AGENT_PROTOCOL_VERSION,
+        agent_version: env!("CARGO_PKG_VERSION").to_string(),
+        minecraft: guest_agent_minecraft_profile(),
+        minecraft_running: Some(minecraft_process_running()),
+        interactive_launcher_ready: Some(interactive_launcher_ready()),
+        machine_identity: guest_machine_identity(),
+    }
+}
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    match run_mode(&args)? {
+        RunMode::RegisterLauncher => return register_interactive_launcher(),
+        RunMode::InteractiveLauncher => return run_interactive_launcher(),
+        RunMode::SshStatus => {
+            // stdout is a single structured response for the authenticated SSH
+            // client, never a VM process/graphics playability certificate.
+            println!("{}", serde_json::to_string(&current_guest_status())?);
+            return Ok(());
+        }
+        RunMode::SshLaunch => {
+            // The existing localhost per-user launcher checks interactive
+            // session availability. SSH itself must not spawn the game.
+            let result = launch_minecraft()?;
+            println!("{}", serde_json::to_string(&result)?);
+            return Ok(());
+        }
+        RunMode::VmwareService => {}
     }
     let token = Arc::new(guest_agent_token()?);
     let active = Arc::new(AtomicUsize::new(0));
@@ -307,18 +349,7 @@ fn handle(mut stream: TcpStream, token: &str, launch_gate: &Mutex<()>) -> Result
     let request_id = request_ids[0];
 
     match first_line {
-        "GET /status HTTP/1.1" => {
-            let status = GuestStatus {
-                schema: GUEST_STATUS_SCHEMA,
-                protocol_version: GUEST_AGENT_PROTOCOL_VERSION,
-                agent_version: env!("CARGO_PKG_VERSION").to_string(),
-                minecraft: guest_agent_minecraft_profile(),
-                minecraft_running: Some(minecraft_process_running()),
-                interactive_launcher_ready: Some(interactive_launcher_ready()),
-                machine_identity: guest_machine_identity(),
-            };
-            write_json(&mut stream, request_id, &status)
-        }
+        "GET /status HTTP/1.1" => write_json(&mut stream, request_id, &current_guest_status()),
         "POST /minecraft/launch HTTP/1.1" => {
             // One interactive launch at a time; status requests remain independent.
             let _launch = match launch_gate.try_lock() {
@@ -525,7 +556,7 @@ fn guest_agent_token() -> io::Result<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{read_guest_request, timing_safe_token_eq, MAX_ACTIVE_REQUESTS, MAX_GUEST_REQUEST_BYTES, MAX_INTERACTIVE_REQUEST_BYTES};
+    use super::{read_guest_request, run_mode, timing_safe_token_eq, RunMode, MAX_ACTIVE_REQUESTS, MAX_GUEST_REQUEST_BYTES, MAX_INTERACTIVE_REQUEST_BYTES};
     use std::{io::{self, Write}, net::{Shutdown, TcpListener, TcpStream}, thread};
 
     #[test]
@@ -568,6 +599,21 @@ mod tests {
                 .unwrap_err().kind(),
             io::ErrorKind::UnexpectedEof
         );
+    }
+
+    #[test]
+    fn ssh_one_shot_modes_do_not_fall_through_to_vmware_service() {
+        assert_eq!(run_mode(&[]).unwrap(), RunMode::VmwareService);
+        assert_eq!(run_mode(&["--ssh-status".into()]).unwrap(), RunMode::SshStatus);
+        assert_eq!(run_mode(&["--ssh-launch-minecraft".into()]).unwrap(), RunMode::SshLaunch);
+        assert_eq!(run_mode(&["--interactive-launcher".into()]).unwrap(), RunMode::InteractiveLauncher);
+        for invalid in [
+            vec!["--ssh-status".into(), "--interactive-launcher".into()],
+            vec!["--unknown-flag".into()],
+            vec!["--ssh-launch-minecraft".into(), "other-command".into()],
+        ] {
+            assert!(run_mode(&invalid).is_err());
+        }
     }
 
     #[test]
