@@ -15,6 +15,7 @@ pub(crate) use vmx::{apply_virtual_hardware_policy, base_state_for_path, ensure_
 
 use crate::{
     client::{ClientId, ClientState},
+    guest::{launch_guest_minecraft, query_guest_status, GuestStatus},
     paths::{client_root, staging_root},
     profile::{current_base_vmx_path, BaseState},
 };
@@ -44,7 +45,11 @@ pub trait Provider {
     // inspected VMware processes and would silently misreport HCS GPU-PV.
     fn host_working_sets_mb(&self) -> io::Result<Vec<(ClientId, u64)>>;
     fn guest_tools_ready(&self, client: ClientId) -> io::Result<Option<bool>>;
-    fn guest_ip_address(&self, client: ClientId) -> io::Result<Option<String>>;
+    // Provider-owned guest transport. HCS must never inherit VMware VMX/IP/token
+    // assumptions or promote its own agent-online signal to Minecraft readiness.
+    fn guest_status(&self, client: ClientId, timeout: Duration) -> io::Result<Option<GuestStatus>>;
+    fn launch_minecraft(&self, client: ClientId, timeout: Duration) -> io::Result<()>;
+    // Identity stays UNKNOWN without a verified, independently unique UUID|MAC.
     fn identity_key(&self, client: ClientId) -> io::Result<Option<String>>;
 
     // A provider-neutral admission fact, rather than looking for .vmx from
@@ -191,8 +196,48 @@ pub(crate) fn snapshot_list_contains(list_output: &str, name: &str) -> bool {
     list_output.lines().map(str::trim).any(|line| line == name)
 }
 
-pub(crate) fn guest_token(client: ClientId) -> io::Result<Option<String>> {
-    guest_token_for_path(&client_vmx_path(client)?)
+// Legacy VMware Guest Agent endpoint stays inside provider ownership.
+// The Windows HCS backend must supply a separately verified guest mechanism.
+fn vmware_guest_connection(
+    provider: &dyn Provider,
+    client: ClientId,
+) -> io::Result<Option<(String, String)>> {
+    let vmx = client_vmx_path(client)?;
+    let Some(ip) = provider.guest_ip_for_path(&vmx)? else {
+        return Ok(None);
+    };
+    let token = guest_token_for_path(&vmx)?.ok_or_else(|| {
+        io::Error::new(
+            io::ErrorKind::NotFound,
+            format!("{} VMware Guest Agent token is missing", client.as_str()),
+        )
+    })?;
+    Ok(Some((ip, token)))
+}
+
+fn vmware_guest_status(
+    provider: &dyn Provider,
+    client: ClientId,
+    timeout: Duration,
+) -> io::Result<Option<GuestStatus>> {
+    let Some((ip, token)) = vmware_guest_connection(provider, client)? else {
+        return Ok(None);
+    };
+    query_guest_status(&ip, &token, timeout).map(Some)
+}
+
+fn vmware_launch_minecraft(
+    provider: &dyn Provider,
+    client: ClientId,
+    timeout: Duration,
+) -> io::Result<()> {
+    let (ip, token) = vmware_guest_connection(provider, client)?.ok_or_else(|| {
+        io::Error::new(
+            io::ErrorKind::NotConnected,
+            format!("{} VMware Guest Agent is unreachable", client.as_str()),
+        )
+    })?;
+    launch_guest_minecraft(&ip, &token, timeout).map(|_| ())
 }
 
 pub(crate) fn guest_tools_state_ready(state: &str) -> bool {

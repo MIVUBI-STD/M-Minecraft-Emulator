@@ -308,25 +308,12 @@ impl Provider for VmwareWorkstationProvider {
         }
     }
 
-    fn guest_ip_address(&self, client: ClientId) -> io::Result<Option<String>> {
-        let vmx = self.require_client(client)?;
-        if !self.running(&vmx)? {
-            return Ok(None);
-        }
+    fn guest_status(&self, client: ClientId, timeout: Duration) -> io::Result<Option<crate::guest::GuestStatus>> {
+        super::vmware_guest_status(self, client, timeout)
+    }
 
-        match command_output_with_timeout(
-            self.require_vmrun()?,
-            [
-                "-T",
-                "ws",
-                "getGuestIPAddress",
-                vmx.to_string_lossy().as_ref(),
-            ],
-            Duration::from_secs(5),
-        ) {
-            Ok(output) => Ok(parse_guest_ip(&output)),
-            Err(_) => Ok(None),
-        }
+    fn launch_minecraft(&self, client: ClientId, timeout: Duration) -> io::Result<()> {
+        super::vmware_launch_minecraft(self, client, timeout)
     }
 
     fn identity_key(&self, client: ClientId) -> io::Result<Option<String>> {

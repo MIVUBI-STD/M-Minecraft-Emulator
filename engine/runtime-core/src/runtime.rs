@@ -28,7 +28,7 @@ use crate::{
     },
     provider::{
         base_state_for_path, cleanup_staging, current_platform_provider,
-        ensure_guest_token_for_path, guest_token, set_base_state_for_path, vmx_file_present, Provider,
+        ensure_guest_token_for_path, set_base_state_for_path, vmx_file_present, Provider,
     },
     resources::{current_host_pressure, HostPressure, StartDecision, VIRTUAL_MEMORY_LIMIT_MB},
     startup::wait_until_start_is_safe,
@@ -428,9 +428,9 @@ fn execute_setup_start(
 }
 
 fn guest_status_once(provider: &dyn Provider, client: ClientId) -> Option<GuestStatus> {
-    let ip = provider.guest_ip_address(client).ok().flatten()?;
-    let token = guest_token(client).ok().flatten()?;
-    query_guest_status(&ip, &token, Duration::from_secs(1)).ok()
+    // A provider must return explicit Minecraft guest evidence. VM/agent online
+    // alone cannot be substituted for the Education-specific GuestStatus.
+    provider.guest_status(client, Duration::from_secs(1)).ok().flatten()
 }
 
 fn lineage_parity(native: Option<&MinecraftProfile>, client: ClientId) -> ProfileParity {
@@ -474,18 +474,11 @@ fn wait_for_guest_compatibility(
             "Native Minecraft Education version could not be detected",
         )
     })?;
-    let token = guest_token(client)?.ok_or_else(|| {
-        io::Error::new(
-            io::ErrorKind::NotFound,
-            format!("{} Guest Agent token is missing", client.as_str()),
-        )
-    })?;
     let started = std::time::Instant::now();
 
     loop {
-        if let Some(ip) = provider.guest_ip_address(client)? {
-            match query_guest_status(&ip, &token, Duration::from_secs(2)) {
-                Ok(status) => {
+        match provider.guest_status(client, Duration::from_secs(2)) {
+                Ok(Some(status)) => {
                     let guest = status.minecraft.as_ref().ok_or_else(|| {
                         io::Error::new(
                             io::ErrorKind::NotFound,
@@ -549,6 +542,7 @@ fn wait_for_guest_compatibility(
 
                     return Ok(status);
                 }
+                Ok(None) => {}
                 Err(error) if guest_probe_error_is_terminal(&error) => {
                     return Err(io::Error::new(
                         error.kind(),
@@ -556,7 +550,6 @@ fn wait_for_guest_compatibility(
                     ));
                 }
                 Err(_) => {}
-            }
         }
 
         if started.elapsed() >= timeout {
@@ -1887,8 +1880,12 @@ mod tests {
             Ok(Some(true))
         }
 
-        fn guest_ip_address(&self, _client: ClientId) -> io::Result<Option<String>> {
+        fn guest_status(&self, _client: ClientId, _timeout: std::time::Duration) -> io::Result<Option<crate::guest::GuestStatus>> {
             Ok(None)
+        }
+
+        fn launch_minecraft(&self, _client: ClientId, _timeout: std::time::Duration) -> io::Result<()> {
+            Self::unsupported()
         }
 
         fn identity_key(&self, client: ClientId) -> io::Result<Option<String>> {
