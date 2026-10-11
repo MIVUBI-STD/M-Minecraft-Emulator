@@ -1,3 +1,37 @@
+## Codex next session — complete disposable G0 installation proof (2026-10-12)
+
+**Work:** `emulator/codex-localtest-handoff`; **State: BLOCKED_ON_DISPOSABLE_INSTALLATION / G0_OBSERVED_INCOMPLETE**. This top section is the only current continuation; everything below the divider is history. Preserve all existing VM/account data and work on `Local` only.
+
+### Observed local batch
+
+- Initial GitHub/checkout SHA: `5cd4b31e58e2635e9a1377cdb2b0416972a45a40`. Windows x64, PowerShell 7.6.5, MSVC Build Tools and Windows SDK present. Session-only toolchain: Node 24.21.0, npm 11.19.0, Rust/Cargo 1.98.1 MSVC; global tools were not replaced.
+- `DEV.cmd lock` executed once at `80af90e038bcde86d02b4b267833b16d81108e0b`, exit 0; crates.io resolved 493 packages. Reviewed authentic desktop lockfile (127265 bytes), locked/offline/no-deps metadata exit 0; committed only that lockfile in `5add416b32ac8d255b08ed72d65ed3b02f0ed190`.
+- Actual failures repaired at their owners: launcher Git newline normalization; stale npm-routing/Finish setup tests; shell splitting of spaced icon paths; missing generated-output ignores; registry path borrow/move error; test imports and obsolete BaseProfile field; Guest Agent mode typo; self-scanning test; stale rollback/installer-containment fixtures; mandatory pinned rustfmt; G0 inspector's wrong target directory. No provider migration, new lifecycle authority or weakened safety gate.
+- Initial G0 at `5add416b32ac8d255b08ed72d65ed3b02f0ed190` failed 2/75 Vitest tests; subsequent runs stopped at newly observed errors. Supporting targeted regressions passed before their commits. These earlier runs do not count as final-SHA acceptance.
+- **Verified source/package SHA:** `509ce10f0fd5129e4da2990614651fb57241b256`. Final `DEV.cmd g0` exit **0**, clean committed Local at entry, no tracked content change and unchanged HEAD at completion.
+- At that SHA: repository contracts PASS; feasibility **15/15**; Svelte typecheck **0 errors, 1 existing accessibility warning**; Vitest **75/75**; frontend build PASS; desktop Rust check PASS and tests **10/10**; runtime all-targets check PASS, library **150/150**, Guest Agent **4/4**, CLI contract **2/2**, runtime integration **5/5**; pinned runtime format check PASS. Compiler warnings remain; no warning cleanup was attempted.
+- Unsigned Windows x64 NSIS construction **PASS**; fresh nonempty installer and staged host CLI/Guest Agent verified. Installed payload and installation lifecycle were not exercised.
+- Installer: `apps/desktop/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/M-Bedrock Virtual Clients_0.1.0_x64-setup.exe` (local ignored artifact, not committed).
+- Installer SHA-256: `27417a28e66f4c82762bbbc89214144aa3443dc49c62567caea759db04b87482`.
+- Local source/build log: `D:/Work/AI Stuff/Minecraft-Emulator-Tools/g0-verified.log` (outside checkout, not committed). Isolated Node/npm tools are in the same external directory. No raw logs, secrets, guest data or installers were committed.
+- The documentation commit recording this batch advances HEAD after the tested SHA. Do not claim executable tests ran on that later documentation SHA or combine results from different revisions.
+
+### Remaining proof and one next action
+
+| G0 subcheck / later gate | Actual status |
+| --- | --- |
+| Source integrity at verified SHA | PASS |
+| NSIS construction at verified SHA | PASS |
+| Installed payload completeness | NOT_EXECUTED |
+| Disposable install/repair/uninstall/reinstall preservation | NOT_EXECUTED |
+| Overall G0 | OBSERVED (incomplete), not PASS |
+| G1 / G2 / G3 / G4 | NOT_EXECUTED |
+
+**Next:** prepare an explicitly disposable Windows installation/profile with no account-bearing Virtual Clients data, then inspect and exercise the verified installer: install -> required payload contract -> same-version repair -> uninstall -> reinstall, checking runtime-data sentinel preservation. Use `engine/distribution/package-contract.json` and the existing package-smoke workflow as reference. Keep all evidence bound to the verified source/package SHA; rerun G0 if product source changes. No disposable environment has been established in this batch, so STOP before any installation/uninstallation or VM operation on the existing profile.
+
+Only after reviewed complete G0 may one explicitly disposable VMware guest enter G1. The operator controls licensed account sign-in; never clone/reset/reprovision existing Base or Virtual-01/02/03. Keep `main` untouched and CI manual-only. No application/VM/game launch or sign-in was executed in this batch.
+
+---
 ## Codex next session — one-pass G0 and localtest handoff (2026-10-12)
 
 **Work:** `emulator/codex-localtest-handoff`; **State: READY_TO_EXECUTE / TESTS_NOT_EXECUTED**. This is the **only current next-session task**. Historical sections below are source change history, not requests to reopen old work. Source baseline before this handoff: `Local` @ `dcf81792ee8f8f40f94d4d2028b0fd771a4d41a6`; always re-read the **live** HEAD because this documentation commit and future work advance it.
