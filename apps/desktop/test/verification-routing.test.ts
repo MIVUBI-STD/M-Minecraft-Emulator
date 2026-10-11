@@ -33,10 +33,9 @@ describe("Emulator source verification routing", () => {
   });
 
   it("routes the optional Windows entrypoint through source checks", () => {
-    expect(router).toContain('"check"');
-    expect(router).toContain("npm run verify:source");
-    expect(router).toContain('"setup"');
-    expect(router).toContain("npm run setup");
+    expect(router).toContain("& npm @NpmArguments");
+    expect(router).toMatch(/"check"\s*\{ Invoke-RepositoryNpm -NpmArguments @\("run", "verify:source"\) \}/);
+    expect(router).toMatch(/"setup"\s*\{ Invoke-RepositoryNpm -NpmArguments @\("run", "setup"\) \}/);
     expect(router).not.toMatch(/virtual-clients:verify|M-Bedrock-Dev/);
   });
 });

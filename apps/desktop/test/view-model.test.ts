@@ -79,7 +79,9 @@ describe("Virtual Clients presentation projection", () => {
   });
 
   it("does not offer an impossible Minecraft launch when the interactive launcher is unavailable", () => {
-    expect(primaryClientAction(actions[0], clientStatus("RUNNING", false, false))).toEqual({ kind: "open", label: "Open" });
+    const client = clientStatus("RUNNING", false, false);
+    expect(primaryClientAction(actions[0], client)).toEqual({ kind: "open", label: "Finish setup" });
+    expect(primaryClientAction({ ...actions[0], open: deny }, client)).toBeUndefined();
   });
 
   it("presents internal states in user-facing language", () => {
