@@ -5,8 +5,8 @@ Authority: `MIVUBI-STD/M-Minecraft-Emulator`, branch `Local`. Current GitHub sou
 
 ## Current migration direction — App Sandbox GPU-PV (2026-10-11)
 
-**Work:** `emulator/gpu-pv-migration-design`  
-**State:** ACTIVE / DESIGN ONLY / LEGACY_VMWARE_FROZEN  
+**Work:** `emulator/gpu-pv-migration`  
+**State:** ACTIVE / READ_ONLY_HCS_SOURCE / LEGACY_VMWARE_LIFECYCLE_ACTIVE  
 **Source baseline:** `d568e48dbc9cc518eb29b5a536e12e431aaa0a7b` (before design commit).  
 **Working design:** [GPU-PV Migration Study](../experiments/gpu-pv-migration-design.md), non-authoritative research rather than a new implementation map.
 
@@ -15,7 +15,7 @@ Authority: `MIVUBI-STD/M-Minecraft-Emulator`, branch `Local`. Current GitHub sou
 - Upstream App Sandbox v0.1.9 offers single-process admin-elevated host HCS daemon, loopback token API, NVIDIA native OpenGL route, Mesa D3D12 fallback and asynchronous `202` VM operations. API `shutdown` is graceful; `stop` is **hard power-off**; app exit can terminate its VMs. Current Rust VMware-specific provider, Base and QA_READY assumptions are **not directly portable**.
 - Resource plan is an unproven hypothesis: three guest instances initially 4096 MB and 2 virtual CPUs, staggered, conservative display resolution. RTX 3070 GPU/VRAM and 32 GB system memory are likely limits; do not invent VRAM quotas or performance claims.
 - Software App Sandbox is MIT/free but **three Windows guest licenses and four Minecraft Education entitlements are separate rights**; verify existing eligibility before declaring the complete system free of additional costs.
-- **Proof:** current GitHub code review and upstream/vendor docs only. Node/Rust/installer builds, App Sandbox/GPU-PV/DirectX/OpenGL, Education gameplay, account isolation and all G0–G4 remain `NOT_EXECUTED`. No runtime or other source module touched.
+- **Proof:** GitHub source changes include read-only App Sandbox/SSH/VM registry observation and refactoring of provider-owned facts; these are NOT a complete App Sandbox VM backend. Cargo/Node/installer builds, live App Sandbox/GPU-PV/D3D/OpenGL, Windows sign-in, gameplay, and all G0–G4 are still `NOT_EXECUTED`. No actual Windows guest or account disk was accessed.
 
 **M0 source audit completed:** `experiments/gpu-pv-migration-design.md` now contains method-by-method mapping of the existing Rust `Provider` trait and primary runtime consumers to App Sandbox v0.1.9 API, including no suspend, asynchronous `202`, graceful vs forced stop, non-equivalent guest IP/agent transport, identity, VHDX snapshots, VMware Base/VMX assumptions, and admin daemon lifetime. Mapping is design/source proof only; no GPU or game execution. Windows 11 Enterprise edition is user-confirmed, but its **specific license entitlement for three guest installations is NOT VERIFIED**; product activation alone does not establish virtualization rights.
 
