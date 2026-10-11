@@ -6,7 +6,7 @@
 
 ### Minimal reading and Codex token budget
 
-1. Read `AGENTS.md`, `GITHUB_RULES.md`, and **this section only** at the top of `planning/development.md` (e.g. `Get-Content planning/development.md -TotalCount 130`). Do not ingest the entire historical ~100 KB development log.
+1. Read `AGENTS.md`, `GITHUB_RULES.md`, and **this section only** at the top of `planning/development.md` (at this revision: `Get-Content planning/development.md -TotalCount 47`; for later revisions stop at the first standalone `---` divider). Do not ingest the historical ~100 KB development log.
 2. For G0 use `docs/validation/pre-local-test-readiness.md`, `toolchain.json`, `tooling/windows-toolchain/dev.ps1`, and the relevant error's *single* source owner from `docs/system/implementation-map.md`. For later G1–G4 use `docs/validation/acceptance.md` and `docs/validation/client-feasibility.md` only at their actual stage.
 3. Do not repeat broad repository audits, compare unrelated repositories, redesign UI, benchmark speculative providers, duplicate instructions/tests, or perform full-suite re-runs after tiny edits. Execute **one coherent batch**, diagnose the **first real failing command**, repair the smallest owner and dependent regression, then re-run the affected check and **one** pinned G0 batch.
 
@@ -26,7 +26,7 @@
 
 - `g0` performs toolchain checks, `npm ci`, complete source/typecheck/Vitest/Rust verification, unsigned Windows NSIS build, fresh nonempty installer check, staged CLI + Guest Agent checks and installer SHA-256 output. Record **actual** process exit/result, pinned SHA, installer path/hash and only the necessary failing excerpt; do not label a command as PASS if it did not execute.
 - This batch does **not** inspect an *installed* payload or test uninstall safety. On a truly **disposable** Windows installation/test profile with **no existing account-bearing Virtual Clients data**, separately exercise install → required installed files (`engine/distribution/package-contract.json`) → same-version repair → uninstall → reinstall, verifying the runtime-data sentinel is preserved. Follow the existing `.github/workflows/package-smoke.yml` script's checks as a **reference** if manually reproducing them; the GitHub workflow is dispatch-unavailable while `main` is README-only. Never run an installation/uninstall/cleanup experiment against the user's existing profile, VMware Base, Virtual-01/02/03 or private account storage.
-- **G0 PASS** needs all four real checks at the same exact revision: source, NSIS construction, installed payload, disposable installer preservation. If only `g0` builds successfully, report `G0 PARTIAL OBSERVED`, **not PASS**. Do not sign, release, publish, auto-update, or alter `main`.
+- **G0 PASS** needs all four real checks at the same exact revision: source, NSIS construction, installed payload, disposable installer preservation. If only `g0` builds successfully, report `G0 OBSERVED (incomplete)`, **not PASS**. Do not sign, release, publish, auto-update, or alter `main`.
 
 ### Phase C — first interactive Windows pilot; do not skip to 3 VMs
 
