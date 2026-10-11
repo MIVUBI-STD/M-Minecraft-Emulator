@@ -586,7 +586,7 @@ mod tests {
     }
 
     fn vm(name: &str) -> serde_json::Value {
-        json!({"name":name,"osType":"Windows","diskDirectory":format!(r"C:\\Users\\QA\\AppSandbox\\{}", name),"state":"online","running":true,"agentOnline":true,"installComplete":true,"building":false,"ramMb":4096,"cpuCores":2,"gpuMode":1,"networkMode":1,"displayOpen":true})
+        json!({"name":name,"osType":"Windows","diskDirectory":format!(r"C:\Users\QA\AppSandbox\{}", name),"state":"online","running":true,"agentOnline":true,"installComplete":true,"building":false,"ramMb":4096,"cpuCores":2,"gpuMode":1,"networkMode":1,"displayOpen":true})
     }
 
     #[test]
@@ -693,14 +693,14 @@ mod tests {
 
     #[test]
     fn disk_root_checks_are_non_authorizing_and_fail_closed() {
-        assert_eq!(normalized_disk_root(r"C:\\Users\\QA\\Vm1").unwrap(), r"c:\\users\\qa\\vm1");
-        for bad in [r"C:relative", r"..\\Vm1", r"C:\\Vm1\\..\\Other", r"C:\\Vm1/Other", r"\\\\server\\share", r"C:\\VM\\.", r"C:\\VM\\"] {
+        assert_eq!(normalized_disk_root(r"C:\Users\QA\Vm1").unwrap(), r"c:\users\qa\vm1");
+        for bad in [r"C:relative", r"..\Vm1", r"C:\Vm1\..\Other", r"C:\Vm1/Other", r"\\server\share", r"C:\VM\.", r"C:\VM\"] {
             assert!(normalized_disk_root(bad).is_none(), "{bad}");
         }
         let mut candidate = vm("Virtual-01");
-        candidate["diskDirectory"] = json!(r"C:\\Users\\QA\\Vm1");
+        candidate["diskDirectory"] = json!(r"C:\Users\QA\Vm1");
         assert!(parse_vm(&serde_json::to_vec(&candidate).unwrap()).is_ok());
-        candidate["diskDirectory"] = json!(r"C:\\Users\\QA\\Vm1\\..\\Other");
+        candidate["diskDirectory"] = json!(r"C:\Users\QA\Vm1\..\Other");
         assert!(parse_vm(&serde_json::to_vec(&candidate).unwrap()).is_err());
     }
 
