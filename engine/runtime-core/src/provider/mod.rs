@@ -7,6 +7,7 @@ mod storage;
 mod vmx;
 mod app_sandbox;
 mod app_sandbox_ssh;
+mod app_sandbox_registry;
 
 pub(crate) use app_sandbox::inspect as inspect_app_sandbox;
 

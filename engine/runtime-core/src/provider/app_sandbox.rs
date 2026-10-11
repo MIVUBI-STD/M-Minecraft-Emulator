@@ -169,7 +169,7 @@ fn parse_display(data: &[u8]) -> Result<DisplayState, &'static str> {
 // Reject unstable aliases, relative paths and parent traversals without
 // opening or modifying VM storage. These keys are only same-request evidence,
 // not HCS/VHDX identity or an ownership authorization.
-fn normalized_disk_root(raw: &str) -> Option<String> {
+pub(super) fn normalized_disk_root(raw: &str) -> Option<String> {
     let bytes = raw.as_bytes();
     if bytes.len() < 6 || bytes.len() > 260
         || !bytes[0].is_ascii_alphabetic() || bytes[1] != b':' || bytes[2] != b'\\'
@@ -213,7 +213,6 @@ fn parse_snapshot_pointer(data: &[u8]) -> Result<SnapshotPointer, &'static str> 
         || position.snap_index < -2 || position.branch_index < -1
         || position.snap_index > 127 || position.branch_index > 127
         || (position.snap_index == -1 && position.branch_index != -1)
-        || (position.snap_index == -2 && position.branch_index == -1)
     {
         return Err("INVALID_PROVIDER_RESPONSE");
     }
@@ -256,8 +255,13 @@ pub(crate) struct GuestObservation {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct StorageEvidence {
-    // Same-request checks only: these do not identify an active VHDX chain.
-    unique_directory_among_observed: bool,
+    // The HTTP diskDirectory is a SHARED PARENT, not the VM's active VHDX.
+    // The separately read upstream vms.cfg adds MAC/VHDX paths but still does
+    // not prove HCS disk attachment or account ownership.
+    registry_record_observed: bool,
+    unique_vm_directory: bool,
+    persisted_mac_observed: bool,
+    active_vhdx_path_observed: bool,
     snapshot: SnapshotPointer,
     active_vhdx_verified: bool,
 }
@@ -452,7 +456,10 @@ fn inspect_inner() -> Result<AppSandboxInspection, &'static str> {
     let list_bytes = get_json(&agent, &discovery.endpoint, "vms", Some(&discovery.token))?;
     let records = parse_vm_list(&list_bytes)?;
     let mut guests = Vec::new();
-    let mut storage_roots = HashSet::new();
+    // This file is mutable and occasionally rewritten by the upstream host.
+    // Inaccessible metadata gives UNKNOWN, not permission to replace anything.
+    let registry_before = super::app_sandbox_registry::read_registry().ok();
+    let mut observed_vm_roots = HashSet::new();
     let mut windows_identities = HashSet::new();
     let mut windows_identity_count = 0usize;
     for item in records {
@@ -463,14 +470,22 @@ fn inspect_inner() -> Result<AppSandboxInspection, &'static str> {
         let status_bytes = get_json(&agent, &discovery.endpoint, &route, Some(&discovery.token))?;
         let status = parse_vm(&status_bytes)?;
         if status.name != item.name || status.os_type != "Windows"
-            || !status.disk_directory.eq_ignore_ascii_case(&item.disk_directory)
+            || normalized_disk_root(&status.disk_directory)
+                != normalized_disk_root(&item.disk_directory)
         {
             return Err("INVALID_PROVIDER_RESPONSE");
         }
-        let normalized = normalized_disk_root(&status.disk_directory)
-            .ok_or("INVALID_PROVIDER_RESPONSE")?;
-        if !storage_roots.insert(normalized) {
-            return Err("SHARED_VM_STORAGE_DIRECTORY");
+        let registry_vm = registry_before.as_ref().and_then(|reg| reg.vm(&item.name));
+        if let Some(registry_vm) = registry_vm {
+            if registry_vm.name != item.name
+                || normalized_disk_root(&status.disk_directory).as_deref()
+                    != Some(registry_vm.shared_parent.as_str())
+            {
+                return Err("VM_REGISTRY_STATUS_MISMATCH");
+            }
+            if !observed_vm_roots.insert(registry_vm.vm_root.clone()) {
+                return Err("DUPLICATE_VM_ROOT");
+            }
         }
         let snapshot_route = format!("vms/{}/snapshots", item.name);
         let snapshot_bytes = get_json(&agent, &discovery.endpoint, &snapshot_route, Some(&discovery.token))?;
@@ -512,7 +527,10 @@ fn inspect_inner() -> Result<AppSandboxInspection, &'static str> {
             display_ready: display.ready,
             ssh,
             storage: StorageEvidence {
-                unique_directory_among_observed: true,
+                registry_record_observed: registry_vm.is_some(),
+                unique_vm_directory: registry_vm.is_some(),
+                persisted_mac_observed: registry_vm.is_some_and(|vm| vm.mac.is_some()),
+                active_vhdx_path_observed: registry_vm.is_some(),
                 snapshot,
                 active_vhdx_verified: false,
             },
@@ -525,6 +543,12 @@ fn inspect_inner() -> Result<AppSandboxInspection, &'static str> {
             network_mode: status.network_mode,
             ownership_verified: false,
         });
+    }
+    // Detect registry writes or branch changes while API/SSH observations run.
+    if let Some(before) = &registry_before {
+        if super::app_sandbox_registry::read_registry().as_ref() != Ok(before) {
+            return Err("VM_REGISTRY_CHANGED_DURING_INSPECTION");
+        }
     }
     // Three different MachineGuid hashes are a necessary condition for account
     // isolation, not proof of stable MAC/VHDX identity or Windows entitlements.
@@ -645,7 +669,10 @@ mod tests {
             display_ready: true,
             ssh: parse_ssh_info(br#"{"host":"127.0.0.1","port":24000,"user":"Administrator","sshState":4,"enabled":true,"keyDeployed":true}"#).unwrap(),
             storage: super::StorageEvidence {
-                unique_directory_among_observed: true,
+                registry_record_observed: false,
+                unique_vm_directory: false,
+                persisted_mac_observed: false,
+                active_vhdx_path_observed: false,
                 snapshot: parse_snapshot_pointer(br#"{"current":{"snapIndex":-1,"branchIndex":-1},"snapshots":[],"baseBranches":[]}"#).unwrap(),
                 active_vhdx_verified: false,
             },
@@ -669,6 +696,8 @@ mod tests {
         assert_eq!(json["ssh"]["guestStatusObserved"], false);
         assert_eq!(json["ssh"]["minecraftCommandsEnabled"], false);
         assert_eq!(json["storage"]["activeVhdxVerified"], false);
+        assert_eq!(json["storage"]["uniqueVmDirectory"], false);
+        assert_eq!(json["storage"]["persistedMacObserved"], false);
         assert_eq!(json["windowsIdentityUniqueAcrossThree"], false);
     }
 
@@ -711,7 +740,9 @@ mod tests {
         assert_eq!(base.snap_index, -1);
         assert_eq!(base.branch_index, -1);
         assert!(parse_snapshot_pointer(br#"{"current":{"snapIndex":-1,"branchIndex":0},"snapshots":[],"baseBranches":[]}"#).is_err());
-        assert!(parse_snapshot_pointer(br#"{"current":{"snapIndex":-2,"branchIndex":-1},"snapshots":[],"baseBranches":[]}"#).is_err());
+        // Source can legitimately point at the bare base VHDX (-2/-1).
+        // This is only a cursor, never a recoverable QA_READY checkpoint.
+        assert!(parse_snapshot_pointer(br#"{"current":{"snapIndex":-2,"branchIndex":-1},"snapshots":[],"baseBranches":[]}"#).is_ok());
         let branch = br#"{"current":{"snapIndex":-2,"branchIndex":0},"snapshots":[],"baseBranches":[{"index":0,"name":"safe"}]}"#;
         assert_eq!(parse_snapshot_pointer(branch).unwrap().snap_index, -2);
     }
