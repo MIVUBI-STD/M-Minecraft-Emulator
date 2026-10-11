@@ -12,6 +12,8 @@ pub(super) struct SshProof {
     pub pin_present: bool,
     pub host_key_verified: bool,
     pub guest_status_observed: bool,
+    // Never serialize raw or hashed MachineGuid to UI, logs or Git.
+    pub machine_identity: Option<String>,
 }
 
 const MAX_TRUST_BYTES: u64 = 8192;
@@ -176,9 +178,10 @@ pub(super) fn probe_status(name: &str, user: &str, port: u16) -> SshProof {
     let Some(command) = fixed_ssh_command(&ssh, &hosts, &key, name, user, port) else {
         return proof;
     };
-    if ssh_status(command).is_some() {
+    if let Some(status) = ssh_status(command) {
         proof.host_key_verified = true;
         proof.guest_status_observed = true;
+        proof.machine_identity = status.machine_identity;
     }
     proof
 }

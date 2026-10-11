@@ -81,6 +81,8 @@ struct VmList {
 struct VmState {
     name: String,
     os_type: String,
+    // App Sandbox status returns a directory, not active VHDX or MAC identity.
+    disk_directory: String,
     state: String,
     running: bool,
     agent_online: bool,
@@ -164,6 +166,60 @@ fn parse_display(data: &[u8]) -> Result<DisplayState, &'static str> {
     Ok(display)
 }
 
+// Reject unstable aliases, relative paths and parent traversals without
+// opening or modifying VM storage. These keys are only same-request evidence,
+// not HCS/VHDX identity or an ownership authorization.
+fn normalized_disk_root(raw: &str) -> Option<String> {
+    let bytes = raw.as_bytes();
+    if bytes.len() < 6 || bytes.len() > 260
+        || !bytes[0].is_ascii_alphabetic() || bytes[1] != b':' || bytes[2] != b'\\'
+        || raw.contains('/') || raw.contains(['\0', '*', '?', '"', '<', '>', '|'])
+    {
+        return None;
+    }
+    let mut normalized = String::new();
+    for segment in raw[3..].split('\\') {
+        if segment.is_empty() || segment == "." || segment == ".."
+            || segment.ends_with(' ') || segment.ends_with('.') || segment.contains(':')
+        {
+            return None;
+        }
+        if !normalized.is_empty() { normalized.push('\\'); }
+        normalized.push_str(&segment.to_lowercase());
+    }
+    Some(format!("{}:\\{normalized}", (bytes[0] as char).to_ascii_lowercase()))
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct SnapshotPointer {
+    snap_index: i32,
+    branch_index: i32,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SnapshotState {
+    current: SnapshotPointer,
+    snapshots: Vec<serde_json::Value>,
+    base_branches: Vec<serde_json::Value>,
+}
+
+fn parse_snapshot_pointer(data: &[u8]) -> Result<SnapshotPointer, &'static str> {
+    let report: SnapshotState = serde_json::from_slice(data)
+        .map_err(|_| "INVALID_PROVIDER_RESPONSE")?;
+    let position = report.current;
+    if report.snapshots.len() > 128 || report.base_branches.len() > 128
+        || position.snap_index < -2 || position.branch_index < -1
+        || position.snap_index > 127 || position.branch_index > 127
+        || (position.snap_index == -1 && position.branch_index != -1)
+        || (position.snap_index == -2 && position.branch_index == -1)
+    {
+        return Err("INVALID_PROVIDER_RESPONSE");
+    }
+    Ok(position)
+}
+
 fn vm_power_state(state: &str) -> VmPowerState {
     match state {
         "stopped" => VmPowerState::PoweredOff,
@@ -184,6 +240,9 @@ pub(crate) struct GuestObservation {
     display_open: bool,
     display_ready: bool,
     ssh: SshObservation,
+    storage: StorageEvidence,
+    windows_identity_observed: bool,
+    windows_identity_unique_across_three: bool,
     // No App Sandbox lifecycle command is wired to the product runtime yet.
     // In particular, the upstream stop endpoint is a hard power-off.
     lifecycle_controls_enabled: bool,
@@ -192,6 +251,15 @@ pub(crate) struct GuestObservation {
     gpu_mode: u8,
     network_mode: u8,
     ownership_verified: bool,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct StorageEvidence {
+    // Same-request checks only: these do not identify an active VHDX chain.
+    unique_directory_among_observed: bool,
+    snapshot: SnapshotPointer,
+    active_vhdx_verified: bool,
 }
 
 fn parse_discovery(data: &[u8]) -> Result<Discovery, &'static str> {
@@ -239,6 +307,7 @@ fn parse_vm(data: &[u8]) -> Result<VmState, &'static str> {
     if vm.name.is_empty()
         || vm.name.len() > 15
         || !vm.name.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-')
+        || normalized_disk_root(&vm.disk_directory).is_none()
         || vm.cpu_cores == 0
         || vm.ram_mb < 512
         || vm.gpu_mode > 1
@@ -383,6 +452,9 @@ fn inspect_inner() -> Result<AppSandboxInspection, &'static str> {
     let list_bytes = get_json(&agent, &discovery.endpoint, "vms", Some(&discovery.token))?;
     let records = parse_vm_list(&list_bytes)?;
     let mut guests = Vec::new();
+    let mut storage_roots = HashSet::new();
+    let mut windows_identities = HashSet::new();
+    let mut windows_identity_count = 0usize;
     for item in records {
         if !is_tracked_guest(&item.name) {
             continue;
@@ -390,15 +462,26 @@ fn inspect_inner() -> Result<AppSandboxInspection, &'static str> {
         let route = format!("vms/{}", item.name);
         let status_bytes = get_json(&agent, &discovery.endpoint, &route, Some(&discovery.token))?;
         let status = parse_vm(&status_bytes)?;
-        if status.name != item.name || status.os_type != "Windows" {
+        if status.name != item.name || status.os_type != "Windows"
+            || !status.disk_directory.eq_ignore_ascii_case(&item.disk_directory)
+        {
             return Err("INVALID_PROVIDER_RESPONSE");
         }
+        let normalized = normalized_disk_root(&status.disk_directory)
+            .ok_or("INVALID_PROVIDER_RESPONSE")?;
+        if !storage_roots.insert(normalized) {
+            return Err("SHARED_VM_STORAGE_DIRECTORY");
+        }
+        let snapshot_route = format!("vms/{}/snapshots", item.name);
+        let snapshot_bytes = get_json(&agent, &discovery.endpoint, &snapshot_route, Some(&discovery.token))?;
+        let snapshot = parse_snapshot_pointer(&snapshot_bytes)?;
         let display_route = format!("vms/{}/display", item.name);
         let display_bytes = get_json(&agent, &discovery.endpoint, &display_route, Some(&discovery.token))?;
         let display = parse_display(&display_bytes)?;
         let ssh_route = format!("vms/{}/sshInfo", item.name);
         let ssh_bytes = get_json(&agent, &discovery.endpoint, &ssh_route, Some(&discovery.token))?;
         let mut ssh = parse_ssh_info(&ssh_bytes)?;
+        let mut windows_identity_observed = false;
         if ssh.key_forwarding_ready {
             let info: SshInfo = serde_json::from_slice(&ssh_bytes)
                 .map_err(|_| "INVALID_PROVIDER_RESPONSE")?;
@@ -408,6 +491,13 @@ fn inspect_inner() -> Result<AppSandboxInspection, &'static str> {
             ssh.host_key_pin_present = proof.pin_present;
             ssh.host_key_verified = proof.host_key_verified;
             ssh.guest_status_observed = proof.guest_status_observed;
+            if let Some(identity) = proof.machine_identity {
+                windows_identity_observed = true;
+                if !windows_identities.insert(identity) {
+                    return Err("DUPLICATE_WINDOWS_MACHINE_IDENTITY");
+                }
+                windows_identity_count += 1;
+            }
         }
         // Status, display and SSH reads are not an atomic snapshot. Keep the
         // latter as a direct, read-only observation; neither allows controls.
@@ -421,6 +511,13 @@ fn inspect_inner() -> Result<AppSandboxInspection, &'static str> {
             display_open: display.open,
             display_ready: display.ready,
             ssh,
+            storage: StorageEvidence {
+                unique_directory_among_observed: true,
+                snapshot,
+                active_vhdx_verified: false,
+            },
+            windows_identity_observed,
+            windows_identity_unique_across_three: false,
             lifecycle_controls_enabled: false,
             ram_mb: status.ram_mb,
             cpu_cores: status.cpu_cores,
@@ -428,6 +525,13 @@ fn inspect_inner() -> Result<AppSandboxInspection, &'static str> {
             network_mode: status.network_mode,
             ownership_verified: false,
         });
+    }
+    // Three different MachineGuid hashes are a necessary condition for account
+    // isolation, not proof of stable MAC/VHDX identity or Windows entitlements.
+    if guests.len() == 3 && windows_identity_count == 3 {
+        for guest in &mut guests {
+            guest.windows_identity_unique_across_three = true;
+        }
     }
     Ok(AppSandboxInspection {
         state: "OBSERVED",
@@ -449,7 +553,7 @@ pub(crate) fn inspect() -> AppSandboxInspection {
 
 #[cfg(test)]
 mod tests {
-    use super::{parse_discovery, parse_display, parse_host, parse_ssh_info, parse_version, parse_vm, parse_vm_list, vm_power_state, VmPowerState};
+    use super::{normalized_disk_root, parse_discovery, parse_display, parse_host, parse_snapshot_pointer, parse_ssh_info, parse_version, parse_vm, parse_vm_list, vm_power_state, VmPowerState};
     use serde_json::json;
 
     #[test]
@@ -482,7 +586,7 @@ mod tests {
     }
 
     fn vm(name: &str) -> serde_json::Value {
-        json!({"name":name,"osType":"Windows","state":"online","running":true,"agentOnline":true,"installComplete":true,"building":false,"ramMb":4096,"cpuCores":2,"gpuMode":1,"networkMode":1,"displayOpen":true})
+        json!({"name":name,"osType":"Windows","diskDirectory":format!(r"C:\\Users\\QA\\AppSandbox\\{}", name),"state":"online","running":true,"agentOnline":true,"installComplete":true,"building":false,"ramMb":4096,"cpuCores":2,"gpuMode":1,"networkMode":1,"displayOpen":true})
     }
 
     #[test]
@@ -540,6 +644,13 @@ mod tests {
             display_open: false,
             display_ready: true,
             ssh: parse_ssh_info(br#"{"host":"127.0.0.1","port":24000,"user":"Administrator","sshState":4,"enabled":true,"keyDeployed":true}"#).unwrap(),
+            storage: super::StorageEvidence {
+                unique_directory_among_observed: true,
+                snapshot: parse_snapshot_pointer(br#"{"current":{"snapIndex":-1,"branchIndex":-1},"snapshots":[],"baseBranches":[]}"#).unwrap(),
+                active_vhdx_verified: false,
+            },
+            windows_identity_observed: false,
+            windows_identity_unique_across_three: false,
             lifecycle_controls_enabled: false,
             ram_mb: 4096,
             cpu_cores: 2,
@@ -557,6 +668,8 @@ mod tests {
         assert_eq!(json["ssh"]["hostKeyVerified"], false);
         assert_eq!(json["ssh"]["guestStatusObserved"], false);
         assert_eq!(json["ssh"]["minecraftCommandsEnabled"], false);
+        assert_eq!(json["storage"]["activeVhdxVerified"], false);
+        assert_eq!(json["windowsIdentityUniqueAcrossThree"], false);
     }
 
     #[test]
@@ -575,6 +688,32 @@ mod tests {
         }
         let disabled = br#"{"host":"127.0.0.1","port":0,"user":"Administrator","sshState":0,"enabled":false,"keyDeployed":false}"#;
         assert!(!parse_ssh_info(disabled).unwrap().key_forwarding_ready);
+    }
+
+
+    #[test]
+    fn disk_root_checks_are_non_authorizing_and_fail_closed() {
+        assert_eq!(normalized_disk_root(r"C:\\Users\\QA\\Vm1").unwrap(), r"c:\\users\\qa\\vm1");
+        for bad in [r"C:relative", r"..\\Vm1", r"C:\\Vm1\\..\\Other", r"C:\\Vm1/Other", r"\\\\server\\share", r"C:\\VM\\.", r"C:\\VM\\"] {
+            assert!(normalized_disk_root(bad).is_none(), "{bad}");
+        }
+        let mut candidate = vm("Virtual-01");
+        candidate["diskDirectory"] = json!(r"C:\\Users\\QA\\Vm1");
+        assert!(parse_vm(&serde_json::to_vec(&candidate).unwrap()).is_ok());
+        candidate["diskDirectory"] = json!(r"C:\\Users\\QA\\Vm1\\..\\Other");
+        assert!(parse_vm(&serde_json::to_vec(&candidate).unwrap()).is_err());
+    }
+
+    #[test]
+    fn snapshot_cursor_is_observational_and_rejects_inconsistent_positions() {
+        let initial = br#"{"current":{"snapIndex":-1,"branchIndex":-1},"snapshots":[],"baseBranches":[]}"#;
+        let base = parse_snapshot_pointer(initial).unwrap();
+        assert_eq!(base.snap_index, -1);
+        assert_eq!(base.branch_index, -1);
+        assert!(parse_snapshot_pointer(br#"{"current":{"snapIndex":-1,"branchIndex":0},"snapshots":[],"baseBranches":[]}"#).is_err());
+        assert!(parse_snapshot_pointer(br#"{"current":{"snapIndex":-2,"branchIndex":-1},"snapshots":[],"baseBranches":[]}"#).is_err());
+        let branch = br#"{"current":{"snapIndex":-2,"branchIndex":0},"snapshots":[],"baseBranches":[{"index":0,"name":"safe"}]}"#;
+        assert_eq!(parse_snapshot_pointer(branch).unwrap().snap_index, -2);
     }
 
     #[test]
