@@ -212,7 +212,9 @@ fn run_interactive_launcher() -> Result<(), Box<dyn std::error::Error>> {
         stream.set_read_timeout(Some(Duration::from_secs(2)))?;
         stream.set_write_timeout(Some(INTERACTIVE_LAUNCH_TIMEOUT))?;
         let mut request = String::new();
-        stream
+        // Read::take consumes its receiver. Borrow the socket so the same
+        // connection can send an explicit response after the bounded read.
+        (&mut stream)
             .take(MAX_INTERACTIVE_REQUEST_BYTES + 1)
             .read_to_string(&mut request)?;
         if request.len() as u64 > MAX_INTERACTIVE_REQUEST_BYTES {

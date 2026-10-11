@@ -48,25 +48,29 @@ function Assert-CleanSourceAtHead {
 }
 
 function Test-DeveloperToolchain {
-    param([switch]$AllowMissingDesktopLock)
+    param([switch]$AllowMissingDesktopLock, [switch]$RustOnly)
     $toolchain = Get-Content (Join-Path $Root "toolchain.json") -Raw | ConvertFrom-Json
     $errors = [System.Collections.Generic.List[string]]::new()
 
     if ($PSVersionTable.PSVersion.Major -lt [int]$toolchain.powershell.minimumMajor) {
         $errors.Add("PowerShell 7+ is required for DEV.cmd.")
     }
-    foreach ($tool in @("node", "npm", "rustc", "cargo")) {
+    $requiredTools = @("rustc", "cargo")
+    if (-not $RustOnly) {
+        $requiredTools += @("node", "npm", "rustfmt")
+    }
+    foreach ($tool in $requiredTools) {
         if (-not (Get-Command $tool -ErrorAction SilentlyContinue)) {
             $errors.Add("$tool is unavailable.")
         }
     }
-    if (Get-Command node -ErrorAction SilentlyContinue) {
+    if (-not $RustOnly -and (Get-Command node -ErrorAction SilentlyContinue)) {
         $actual = (& node --version).Trim().TrimStart("v")
         if ($actual -ne [string]$toolchain.node.version) {
             $errors.Add("Node v$actual does not match pinned v$($toolchain.node.version).")
         }
     }
-    if (Get-Command npm -ErrorAction SilentlyContinue) {
+    if (-not $RustOnly -and (Get-Command npm -ErrorAction SilentlyContinue)) {
         $actual = (& npm --version).Trim()
         if ($actual -ne [string]$toolchain.npm.version) {
             $errors.Add("npm $actual does not match pinned $($toolchain.npm.version).")
@@ -80,13 +84,13 @@ function Test-DeveloperToolchain {
             $errors.Add("Rust $($Matches[1]) does not match pinned $($toolchain.rust.version).")
         }
     }
-    if (-not (Test-Path "apps/desktop/package-lock.json")) {
+    if (-not $RustOnly -and -not (Test-Path "apps/desktop/package-lock.json")) {
         $errors.Add("Canonical desktop npm lockfile is missing.")
     }
-    if (-not (Test-Path "engine/runtime-core/Cargo.lock")) {
+    if (-not $RustOnly -and -not (Test-Path "engine/runtime-core/Cargo.lock")) {
         $errors.Add("Canonical backend Cargo.lock is missing.")
     }
-    if (-not $AllowMissingDesktopLock -and -not (Test-Path $DesktopLock)) {
+    if (-not $RustOnly -and -not $AllowMissingDesktopLock -and -not (Test-Path $DesktopLock)) {
         $errors.Add("Desktop Cargo.lock is missing. DEV.cmd lock can generate it using real Cargo.")
     }
 
@@ -100,8 +104,10 @@ function Test-DeveloperToolchain {
 # Create ONLY the missing desktop lockfile. Never synthesize dependency versions,
 # modify the user's VM storage, commit automatically or promote Local to main.
 function New-DesktopCargoLock {
-    [void](Assert-LocalCheckout)
-    Test-DeveloperToolchain -AllowMissingDesktopLock
+    $sha = Assert-LocalCheckout
+    Assert-CleanSourceAtHead -ExpectedSha $sha
+    # Rust dependency resolution does not require Node/npm or frontend packages.
+    Test-DeveloperToolchain -AllowMissingDesktopLock -RustOnly
     if (-not (Get-Command cargo -ErrorAction SilentlyContinue)) {
         throw "Cargo is required for genuine desktop dependency resolution."
     }
@@ -112,7 +118,11 @@ function New-DesktopCargoLock {
     if ($LASTEXITCODE -ne 0 -or -not (Test-Path $DesktopLock)) {
         throw "Cargo dependency resolution failed. No lockfile completeness is claimed."
     }
-    Write-Host "Cargo generated $DesktopLock from the actual registry graph."
+    $after = (& git rev-parse --verify HEAD).Trim()
+    if ($LASTEXITCODE -ne 0 -or $after -ne $sha) {
+        throw "Git HEAD changed during Cargo resolution. The generated lockfile is unverified; do not commit it blindly."
+    }
+    Write-Host "Cargo generated $DesktopLock from the actual registry graph for HEAD $sha."
     Write-Host "Review it, then commit and push it to Local. G0 cannot pass on an uncommitted lockfile."
     Write-Host "Example: git add -- $DesktopLock ; git commit -m 'build(desktop): lock resolved Cargo dependencies'"
 }

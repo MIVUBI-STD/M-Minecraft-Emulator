@@ -102,6 +102,11 @@ requireFact(rootPackage.scripts["verify:source"].includes("npm run test:feasibil
 requireFact(read("apps/desktop/src/App.svelte").includes(
   "!shouldShowClientControls(snapshot.doctor.nextSetupAction)"),
   "Client-owned setup actions must show real client controls, not the setup wizard");
+const windowsToolchain = read("tooling/windows-toolchain/dev.ps1");
+requireFact(windowsToolchain.includes("Test-DeveloperToolchain -AllowMissingDesktopLock -RustOnly") &&
+  windowsToolchain.includes("Assert-CleanSourceAtHead -ExpectedSha $sha") &&
+  windowsToolchain.includes("cargo generate-lockfile --manifest-path $DesktopManifest"),
+  "Desktop Cargo.lock must use real Cargo on an exact clean Local checkout");
 const guestUninstall = read("engine/guest/windows/uninstall-guest-agent.ps1");
 requireFact(guestUninstall.includes("Remove-Item -LiteralPath $agent") &&
   !guestUninstall.includes("Remove-Item -LiteralPath $root -Recurse"),

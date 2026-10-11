@@ -30,9 +30,9 @@ Start-Process -FilePath 'explorer.exe' -ArgumentList ('shell:AppsFolder\' + $app
         Path::new("powershell.exe"),
         ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", SCRIPT],
         Duration::from_secs(12),
-    ).map(|_| ()).map_err(|_| io::Error::new(
-        io::ErrorKind::NotFound,
-        "Minecraft Education Start menu launch was not accepted. Check that the official desktop or Store version is installed.",
+    ).map(|_| ()).map_err(|error| io::Error::new(
+        error.kind(),
+        format!("Minecraft Education launch request failed: {error}"),
     ))
 }
 

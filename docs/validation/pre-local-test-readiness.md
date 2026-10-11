@@ -46,6 +46,8 @@ Record the pinned GitHub SHA, command/environment **only if actually executed**,
 .\DEV.cmd lock    # only while the desktop Cargo.lock is missing; performs real Cargo registry resolution
 ```
 
+The `lock` command checks the exact clean `Local` checkout and pinned Rust/Cargo toolchain; it deliberately does **not** require Node/npm, which are needed later for G0, not for Rust dependency resolution. Cargo still requires genuine crate index access or a usable cached index. It will not synthesize a lockfile when resolution is unavailable.
+
 Review the generated `apps/desktop/src-tauri/Cargo.lock`, then commit and push it to `Local`. Do **not** manually construct or copy another application's lockfile. Once that committed lockfile is present in a clean `Local` checkout, the following single batch runs the pinned toolchain check, npm `ci`, exact-revision source checks, and an unsigned Windows NSIS build:
 
 ```powershell
