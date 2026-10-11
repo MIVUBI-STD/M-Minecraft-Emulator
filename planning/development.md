@@ -1,6 +1,6 @@
 ## Codex next session — complete disposable G0 installation proof (2026-10-12)
 
-**Work:** `emulator/codex-localtest-handoff`; **State: BLOCKED_ON_DISPOSABLE_INSTALLATION / G0_OBSERVED_INCOMPLETE**. This top section is the only current continuation; everything below the divider is history. Preserve all existing VM/account data and work on `Local` only.
+**Work:** `emulator/codex-localtest-handoff`; **State: BLOCKED_ON_DISPOSABLE_ENVIRONMENT / G0_OBSERVED_INCOMPLETE**. This top section is the only current continuation; everything below the divider is history. Preserve all existing VM/account data and work on `Local` only.
 
 ### Observed local batch
 
@@ -15,6 +15,7 @@
 - Installer SHA-256: `27417a28e66f4c82762bbbc89214144aa3443dc49c62567caea759db04b87482`.
 - Local source/build log: `D:/Work/AI Stuff/Minecraft-Emulator-Tools/g0-verified.log` (outside checkout, not committed). Isolated Node/npm tools are in the same external directory. No raw logs, secrets, guest data or installers were committed.
 - The documentation commit recording this batch advances HEAD after the tested SHA. Do not claim executable tests ran on that later documentation SHA or combine results from different revisions.
+- Follow-up at `8f32915c51e428d7996ade46772b6e1966ca4244`: actual host inspection confirmed Windows 11 Pro x64; current process Administrator membership **false**; WindowsSandbox executable/current-user package, VMware executable/standard registry entries and Hyper-V Get-VM command not found; Secondary Logon service stopped. A fresh disposable Windows profile cannot be provisioned with this token. Installer hash rechecked and matches the verified hash above. No installer, uninstaller, VM operation, system-feature installation, account creation or new source test was executed.
 
 ### Remaining proof and one next action
 
@@ -27,7 +28,7 @@
 | Overall G0 | OBSERVED (incomplete), not PASS |
 | G1 / G2 / G3 / G4 | NOT_EXECUTED |
 
-**Next:** prepare an explicitly disposable Windows installation/profile with no account-bearing Virtual Clients data, then inspect and exercise the verified installer: install -> required payload contract -> same-version repair -> uninstall -> reinstall, checking runtime-data sentinel preservation. Use `engine/distribution/package-contract.json` and the existing package-smoke workflow as reference. Keep all evidence bound to the verified source/package SHA; rerun G0 if product source changes. No disposable environment has been established in this batch, so STOP before any installation/uninstallation or VM operation on the existing profile.
+**Next:** establish an explicitly disposable Windows environment/profile through an operator-controlled Administrator session; this execution token cannot provision it and no suitable environment was found. Once available, inspect and exercise the verified installer: install -> required payload contract -> same-version repair -> uninstall -> reinstall, checking runtime-data sentinel preservation. Use `engine/distribution/package-contract.json` and the existing package-smoke workflow as reference. Keep all evidence bound to the verified source/package SHA; rerun G0 if product source changes. STOP before any installation/uninstallation or VM operation on the existing profile.
 
 Only after reviewed complete G0 may one explicitly disposable VMware guest enter G1. The operator controls licensed account sign-in; never clone/reset/reprovision existing Base or Virtual-01/02/03. Keep `main` untouched and CI manual-only. No application/VM/game launch or sign-in was executed in this batch.
 
