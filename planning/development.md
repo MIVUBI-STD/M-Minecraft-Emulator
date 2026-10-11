@@ -1,3 +1,11 @@
+## Subprocess safety closeout — 2026-10-11
+
+**Work:** `emulator/pre-local-static-contract-audit`; **State: SOURCE_PATCHED / EXECUTION_UNPROVEN**. The signed-update Authenticode probe was still using an unbounded PowerShell `Command::output`. It now invokes the existing canonical subprocess runner with a 15-second deadline, preserves the required successful signature and exact 40-hex-thumbprint validation, retains `PERMISSION_DENIED` for rejected signatures, and propagates `TIMEOUT` distinctly. The macOS Minecraft Education `plutil` version check also uses the same bounded runner (10 seconds), without changing version authority or platform selection.
+
+**Proof:** REMOTE_GITHUB full call-site inspection and provider command-runner contract review. Rust/Cargo, Windows/Mac execution, signed installer proof and G0-G4 remain **NOT_EXECUTED**. The existing generic runner's inherited-descendant pipe lifetime remains an explicitly separate unproven risk; do not silently kill VMware descendants to hide it.
+
+**Next:** Real Cargo/Windows G0, then disposable single-guest feasibility before multi-client acceptance.
+
 ## Pre-local command contract correction — 2026-10-11
 
 **Work:** `emulator/pre-local-static-contract-audit`; **State: SOURCE_PATCHED / EXECUTION_UNPROVEN**. The desktop Base registration response validator required a `guestAgentVersion` property absent from the actual serialized Rust `BaseProfile`. A successful `register-base` mutation could therefore be reported to users as a frontend command-contract failure after committing Base metadata. The validator now requires only the real `schema`, `minecraftVersion`, `guestStatusSchema`, `guestAgentProtocol` and `baseGenerationId` fields. The TypeScript regression fixture is the real Rust output shape and links to the owning Rust structure. No public wire schema, Base metadata, VM state or credential storage was changed.

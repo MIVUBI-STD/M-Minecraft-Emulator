@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::{fs, io, path::PathBuf};
 #[cfg(target_os = "macos")]
-use std::process::Command;
+use std::{path::Path, time::Duration};
 #[cfg(target_os = "windows")]
 use std::{path::Path, time::Duration};
 
@@ -545,23 +545,21 @@ fn parse_registry_version(output: &str) -> Option<String> {
 
 #[cfg(target_os = "macos")]
 fn macos_native_profile() -> Option<MinecraftProfile> {
-    let output = Command::new("plutil")
-        .args([
+    let version = crate::provider::command_output_with_timeout(
+        Path::new("plutil"),
+        [
             "-extract",
             "CFBundleShortVersionString",
             "raw",
             "-o",
             "-",
             "/Applications/Minecraft Education.app/Contents/Info.plist",
-        ])
-        .output()
-        .ok()?;
+        ],
+        Duration::from_secs(10),
+    )
+    .ok()?;
 
-    if !output.status.success() {
-        return None;
-    }
-
-    normalized_version(&String::from_utf8_lossy(&output.stdout)).map(|version| MinecraftProfile {
+    normalized_version(&version).map(|version| MinecraftProfile {
         version,
         install_type: MinecraftInstallType::AppBundle,
     })

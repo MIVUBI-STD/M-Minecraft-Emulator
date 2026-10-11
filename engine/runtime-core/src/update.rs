@@ -10,7 +10,7 @@ use std::{
 };
 
 #[cfg(target_os = "windows")]
-use std::process::Command;
+use std::ffi::OsStr;
 
 use url::Url;
 
@@ -375,26 +375,28 @@ fn publisher_certificate_thumbprint() -> io::Result<&'static str> {
 #[cfg(target_os = "windows")]
 fn authenticode_thumbprint(path: &Path) -> io::Result<String> {
     let script = r#"$s=Get-AuthenticodeSignature -LiteralPath $args[0]; if ($s.Status -ne 'Valid' -or $null -eq $s.SignerCertificate) { [Console]::Error.Write([string]$s.Status); exit 41 }; [Console]::Out.Write($s.SignerCertificate.Thumbprint)"#;
-    let output = Command::new("powershell.exe")
-        .args([
-            "-NoLogo",
-            "-NoProfile",
-            "-NonInteractive",
-            "-Command",
-            script,
-        ])
-        .arg(path)
-        .output()?;
-
-    if !output.status.success() {
-        let detail = String::from_utf8_lossy(&output.stderr).trim().to_string();
-        return Err(io::Error::new(
-            io::ErrorKind::PermissionDenied,
-            format!("update installer Authenticode verification failed: {detail}"),
-        ));
-    }
-
-    let thumbprint = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    let thumbprint = crate::provider::command_output_with_timeout(
+        Path::new("powershell.exe"),
+        [
+            OsStr::new("-NoLogo"),
+            OsStr::new("-NoProfile"),
+            OsStr::new("-NonInteractive"),
+            OsStr::new("-Command"),
+            OsStr::new(script),
+            path.as_os_str(),
+        ],
+        Duration::from_secs(15),
+    )
+    .map_err(|error| {
+        if error.kind() == io::ErrorKind::TimedOut {
+            error
+        } else {
+            io::Error::new(
+                io::ErrorKind::PermissionDenied,
+                format!("update installer Authenticode verification failed: {error}"),
+            )
+        }
+    })?;
     if thumbprint.len() != 40
         || !thumbprint
             .chars()
