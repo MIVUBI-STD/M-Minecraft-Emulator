@@ -86,10 +86,15 @@ function Test-DeveloperToolchain {
     }
     if (Get-Command rustc -ErrorAction SilentlyContinue) {
         $hostReport = (& rustc -vV) -join "`n"
-        if ($LASTEXITCODE -ne 0 -or $hostReport -notmatch '(?m)^host:\s*([^\s]+)') {
+        if ($LASTEXITCODE -ne 0) {
+            $errors.Add("Rust host target cannot be inspected; the unsigned NSIS build requires x86_64-pc-windows-msvc.")
+        } elseif ($hostReport -match '(?m)^host:\s*([^\s]+)') {
+            $hostTriple = $Matches[1]
+            if ($hostTriple -ne "x86_64-pc-windows-msvc") {
+                $errors.Add("Rust host target $hostTriple is unsupported; use the pinned x86_64-pc-windows-msvc toolchain.")
+            }
+        } else {
             $errors.Add("Rust host target cannot be identified; the unsigned NSIS build requires x86_64-pc-windows-msvc.")
-        } elseif ($Matches[1] -ne "x86_64-pc-windows-msvc") {
-            $errors.Add("Rust host target $($Matches[1]) is unsupported; use the pinned x86_64-pc-windows-msvc toolchain.")
         }
     }
     if (-not $RustOnly -and -not (Test-Path "apps/desktop/package-lock.json")) {

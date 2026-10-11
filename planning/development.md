@@ -1,3 +1,11 @@
+## Pre-local idle resource efficiency — 2026-10-12
+
+**Work:** `emulator/pre-local-runtime-idle-efficiency`; **State: SOURCE_PATCHED / EXECUTION_UNPROVEN**. Canonical CPU/RAM pressure and CPU/memory capacity probes use a minimally initialized `sysinfo::System` and explicitly refresh only the metrics required, avoiding full host process enumeration in snapshot/start admission. The existing Windows Screen Overlay worker now blocks on its existing command channel while no overlay windows exist; active overlay paint polling remains unchanged. The G0 host-target detection from the prior batch was also clarified to capture the Rust host triple explicitly. Public schemas, admission thresholds, installed identity and VM disks are untouched.
+
+**Proof:** REMOTE_GITHUB exact call-site and source control-flow review, **not** a measured CPU/RAM improvement or Windows runtime proof. Rust/Cargo, Tauri, PowerShell and G0–G4 remain **NOT_EXECUTED**.
+
+**Next:** Genuine desktop Cargo.lock resolution and exact-SHA Windows G0.
+
 ## Windows G0 operator preflight and package evidence — 2026-10-12
 
 **Work:** `emulator/pre-local-g0-operator-hardening`; **State: SOURCE_PATCHED / EXECUTION_UNPROVEN**. The canonical optional Windows `DEV.cmd` launcher now rejects a non-`x86_64-pc-windows-msvc` Rust host before generating the desktop lock or starting G0, and the existing G0 batch checks its just-built versioned NSIS installer for nonempty/fresh output plus the staged host CLI and Guest Agent binaries. It prints the exact source SHA, installer path, and SHA-256; it does not install/uninstall anything, touch guest disks, create a second proof gate, or change the workflows. This prevents a wrong-ABI toolchain or stale/absent local NSIS artifact from masquerading as successful package construction.

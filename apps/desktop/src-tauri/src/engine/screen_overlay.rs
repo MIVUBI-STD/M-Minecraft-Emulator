@@ -133,7 +133,17 @@ mod windows {
             let mut windows: Vec<OverlayWindow> = Vec::new();
             let mut running = true;
             while running {
-                while let Ok(command) = rx.try_recv() {
+                // When no overlay exists, block on the command channel rather
+                // than polling Windows messages ~60 times each second.
+                let mut pending = if windows.is_empty() {
+                    match rx.recv() {
+                        Ok(command) => Some(command),
+                        Err(_) => break,
+                    }
+                } else {
+                    None
+                };
+                while let Some(command) = pending.take().or_else(|| rx.try_recv().ok()) {
                     match command {
                         OverlayCommand::Clear => clear_windows(&mut windows),
                         OverlayCommand::Shutdown => { clear_windows(&mut windows); running = false; }
@@ -172,12 +182,15 @@ mod windows {
                         }
                     }
                 }
-                let mut message = std::mem::zeroed::<MSG>();
-                while PeekMessageW(&mut message, null_mut(), 0, 0, PM_REMOVE) != 0 {
-                    TranslateMessage(&message);
-                    DispatchMessageW(&message);
+                if !windows.is_empty() {
+                    // Active overlays still pump paint messages at the original cadence.
+                    let mut message = std::mem::zeroed::<MSG>();
+                    while PeekMessageW(&mut message, null_mut(), 0, 0, PM_REMOVE) != 0 {
+                        TranslateMessage(&message);
+                        DispatchMessageW(&message);
+                    }
+                    thread::sleep(std::time::Duration::from_millis(16));
                 }
-                thread::sleep(std::time::Duration::from_millis(16));
             }
         }).map_err(|error| io::Error::new(io::ErrorKind::Other, format!("failed to start Screen Overlay thread: {error}")))?;
         ready_rx.recv().map_err(|_| io::Error::new(io::ErrorKind::BrokenPipe, "Screen Overlay thread stopped during startup"))??;
