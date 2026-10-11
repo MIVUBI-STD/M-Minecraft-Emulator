@@ -93,14 +93,55 @@ struct VmState {
     display_open: bool,
 }
 
+// This is VM power only, NEVER an Education readiness claim. Transitional
+// states have no power-control implication and cannot authorize any action.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+enum VmPowerState {
+    PoweredOff,
+    PoweredOn,
+    Transitioning,
+}
+
+#[derive(Debug, Deserialize)]
+struct DisplayState {
+    open: bool,
+    ready: bool,
+}
+
+fn parse_display(data: &[u8]) -> Result<DisplayState, &'static str> {
+    let display: DisplayState =
+        serde_json::from_slice(data).map_err(|_| "INVALID_PROVIDER_RESPONSE")?;
+    // Source: App Sandbox v0.1.9, headless.c GET /display:
+    // ready = open || asb_vm_idd_ready(vm).
+    if display.open && !display.ready {
+        return Err("INVALID_PROVIDER_RESPONSE");
+    }
+    Ok(display)
+}
+
+fn vm_power_state(state: &str) -> VmPowerState {
+    match state {
+        "stopped" => VmPowerState::PoweredOff,
+        "installing" | "booting" | "online" => VmPowerState::PoweredOn,
+        // The caller passes a parsed and validated upstream state.
+        _ => VmPowerState::Transitioning,
+    }
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct GuestObservation {
     name: String,
     state: String,
+    power_state: VmPowerState,
     running: bool,
     agent_online: bool,
     display_open: bool,
+    display_ready: bool,
+    // No App Sandbox lifecycle command is wired to the product runtime yet.
+    // In particular, the upstream stop endpoint is a hard power-off.
+    lifecycle_controls_enabled: bool,
     ram_mb: u64,
     cpu_cores: u64,
     gpu_mode: u8,
@@ -197,6 +238,14 @@ fn parse_vm_list(data: &[u8]) -> Result<Vec<VmState>, &'static str> {
             // Validate tracked guests as strictly as the named status route.
             let encoded = serde_json::to_vec(&record).map_err(|_| "INVALID_PROVIDER_RESPONSE")?;
             values.push(parse_vm(&encoded)?);
+        } else if ["Virtual-01", "Virtual-02", "Virtual-03"]
+            .iter()
+            .any(|target| name.eq_ignore_ascii_case(target))
+        {
+            // App Sandbox compares VM names case-insensitively. Treat a
+            // differently-cased tracked name as an ambiguous ownership collision,
+            // NOT as an absent client eligible for provisioning.
+            return Err("TRACKED_NAME_COLLISION");
         }
     }
     Ok(values)
@@ -299,13 +348,21 @@ fn inspect_inner() -> Result<AppSandboxInspection, &'static str> {
         if status.name != item.name || status.os_type != "Windows" {
             return Err("INVALID_PROVIDER_RESPONSE");
         }
+        let display_route = format!("vms/{}/display", item.name);
+        let display_bytes = get_json(&agent, &discovery.endpoint, &display_route, Some(&discovery.token))?;
+        let display = parse_display(&display_bytes)?;
+        // The status and display reads are not an atomic snapshot. Keep the
+        // latter as a direct, read-only observation; neither allows controls.
         // VM names are observations, not trusted bindings to our account disks.
         guests.push(GuestObservation {
             name: status.name,
+            power_state: vm_power_state(&status.state),
             state: status.state,
             running: status.running,
             agent_online: status.agent_online,
-            display_open: status.display_open,
+            display_open: display.open,
+            display_ready: display.ready,
+            lifecycle_controls_enabled: false,
             ram_mb: status.ram_mb,
             cpu_cores: status.cpu_cores,
             gpu_mode: status.gpu_mode,
@@ -333,7 +390,7 @@ pub(crate) fn inspect() -> AppSandboxInspection {
 
 #[cfg(test)]
 mod tests {
-    use super::{parse_discovery, parse_host, parse_version, parse_vm, parse_vm_list};
+    use super::{parse_discovery, parse_display, parse_host, parse_version, parse_vm, parse_vm_list, vm_power_state, VmPowerState};
     use serde_json::json;
 
     #[test]
@@ -388,6 +445,53 @@ mod tests {
         // sessions; they must not make the read-only inventory fail.
         let foreign = json!({"vms":[vm("Virtual-01"),{"name":"unrelated-linux-guest-with-a-long-hostname-okay","osType":"Linux","state":"online","gpuMode":2}]});
         assert_eq!(parse_vm_list(&serde_json::to_vec(&foreign).unwrap()).unwrap().len(), 1);
+        let collision = json!({"vms":[vm("virtual-01")]});
+        assert_eq!(parse_vm_list(&serde_json::to_vec(&collision).unwrap()).unwrap_err(),
+            "TRACKED_NAME_COLLISION");
+    }
+
+    #[test]
+    fn power_phase_never_conflates_transitions_with_a_playable_guest() {
+        for (upstream, expected) in [
+            ("building", VmPowerState::Transitioning),
+            ("installing", VmPowerState::PoweredOn),
+            ("booting", VmPowerState::PoweredOn),
+            ("online", VmPowerState::PoweredOn),
+            ("stopping", VmPowerState::Transitioning),
+            ("stopped", VmPowerState::PoweredOff),
+        ] {
+            assert_eq!(vm_power_state(upstream), expected);
+        }
+    }
+
+    #[test]
+    fn read_only_display_state_is_not_gameplay_evidence() {
+        let display = parse_display(br#"{"open":false,"ready":true}"#).unwrap();
+        assert!(!display.open && display.ready);
+        assert!(parse_display(br#"{"open":true,"ready":false}"#).is_err());
+        assert!(parse_display(br#"{"open":"yes","ready":true}"#).is_err());
+        let phase = vm_power_state("online");
+        assert_eq!(phase, VmPowerState::PoweredOn);
+        let guest = super::GuestObservation {
+            name: "Virtual-01".to_string(),
+            state: "online".to_string(),
+            power_state: phase,
+            running: true,
+            agent_online: true,
+            display_open: false,
+            display_ready: true,
+            lifecycle_controls_enabled: false,
+            ram_mb: 4096,
+            cpu_cores: 2,
+            gpu_mode: 1,
+            network_mode: 1,
+            ownership_verified: false,
+        };
+        let json = serde_json::to_value(guest).unwrap();
+        assert_eq!(json["lifecycleControlsEnabled"], false);
+        assert_eq!(json["ownershipVerified"], false);
+        assert_eq!(json["powerState"], "POWERED_ON");
+        assert!(json.get("minecraftRunning").is_none());
     }
 
     #[test]
