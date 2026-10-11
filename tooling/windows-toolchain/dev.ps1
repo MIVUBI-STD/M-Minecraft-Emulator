@@ -84,6 +84,14 @@ function Test-DeveloperToolchain {
             $errors.Add("Rust $($Matches[1]) does not match pinned $($toolchain.rust.version).")
         }
     }
+    if (Get-Command rustc -ErrorAction SilentlyContinue) {
+        $hostReport = (& rustc -vV) -join "`n"
+        if ($LASTEXITCODE -ne 0 -or $hostReport -notmatch '(?m)^host:\s*([^\s]+)') {
+            $errors.Add("Rust host target cannot be identified; the unsigned NSIS build requires x86_64-pc-windows-msvc.")
+        } elseif ($Matches[1] -ne "x86_64-pc-windows-msvc") {
+            $errors.Add("Rust host target $($Matches[1]) is unsupported; use the pinned x86_64-pc-windows-msvc toolchain.")
+        }
+    }
     if (-not $RustOnly -and -not (Test-Path "apps/desktop/package-lock.json")) {
         $errors.Add("Canonical desktop npm lockfile is missing.")
     }
@@ -127,6 +135,42 @@ function New-DesktopCargoLock {
     Write-Host "Example: git add -- $DesktopLock ; git commit -m 'build(desktop): lock resolved Cargo dependencies'"
 }
 
+# Inspect the just-built output without running NSIS or accessing persisted
+# Virtual Clients data. This is a G0 construction check, not installed proof.
+function Assert-BuiltWindowsPackage {
+    param([string]$ExpectedSha, [datetime]$BuildStartedUtc)
+
+    $bundleDir = Join-Path $Root "apps/desktop/src-tauri/target/release/bundle/nsis"
+    if (-not (Test-Path -LiteralPath $bundleDir -PathType Container)) {
+        throw "Tauri reported success, but the NSIS bundle directory does not exist: $bundleDir"
+    }
+    $version = (Get-Content (Join-Path $Root "apps/desktop/package.json") -Raw | ConvertFrom-Json).version
+    $installers = @(Get-ChildItem -LiteralPath $bundleDir -Filter "*.exe" -File |
+        Where-Object { $_.Name.Contains([string]$version) })
+    if ($installers.Count -ne 1) {
+        throw "Expected one NSIS installer for version $version, found $($installers.Count) in $bundleDir."
+    }
+    $installer = $installers[0]
+    if ($installer.Length -le 0 -or $installer.LastWriteTimeUtc -lt $BuildStartedUtc.AddSeconds(-5)) {
+        throw "NSIS output is empty or predates this G0 package command; do not trust a stale installer."
+    }
+
+    $sidecar = Join-Path $Root "apps/desktop/src-tauri/binaries/virtual-clients-x86_64-pc-windows-msvc.exe"
+    $agent = Join-Path $Root "apps/desktop/src-tauri/package-resources/guest/windows/virtual-guest-agent.exe"
+    foreach ($required in @($sidecar, $agent)) {
+        if (-not (Test-Path -LiteralPath $required -PathType Leaf) -or
+            (Get-Item -LiteralPath $required).Length -le 0) {
+            throw "Required staged package binary is absent or empty: $required"
+        }
+    }
+
+    $hash = (Get-FileHash -LiteralPath $installer.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+    Write-Host "G0 package source SHA: $ExpectedSha"
+    Write-Host "G0 unsigned NSIS output: $($installer.FullName)"
+    Write-Host "G0 installer SHA-256: $hash"
+    Write-Host "Installed payload, repair/uninstall preservation, signatures, VMware and Minecraft remain UNVERIFIED."
+}
+
 # One opt-in source/package checkpoint. This is NOT a game/VM test and does not
 # install/uninstall the product or access account-bearing guest disks.
 function Invoke-G0SourcePackage {
@@ -141,7 +185,9 @@ function Invoke-G0SourcePackage {
     Write-Host "G0 source/package revision: $sha"
     Invoke-RepositoryNpm -NpmArguments @("run", "setup")
     Invoke-RepositoryNpm -NpmArguments @("run", "verify:source")
+    $packageStartedUtc = (Get-Date).ToUniversalTime()
     Invoke-RepositoryNpm -NpmArguments @("run", "package:windows")
+    Assert-BuiltWindowsPackage -ExpectedSha $sha -BuildStartedUtc $packageStartedUtc
 
     # Builds may write ignored artifacts. Verify tracked sources did not change.
     $trackedChanges = @(& git diff --name-only HEAD --)

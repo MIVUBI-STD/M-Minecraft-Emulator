@@ -1,3 +1,11 @@
+## Windows G0 operator preflight and package evidence — 2026-10-12
+
+**Work:** `emulator/pre-local-g0-operator-hardening`; **State: SOURCE_PATCHED / EXECUTION_UNPROVEN**. The canonical optional Windows `DEV.cmd` launcher now rejects a non-`x86_64-pc-windows-msvc` Rust host before generating the desktop lock or starting G0, and the existing G0 batch checks its just-built versioned NSIS installer for nonempty/fresh output plus the staged host CLI and Guest Agent binaries. It prints the exact source SHA, installer path, and SHA-256; it does not install/uninstall anything, touch guest disks, create a second proof gate, or change the workflows. This prevents a wrong-ABI toolchain or stale/absent local NSIS artifact from masquerading as successful package construction.
+
+**Proof:** REMOTE_GITHUB source/control-flow review only. PowerShell 7, Rust/Cargo, NSIS, VMware and Minecraft execution **NOT_EXECUTED**. Desktop `apps/desktop/src-tauri/Cargo.lock` still needs genuine Cargo resolution and a committed clean `Local` revision. G0-G4 remain NOT_EXECUTED.
+
+**Next:** Resolve the desktop Cargo.lock via real Cargo on pinned Windows/MSVC and execute exact-SHA G0.
+
 ## Subprocess safety closeout — 2026-10-11
 
 **Work:** `emulator/pre-local-static-contract-audit`; **State: SOURCE_PATCHED / EXECUTION_UNPROVEN**. The signed-update Authenticode probe was still using an unbounded PowerShell `Command::output`. It now invokes the existing canonical subprocess runner with a 15-second deadline, preserves the required successful signature and exact 40-hex-thumbprint validation, retains `PERMISSION_DENIED` for rejected signatures, and propagates `TIMEOUT` distinctly. The macOS Minecraft Education `plutil` version check also uses the same bounded runner (10 seconds), without changing version authority or platform selection.

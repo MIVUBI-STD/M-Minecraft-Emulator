@@ -56,7 +56,9 @@ Review the generated `apps/desktop/src-tauri/Cargo.lock`, then commit and push i
 
 The pinned-language check is **not** a full Windows packaging prerequisite probe. Before `g0`, Windows must have the Tauri-required MSVC C++ build toolchain, Windows SDK and WebView2 availability as appropriate to the installation mode. Missing system prerequisites should be diagnosed as G0 environment blockers, not patched around by weakening source contracts.
 
-`g0` explicitly rejects untracked Cargo.lock, dirty source, wrong branch, toolchain mismatch and a changed HEAD. Successful commands cover only the source/build/package-construction portion of G0. A real installer/payload inspection and **disposable** install, repair, uninstall and reinstall preserving runtime data remain independent requirements. A successful console message never establishes G0 PASS or Minecraft/GPU/client readiness. Never conduct first acceptance using account-bearing VM disks.
+`g0` explicitly rejects untracked Cargo.lock, dirty source, wrong branch, toolchain mismatch and a changed HEAD. After an actual successful package build, the launcher also verifies that the just-produced versioned NSIS installer exists and is nonempty, that the staged CLI and Guest Agent binaries exist, and prints the exact source SHA, installer path and SHA-256. It does not run NSIS or claim installed payload correctness.
+
+Successful commands cover only the source/build/package-construction portion of G0. A real installer/payload inspection and **disposable** install, repair, uninstall and reinstall preserving runtime data remain independent requirements. A successful console message never establishes G0 PASS or Minecraft/GPU/client readiness. Never conduct first acceptance using account-bearing VM disks.
 
 Neither command changes `main`, installs guest agents, starts VMs, resets snapshots, signs into Minecraft, or commits on the user's behalf.
 
