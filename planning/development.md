@@ -1,3 +1,7 @@
+## Long-session reliability — stale-state fail-closed UI (2026-10-11)
+
+Status: SOURCE PATCH. When an asynchronous backend refresh fails, preserve the previous diagnostic snapshot only as visibly outdated read-only information; clear all action availability and pending recovery/reprovision dialogs. Refresh attempt itself must not reenable controls before a successful backend response. No VM disks, account sessions, provider state, or public wire schemas are modified. Desktop source regression authored; executable Vitest/Rust/Windows/G0-G4 acceptance NOT_EXECUTED. Next: bound Guest Agent Windows child-process probes in the existing subprocess runner.
+
 # Emulator Development Handoff
 
 Updated: 2026-10-11

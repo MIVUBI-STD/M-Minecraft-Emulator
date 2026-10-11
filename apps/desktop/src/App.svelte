@@ -104,10 +104,11 @@
 
       if (!pageChosen) page = "clients";
     } catch (value) {
-      snapshot = undefined;
-      basePreflight = undefined;
-      policy = undefined;
+      // Keep the last observation visible, but invalidate all action admission.
       actions = [];
+      confirmSetReady = undefined;
+      confirmReset = undefined;
+      confirmReprovision = undefined;
       throw value;
     } finally {
       loading = false;
@@ -118,9 +119,9 @@
     if (busy || refreshRunning) return;
     refreshRunning = true;
     error = undefined;
-    refreshFailed = false;
     try {
       await loadState();
+      refreshFailed = false;
     } catch (value) {
       refreshFailed = true;
       error = presentRuntimeError(value);
@@ -138,7 +139,7 @@
   }
 
   async function stageApplicationUpdate() {
-    if (busy || loading || refreshRunning) return;
+    if (busy || loading || refreshRunning || refreshFailed) return;
     operationStatus = "Waiting for backend confirmation…";
     busy = "stage-update";
     error = undefined;
@@ -155,7 +156,7 @@
   }
 
   async function mutate(label: string, operation: (onProgress: ProgressObserver) => Promise<unknown>) {
-    if (busy || loading) return;
+    if (busy || loading || refreshFailed) return;
     busy = label;
     operationStatus = "Waiting for backend confirmation…";
     error = undefined;
@@ -416,8 +417,8 @@
         <h1>{page === "clients" ? "Virtual Clients" : page === "settings" ? "Settings" : "Help"}</h1>
       </div>
       {#if snapshot}
-        <div class="ready-state" class:attention={!setupComplete || blockers.length > 0}>
-          {setupComplete && blockers.length === 0 ? "Setup complete" : blockers.length ? "Needs attention" : "Setup required"}
+        <div class="ready-state" class:attention={refreshFailed || !setupComplete || blockers.length > 0}>
+          {refreshFailed ? "Status outdated" : setupComplete && blockers.length === 0 ? "Setup complete" : blockers.length ? "Needs attention" : "Setup required"}
         </div>
       {/if}
     </header>
@@ -443,7 +444,7 @@
       <section class="notice" role="status">
         <div>
           <strong>Current client state could not be refreshed</strong>
-          <span>Client controls are hidden until Refresh succeeds. The operation error, if any, is shown above.</span>
+          <span>Last observed state is read-only. No VM controls are available until Refresh succeeds. The operation error, if any, is shown above.</span>
         </div>
       </section>
     {/if}
@@ -473,6 +474,17 @@
       <section class="loading-panel">
         <div class="spinner"></div>
         <strong>Checking Virtual Clients…</strong>
+      </section>
+    {:else if snapshot && refreshFailed}
+      <section class="client-list" aria-label="Last known client states (not live)">
+        {#each clients as client}
+          <article class="client-row">
+            <div class="client-main">
+              <h3>{client.native ? "Native Minecraft" : clientDisplayName(client.id)}</h3>
+              <small>Last observed: {client.state}. This may have changed; refresh before operating.</small>
+            </div>
+          </article>
+        {/each}
       </section>
     {:else if snapshot}
       {#if page === "clients" && !shouldShowClientControls(snapshot.doctor.nextSetupAction)}
@@ -548,7 +560,7 @@
     />
   {/if}
 
-  {#if confirmSetReady}
+  {#if confirmSetReady && !refreshFailed}
     <SaveRecoveryPointDialog
       clientName={clientDisplayName(confirmSetReady)}
       {busy}
@@ -557,7 +569,7 @@
     />
   {/if}
 
-  {#if confirmReset}
+  {#if confirmReset && !refreshFailed}
     <RestoreRecoveryPointDialog
       clientName={clientDisplayName(confirmReset)}
       {busy}
@@ -566,7 +578,7 @@
     />
   {/if}
 
-  {#if confirmReprovision}
+  {#if confirmReprovision && !refreshFailed}
     <RecreateClientDialog
       clientName={clientDisplayName(confirmReprovision)}
       {busy}

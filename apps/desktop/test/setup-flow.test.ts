@@ -71,6 +71,15 @@ describe("Virtual Clients first-run presentation", () => {
     expect(clients).not.toContain("One or more clients need to be recreated");
   });
 
+  it("does not expose controls or dialogs from an outdated snapshot", () => {
+    const app = readFileSync(new URL("../src/App.svelte", import.meta.url), "utf8");
+    expect(app).toContain('{:else if snapshot && refreshFailed}');
+    expect(app).toContain('aria-label="Last known client states (not live)"');
+    expect(app).toContain('if (busy || loading || refreshFailed) return;');
+    expect(app).toContain('{#if confirmReset && !refreshFailed}');
+    expect(app).toContain('{#if confirmReprovision && !refreshFailed}');
+  });
+
   it("labels completed setup without claiming gameplay readiness", () => {
     expect(actionLabel("READY")).toBe("Setup complete");
     expect(setupExperience("READY").title).toBe(actionLabel("READY"));
