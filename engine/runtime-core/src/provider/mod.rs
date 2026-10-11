@@ -64,6 +64,14 @@ pub trait Provider {
     // Configuration only; NOT evidence of a working D3D11/OpenGL renderer.
     fn graphics_3d_enabled(&self, client: ClientId) -> io::Result<Option<bool>>;
     fn status(&self, client: ClientId) -> io::Result<ClientState>;
+    // One read-only observation per request. Providers may batch external
+    // status discovery; never cache across independent operations/mutations.
+    fn observe_client_states(&self) -> io::Result<Vec<(ClientId, ClientState)>> {
+        ClientId::VIRTUAL
+            .into_iter()
+            .map(|client| self.status(client).map(|state| (client, state)))
+            .collect()
+    }
     fn start(&self, client: ClientId) -> io::Result<ClientState>;
     fn suspend(&self, client: ClientId) -> io::Result<ClientState>;
     fn stop(&self, client: ClientId) -> io::Result<ClientState>;

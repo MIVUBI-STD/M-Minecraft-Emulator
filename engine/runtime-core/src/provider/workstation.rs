@@ -252,6 +252,41 @@ impl Provider for VmwareWorkstationProvider {
         Ok(ClientState::Stopped)
     }
 
+    fn observe_client_states(&self) -> io::Result<Vec<(ClientId, ClientState)>> {
+        // vmrun list is a process spawn. Read it once for all provisioned
+        // guests instead of re-running it for each row in a host snapshot.
+        let mut entries = Vec::with_capacity(ClientId::VIRTUAL.len());
+        let mut any_provisioned = false;
+        for client in ClientId::VIRTUAL {
+            let vmx = client_vmx_path(client)?;
+            let present = vmx_file_present(&vmx)?;
+            any_provisioned |= present;
+            entries.push((client, vmx, present));
+        }
+        let running = if any_provisioned {
+            Some(command_output(self.require_vmrun()?, ["-T", "ws", "list"])?)
+        } else {
+            None
+        };
+        Ok(entries.into_iter().map(|(client, vmx, present)| {
+            let state = if !present {
+                // An interrupted clone is not a clean missing guest.
+                if vmx.parent().is_some_and(Path::exists) {
+                    ClientState::Error
+                } else {
+                    ClientState::NotProvisioned
+                }
+            } else if running.as_ref().is_some_and(|list| listed_as_running(list, &vmx)) {
+                ClientState::Running
+            } else if has_suspend_state(&vmx) {
+                ClientState::Suspended
+            } else {
+                ClientState::Stopped
+            };
+            (client, state)
+        }).collect())
+    }
+
     fn status(&self, client: ClientId) -> io::Result<ClientState> {
         let vmx = client_vmx_path(client)?;
         if !vmx_file_present(&vmx)? {

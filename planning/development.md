@@ -1,3 +1,7 @@
+## VMware power-state batch observation — 2026-10-11
+
+Status: SOURCE PATCH. Provider now offers one request-scoped read-only multi-client state observation. VMware Workstation implements it using a single vmrun list for provisioned guests and preserves incomplete-clone ERROR vs NOT_PROVISIONED discrimination and suspended-file precedence. Runtime snapshot uses this observation for status; Doctor uses it with old per-client fallback on error. Existing per-action lifecycle admission and mutation reconciliation still call live state; no stale cache is persisted or shared across requests. Fusion/test providers retain default sequential observation behavior. Node/Rust/Windows and G0–G4 NOT_EXECUTED; actual latency savings remain unmeasured. Next: examine provider subprocess pipe ownership and journal failure visibility before package acceptance.
+
 ## Minecraft version probe timeout — 2026-10-11
 
 Status: SOURCE PATCH. Shared Windows Minecraft Education installation/version detection now routes 32-bit Desktop registry query and Store PowerShell fallback through the existing bounded subprocess runner. This prevents a single stalled probe from indefinitely blocking host snapshots or guest status. Detection preference (Desktop before Store), normalized version and install-type schema remain unchanged. This does not assert rendering, sign-in or four-client performance. Rust/Windows/G0–G4 NOT_EXECUTED. Next: reconcile provider-level VM observations efficiently while preserving live mutation admission and observed state.

@@ -307,12 +307,18 @@ pub fn doctor() -> DoctorReport {
         });
     let runtime_profile = profile_status();
 
+    // Reuse a single VMware power-state list when all three can be read
+    // together. A failed batch falls back to per-client diagnostics as before.
+    let observed_states = provider
+        .as_ref()
+        .and_then(|provider| provider.observe_client_states().ok());
     let clients: Vec<DoctorClient> = ClientId::VIRTUAL
         .into_iter()
         .map(|client| {
-            let state = provider
+            let state = observed_states
                 .as_ref()
-                .and_then(|provider| provider.status(client).ok());
+                .and_then(|states| states.iter().find(|(id, _)| *id == client).map(|(_, state)| *state))
+                .or_else(|| provider.as_ref().and_then(|provider| provider.status(client).ok()));
             let provisioned = state.is_some_and(|state| state != ClientState::NotProvisioned);
             let ready_snapshot = if provisioned {
                 provider

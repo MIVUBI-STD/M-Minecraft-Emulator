@@ -88,10 +88,10 @@ struct ClientObservation {
 }
 
 fn collect_client_observations(provider: &dyn Provider) -> io::Result<Vec<ClientObservation>> {
-    ClientId::VIRTUAL
+    provider
+        .observe_client_states()?
         .into_iter()
-        .map(|client| {
-            let state = provider.status(client)?;
+        .map(|(client, state)| {
             let vm_identity = if state == ClientState::NotProvisioned {
                 None
             } else {
