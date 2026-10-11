@@ -459,7 +459,6 @@ mod tests {
         let base = BaseProfile {
             schema: BASE_PROFILE_SCHEMA,
             minecraft_version: native.version.clone(),
-            native_install_type: MinecraftInstallType::Desktop,
             guest_status_schema: GUEST_STATUS_SCHEMA,
             guest_agent_protocol: GUEST_AGENT_PROTOCOL_VERSION,
             base_generation_id: "a".repeat(64),

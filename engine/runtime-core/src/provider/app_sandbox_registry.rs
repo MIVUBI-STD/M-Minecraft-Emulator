@@ -43,7 +43,9 @@ fn disk_path(name: &str, value: &str) -> Result<(String, String, String), &'stat
     if !dirname.eq_ignore_ascii_case(name) || parent.len() < 3 {
         return Err("INVALID_VM_REGISTRY");
     }
-    Ok((path, vm_dir.to_string(), parent.to_string()))
+    let vm_dir = vm_dir.to_string();
+    let parent = parent.to_string();
+    Ok((path, vm_dir, parent))
 }
 
 fn normalize_mac(input: &str) -> Option<String> {

@@ -1771,13 +1771,14 @@ impl VirtualClients {
 #[cfg(test)]
 mod tests {
     use super::{
-        classify_identity_state, guest_probe_error_is_terminal, missing_provision_targets,
+        classify_identity_state, connection_health, guest_probe_error_is_terminal, missing_provision_targets,
         restore_batch_state, stop_targets, suspend_targets, validate_power_state, LifecycleAction,
-        vm_identity_state,
+        vm_identity_state, ConnectionHealth,
     };
     use crate::profile::BaseState;
     use crate::{
         client::{ClientId, ClientState, IdentityState},
+        guest::GuestStatus,
         provider::Provider,
     };
     use std::{cell::RefCell, io, path::Path};
