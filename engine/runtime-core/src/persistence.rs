@@ -98,15 +98,22 @@ pub(crate) fn write_text_transactional(path: &Path, contents: &str) -> io::Resul
         io::Error::new(io::ErrorKind::InvalidInput, "metadata path has no parent")
     })?;
     fs::create_dir_all(parent)?;
-    recover_interrupted_replace(path)?;
 
+    // A leftover temporary file may contain the only copy of a crashed write.
+    // Do not delete or reuse it (including after PID reuse); leave both old
+    // metadata and unfinished content available for explicit reconciliation.
     let temporary = temporary_path(path)?;
-    let backup = backup_path(path)?;
     reject_unsafe_existing_file(&temporary)?;
-    reject_unsafe_existing_file(&backup)?;
     if temporary.exists() {
-        fs::remove_file(&temporary)?;
+        return Err(io::Error::new(
+            io::ErrorKind::AlreadyExists,
+            format!("interrupted metadata write preserved at {}; inspect before retrying", temporary.display()),
+        ));
     }
+
+    recover_interrupted_replace(path)?;
+    let backup = backup_path(path)?;
+    reject_unsafe_existing_file(&backup)?;
 
     let mut file = OpenOptions::new()
         .create_new(true)
@@ -176,6 +183,29 @@ mod tests {
         assert!(path.is_file());
         assert!(!backup.exists());
 
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn unfinished_temporary_metadata_is_never_silently_deleted() {
+        let root = unique_temp_dir("preserve-temporary");
+        fs::create_dir_all(&root).unwrap();
+        let path = root.join("state.json");
+        let temporary = super::temporary_path(&path).unwrap();
+        fs::write(&path, r#"{"account":"original"}"#).unwrap();
+        fs::write(&temporary, r#"{"account":"unfinished"}"#).unwrap();
+
+        let error = write_text_transactional(&path, r#"{"account":"replacement"}"#)
+            .unwrap_err();
+        assert_eq!(error.kind(), std::io::ErrorKind::AlreadyExists);
+        assert_eq!(
+            fs::read_to_string(&path).unwrap(),
+            r#"{"account":"original"}"#
+        );
+        assert_eq!(
+            fs::read_to_string(&temporary).unwrap(),
+            r#"{"account":"unfinished"}"#
+        );
         fs::remove_dir_all(root).unwrap();
     }
 

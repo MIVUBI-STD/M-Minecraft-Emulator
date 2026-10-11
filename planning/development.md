@@ -1,3 +1,10 @@
+## Interrupted metadata temporary-file preservation — 2026-10-11
+
+Source fix: write_text_transactional now fails closed when its PID-derived temporary metadata file already exists, before any backup recovery/discard. The old primary and the unfinished temporary contents remain untouched for manual reconciliation. This prevents PID reuse or crash leftovers from silently erasing a possibly newer metadata candidate. No automatic restoration, provider switch, VM disk deletion or account mutation. A targeted Rust regression test is authored.
+
+Proof: REMOTE_GITHUB source review; Rust test and Windows VM execution NOT_EXECUTED. Next: obtain source execution/build evidence; do not extrapolate metadata crash protection into VMware linked-disk chain recovery.
+
+
 ## Long-session metadata and operation-history integrity — 2026-10-11
 
 Source fix: The canonical journal now serializes readers and writers under its existing lock, since reads can rename transactional backups. Contended lock admission is bounded to five attempts with a 20 ms interval. Write failures report only a non-sensitive error kind and do not alter the observed VM result. Invalid history is not overwritten with empty records. Existing history schema and 200-record retention are unchanged.
