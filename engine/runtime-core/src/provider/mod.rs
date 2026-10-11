@@ -16,7 +16,7 @@ pub(crate) use vmx::{apply_virtual_hardware_policy, base_state_for_path, ensure_
 use crate::{
     client::{ClientId, ClientState},
     paths::{client_root, staging_root},
-    profile::current_base_vmx_path,
+    profile::{current_base_vmx_path, BaseState},
 };
 use std::{
     io,
@@ -40,22 +40,19 @@ pub trait Provider {
     fn provision(&self, client: ClientId) -> io::Result<ClientState>;
     fn reprovision(&self, client: ClientId) -> io::Result<ClientState>;
     fn memory_limit_mb(&self, client: ClientId) -> io::Result<u64>;
-    fn host_working_sets_mb(&self) -> io::Result<Vec<(ClientId, u64)>> {
-        Ok(host_working_sets_mb())
-    }
+    // Every backend must provide its own resource evidence. The old default
+    // inspected VMware processes and would silently misreport HCS GPU-PV.
+    fn host_working_sets_mb(&self) -> io::Result<Vec<(ClientId, u64)>>;
     fn guest_tools_ready(&self, client: ClientId) -> io::Result<Option<bool>>;
     fn guest_ip_address(&self, client: ClientId) -> io::Result<Option<String>>;
     fn identity_key(&self, client: ClientId) -> io::Result<Option<String>>;
 
-    fn network_mode(&self, client: ClientId) -> io::Result<Option<String>> {
-        let vmx = client_vmx_path(client)?;
-        read_vmx_value(&vmx, "ethernet0.connectionType")
-    }
-
-    fn graphics_3d_enabled(&self, client: ClientId) -> io::Result<Option<bool>> {
-        let vmx = client_vmx_path(client)?;
-        Ok(read_vmx_value(&vmx, "mks.enable3d")?.map(|value| value.eq_ignore_ascii_case("TRUE")))
-    }
+    // A provider-neutral admission fact, rather than looking for .vmx from
+    // runtime.rs. HCS templates will have a distinct provenance contract.
+    fn base_finalized_and_stopped(&self) -> io::Result<bool>;
+    fn network_mode(&self, client: ClientId) -> io::Result<Option<String>>;
+    // Configuration only; NOT evidence of a working D3D11/OpenGL renderer.
+    fn graphics_3d_enabled(&self, client: ClientId) -> io::Result<Option<bool>>;
     fn status(&self, client: ClientId) -> io::Result<ClientState>;
     fn start(&self, client: ClientId) -> io::Result<ClientState>;
     fn suspend(&self, client: ClientId) -> io::Result<ClientState>;
@@ -70,6 +67,25 @@ pub trait Provider {
     fn start_validation_vm(&self, vmx: &Path) -> io::Result<()>;
     fn stop_validation_vm(&self, vmx: &Path) -> io::Result<()>;
     fn guest_ip_for_path(&self, vmx: &Path) -> io::Result<Option<String>>;
+}
+
+// VMware-specific metadata stays below the provider boundary. Future HCS
+// implementations must not inherit VMX paths or VMware process heuristics.
+fn vmware_base_finalized_and_stopped(provider: &dyn Provider) -> io::Result<bool> {
+    let base = current_base_vmx_path()?;
+    if base_state_for_path(&base)? != Some(BaseState::Finalized) {
+        return Ok(false);
+    }
+    Ok(!provider.is_running_path(&base)?)
+}
+
+fn vmware_network_mode(client: ClientId) -> io::Result<Option<String>> {
+    read_vmx_value(&client_vmx_path(client)?, "ethernet0.connectionType")
+}
+
+fn vmware_graphics_3d_enabled(client: ClientId) -> io::Result<Option<bool>> {
+    Ok(read_vmx_value(&client_vmx_path(client)?, "mks.enable3d")?
+        .map(|value| value.eq_ignore_ascii_case("TRUE")))
 }
 
 pub fn current_platform_provider() -> Option<Box<dyn Provider>> {

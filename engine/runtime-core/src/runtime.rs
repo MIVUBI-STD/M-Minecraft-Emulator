@@ -197,10 +197,9 @@ fn collect_lifecycle_facts(
         client_profile.as_ref(),
         state != ClientState::NotProvisioned,
     ) == ProfileParity::Match;
-    let base_finalized_and_stopped = current_base_vmx_path().ok().is_some_and(|path| {
-        base_state_for_path(&path).ok().flatten() == Some(BaseState::Finalized)
-            && provider.is_running_path(&path).ok() == Some(false)
-    });
+    // The provider owns the meaning of a prepared, stopped base/template.
+    // Unreadable provenance is never promoted to first-time setup readiness.
+    let base_finalized_and_stopped = provider.base_finalized_and_stopped().unwrap_or(false);
 
     let vm_identity = vm_identity_state(provider, client);
     let fresh_client_profile = client_profile.as_ref().is_some_and(|profile| {
@@ -1866,6 +1865,22 @@ mod tests {
 
         fn memory_limit_mb(&self, _client: ClientId) -> io::Result<u64> {
             Ok(4096)
+        }
+
+        fn host_working_sets_mb(&self) -> io::Result<Vec<(ClientId, u64)>> {
+            Ok(Vec::new())
+        }
+
+        fn base_finalized_and_stopped(&self) -> io::Result<bool> {
+            Ok(false)
+        }
+
+        fn network_mode(&self, _client: ClientId) -> io::Result<Option<String>> {
+            Ok(None)
+        }
+
+        fn graphics_3d_enabled(&self, _client: ClientId) -> io::Result<Option<bool>> {
+            Ok(None)
         }
 
         fn guest_tools_ready(&self, _client: ClientId) -> io::Result<Option<bool>> {

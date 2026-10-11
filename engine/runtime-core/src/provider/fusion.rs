@@ -113,6 +113,22 @@ impl Provider for VmwareFusionProvider {
         self.vmrun().is_file()
     }
 
+    fn host_working_sets_mb(&self) -> io::Result<Vec<(ClientId, u64)>> {
+        Ok(super::host_working_sets_mb())
+    }
+
+    fn base_finalized_and_stopped(&self) -> io::Result<bool> {
+        super::vmware_base_finalized_and_stopped(self)
+    }
+
+    fn network_mode(&self, client: ClientId) -> io::Result<Option<String>> {
+        super::vmware_network_mode(client)
+    }
+
+    fn graphics_3d_enabled(&self, client: ClientId) -> io::Result<Option<bool>> {
+        super::vmware_graphics_3d_enabled(client)
+    }
+
     fn is_running_path(&self, vmx: &Path) -> io::Result<bool> {
         self.running(vmx)
     }
