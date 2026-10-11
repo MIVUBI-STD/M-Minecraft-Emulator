@@ -122,6 +122,69 @@ Do not introduce a second frontend bridge, general-purpose HTTP relay, service m
 
 **Next:** design the precise **non-mutating Rust read-only adapter contract** (`version/host/list/status`, auth discovery and errors), including a fail-closed upstream schema and Tauri integration boundary, before any provisioning, snapshot, launch or Windows driver code is changed. Keep the current VMware implementation untouched until the new provider can meet the required product contract.
 
+## M1 design complete — exact read-only App Sandbox contract
+
+**Status:** CONTRACT DESIGNED / NOT IMPLEMENTED / UPSTREAM LIVE API NOT EXECUTED. Evidence: inspected App Sandbox source `src/app_win/headless.c` and `tools/headless-api/asb.py` at `6f3adb6aafd4fc819d7715bdfacf52ac87df26a6`, plus this repository's existing Rust `ureq = 2.9.7`, `serde_json` and public contract. No extra dependency, process, API endpoint, persisted state or GPU probe is approved.
+
+### Single owner and adoption strategy
+
+Use `engine/runtime-core/src/provider/` as the only owner of App Sandbox host discovery and read-only API integration. Existing `engine/runtime-core/src/runtime.rs` still owns lifecycle/admission. Keep Svelte → typed Tauri → Rust; UI must never read `host.json` or send HTTP to App Sandbox. Do **not** connect a partial App Sandbox implementation to the existing VMware `Provider` trait: it requires VMX paths, guest IP, VMware snapshot semantics and mutable VM actions. Instead, a narrowly scoped typed observation is consumed by the existing runtime **only when** a coherent neutral provider admission/diagnostics flow can use it without exposing broken lifecycle controls. Avoid permanent `asb-client` crate, second state registry, another Tauri public facade, and unconditional startup probes.
+
+### Fixed upstream HTTP API
+
+App Sandbox Windows headless creates `%ProgramData%\AppSandbox\host.json` with `endpoint`, `port`, `token`, `pid`, `version` and `apiVersion`. Its Python client appends `/v1` to the endpoint. Verified source: `src/app_win/headless.c::write_discovery` and `tools/headless-api/asb.py::Client/connect`.
+
+- HTTP boundary: **GET only**, fixed paths `/v1/version`, `/v1/host`, `/v1/vms`, and later `/v1/vms/{canonical-name}`. Never expose raw user-selected URL, arbitrary path, POST, DELETE, SSH or query parameters.
+- Discovery: read once for an explicit operator-initiated observation, max ~4 KiB; reject symlink/reparse/path redirection, missing/oversized/non-UTF8/invalid JSON, non-uint `pid`, invalid port (1–65535), missing token, mismatched `endpoint`/`port` and invalid version. Restrict to **literal** `http://127.0.0.1:<port>`, no DNS aliases, credentials, fragments, query strings or alternate host. No env-driven arbitrary discovery path; use actual Windows ProgramData system path.
+- Authentication: v0.1.9 source emits **40 lowercase hexadecimal characters** of random bearer token (do not confuse with our VMware Guest Agent's 64-hex token). Keep token in the Rust call stack only, never serialize, persist, print, place in error context or send to a non-loopback address. Verify the daemon response with authenticated GET after the **unauthenticated** `/v1/version` product check; mere product/version strings do not prove process identity.
+- Process lifetime: a stale discovery file can survive a crash; even matched PID can be reused. Valid discovery is **not** an active daemon claim. Reachability, product/API/host checks and authenticated response must succeed on the current request. Avoid caching a bearer token across restarts.
+- Transport: reuse existing Rust HTTP/JSON dependency if its transport can be forced to direct loopback, **no proxy**, **no redirects**, short connect/read timeouts (proposed 2s connect, 3s overall for a normal status read), capped response bytes (proposed 256 KiB maximum, smaller for discovery), no verbose errors or raw URL/body logging. If existing HTTP client cannot enforce these, use bounded std TCP within the same owner; **do not add an HTTP framework**. No polling loop in Svelte and no SSE/event manager for this read-only slice.
+- Pin exact tested upstream release `0.1.9` and API version `v1` (source constant `ASB_API_VERSION`) for first integration. Require `product == "AppSandbox"`, `hostOs == "Windows"`, expected version and typed capability booleans. Reject incompatible version/API before reading VM state. Unknown additive fields may be ignored; absent or malformed consumed fields are not silently defaulted.
+
+### Typed facts and sources
+
+| External GET | Required source fields | Safe representation and meaning | Reject/unknown |
+| --- | --- | --- | --- |
+| `/v1/version` | `product: "AppSandbox"`, `version`, `apiVersion: "v1"`, `hostOs: "Windows"`, `capabilities.snapshots: bool`, `capabilities.templates: bool` | Supported upstream release/capabilities, **not VM readiness** | Missing/incompatible fields → incompatible/unknown provider, no VM mutation |
+| `/v1/host` | `hostCores`, `hostRamMb`, `freeGb`, `vmCores`, `vmRamMb`, `vmHddGb` non-negative bounded numbers | Host total and provider-declared guest allocations; `freeGb` is space on upstream's ProgramData drive, NOT necessarily VM disk target | Negative, overflow or missing → unknown; no baseline capacity PASS |
+| `/v1/vms` | Array of VM records under `vms`, all VM objects have distinct `name` | Read-only inventory, select exactly provisioned tracked guest identities only after ownership binding | Duplicate names, unexpected record type, unknown required fields → fail closed; do not manage other App Sandbox users' VMs |
+| `/v1/vms/{name}` | `name`, `osType`, `state`, `running`, `agentOnline`, `installComplete`, `building`, `ramMb`, `cpuCores`, `gpuMode`, `networkMode`, `displayOpen` | Observed VM process/guest signals; no Microsoft sign-in, Minecraft rendering, snapshot/identity guarantee | 404 is absent/not provisioned only after a validated inventory; authentication/malformed/transport errors must remain UNKNOWN, never STOPPED |
+
+Per `src/app_win/headless.c::derive_state` the current Windows states are `building`, `stopped`, `stopping`, `installing`, `booting` and `online`; some transitional combinations share `running=true`. **Preserve the upstream state internally** and validate relationships (`online` needs `running` and `agentOnline`, `building` cannot mean playable, `stopped` means not running). Do not reinterpret `online` as signed-in game or accept a game-ready claim from `gpuMode`. A guest Windows OS type is required for Minecraft usage; Linux VM records are other App Sandbox resources, not Minecraft Virtual-01/02/03. Return only a **filtered non-sensitive projection**, never `diskDirectory`, `gpuId` device path, passwords, raw provider error bodies, or token.
+
+App Sandbox `src/app_win/headless.c` also adds `gpuId` and `gpuName` to a VM response, but `gpuMode=1` and a GPU name are **configured hints only**. The public headless doc mentions `gpuMode=2` yet Windows source input validation accepts only 0/1: require only 0 or 1 for initial Windows create planning, do not expose `Try All` as a confirmed option. No VM-creation path is enabled during M1.
+
+### Error and reconciliation semantics
+
+| Observation | Required handling |
+| --- | --- |
+| Discovery absent | `PROVIDER_NOT_CONFIGURED` as diagnostic evidence; no auto-start, no VM-create |
+| Stale PID/connection refused | `PROVIDER_UNREACHABLE`, not "no VMs", not healthy |
+| Auth status 401 | `PROVIDER_AUTH_FAILED`; never print token |
+| API version/product/OS mismatch | `PROVIDER_INCOMPATIBLE`; no fallback to VMware silently |
+| HTTP 404 on named status | `VM_NOT_FOUND` only after provider handshake; no automatic recreation |
+| HTTP 409/500/501 | `PROVIDER_ERROR/UNSUPPORTED`; never translate to a stopped state |
+| Bad field, duplicate tracked VM name, invalid JSON, oversized response | `INVALID_PROVIDER_RESPONSE`; refuse mutation, preserve original guest data |
+| Request timeout / daemon exits mid-request | `UNKNOWN`; do not assume a VM changed state or retry mutation |
+| Concurrent guest startup | Not in read-only scope; future POST `202 Accepted` means admission only, then bounded status reconciliation before declaring success |
+
+The symbolic labels above are **design vocabulary**, not new public enum values or an extra state database. Map only proven cases to the single existing `ErrorCode` family at implementation. If public status semantics need a new enum, do a versioned explicit migration rather than smuggling new meanings into schema 1.
+
+### Consumer boundary, security and efficient resource use
+
+- No App Sandbox request from static module import, initial UI page load, every Svelte render or global interval. Preferred eventual consumer is the existing **explicit diagnostics / setup action** once its backend admits the selected provider. Use on-demand single request when requested; do not generate continuous traffic or a new persistent cache.
+- Admin App Sandbox daemon owns HCS/GPU-PV and visible Windows guest display; do not run it silently in a Windows service (Session 0), duplicate a full server, or send admin bearer token to the frontend. If daemon is unavailable, explain it as one reason in the existing Doctor instead of hiding an installation behind setup.
+- Support bundle and journal must exclude discovery file, token, absolute upstream disk directories, Windows accounts and raw provider response strings. The old JVM/VMX update paths and guest disks must remain untouched during M1.
+- Business/policy owner stays Rust runtime. Exact validation is **read-only**; application GUI may eventually display provider availability/capabilities but must not claim API feature readiness as Minecraft runtime evidence.
+- Device budgets stay hypotheses: i7-14700F/RTX3070 8GB/32GB RAM, initial three guests at 4 GB + 2 vCPU; no fake VRAM quota or automatic GPU tuning until G1/G3 observation.
+- Windows 11 **Enterprise edition confirmed by user**, *Windows virtualization entitlements unknown*. `slmgr /dli` shows activation channel/status, not the underlying right to multiple Windows VM installations.
+
+### Minimum implementation acceptance for the next coherent batch
+
+Implement inside **existing** Rust backend owner and simultaneously wire its one legitimate existing diagnostics consumer (without a competing VMware lifecycle). Cases to represent in targeted source regressions once code exists: valid v0.1.9 response and three named VM statuses; stale discovery; external URL/port mismatch/redirect/proxy prevention; wrong API/product; 401; response over cap; duplicate VM entries; malformed state relation; one VM 404; offline daemon; token redaction; Windows/Linux VM separation. These are targeted source tests in the existing suite, **not a new G gate** and not proof that they have run.
+
+**M1 engineering next action:** Make one complete, read-only provider inspection path in `engine/runtime-core/src/provider/` and its existing diagnostics consumer **only after** exact calls can be added without causing normal snapshot refresh to perform heavyweight polling. No speculative public CLI/Tauri command, no independent provider registry, no provider switch, no writes to VMs, no release. If no consumer can be safely added in one coherent change, keep this specification as the completed batch and do not commit unused transport code.
+
 ## Coherent migration phases (not new acceptance gates)
 
 **M0 — Research and source ownership design (NOW).** Freeze VMware feature work and preserve historical commit/SHA. Inventory all VMware-specific provider, profile, admission, doctor, window, package, Guest Agent, VMX/QA_READY and tests. Map App Sandbox API semantics and external source risk. Decide how the existing Rust Public Contract can be kept or version-migrated. Finish on GitHub with a single source-grounded plan; no VM mutation.
