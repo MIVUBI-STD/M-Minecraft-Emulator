@@ -71,7 +71,9 @@ pub(crate) struct HostCapacity {
 
 #[derive(Debug, Deserialize)]
 struct VmList {
-    vms: Vec<VmState>,
+    // Other users may have Linux VMs with longer hostnames or different
+    // device modes. Only parse full state for OUR three canonical names.
+    vms: Vec<serde_json::Value>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -186,13 +188,16 @@ fn parse_vm_list(data: &[u8]) -> Result<Vec<VmState>, &'static str> {
     let mut names = HashSet::new();
     let mut values = Vec::with_capacity(raw.vms.len());
     for record in raw.vms {
-        // Apply the same validation as the named endpoint, not a weaker list parser.
-        let encoded = serde_json::to_vec(&record).map_err(|_| "INVALID_PROVIDER_RESPONSE")?;
-        let parsed = parse_vm(&encoded)?;
-        if !names.insert(parsed.name.to_ascii_lowercase()) {
+        let name = record.get("name").and_then(serde_json::Value::as_str)
+            .ok_or("INVALID_PROVIDER_RESPONSE")?;
+        if name.is_empty() || !names.insert(name.to_ascii_lowercase()) {
             return Err("INVALID_PROVIDER_RESPONSE");
         }
-        values.push(parsed);
+        if is_tracked_guest(name) {
+            // Validate tracked guests as strictly as the named status route.
+            let encoded = serde_json::to_vec(&record).map_err(|_| "INVALID_PROVIDER_RESPONSE")?;
+            values.push(parse_vm(&encoded)?);
+        }
     }
     Ok(values)
 }
@@ -379,6 +384,10 @@ mod tests {
         assert_eq!(parse_vm_list(&serde_json::to_vec(&list).unwrap()).unwrap().len(), 3);
         let duplicates = json!({"vms":[vm("Virtual-01"),vm("virtual-01")]});
         assert!(parse_vm_list(&serde_json::to_vec(&duplicates).unwrap()).is_err());
+        // Linux guests with 63-character names are unrelated to our Windows
+        // sessions; they must not make the read-only inventory fail.
+        let foreign = json!({"vms":[vm("Virtual-01"),{"name":"unrelated-linux-guest-with-a-long-hostname-okay","osType":"Linux","state":"online","gpuMode":2}]});
+        assert_eq!(parse_vm_list(&serde_json::to_vec(&foreign).unwrap()).unwrap().len(), 1);
     }
 
     #[test]
