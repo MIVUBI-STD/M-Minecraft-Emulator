@@ -66,3 +66,18 @@ pub use guest::{
 pub fn guest_agent_minecraft_profile() -> Option<MinecraftProfile> {
     profile::native_minecraft_profile()
 }
+
+// Guest binaries reuse the host's existing bounded subprocess execution.
+#[doc(hidden)]
+pub fn guest_agent_command_output<I, S>(
+    program: &std::path::Path,
+    args: I,
+    timeout: std::time::Duration,
+) -> std::io::Result<String>
+where
+    I: IntoIterator<Item = S>,
+    S: AsRef<std::ffi::OsStr>,
+{
+    provider::command_output_with_timeout(program, args, timeout)
+}
+

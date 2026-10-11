@@ -1,7 +1,7 @@
 #![forbid(unsafe_code)]
 
 use m_bedrock_virtual_clients_core::{
-    guest_agent_minecraft_profile, GuestStatus, GUEST_AGENT_PORT,
+    guest_agent_command_output, guest_agent_minecraft_profile, GuestStatus, GUEST_AGENT_PORT,
     GUEST_AGENT_PROTOCOL_VERSION, GUEST_STATUS_SCHEMA, MINECRAFT_LAUNCH_SCHEMA,
 };
 
@@ -391,28 +391,27 @@ fn write_json(stream: &mut TcpStream, request_id: &str, value: &impl serde::Seri
 
 #[cfg(target_os = "windows")]
 fn interactive_session_available() -> bool {
-    let output = std::process::Command::new("powershell.exe")
-        .args([
+    // A hung Windows status probe cannot occupy a Guest Agent worker forever.
+    guest_agent_command_output(
+        std::path::Path::new("powershell.exe"),
+        [
             "-NoLogo", "-NoProfile", "-NonInteractive", "-Command",
             "$session = (Get-Process -Id $PID).SessionId; $interactive = @(Get-Process explorer -ErrorAction SilentlyContinue | Where-Object { $_.SessionId -eq $session }).Count -gt 0; ($session -ne 0) -and $interactive",
-        ])
-        .output();
-    output.ok()
-        .filter(|output| output.status.success())
-        .is_some_and(|output| String::from_utf8_lossy(&output.stdout).trim().eq_ignore_ascii_case("True"))
+        ],
+        Duration::from_secs(4),
+    )
+    .is_ok_and(|value| value.eq_ignore_ascii_case("True"))
 }
 
 #[cfg(target_os = "windows")]
 fn minecraft_process_running() -> bool {
-    std::process::Command::new("powershell.exe")
-        .args([
-            "-NoLogo", "-NoProfile", "-NonInteractive", "-Command",
-            "@(Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.ProcessName -like '*Minecraft*' -or $_.ProcessName -like '*Education*' }).Count -gt 0",
-        ])
-        .output()
-        .ok()
-        .filter(|output| output.status.success())
-        .is_some_and(|output| String::from_utf8_lossy(&output.stdout).trim().eq_ignore_ascii_case("True"))
+    // Avoid starting PowerShell merely to check for an existing game process.
+    let mut system = sysinfo::System::new();
+    system.refresh_processes();
+    system.processes().values().any(|process| {
+        let name = process.name().to_ascii_lowercase();
+        name.contains("minecraft") || name.contains("education")
+    })
 }
 
 #[cfg(target_os = "windows")]
@@ -439,15 +438,12 @@ fn launch_minecraft_interactive() -> Result<(), Box<dyn std::error::Error>> {
             "$app = Get-StartApps | Where-Object { $_.Name -like '*Minecraft Education*' } | Select-Object -First 1; if (-not $app) { throw 'Minecraft Education Start menu entry is unavailable' }; Start-Process ('shell:AppsFolder\\' + $app.AppID)"
         }
     };
-    let output = std::process::Command::new("powershell.exe")
-        .args(["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", command])
-        .output()?;
-    if !output.status.success() {
-        return Err(io::Error::new(
-            io::ErrorKind::Other,
-            format!("Minecraft Education launch failed: {}", String::from_utf8_lossy(&output.stderr).trim()),
-        ).into());
-    }
+    guest_agent_command_output(
+        std::path::Path::new("powershell.exe"),
+        ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", command],
+        Duration::from_secs(10),
+    )
+    .map_err(|error| io::Error::new(error.kind(), format!("Minecraft Education launch failed: {error}")))?;
 
     let deadline = std::time::Instant::now() + MINECRAFT_PROCESS_START_TIMEOUT;
     while std::time::Instant::now() < deadline {
@@ -466,25 +462,18 @@ fn launch_minecraft() -> Result<m_bedrock_virtual_clients_core::MinecraftLaunchR
 
 #[cfg(target_os = "windows")]
 fn guest_machine_identity() -> Option<String> {
-    let output = std::process::Command::new("powershell.exe")
-        .args([
-            "-NoLogo",
-            "-NoProfile",
-            "-NonInteractive",
-            "-Command",
+    let machine_guid = guest_agent_command_output(
+        std::path::Path::new("powershell.exe"),
+        [
+            "-NoLogo", "-NoProfile", "-NonInteractive", "-Command",
             "(Get-ItemProperty -LiteralPath 'HKLM:\\SOFTWARE\\Microsoft\\Cryptography' -Name MachineGuid -ErrorAction Stop).MachineGuid",
-        ])
-        .output()
-        .ok()?;
-    if !output.status.success() {
-        return None;
-    }
-
-    let machine_guid = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        ],
+        Duration::from_secs(4),
+    ).ok()?;
+    let machine_guid = machine_guid.trim();
     if machine_guid.is_empty() || machine_guid.len() > 128 {
         return None;
     }
-
     Some(format!("{:x}", Sha256::digest(machine_guid.as_bytes())))
 }
 
@@ -519,24 +508,15 @@ fn guest_agent_token() -> io::Result<String> {
     if !vmtoolsd.is_file() {
         return Err(io::Error::new(
             io::ErrorKind::NotFound,
-            format!(
-                "VMware Tools vmtoolsd.exe is missing: {}",
-                vmtoolsd.display()
-            ),
+            format!("VMware Tools vmtoolsd.exe is missing: {}", vmtoolsd.display()),
         ));
     }
-
-    let output = std::process::Command::new(vmtoolsd)
-        .args(["--cmd", "info-get guestinfo.virtualclients.token"])
-        .output()?;
-    if !output.status.success() {
-        return Err(io::Error::new(
-            io::ErrorKind::PermissionDenied,
-            "Guest Agent token is not available from VMware guestinfo",
-        ));
-    }
-
-    let token = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    let token = guest_agent_command_output(
+        &vmtoolsd,
+        ["--cmd", "info-get guestinfo.virtualclients.token"],
+        Duration::from_secs(10),
+    )
+    .map_err(|error| io::Error::new(error.kind(), "Guest Agent token could not be read from VMware Tools"))?;
     if token.len() != 64 || !token.chars().all(|character| character.is_ascii_hexdigit()) {
         return Err(io::Error::new(
             io::ErrorKind::InvalidData,

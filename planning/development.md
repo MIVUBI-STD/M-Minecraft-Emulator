@@ -1,3 +1,7 @@
+## Guest process timeout hardening — 2026-10-11
+
+Status: SOURCE PATCH. Windows Guest Agent uses the existing canonical provider subprocess runner (bounded execution/output) for PowerShell session probe, hashed MachineGuid probe, interactive launcher command and VMware Tools token retrieval. Process-running detection uses native sysinfo enumeration without spawning PowerShell for each status. The Guest Agent wire schema, authentication, launcher session, Minecraft account state and VM disks are unchanged. This is not proof that game renders, or that inherited stdout-pipe reader threads are fully reclaimed. Rust, Windows, packaging and G0–G4 tests NOT_EXECUTED in this remote source context. Next: examine inherited-pipe lifetime and reduce redundant VMware status probes without persistent cache.
+
 ## Long-session reliability — stale-state fail-closed UI (2026-10-11)
 
 Status: SOURCE PATCH. When an asynchronous backend refresh fails, preserve the previous diagnostic snapshot only as visibly outdated read-only information; clear all action availability and pending recovery/reprovision dialogs. Refresh attempt itself must not reenable controls before a successful backend response. No VM disks, account sessions, provider state, or public wire schemas are modified. Desktop source regression authored; executable Vitest/Rust/Windows/G0-G4 acceptance NOT_EXECUTED. Next: bound Guest Agent Windows child-process probes in the existing subprocess runner.
