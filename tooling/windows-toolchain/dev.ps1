@@ -145,7 +145,7 @@ function New-DesktopCargoLock {
 function Assert-BuiltWindowsPackage {
     param([string]$ExpectedSha, [datetime]$BuildStartedUtc)
 
-    $bundleDir = Join-Path $Root "apps/desktop/src-tauri/target/release/bundle/nsis"
+    $bundleDir = Join-Path $Root "apps/desktop/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis"
     if (-not (Test-Path -LiteralPath $bundleDir -PathType Container)) {
         throw "Tauri reported success, but the NSIS bundle directory does not exist: $bundleDir"
     }
