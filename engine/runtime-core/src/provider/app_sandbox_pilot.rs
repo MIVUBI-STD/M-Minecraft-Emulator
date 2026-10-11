@@ -66,6 +66,7 @@ fn unavailable(message: &'static str) -> io::Error {
 struct PilotVm {
     name: String, os_type: String, disk_directory: String,
     state: String, running: bool, building: bool,
+    agent_online: bool, install_complete: bool,
     ram_mb: u64, cpu_cores: u64, gpu_mode: u8, network_mode: u8,
 }
 
@@ -181,10 +182,29 @@ fn read_vm(session: &AsbSession) -> io::Result<PilotVm> {
 fn current_state_consistent(vm: &PilotVm) -> bool {
     match vm.state.as_str() {
         "stopped" => !vm.running && !vm.building,
-        "installing" | "booting" | "online" | "stopping" => vm.running && !vm.building,
+        "installing" => vm.running && !vm.building && !vm.install_complete,
+        "booting" => vm.running && !vm.building && vm.install_complete && !vm.agent_online,
+        "online" => vm.running && !vm.building && vm.install_complete && vm.agent_online,
+        "stopping" => vm.running && !vm.building,
         "building" => vm.building,
         _ => false,
     }
+}
+
+// A bare base disk can report (-1,-1) or (-2,-1) in upstream v0.1.9.
+// Anything else or any recorded branches/snapshots blocks a pilot mutation.
+fn snapshot_is_clean(value: &serde_json::Value) -> bool {
+    let no_snapshots = value.get("snapshots").and_then(serde_json::Value::as_array)
+        .is_some_and(|rows| rows.is_empty());
+    let no_branches = value.get("baseBranches").and_then(serde_json::Value::as_array)
+        .is_some_and(|rows| rows.is_empty());
+    let cursor = value.get("current");
+    let snap = cursor.and_then(|c| c.get("snapIndex"))
+        .and_then(serde_json::Value::as_i64);
+    let branch = cursor.and_then(|c| c.get("branchIndex"))
+        .and_then(serde_json::Value::as_i64);
+    no_snapshots && no_branches && branch == Some(-1)
+        && matches!(snap, Some(-1) | Some(-2))
 }
 
 struct Preflight {
@@ -222,17 +242,17 @@ fn preflight(session: &AsbSession) -> io::Result<Preflight> {
     {
         return Err(unsupported("pilot storage and MAC provenance do not match"));
     }
-    if !ordinary_path(&expected.join("disk.vhdx"), false) {
-        return Err(unsupported("pilot VHDX is unavailable or redirected"));
+    let disk = expected.join("disk.vhdx");
+    if !ordinary_path(&disk, false)
+        || fs::metadata(&disk).ok().is_none_or(|m| m.len() < 4096)
+    {
+        return Err(unsupported("pilot VHDX is unavailable, empty or redirected"));
     }
     // No snapshot or differencing branches for the disposable one-guest pilot.
     let raw = session.get("vms/MVB-PILOT-01/snapshots").map_err(unavailable)?;
     let snapshots: serde_json::Value = serde_json::from_slice(&raw)
         .map_err(|_| invalid("pilot snapshots response is invalid"))?;
-    if snapshots.get("snapshots").and_then(serde_json::Value::as_array).is_none_or(|v| !v.is_empty())
-        || snapshots.get("baseBranches").and_then(serde_json::Value::as_array).is_none_or(|v| !v.is_empty())
-        || snapshots.get("current").and_then(|v| v.get("branchIndex")).and_then(serde_json::Value::as_i64) != Some(-1)
-    {
+    if !snapshot_is_clean(&snapshots) {
         return Err(unsupported("pilot has a snapshot branch; no operation was attempted"));
     }
     let after = read_registry().map_err(|_| unavailable("App Sandbox registry changed or is unavailable"))?;
@@ -317,7 +337,7 @@ fn read_display(session: &AsbSession) -> io::Result<Display> {
     serde_json::from_slice(&data).map_err(|_| invalid("pilot display status is invalid"))
 }
 
-fn completion(session: &AsbSession, action: PilotAction) -> io::Result<String> {
+fn completion(session: &AsbSession, action: PilotAction, baseline: &Preflight) -> io::Result<String> {
     let limit = match action {
         PilotAction::Start => WAIT_START,
         PilotAction::Shutdown => WAIT_SHUTDOWN,
@@ -328,7 +348,9 @@ fn completion(session: &AsbSession, action: PilotAction) -> io::Result<String> {
     loop {
         let vm = read_vm(session).map_err(|_| unavailable("pilot state unknown after accepted action"))?;
         let matched = match action {
-            PilotAction::Start => vm.running && matches!(vm.state.as_str(), "installing" | "booting" | "online"),
+            // A received HTTP 202 and an OS boot phase are NOT an online guest.
+            // Even online is only the App Sandbox agent, not Minecraft gameplay.
+            PilotAction::Start => vm.running && vm.state == "online" && current_state_consistent(&vm),
             PilotAction::Shutdown => !vm.running && vm.state == "stopped",
             PilotAction::Display => {
                 let display = read_display(session)
@@ -337,7 +359,22 @@ fn completion(session: &AsbSession, action: PilotAction) -> io::Result<String> {
             }
             PilotAction::Inspect => false,
         };
-        if matched { return Ok(vm.state); }
+        if matched {
+            // Reconcile the registry, MAC, direct VHDX path, snapshot pointer,
+            // consent and current host configuration before reporting success.
+            // A changed or unreadable identity after POST is UNKNOWN, not PASS.
+            let after = preflight(session)
+                .map_err(|_| unavailable("pilot identity could not be revalidated after action"))?;
+            if after.registry_disk != baseline.registry_disk
+                || after.registry_mac != baseline.registry_mac
+                || after.enrollment_fingerprint != baseline.enrollment_fingerprint
+                || !after.consent
+                || after.vm.state != vm.state
+            {
+                return Err(unavailable("pilot identity changed after accepted action"));
+            }
+            return Ok(vm.state);
+        }
         if since.elapsed() >= limit {
             return Err(io::Error::new(io::ErrorKind::TimedOut,
                 "pilot completion not observed; do not retry before inspecting current VM state"));
@@ -374,7 +411,7 @@ pub(crate) fn execute(args: &[String]) -> io::Result<PilotReport> {
     let again = preflight(&session)?;
     assert_same_preflight(&before, &again)?;
     post_fixed(&session, action)?;
-    let observed = completion(&session, action)?;
+    let observed = completion(&session, action, &before)?;
     Ok(PilotReport {
         name: PILOT_NAME, action: action.action_name(), observed_vm_state: observed,
         provider_acknowledged: true, observed_completion: true,
@@ -385,7 +422,8 @@ pub(crate) fn execute(args: &[String]) -> io::Result<PilotReport> {
 
 #[cfg(test)]
 mod tests {
-    use super::{PilotAction, PilotConsent, PILOT_NAME};
+    use super::{current_state_consistent, snapshot_is_clean, PilotAction, PilotConsent, PilotVm, PILOT_NAME};
+    use serde_json::json;
     #[test]
     fn pilot_action_never_touches_production_names_or_force_stop() {
         assert_eq!(PILOT_NAME, "MVB-PILOT-01");
@@ -397,6 +435,34 @@ mod tests {
         assert!(PilotAction::parse(&["stop".into(), "--confirm-disposable-pilot".into()]).is_err());
         assert!(PilotAction::parse(&["reset".into(), "--confirm-disposable-pilot".into()]).is_err());
         assert!(PilotAction::parse(&["Virtual-01".into(), "--confirm-disposable-pilot".into()]).is_err());
+    }
+    #[test]
+    fn online_requires_installed_guest_and_connected_agent() {
+        let mut vm = PilotVm {
+            name: PILOT_NAME.into(), os_type: "Windows".into(), disk_directory: r"C:\pilot".into(),
+            state: "online".into(), running: true, building: false,
+            agent_online: true, install_complete: true,
+            ram_mb: 4096, cpu_cores: 2, gpu_mode: 1, network_mode: 1,
+        };
+        assert!(current_state_consistent(&vm));
+        vm.agent_online = false;
+        assert!(!current_state_consistent(&vm));
+        vm.state = "booting".into();
+        assert!(current_state_consistent(&vm));
+        vm.install_complete = false;
+        assert!(!current_state_consistent(&vm));
+    }
+    #[test]
+    fn snapshot_is_clean_only_for_an_unbranched_base() {
+        for (snap, branch, valid) in [(-1, -1, true), (-2, -1, true), (0, -1, false), (-1, 0, false)] {
+            let value = json!({"current":{"snapIndex":snap,"branchIndex":branch},
+                "snapshots":[],"baseBranches":[]});
+            assert_eq!(snapshot_is_clean(&value), valid);
+        }
+        assert!(!snapshot_is_clean(&json!({"current":{"snapIndex":-1,"branchIndex":-1},
+            "snapshots":[{"index":0}],"baseBranches":[]})));
+        assert!(!snapshot_is_clean(&json!({"current":{"snapIndex":-2,"branchIndex":-1},
+            "snapshots":[],"baseBranches":[{"index":0}]})));
     }
     #[test]
     fn operator_consent_is_not_an_automatic_authorization() {

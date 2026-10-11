@@ -59,6 +59,7 @@ fn normalize_mac(input: &str) -> Option<String> {
 fn finish(
     block: &HashMap<&str, &str>, entries: &mut HashMap<String, RegistryVm>,
     macs: &mut HashSet<String>, disks: &mut HashSet<String>,
+    roots: &mut HashSet<String>,
 ) -> Result<(), &'static str> {
     let name = block.get("Name").ok_or("INVALID_VM_REGISTRY")?;
     let os = block.get("OsType").ok_or("INVALID_VM_REGISTRY")?;
@@ -85,6 +86,9 @@ fn finish(
         if !macs.insert(mac.clone()) { return Err("DUPLICATE_VM_MAC"); }
     }
     if !disks.insert(active_vhdx.clone()) { return Err("DUPLICATE_VM_VHDX"); }
+    // Check VM-folder isolation independently of its active differencing disk.
+    // Lexical paths are NOT immutable disk or HCS attachment attestation.
+    if !roots.insert(vm_root.clone()) { return Err("DUPLICATE_VM_ROOT"); }
     if entries.insert(name.to_ascii_lowercase(), RegistryVm {
         name: name.to_string(), active_vhdx, vm_root, shared_parent, mac,
     }).is_some() {
@@ -97,14 +101,15 @@ fn parse_config(source: &str) -> Result<Registry, &'static str> {
     if source.len() as u64 > MAX_CONFIG_BYTES || source.contains('\0') {
         return Err("INVALID_VM_REGISTRY");
     }
-    let (mut entries, mut macs, mut disks) = (HashMap::new(), HashSet::new(), HashSet::new());
+    let (mut entries, mut macs, mut disks, mut roots) =
+        (HashMap::new(), HashSet::new(), HashSet::new(), HashSet::new());
     let mut block = HashMap::new();
     let mut in_vm = false;
     let mut count = 0;
     for row in source.lines() {
         let line = row.trim_end_matches('\r');
         if line.starts_with('[') && line.ends_with(']') {
-            if in_vm { finish(&block, &mut entries, &mut macs, &mut disks)?; }
+            if in_vm { finish(&block, &mut entries, &mut macs, &mut disks, &mut roots)?; }
             block.clear();
             in_vm = line == "[VM]";
             if in_vm {
@@ -121,7 +126,7 @@ fn parse_config(source: &str) -> Result<Registry, &'static str> {
             return Err("INVALID_VM_REGISTRY");
         }
     }
-    if in_vm { finish(&block, &mut entries, &mut macs, &mut disks)?; }
+    if in_vm { finish(&block, &mut entries, &mut macs, &mut disks, &mut roots)?; }
     Ok(Registry { entries })
 }
 
@@ -196,6 +201,10 @@ mod tests {
         assert!(parse_config(&format!("[VM]\n{FIRST}\n[VM]\n{}", FIRST.replace("Virtual-01","virtual-01"))).is_err());
         assert!(parse_config(&format!("[VM]\n{}", FIRST.replace("disk.vhdx", r"..\disk.vhdx"))).is_err());
         assert!(parse_config(&format!("[VM]\n{FIRST}MacAddress=02-AA-BB-CC-DD-09\n")).is_err());
+        // Even different differencing VHDX leaves must not alias a VM folder.
+        let branch = FIRST.replace("disk.vhdx", r"snapshots\branch_abc.vhdx")
+            .replace("02-AA-BB-CC-DD-01", "02-AA-BB-CC-DD-02");
+        assert!(parse_config(&format!("[VM]\n{FIRST}\n[VM]\n{branch}")).is_err());
     }
     #[test]
     fn unrelated_linux_hostnames_do_not_invalidate_valid_windows_vm_records() {
