@@ -27,6 +27,9 @@ dist/
 target/
 coverage/
 apps/desktop/src-tauri/icons/
+apps/desktop/src-tauri/gen/
+apps/desktop/src-tauri/binaries/
+apps/desktop/src-tauri/package-resources/
 *.log
 *.tmp
 .DS_Store
