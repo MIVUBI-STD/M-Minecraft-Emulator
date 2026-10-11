@@ -1,3 +1,11 @@
+## Pre-local command contract correction — 2026-10-11
+
+**Work:** `emulator/pre-local-static-contract-audit`; **State: SOURCE_PATCHED / EXECUTION_UNPROVEN**. The desktop Base registration response validator required a `guestAgentVersion` property absent from the actual serialized Rust `BaseProfile`. A successful `register-base` mutation could therefore be reported to users as a frontend command-contract failure after committing Base metadata. The validator now requires only the real `schema`, `minecraftVersion`, `guestStatusSchema`, `guestAgentProtocol` and `baseGenerationId` fields. The TypeScript regression fixture is the real Rust output shape and links to the owning Rust structure. No public wire schema, Base metadata, VM state or credential storage was changed.
+
+**Proof:** REMOTE_GITHUB current Rust definition + Tauri dispatch + typed frontend validation examined. Test source authored, **NOT_EXECUTED**; desktop Cargo.lock and G0-G4 remain blocked on actual Cargo/Windows execution.
+
+**Next:** Resolve genuine Cargo.lock and run one exact-SHA G0; do not infer success from the authored regression.
+
 ## Cargo bootstrap and post-hardening source correction — 2026-10-11
 
 **Work:** `emulator/pre-local-cargo-bootstrap`; **State:** SOURCE_PATCHED / EXECUTION_UNPROVEN. The optional `DEV.cmd lock` route now checks only pinned Rust/Cargo, exact clean `Local` SHA and real registry-backed resolution. G0 still requires the complete pinned Node/npm/Rust/rustfmt toolchain, a committed desktop lockfile and exact clean SHA; its checks are not weakened.

@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { parseSuccessEnvelope } from "../src/contracts.js";
 import {
   actionAvailability, basePreparation, baseProfile, clientStatus, enginePolicy, engineSnapshot,
   displayList, lifecycleActions, operationHistory, updateCheck, windowArrangement,
@@ -149,19 +150,27 @@ describe("Backend payload shapes", () => {
     const value = {
       schema: 3,
       minecraftVersion: "1.21.120.0",
-      nativeInstallType: "DESKTOP",
       guestStatusSchema: 3,
-      guestAgentProtocol: 1,
-      guestAgentVersion: "0.1.0",
+      guestAgentProtocol: 2,
       baseGenerationId: "a".repeat(64),
-      source: "LIVE_VERIFIED",
     };
+    // Exact serialized shape from the Rust BaseProfile (no Guest Agent
+    // version or invented provenance fields in the registration response).
     expect(baseProfile(value)).toBe(true);
+    // Exercise the same envelope and payload path used by Register Base.
+    expect(parseSuccessEnvelope(
+      JSON.stringify({ schema: 1, data: value }), baseProfile,
+    )).toEqual(value);
     expect(baseProfile({ ...value, schema: 2 })).toBe(false);
     expect(baseProfile({ ...value, baseGenerationId: undefined })).toBe(false);
     expect(baseProfile({ ...value, baseGenerationId: "short" })).toBe(false);
     expect(baseProfile({ ...value, guestAgentProtocol: undefined })).toBe(false);
     expect(baseProfile({ ...value, guestAgentProtocol: 0 })).toBe(false);
+    const rustProfile = readFileSync(new URL("../../../engine/runtime-core/src/profile.rs", import.meta.url), "utf8");
+    const rustFields = rustProfile.match(/pub struct BaseProfile \{([\s\S]*?)\n\}/)?.[1] ?? "";
+    expect(rustFields).toContain("pub guest_agent_protocol:");
+    expect(rustFields).not.toContain("pub guest_agent_version:");
+    expect(baseProfile({ ...value, guestAgentVersion: undefined })).toBe(true);
   });
 
   it("rejects malformed journal records", () => {

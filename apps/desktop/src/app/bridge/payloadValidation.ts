@@ -157,7 +157,7 @@ export const updateCheck = shape<UpdateCheck>({
 export const supportBundle = shape<SupportBundleResult>({ capturedAtUnixMs: integer, path: text });
 export const baseProfile = shape<unknown>({
   schema: oneOf(3), minecraftVersion: text,
-  guestStatusSchema: integer, guestAgentProtocol: positiveInteger, guestAgentVersion: text,
+  guestStatusSchema: integer, guestAgentProtocol: positiveInteger,
   baseGenerationId: hex64,
 });
 export const stagedUpdate = shape<unknown>({
