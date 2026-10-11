@@ -1,3 +1,8 @@
+## G0 lockfile HEAD provenance — 2026-10-11
+
+`tooling/repository/verify.mjs --g0` now checks that desktop Cargo.lock belongs to the actual committed HEAD using git ls-tree, not just that a generated file exists on disk or in the index. This closes a reproducibility gap where an uncommitted dependency graph could incorrectly pass source checks. Ordinary `verify:repository` remains independent of Git/G0 prerequisite; the only affected route is explicit G0. Source review only; no Node/Cargo/Windows G0 execution evidence.
+
+
 ## Toolchain pin on initial desktop lock generation — 2026-10-11
 
 Before generating the missing desktop Cargo.lock with `DEV.cmd lock`, the same existing toolchain verifier now checks pinned Node, npm and Rust inputs while allowing only the expected absence of the desktop lockfile. This prevents a different compiler version from silently resolving the first application dependency graph. The lockfile is still not generated or committed by ChatGPT, and Windows/G0-G4 execution is NOT_EXECUTED.

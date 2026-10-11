@@ -1,4 +1,5 @@
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -34,8 +35,18 @@ for (const file of required) {
 // Keep normal repository structure inspections available independently while the
 // actual Tauri dependency graph has not yet been generated.
 if (process.argv.includes("--g0")) {
-  requireFact(existsSync(resolve(root, "apps/desktop/src-tauri/Cargo.lock")),
-    "G0 BLOCKED: committed Tauri Cargo.lock is missing. Resolve it with Cargo against apps/desktop/src-tauri/Cargo.toml; do not fabricate versions.");
+  const desktopLock = "apps/desktop/src-tauri/Cargo.lock";
+  requireFact(existsSync(resolve(root, desktopLock)),
+    "G0 BLOCKED: Tauri Cargo.lock is missing. Resolve it with real Cargo; do not fabricate versions.");
+  // A generated but uncommitted file cannot be the reproducible exact-SHA G0
+  // dependency graph. Inspect HEAD directly instead of trusting the Git index.
+  const committed = spawnSync("git", ["ls-tree", "-r", "--name-only", "HEAD", "--", desktopLock], {
+    cwd: root,
+    encoding: "utf8",
+  });
+  requireFact(!committed.error && committed.status === 0 &&
+    committed.stdout.trim() === desktopLock,
+    "G0 BLOCKED: Tauri Cargo.lock exists locally but is not committed in HEAD. Commit it to Local before source/package verification.");
 }
 
 // Root governance continuity is source-owned; keep it within this verifier.
