@@ -9,6 +9,7 @@ use super::{
 use crate::operation_lock::OperationLock;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use sysinfo::System;
 use std::{
     fs, io::{self, Read}, path::{Path, PathBuf}, thread,
     time::{Duration, Instant},
@@ -21,6 +22,10 @@ const WAIT_START: Duration = Duration::from_secs(90);
 const WAIT_SHUTDOWN: Duration = Duration::from_secs(120);
 const WAIT_DISPLAY: Duration = Duration::from_secs(10);
 const MAX_REPLY_BYTES: u64 = 4096;
+// Pilot allocation + host reserve, not a guarantee of gameplay performance.
+const HOST_RAM_RESERVE_MB: u64 = 6 * 1024;
+const HOST_FREE_DISK_FLOOR_GB: u64 = 12;
+const VHDX_HEADER_BYTES: u64 = 1024 * 1024;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum PilotAction { Inspect, Start, Shutdown, Display }
@@ -134,6 +139,49 @@ fn safe_pilot_root(path: &Path) -> bool {
         if !cursor.pop() { return false; }
     }
     true
+}
+
+fn valid_vhdx_signature(signature: &[u8]) -> bool {
+    // MS-VHDX 2.2.1: the eight-byte file type identifier at offset 0.
+    signature == b"vhdxfile"
+}
+
+fn valid_start_disk(path: &Path) -> io::Result<()> {
+    // Only before Start on a stopped VM: a running HCS guest may hold an
+    // exclusive disk handle. Never make Shutdown depend on opening its VHDX.
+    if !ordinary_path(path, false) {
+        return Err(unsupported("pilot VHDX was replaced or redirected"));
+    }
+    let mut file = fs::File::open(path)
+        .map_err(|_| unsupported("pilot VHDX cannot be read safely"))?;
+    if file.metadata().map_err(|_| unavailable("pilot VHDX metadata unavailable"))?.len()
+        < VHDX_HEADER_BYTES
+    {
+        return Err(unsupported("pilot VHDX is smaller than its header section"));
+    }
+    let mut signature = [0_u8; 8];
+    file.read_exact(&mut signature)
+        .map_err(|_| unsupported("pilot VHDX identifier cannot be read"))?;
+    if !valid_vhdx_signature(&signature) {
+        return Err(unsupported("pilot file has no VHDX identifier"));
+    }
+    Ok(())
+}
+
+fn enough_memory(available_bytes: u64) -> bool {
+    available_bytes / (1024 * 1024) >= RAM_MB + HOST_RAM_RESERVE_MB
+}
+
+fn start_resource_guard(session: &AsbSession) -> io::Result<()> {
+    if !session.disk_space_at_least_gb(HOST_FREE_DISK_FLOOR_GB) {
+        return Err(unsupported("insufficient free ProgramData disk space for pilot start"));
+    }
+    let mut system = System::new();
+    system.refresh_memory();
+    if !enough_memory(system.available_memory()) {
+        return Err(unsupported("insufficient available host RAM for pilot start"));
+    }
+    Ok(())
 }
 
 fn fingerprint(active_vhdx: &str, mac: &str) -> String {
@@ -410,6 +458,11 @@ pub(crate) fn execute(args: &[String]) -> io::Result<PilotReport> {
     // request fails, do not repeat it or attempt forceful rollback.
     let again = preflight(&session)?;
     assert_same_preflight(&before, &again)?;
+    if action == PilotAction::Start {
+        valid_start_disk(&root()?.join("disk.vhdx"))?;
+        start_resource_guard(&session)?;
+    }
+    // Low host RAM and locked guest disks must NEVER block graceful Shutdown.
     post_fixed(&session, action)?;
     let observed = completion(&session, action, &before)?;
     Ok(PilotReport {
@@ -422,7 +475,7 @@ pub(crate) fn execute(args: &[String]) -> io::Result<PilotReport> {
 
 #[cfg(test)]
 mod tests {
-    use super::{current_state_consistent, snapshot_is_clean, PilotAction, PilotConsent, PilotVm, PILOT_NAME};
+    use super::{current_state_consistent, enough_memory, snapshot_is_clean, valid_vhdx_signature, PilotAction, PilotConsent, PilotVm, PILOT_NAME};
     use serde_json::json;
     #[test]
     fn pilot_action_never_touches_production_names_or_force_stop() {
@@ -464,6 +517,15 @@ mod tests {
         assert!(!snapshot_is_clean(&json!({"current":{"snapIndex":-2,"branchIndex":-1},
             "snapshots":[],"baseBranches":[{"index":0}]})));
     }
+    #[test]
+    fn pilot_start_requires_vhdx_format_and_host_memory_headroom() {
+        assert!(valid_vhdx_signature(b"vhdxfile"));
+        assert!(!valid_vhdx_signature(b"NOT_VHDX"));
+        let minimum = (4096_u64 + 6144) * 1024 * 1024;
+        assert!(!enough_memory(minimum - 1));
+        assert!(enough_memory(minimum));
+    }
+
     #[test]
     fn operator_consent_is_not_an_automatic_authorization() {
         let record: PilotConsent = serde_json::from_str(

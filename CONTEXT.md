@@ -1,14 +1,14 @@
 # Emulator Stable Context
 
-Verified design model: 2026-10-10. This file contains **stable product and repository facts only**. Current tasks, progress and evidence status belong in `planning/development.md`.
+Verified product direction: 2026-10-11. This file contains **stable product and repository facts only**. Current tasks, progress and evidence status belong in `planning/development.md`.
 
 ## Product and target
 
-**Approved product:** Four Windows desktop Minecraft Education game windows on one PC, each concurrently signed into a distinct licensed account, independently playable. Fixed implementation: one native Windows client plus three isolated VMware Workstation Windows guests. Whether guests are compatible is still unproven.
+**Approved product:** Four Windows desktop Minecraft Education game windows on one PC, each concurrently signed into a distinct licensed account, independently playable. **Approved future provider direction:** free/MIT App Sandbox v0.1.9 with GPU-PV and three isolated licensed Windows x64 guests on the Windows 11 host, subject to real GPU/OpenGL 4.4+, gameplay and licensing proof. This target is **not yet a working product**.
 
-The implementation is a dedicated Windows VMware multi-instance manager for Minecraft Education QA, not a game-engine emulator or general-purpose hypervisor. VMware is the single selected implementation; user-facing setup should hide its unnecessary complexity.
+**Current production source remains VMware Workstation.** It is a dedicated Windows multi-instance manager for Minecraft Education QA, not a game-engine emulator or general-purpose hypervisor. App Sandbox is still a bounded source/pilot migration; installed VMware VMs and account data must be preserved. The UI must not switch providers just because a read-only pilot responds.
 
-The existing implementation path is:
+The legacy implementation path is:
 
 ```text
 Host Native Minecraft Education
@@ -51,7 +51,7 @@ One implemented behavior has one owner and one source of truth. The Rust runtime
 ## Stable runtime contracts
 
 - Tauri 2 + Svelte 5 desktop, thin Tauri commands, Rust canonical runtime-core.
-- VMware Workstation on Windows; VMware Fusion provider implemented on macOS. Windows NSIS desktop package is the declared distribution target.
+- VMware Workstation on Windows is the still-active legacy provider; VMware Fusion provider exists on macOS. App Sandbox GPU-PV has only a guarded one-disposable-guest CLI pilot, not a production Provider implementation. Windows NSIS desktop package remains the declared distribution target.
 - Native Minecraft Education version is the version authority; Base and guest version/lineage must match before unsafe lifecycle actions.
 - Base lifecycle: REGISTERED → FINALIZING → FINALIZED. Clone/provision requires a stopped finalized Base.
 - Normal stop/start/suspend/restart must not replace a Virtual's account-bearing guest disk. Reprovision is explicitly destructive.

@@ -476,6 +476,12 @@ pub(super) fn authenticated_session() -> Result<AsbSession, &'static str> {
 }
 
 impl AsbSession {
+    // The upstream host info reports free space on the ProgramData volume.
+    // It is not a guarantee of available space for the eventual dynamic VHDX.
+    pub(super) fn disk_space_at_least_gb(&self, required: u64) -> bool {
+        self.host.free_gb >= required
+    }
+
     pub(super) fn get(&self, route: &str) -> Result<Vec<u8>, &'static str> {
         get_json(&self.agent, &self.endpoint, route, Some(&self.token))
     }
