@@ -8,6 +8,8 @@
 
 **Proof ceiling:** `REMOTE_GITHUB` exact-source contract and consumer review. Rust/Node tests were edited but not executed; Cargo/rustc/Windows/MSVC/NSIS and Minecraft interactive proof remain `NOT_EXECUTED`. The desktop Tauri `Cargo.lock` remains absent and must be generated from the real registry and committed to `Local` before exact-SHA G0.
 
+**Concurrent metadata recovery correction:** The existing transactional persistence reader now tolerates a narrowly proven losing-reader `NotFound` only when a regular primary file exists and the backup has actually disappeared. Unresolved backups and unsafe files still fail closed; no VM images, metadata schema or lock design changed. One deterministic regression was authored but not executed.
+
 **Remaining risk:** The generic bounded command runner can return on a deadline while inherited descendant pipe handles keep detached reader threads alive; Windows job/process-tree ownership needs observed evidence before a destructive change. Partial VMware clone folders are preserved and still require operator inspection, not a new automatic cleanup function. App Sandbox remains a disposable GPU-PV pilot, not a production multi-client provider. The package/install preservation contract and actual Microsoft/gameplay sign-in are unverified.
 
 **Next:** Complete one exact-revision Windows G0 (real Cargo lock, source checks, NSIS package, disposable install/repair/uninstall payload inspection) before G1 single disposable guest feasibility; do not start three account-bearing guests or infer success from authored tests.

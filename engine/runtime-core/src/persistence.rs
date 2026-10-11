@@ -84,13 +84,29 @@ fn is_reparse_point(_metadata: &fs::Metadata) -> bool {
     false
 }
 
+// Two independent read-only queries may both observe a crash backup while
+// holding shared runtime locks. Losing the rename/remove race is not metadata
+// corruption if another reader already completed the identical recovery.
+fn peer_completed_recovery(path: &Path, backup: &Path, error: io::Error) -> io::Result<()> {
+    if error.kind() == io::ErrorKind::NotFound && !backup.exists() {
+        reject_unsafe_existing_file(path)?;
+        if path.is_file() {
+            return Ok(());
+        }
+    }
+    Err(error)
+}
+
 fn recover_interrupted_replace(path: &Path) -> io::Result<()> {
     let backup = backup_path(path)?;
     reject_unsafe_existing_file(path)?;
     reject_unsafe_existing_file(&backup)?;
 
     match (path.exists(), backup.exists()) {
-        (false, true) => fs::rename(backup, path),
+        (false, true) => {
+            fs::rename(&backup, path)
+                .or_else(|error| peer_completed_recovery(path, &backup, error))
+        },
         (true, true) => {
             // A crash may leave an incomplete primary beside the original.
             // Preserve the last candidate backup if the primary is corrupt.
@@ -106,7 +122,8 @@ fn recover_interrupted_replace(path: &Path) -> io::Result<()> {
                     )
                 })?;
             }
-            fs::remove_file(backup)
+            fs::remove_file(&backup)
+                .or_else(|error| peer_completed_recovery(path, &backup, error))
         },
         _ => Ok(()),
     }
@@ -332,4 +349,29 @@ mod tests {
             std::process::id()
         ))
     }
+    #[test]
+    fn peer_backup_recovery_is_idempotent_but_never_clobbers_a_remaining_backup() {
+        let root = std::env::temp_dir().join(format!(
+            "vc-peer-recovery-{}", std::process::id()
+        ));
+        fs::create_dir_all(&root).unwrap();
+        let path = root.join("metadata.json");
+        let backup = super::backup_path(&path).unwrap();
+        fs::write(&path, r#"{"complete":true}"#).unwrap();
+
+        // The other reader already restored a regular primary and consumed .bak.
+        super::peer_completed_recovery(
+            &path, &backup, std::io::Error::from(std::io::ErrorKind::NotFound),
+        ).unwrap();
+        assert_eq!(fs::read_to_string(&path).unwrap(), r#"{"complete":true}"#);
+
+        // Still-present backup cannot be dismissed as a harmless losing reader.
+        fs::write(&backup, r#"{"previous":true}"#).unwrap();
+        assert!(super::peer_completed_recovery(
+            &path, &backup, std::io::Error::from(std::io::ErrorKind::NotFound),
+        ).is_err());
+        assert_eq!(fs::read_to_string(&backup).unwrap(), r#"{"previous":true}"#);
+        fs::remove_dir_all(root).unwrap();
+    }
+
 }
