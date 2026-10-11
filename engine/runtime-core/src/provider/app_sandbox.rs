@@ -127,7 +127,9 @@ struct SshObservation {
     // Only a forwarding/configuration signal. This is NOT remote-command
     // authorization and never establishes trusted host identity.
     key_forwarding_ready: bool,
+    host_key_pin_present: bool,
     host_key_verified: bool,
+    guest_status_observed: bool,
     minecraft_commands_enabled: bool,
 }
 
@@ -144,7 +146,9 @@ fn parse_ssh_info(data: &[u8]) -> Result<SshObservation, &'static str> {
     Ok(SshObservation {
         key_forwarding_ready: ssh.enabled && ssh.ssh_state == 4
             && ssh.key_deployed && ssh.port > 0,
+        host_key_pin_present: false,
         host_key_verified: false,
+        guest_status_observed: false,
         minecraft_commands_enabled: false,
     })
 }
@@ -394,7 +398,17 @@ fn inspect_inner() -> Result<AppSandboxInspection, &'static str> {
         let display = parse_display(&display_bytes)?;
         let ssh_route = format!("vms/{}/sshInfo", item.name);
         let ssh_bytes = get_json(&agent, &discovery.endpoint, &ssh_route, Some(&discovery.token))?;
-        let ssh = parse_ssh_info(&ssh_bytes)?;
+        let mut ssh = parse_ssh_info(&ssh_bytes)?;
+        if ssh.key_forwarding_ready {
+            let info: SshInfo = serde_json::from_slice(&ssh_bytes)
+                .map_err(|_| "INVALID_PROVIDER_RESPONSE")?;
+            // No TOFU: only a separately enrolled host key permits the
+            // fixed, bounded and read-only --ssh-status command.
+            let proof = super::app_sandbox_ssh::probe_status(&item.name, &info._user, info.port);
+            ssh.host_key_pin_present = proof.pin_present;
+            ssh.host_key_verified = proof.host_key_verified;
+            ssh.guest_status_observed = proof.guest_status_observed;
+        }
         // Status, display and SSH reads are not an atomic snapshot. Keep the
         // latter as a direct, read-only observation; neither allows controls.
         // VM names are observations, not trusted bindings to our account disks.
@@ -539,7 +553,9 @@ mod tests {
         assert_eq!(json["powerState"], "POWERED_ON");
         assert!(json.get("minecraftRunning").is_none());
         assert_eq!(json["ssh"]["keyForwardingReady"], true);
+        assert_eq!(json["ssh"]["hostKeyPinPresent"], false);
         assert_eq!(json["ssh"]["hostKeyVerified"], false);
+        assert_eq!(json["ssh"]["guestStatusObserved"], false);
         assert_eq!(json["ssh"]["minecraftCommandsEnabled"], false);
     }
 
