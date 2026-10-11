@@ -156,3 +156,72 @@ test("unknown provider and unmeasured GPU-PV cannot be declared playable", () =>
   assert.equal(evaluateClientFeasibility(old).provider, "VMWARE");
   assert.equal(evaluateClientFeasibility(old).verdict, "OPERATOR_REPORTED_PLAYABLE");
 });
+
+test("GPU-PV rejects contradictory diagnostics rather than promoting them", () => {
+  const sample = fixture();
+  sample.provider = "APP_SANDBOX_GPU_PV";
+  sample.graphics.openGl = {
+    status: "MEASURED", version: "4.6 NVIDIA", vendor: "NVIDIA Corporation",
+    renderer: "NVIDIA RTX 3070", reasonCode: null
+  };
+  sample.graphics.direct3D11 = {
+    status: "MEASURED", featureLevel: "11_0", driverType: "HARDWARE", reasonCode: null
+  };
+  assert.equal(evaluateClientFeasibility(sample).verdict, "OPERATOR_REPORTED_PLAYABLE");
+  for (const mutate of [
+    x => { x.graphics.openGl.reasonCode = "OPENGL_CONTEXT_PROBE_FAILED"; },
+    x => { x.graphics.openGl.status = "UNKNOWN"; },
+    x => { x.graphics.direct3D11.driverType = "WARP"; },
+    x => { x.graphics.direct3D11.featureLevel = "12_1"; },
+    x => { x.graphics.direct3D11.reasonCode = "D3D11_HARDWARE_PROBE_FAILED"; },
+    x => { x.graphics.direct3D11.status = "UNKNOWN"; },
+    x => { x.graphics.direct3D11.status = "ERROR"; }
+  ]) {
+    const corrupted = structuredClone(sample);
+    mutate(corrupted);
+    assert.throws(() => evaluateClientFeasibility(corrupted), TypeError);
+  }
+});
+
+test("GPU-PV cannot treat a generic renderer or partially measured OpenGL as NVIDIA hardware", () => {
+  const ready = fixture();
+  ready.provider = "APP_SANDBOX_GPU_PV";
+  ready.windows.vmwareToolsRunning = null;
+  ready.graphics.openGl = {
+    status: "MEASURED", version: "4.6 NVIDIA", vendor: "NVIDIA Corporation",
+    renderer: "NVIDIA GeForce RTX 3070", reasonCode: null
+  };
+  ready.graphics.direct3D11 = {
+    status: "MEASURED", featureLevel: "11_0", driverType: "HARDWARE", reasonCode: null
+  };
+  const validGeForce = structuredClone(ready);
+  validGeForce.graphics.openGl.renderer = "GeForce RTX 3070/PCIe/SSE2";
+  assert.equal(evaluateClientFeasibility(validGeForce).verdict, "OPERATOR_REPORTED_PLAYABLE");
+  for (const renderer of [
+    "Microsoft Basic Render Driver", "GDI Generic", "llvmpipe NVIDIA", "Generic Renderer"
+  ]) {
+    const observation = structuredClone(ready);
+    observation.graphics.openGl.renderer = renderer;
+    const result = evaluateClientFeasibility(observation);
+    assert.equal(result.verdict, "INCONCLUSIVE");
+    assert.ok(result.risks.includes("OPENGL_NVIDIA_HARDWARE_UNVERIFIED"));
+  }
+  const absent = structuredClone(ready);
+  absent.graphics.openGl.status = "UNKNOWN";
+  absent.graphics.openGl.version = null;
+  absent.graphics.openGl.vendor = null;
+  absent.graphics.openGl.renderer = null;
+  absent.graphics.openGl.reasonCode = "OPENGL_CONTEXT_PROBE_FAILED";
+  assert.equal(evaluateClientFeasibility(absent).verdict, "INCONCLUSIVE");
+  assert.ok(evaluateClientFeasibility(absent).risks.includes("OPENGL_UNMEASURED"));
+});
+
+test("legacy VMware reports remain compatible without new GPU-PV fields", () => {
+  const legacy = fixture();
+  delete legacy.provider;
+  delete legacy.graphics.direct3D11;
+  legacy.graphics.openGl.vendor = undefined;
+  legacy.graphics.openGl.renderer = undefined;
+  assert.equal(evaluateClientFeasibility(legacy).verdict, "OPERATOR_REPORTED_PLAYABLE");
+  assert.equal(evaluateClientFeasibility(legacy).gates.hardwareGpuGraphics, "NOT_APPLICABLE");
+});

@@ -21,6 +21,32 @@ export function evaluateClientFeasibility(report) {
   if (!flags.every(k => ["YES", "NO", "UNKNOWN"].includes(operator[k]))) fail("Unexpected operator observation value.");
   if (mc.candidateProcessCount !== null && (!Number.isInteger(mc.candidateProcessCount) || mc.candidateProcessCount < 0)) fail("Invalid candidate process count.");
   if (gl.status === "MEASURED" && (typeof gl.version !== "string" || !gl.version.trim())) fail("OpenGL measurement is missing its version.");
+  if (provider === "APP_SANDBOX_GPU_PV") {
+    // The GPU-PV collector emits an optional diagnostic value only when the
+    // probe actually measured it. Reject contradictory report records instead
+    // of allowing an UNKNOWN probe to carry fabricated hardware evidence.
+    if (gl.status === "UNKNOWN" &&
+        (gl.version != null || gl.vendor != null || gl.renderer != null)) {
+      fail("Unknown GPU-PV OpenGL result cannot carry measured graphics values.");
+    }
+    if (gl.status === "MEASURED" && gl.reasonCode != null) {
+      fail("Measured GPU-PV OpenGL result cannot carry a failure reason.");
+    }
+    if (d3d != null) {
+      if (typeof d3d !== "object" || !["MEASURED", "UNKNOWN"].includes(d3d.status)) {
+        fail("Invalid GPU-PV Direct3D evidence status.");
+      }
+      if (d3d.status === "MEASURED"
+          && (d3d.featureLevel !== "11_0" || d3d.driverType !== "HARDWARE"
+              || d3d.reasonCode != null)) {
+        fail("Measured GPU-PV Direct3D evidence contradicts the hardware FL11_0 probe.");
+      }
+      if (d3d.status === "UNKNOWN"
+          && (d3d.featureLevel != null || d3d.driverType != null)) {
+        fail("Unknown GPU-PV Direct3D result cannot carry measured hardware values.");
+      }
+    }
+  }
   if (!Number.isInteger(operator.observedMinutes) || operator.observedMinutes < 0 || operator.observedMinutes > 1440) fail("Invalid observed session duration.");
   const reference = operator.evidenceReference;
   if (reference !== null && (typeof reference !== "string" || !/^[a-zA-Z0-9_.-]{1,80}$/.test(reference))) fail("Evidence reference must be a non-sensitive file label.");
@@ -39,8 +65,9 @@ export function evaluateClientFeasibility(report) {
     && d3d.featureLevel === "11_0" && d3d.driverType === "HARDWARE";
   const nvidiaOpenGl = gl.status === "MEASURED"
     && typeof gl.vendor === "string" && /\bnvidia\b/i.test(gl.vendor)
-    && typeof gl.renderer === "string" && gl.renderer.trim().length > 0
-    && !/llvmpipe|softpipe|software|gdi generic|swiftshader|warp/i.test(gl.renderer);
+    && typeof gl.renderer === "string"
+    && /\b(?:nvidia|geforce|quadro|tesla|rtx|gtx)\b/i.test(gl.renderer)
+    && !/llvmpipe|softpipe|software|gdi generic|swiftshader|warp|basic render/i.test(gl.renderer);
   if (provider === "APP_SANDBOX_GPU_PV") {
     if (!d3dHardware11) risks.push("D3D11_HARDWARE_FL11_0_UNVERIFIED");
     if (!nvidiaOpenGl) risks.push("OPENGL_NVIDIA_HARDWARE_UNVERIFIED");
