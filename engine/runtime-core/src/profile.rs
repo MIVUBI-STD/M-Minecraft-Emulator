@@ -1,6 +1,10 @@
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use std::{fs, io, path::PathBuf, process::Command};
+use std::{fs, io, path::PathBuf};
+#[cfg(target_os = "macos")]
+use std::process::Command;
+#[cfg(target_os = "windows")]
+use std::{path::Path, time::Duration};
 
 use crate::{
     client::ClientId,
@@ -484,19 +488,22 @@ pub fn require_base_matches_native() -> io::Result<ProfileStatus> {
 
 #[cfg(target_os = "windows")]
 fn windows_native_profile() -> Option<MinecraftProfile> {
-    let registry = Command::new("reg")
-        .args([
+    // This is called during host snapshots and in Guest Agent /status.
+    // Keep both probes bounded; a stuck installer/registry service must not
+    // indefinitely occupy the caller or a Guest Agent worker.
+    let registry = crate::provider::command_output_with_timeout(
+        Path::new("reg"),
+        [
             "query",
             r"HKLM\SOFTWARE\Microsoft\Microsoft Studios\Minecraft Education Edition",
             "/v",
             "Version",
             "/reg:32",
-        ])
-        .output()
-        .ok();
+        ],
+        Duration::from_secs(4),
+    ).ok();
 
-    if let Some(output) = registry.filter(|output| output.status.success()) {
-        let text = String::from_utf8_lossy(&output.stdout);
+    if let Some(text) = registry {
         if let Some(version) = parse_registry_version(&text) {
             return Some(MinecraftProfile {
                 version,
@@ -505,20 +512,20 @@ fn windows_native_profile() -> Option<MinecraftProfile> {
         }
     }
 
-    let store = Command::new("powershell.exe")
-        .args([
+    let store = crate::provider::command_output_with_timeout(
+        Path::new("powershell.exe"),
+        [
             "-NoLogo",
             "-NoProfile",
             "-NonInteractive",
             "-Command",
             "(Get-AppxPackage -Name Microsoft.MinecraftEducationEdition -ErrorAction SilentlyContinue | Sort-Object Version -Descending | Select-Object -First 1 -ExpandProperty Version).ToString()",
-        ])
-        .output()
-        .ok();
+        ],
+        Duration::from_secs(8),
+    ).ok();
 
     store
-        .filter(|output| output.status.success())
-        .and_then(|output| normalized_version(&String::from_utf8_lossy(&output.stdout)))
+        .and_then(|value| normalized_version(&value))
         .map(|version| MinecraftProfile {
             version,
             install_type: MinecraftInstallType::Store,

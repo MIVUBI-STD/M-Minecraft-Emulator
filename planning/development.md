@@ -1,3 +1,7 @@
+## Minecraft version probe timeout — 2026-10-11
+
+Status: SOURCE PATCH. Shared Windows Minecraft Education installation/version detection now routes 32-bit Desktop registry query and Store PowerShell fallback through the existing bounded subprocess runner. This prevents a single stalled probe from indefinitely blocking host snapshots or guest status. Detection preference (Desktop before Store), normalized version and install-type schema remain unchanged. This does not assert rendering, sign-in or four-client performance. Rust/Windows/G0–G4 NOT_EXECUTED. Next: reconcile provider-level VM observations efficiently while preserving live mutation admission and observed state.
+
 ## Guest process timeout hardening — 2026-10-11
 
 Status: SOURCE PATCH. Windows Guest Agent uses the existing canonical provider subprocess runner (bounded execution/output) for PowerShell session probe, hashed MachineGuid probe, interactive launcher command and VMware Tools token retrieval. Process-running detection uses native sysinfo enumeration without spawning PowerShell for each status. The Guest Agent wire schema, authentication, launcher session, Minecraft account state and VM disks are unchanged. This is not proof that game renders, or that inherited stdout-pipe reader threads are fully reclaimed. Rust, Windows, packaging and G0–G4 tests NOT_EXECUTED in this remote source context. Next: examine inherited-pipe lifetime and reduce redundant VMware status probes without persistent cache.
