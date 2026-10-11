@@ -102,6 +102,10 @@ requireFact(rootPackage.scripts["verify:source"].includes("npm run test:feasibil
 requireFact(read("apps/desktop/src/App.svelte").includes(
   "!shouldShowClientControls(snapshot.doctor.nextSetupAction)"),
   "Client-owned setup actions must show real client controls, not the setup wizard");
+const guestUninstall = read("engine/guest/windows/uninstall-guest-agent.ps1");
+requireFact(guestUninstall.includes("Remove-Item -LiteralPath $agent") &&
+  !guestUninstall.includes("Remove-Item -LiteralPath $root -Recurse"),
+  "Guest Agent uninstall must preserve unrelated guest runtime data");
 const prepareBase = read("engine/guest/windows/prepare-base.ps1");
 requireFact(prepareBase.includes("[Microsoft.Win32.RegistryView]::Registry32") &&
   prepareBase.includes("GetValue('Version', '')") &&

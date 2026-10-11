@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use sysinfo::{Pid, System};
 
 #[cfg(windows)]
-use std::os::windows::fs::MetadataExt;
+use std::os::windows::fs::{MetadataExt, OpenOptionsExt};
 
 const MAX_ACQUIRE_ATTEMPTS: u8 = 8;
 const MAX_INSTANCE_MARKER_BYTES: u64 = 4096;
@@ -22,6 +22,8 @@ struct InstanceMarker {
 pub struct DesktopInstanceLease {
     path: PathBuf,
     marker: InstanceMarker,
+    #[cfg(windows)]
+    exclusive_file: fs::File,
 }
 
 pub fn acquire() -> Result<DesktopInstanceLease, String> {
@@ -32,6 +34,13 @@ pub fn acquire() -> Result<DesktopInstanceLease, String> {
     }
 
     let marker = current_process_marker()?;
+    #[cfg(windows)]
+    {
+        let exclusive_file = acquire_exclusive_windows(&path, &marker)?;
+        return Ok(DesktopInstanceLease { path, marker, exclusive_file });
+    }
+    #[cfg(not(windows))]
+    {
     for attempt in 0..MAX_ACQUIRE_ATTEMPTS {
         match try_create(&path, &marker) {
             Ok(()) => return Ok(DesktopInstanceLease { path, marker }),
@@ -73,17 +82,50 @@ pub fn acquire() -> Result<DesktopInstanceLease, String> {
     }
 
     Err("Could not acquire Virtual Clients instance authority after repeated concurrent changes. Close other Virtual Clients windows and try again.".into())
+    }
+}
+
+#[cfg(windows)]
+fn acquire_exclusive_windows(path: &Path, marker: &InstanceMarker) -> Result<fs::File, String> {
+    match fs::symlink_metadata(path) {
+        Ok(metadata) => {
+            if metadata.file_type().is_symlink() || is_reparse_point(&metadata)
+                || !metadata.file_type().is_file()
+                || metadata.len() > MAX_INSTANCE_MARKER_BYTES {
+                return Err("Virtual Clients refused an unsafe desktop instance marker.".into());
+            }
+        }
+        Err(error) if error.kind() == ErrorKind::NotFound => {}
+        Err(error) => return Err(format!("Could not inspect desktop instance marker: {error}")),
+    }
+    let mut file = OpenOptions::new()
+        .create(true).read(true).write(true).share_mode(0)
+        .open(path)
+        .map_err(|error| format!(
+            "Could not acquire exclusive desktop instance authority; another app may be running or the marker is inaccessible: {error}"
+        ))?;
+    let encoded = serde_json::to_vec(marker).map_err(|error| error.to_string())?;
+    file.set_len(0).map_err(|error| error.to_string())?;
+    file.write_all(&encoded).map_err(|error| error.to_string())?;
+    file.sync_all().map_err(|error| error.to_string())?;
+    Ok(file)
 }
 
 impl Drop for DesktopInstanceLease {
     fn drop(&mut self) {
-        let Ok(Some(existing)) = read_instance_marker(&self.path) else {
-            return;
-        };
-        if existing.process_id == self.marker.process_id
-            && existing.process_start_time == self.marker.process_start_time
+        #[cfg(windows)]
         {
-            let _ = fs::remove_file(&self.path);
+            // The lock releases with this handle. Leave the nonsecret marker:
+            // removing it after release could delete a new owner's marker.
+            let _ = &self.exclusive_file;
+        }
+        #[cfg(not(windows))]
+        {
+            let Ok(Some(existing)) = read_instance_marker(&self.path) else { return; };
+            if existing.process_id == self.marker.process_id
+                && existing.process_start_time == self.marker.process_start_time {
+                let _ = fs::remove_file(&self.path);
+            }
         }
     }
 }
@@ -221,4 +263,19 @@ mod tests {
             stale_instance_path(path, 42, 1)
         );
     }
+    #[cfg(windows)]
+    #[test]
+    fn exclusive_handle_rejects_two_desktop_owners() {
+        let dir = std::env::temp_dir().join(format!("vc-exclusive-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("desktop-instance.json");
+        let marker = InstanceMarker { process_id: 42, process_start_time: 1234 };
+        let first = acquire_exclusive_windows(&path, &marker).unwrap();
+        assert!(acquire_exclusive_windows(&path, &marker).is_err());
+        drop(first);
+        let next = acquire_exclusive_windows(&path, &marker).unwrap();
+        drop(next);
+        fs::remove_dir_all(dir).unwrap();
+    }
+
 }

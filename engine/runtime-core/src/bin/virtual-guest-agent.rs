@@ -1,7 +1,7 @@
 #![forbid(unsafe_code)]
 
 use m_bedrock_virtual_clients_core::{
-    guest_agent_command_output, guest_agent_minecraft_profile, GuestStatus, GUEST_AGENT_PORT,
+    bounded_command_output, guest_agent_minecraft_profile, GuestStatus, GUEST_AGENT_PORT,
     GUEST_AGENT_PROTOCOL_VERSION, GUEST_STATUS_SCHEMA, MINECRAFT_LAUNCH_SCHEMA,
 };
 
@@ -392,7 +392,7 @@ fn write_json(stream: &mut TcpStream, request_id: &str, value: &impl serde::Seri
 #[cfg(target_os = "windows")]
 fn interactive_session_available() -> bool {
     // A hung Windows status probe cannot occupy a Guest Agent worker forever.
-    guest_agent_command_output(
+    bounded_command_output(
         std::path::Path::new("powershell.exe"),
         [
             "-NoLogo", "-NoProfile", "-NonInteractive", "-Command",
@@ -438,7 +438,7 @@ fn launch_minecraft_interactive() -> Result<(), Box<dyn std::error::Error>> {
             "$app = Get-StartApps | Where-Object { $_.Name -like '*Minecraft Education*' } | Select-Object -First 1; if (-not $app) { throw 'Minecraft Education Start menu entry is unavailable' }; Start-Process ('shell:AppsFolder\\' + $app.AppID)"
         }
     };
-    guest_agent_command_output(
+    bounded_command_output(
         std::path::Path::new("powershell.exe"),
         ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", command],
         Duration::from_secs(10),
@@ -462,7 +462,7 @@ fn launch_minecraft() -> Result<m_bedrock_virtual_clients_core::MinecraftLaunchR
 
 #[cfg(target_os = "windows")]
 fn guest_machine_identity() -> Option<String> {
-    let machine_guid = guest_agent_command_output(
+    let machine_guid = bounded_command_output(
         std::path::Path::new("powershell.exe"),
         [
             "-NoLogo", "-NoProfile", "-NonInteractive", "-Command",
@@ -511,7 +511,7 @@ fn guest_agent_token() -> io::Result<String> {
             format!("VMware Tools vmtoolsd.exe is missing: {}", vmtoolsd.display()),
         ));
     }
-    let token = guest_agent_command_output(
+    let token = bounded_command_output(
         &vmtoolsd,
         ["--cmd", "info-get guestinfo.virtualclients.token"],
         Duration::from_secs(10),

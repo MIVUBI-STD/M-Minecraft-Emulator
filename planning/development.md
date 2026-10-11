@@ -1,3 +1,17 @@
+## Pre-local integrated source hardening — 2026-10-11
+
+**Work:** `emulator/pre-local-readiness-batch` — **State: SOURCE_PATCHED / EXECUTION_UNPROVEN**. First coherent source commit: `1f46a70008b2f3dcffda5d002847425accfb353b`; current `Local` HEAD owns the remainder of the batch.
+
+**First-owner corrections:** Rust admission and both VMware providers refuse unsupported `QA_READY` reset while suspended; start/first-setup resource waits run before each actual power-on rather than only between multi-target backend calls; Doctor treats provider `ERROR` or absent observation as uncertain, blocks clean provisioning and offers non-destructive support review. The frontend snapshot validator and regression fixture now use the actual Rust pressure and virtual-hardware fields without manufacturing network/gameplay verification flags.
+
+**Host/guest safety:** Windows host, VMware and SSH diagnostics use the existing bounded subprocess owner; Tauri native launch and window arrangement use the same exported bounded capture function. Windows desktop single-instance coordination now holds an exclusive file handle rather than trusting a half-written PID marker. Guest Agent uninstall removes only its executable plus explicitly owned task/firewall/launcher registrations; Base and unrelated guest files remain. No VM Base, VMX/VMDK/VHDX, stored account data, snapshots, wire schema, installed product identity, provider switch or `main` branch changed.
+
+**Proof ceiling:** `REMOTE_GITHUB` exact-source contract and consumer review. Rust/Node tests were edited but not executed; Cargo/rustc/Windows/MSVC/NSIS and Minecraft interactive proof remain `NOT_EXECUTED`. The desktop Tauri `Cargo.lock` remains absent and must be generated from the real registry and committed to `Local` before exact-SHA G0.
+
+**Remaining risk:** The generic bounded command runner can return on a deadline while inherited descendant pipe handles keep detached reader threads alive; Windows job/process-tree ownership needs observed evidence before a destructive change. Partial VMware clone folders are preserved and still require operator inspection, not a new automatic cleanup function. App Sandbox remains a disposable GPU-PV pilot, not a production multi-client provider. The package/install preservation contract and actual Microsoft/gameplay sign-in are unverified.
+
+**Next:** Complete one exact-revision Windows G0 (real Cargo lock, source checks, NSIS package, disposable install/repair/uninstall payload inspection) before G1 single disposable guest feasibility; do not start three account-bearing guests or infer success from authored tests.
+
 ## G0 lockfile HEAD provenance — 2026-10-11
 
 `tooling/repository/verify.mjs --g0` now checks that desktop Cargo.lock belongs to the actual committed HEAD using git ls-tree, not just that a generated file exists on disk or in the index. This closes a reproducibility gap where an uncommitted dependency graph could incorrectly pass source checks. Ordinary `verify:repository` remains independent of Git/G0 prerequisite; the only affected route is explicit G0. Source review only; no Node/Cargo/Windows G0 execution evidence.

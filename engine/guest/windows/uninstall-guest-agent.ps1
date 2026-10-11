@@ -22,6 +22,11 @@ Get-ChildItem -LiteralPath (Join-Path $env:SystemDrive 'Users') -Directory -Erro
 }
 
 $root = Join-Path $env:ProgramData 'M-Bedrock\VirtualClients'
-if (Test-Path -LiteralPath $root) {
-  Remove-Item -LiteralPath $root -Recurse -Force
+$rootItem = Get-Item -LiteralPath $root -Force -ErrorAction SilentlyContinue
+if ($rootItem -and ($rootItem.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+  throw 'Guest Agent uninstall refused a redirected installation directory.'
 }
+# Only the Guest Agent executable is owned by this uninstaller.
+# Preserve Base finalization tools and other guest state in the same folder.
+$agent = Join-Path $root 'virtual-guest-agent.exe'
+Remove-Item -LiteralPath $agent -Force -ErrorAction SilentlyContinue

@@ -2,9 +2,10 @@
 //! SSH host keys must be enrolled out-of-band using the intended guest console.
 //! This never enrolls trust, sends a game launch, or mutates a VM.
 use crate::guest::{GuestStatus, GUEST_AGENT_PROTOCOL_VERSION, GUEST_STATUS_SCHEMA};
+use super::process::command_output_with_timeout;
 use std::{
-    collections::{HashMap, HashSet}, fs, io::Read, path::{Path, PathBuf},
-    process::{Command, Stdio}, thread, time::{Duration, Instant},
+    collections::{HashMap, HashSet}, fs, path::{Path, PathBuf},
+    process::{Command, Stdio}, time::Duration,
 };
 
 #[derive(Debug, Default)]
@@ -115,32 +116,18 @@ fn fixed_ssh_command(
     Some(command)
 }
 
-fn ssh_status(mut command: Command) -> Option<GuestStatus> {
-    let mut child = command.spawn().ok()?;
-    let output = child.stdout.take()?;
-    let reader = thread::spawn(move || {
-        let mut bytes = Vec::new();
-        let result = output.take(MAX_RESPONSE_BYTES + 1).read_to_end(&mut bytes);
-        (result, bytes)
-    });
-    let since = Instant::now();
-    let success = loop {
-        match child.try_wait() {
-            Ok(Some(status)) => break status.success(),
-            Ok(None) if since.elapsed() < MAX_EXECUTION =>
-                thread::sleep(Duration::from_millis(50)),
-            _ => {
-                let _ = child.kill();
-                let _ = child.wait();
-                break false;
-            }
-        }
-    };
-    let (read, bytes) = reader.join().ok()?;
-    if !success || read.is_err() || bytes.len() as u64 > MAX_RESPONSE_BYTES {
+fn ssh_status(command: Command) -> Option<GuestStatus> {
+    // Use the canonical bounded child/pipe runner instead of joining an
+    // unbounded reader when an SSH descendant retains the stdout handle.
+    let output = command_output_with_timeout(
+        Path::new(command.get_program()),
+        command.get_args(),
+        MAX_EXECUTION,
+    ).ok()?;
+    if output.len() as u64 > MAX_RESPONSE_BYTES {
         return None;
     }
-    let status: GuestStatus = serde_json::from_slice(&bytes).ok()?;
+    let status: GuestStatus = serde_json::from_str(&output).ok()?;
     if status.schema != GUEST_STATUS_SCHEMA
         || status.protocol_version != GUEST_AGENT_PROTOCOL_VERSION
         || status.machine_identity.as_deref().is_none_or(|v|

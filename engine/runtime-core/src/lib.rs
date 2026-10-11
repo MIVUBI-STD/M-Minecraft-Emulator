@@ -67,9 +67,9 @@ pub fn guest_agent_minecraft_profile() -> Option<MinecraftProfile> {
     profile::native_minecraft_profile()
 }
 
-// Guest binaries reuse the host's existing bounded subprocess execution.
+// Desktop, providers and Guest Agent share one bounded subprocess runner.
 #[doc(hidden)]
-pub fn guest_agent_command_output<I, S>(
+pub fn bounded_command_output<I, S>(
     program: &std::path::Path,
     args: I,
     timeout: std::time::Duration,

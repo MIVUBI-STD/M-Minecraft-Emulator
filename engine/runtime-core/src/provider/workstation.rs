@@ -124,13 +124,8 @@ impl Provider for VmwareWorkstationProvider {
 
     fn version(&self) -> Option<String> {
         let gui = self.gui()?;
-        let output = Command::new(gui).arg("-v").output().ok()?;
-        let text = if output.stdout.is_empty() {
-            String::from_utf8_lossy(&output.stderr).trim().to_string()
-        } else {
-            String::from_utf8_lossy(&output.stdout).trim().to_string()
-        };
-        (!text.is_empty()).then_some(text)
+        let version = command_output_with_timeout(gui, ["-v"], Duration::from_secs(10)).ok()?;
+        (!version.is_empty()).then_some(version)
     }
 
     fn detect(&self) -> bool {

@@ -132,7 +132,7 @@ fn calculate_slots(layout: &WindowLayout, area: Rect, count: usize) -> Vec<Rect>
 
 #[cfg(target_os = "windows")]
 pub fn displays() -> io::Result<Vec<DisplayInfo>> {
-    use std::process::Command;
+    use std::{path::Path, time::Duration};
     const SCRIPT: &str = r#"
 Add-Type -AssemblyName System.Windows.Forms
 $index = 0
@@ -147,14 +147,12 @@ $index = 0
   $index++
 }) | ConvertTo-Json -Compress
 "#;
-    let output = Command::new("powershell.exe")
-        .args(["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", SCRIPT])
-        .output()?;
-    if !output.status.success() {
-        let detail = String::from_utf8_lossy(&output.stderr).trim().to_string();
-        return Err(io::Error::new(io::ErrorKind::Other, format!("display discovery failed: {detail}")));
-    }
-    let value: serde_json::Value = serde_json::from_slice(&output.stdout)
+    let output = virtual_clients_core::bounded_command_output(
+        Path::new("powershell.exe"),
+        ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", SCRIPT],
+        Duration::from_secs(12),
+    ).map_err(|error| io::Error::new(error.kind(), format!("display discovery failed: {error}")))?;
+    let value: serde_json::Value = serde_json::from_str(&output)
         .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, format!("display discovery returned invalid data: {error}")))?;
     let normalized = if value.is_array() { value } else { serde_json::Value::Array(vec![value]) };
     serde_json::from_value(normalized)
@@ -241,7 +239,7 @@ fn validate_discovery(discovery: &WindowDiscovery) -> io::Result<()> {
 
 #[cfg(target_os = "windows")]
 fn discover_windows(display_index: usize) -> io::Result<WindowDiscovery> {
-    use std::process::Command;
+    use std::{path::Path, time::Duration};
     const SCRIPT: &str = r#"
 param([int]$DisplayIndex)
 $ErrorActionPreference = 'Stop'
@@ -339,19 +337,17 @@ foreach ($id in $targets) {
   windows=@($windows); missing=@($missing)
 } | ConvertTo-Json -Depth 4 -Compress
 "#;
-    let output = Command::new("powershell.exe")
-        .args([
+    let output = virtual_clients_core::bounded_command_output(
+        Path::new("powershell.exe"),
+        [
             "-NoLogo", "-NoProfile", "-NonInteractive", "-Command", SCRIPT,
             "-DisplayIndex", &display_index.to_string(),
-        ])
-        .output()?;
-    if !output.status.success() {
-        let detail = String::from_utf8_lossy(&output.stderr).trim().to_string();
-        return Err(io::Error::new(io::ErrorKind::Other, format!("window discovery failed: {detail}")));
-    }
-    let discovery: WindowDiscovery = serde_json::from_slice(&output.stdout).map_err(|error| io::Error::new(
+        ],
+        Duration::from_secs(12),
+    ).map_err(|error| io::Error::new(error.kind(), format!("window discovery failed: {error}")))?;
+    let discovery: WindowDiscovery = serde_json::from_str(&output).map_err(|error| io::Error::new(
         io::ErrorKind::InvalidData,
-        format!("window discovery returned invalid data: {error}")
+        format!("window discovery returned invalid data: {error}"),
     ))?;
     validate_discovery(&discovery)?;
     Ok(discovery)
@@ -359,7 +355,7 @@ foreach ($id in $targets) {
 
 #[cfg(target_os = "windows")]
 fn apply_window_moves(moves: &[WindowMove]) -> io::Result<()> {
-    use std::process::Command;
+    use std::{path::Path, time::Duration};
     let plan = serde_json::to_string(moves)
         .map_err(|error| io::Error::new(io::ErrorKind::InvalidInput, error.to_string()))?;
     const SCRIPT: &str = r#"
@@ -403,15 +399,13 @@ foreach ($move in $moves) {
   )) { throw "Windows rejected the window placement for $($move.id)." }
 }
 "#;
-    let output = Command::new("powershell.exe")
-        .args(["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", SCRIPT, "-PlanJson", &plan])
-        .output()?;
-    if output.status.success() {
-        Ok(())
-    } else {
-        let detail = String::from_utf8_lossy(&output.stderr).trim().to_string();
-        Err(io::Error::new(io::ErrorKind::Other, format!("window placement failed: {detail}")))
-    }
+    virtual_clients_core::bounded_command_output(
+        Path::new("powershell.exe"),
+        ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", SCRIPT, "-PlanJson", &plan],
+        Duration::from_secs(12),
+    ).map(|_| ()).map_err(|error| {
+        io::Error::new(error.kind(), format!("window placement failed: {error}"))
+    })
 }
 
 #[cfg(target_os = "windows")]
