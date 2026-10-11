@@ -136,8 +136,7 @@ struct SshObservation {
 }
 
 fn parse_ssh_info(data: &[u8]) -> Result<SshObservation, &'static str> {
-    let ssh: SshInfo = serde_json::from_slice(data)
-        .map_err(|_| "INVALID_PROVIDER_RESPONSE")?;
+    let ssh: SshInfo = serde_json::from_slice(data).map_err(|_| "INVALID_PROVIDER_RESPONSE")?;
     if ssh.host != "127.0.0.1"
         || ssh.ssh_state > 4
         || (ssh.ssh_state == 4 && !ssh.key_deployed)
@@ -146,8 +145,7 @@ fn parse_ssh_info(data: &[u8]) -> Result<SshObservation, &'static str> {
         return Err("INVALID_PROVIDER_RESPONSE");
     }
     Ok(SshObservation {
-        key_forwarding_ready: ssh.enabled && ssh.ssh_state == 4
-            && ssh.key_deployed && ssh.port > 0,
+        key_forwarding_ready: ssh.enabled && ssh.ssh_state == 4 && ssh.key_deployed && ssh.port > 0,
         host_key_pin_present: false,
         host_key_verified: false,
         guest_status_observed: false,
@@ -171,23 +169,36 @@ fn parse_display(data: &[u8]) -> Result<DisplayState, &'static str> {
 // not HCS/VHDX identity or an ownership authorization.
 pub(super) fn normalized_disk_root(raw: &str) -> Option<String> {
     let bytes = raw.as_bytes();
-    if bytes.len() < 6 || bytes.len() > 260
-        || !bytes[0].is_ascii_alphabetic() || bytes[1] != b':' || bytes[2] != b'\\'
-        || raw.contains('/') || raw.contains(['\0', '*', '?', '"', '<', '>', '|'])
+    if bytes.len() < 6
+        || bytes.len() > 260
+        || !bytes[0].is_ascii_alphabetic()
+        || bytes[1] != b':'
+        || bytes[2] != b'\\'
+        || raw.contains('/')
+        || raw.contains(['\0', '*', '?', '"', '<', '>', '|'])
     {
         return None;
     }
     let mut normalized = String::new();
     for segment in raw[3..].split('\\') {
-        if segment.is_empty() || segment == "." || segment == ".."
-            || segment.ends_with(' ') || segment.ends_with('.') || segment.contains(':')
+        if segment.is_empty()
+            || segment == "."
+            || segment == ".."
+            || segment.ends_with(' ')
+            || segment.ends_with('.')
+            || segment.contains(':')
         {
             return None;
         }
-        if !normalized.is_empty() { normalized.push('\\'); }
+        if !normalized.is_empty() {
+            normalized.push('\\');
+        }
         normalized.push_str(&segment.to_lowercase());
     }
-    Some(format!("{}:\\{normalized}", (bytes[0] as char).to_ascii_lowercase()))
+    Some(format!(
+        "{}:\\{normalized}",
+        (bytes[0] as char).to_ascii_lowercase()
+    ))
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -206,12 +217,15 @@ struct SnapshotState {
 }
 
 fn parse_snapshot_pointer(data: &[u8]) -> Result<SnapshotPointer, &'static str> {
-    let report: SnapshotState = serde_json::from_slice(data)
-        .map_err(|_| "INVALID_PROVIDER_RESPONSE")?;
+    let report: SnapshotState =
+        serde_json::from_slice(data).map_err(|_| "INVALID_PROVIDER_RESPONSE")?;
     let position = report.current;
-    if report.snapshots.len() > 128 || report.base_branches.len() > 128
-        || position.snap_index < -2 || position.branch_index < -1
-        || position.snap_index > 127 || position.branch_index > 127
+    if report.snapshots.len() > 128
+        || report.base_branches.len() > 128
+        || position.snap_index < -2
+        || position.branch_index < -1
+        || position.snap_index > 127
+        || position.branch_index > 127
         || (position.snap_index == -1 && position.branch_index != -1)
     {
         return Err("INVALID_PROVIDER_RESPONSE");
@@ -267,14 +281,16 @@ struct StorageEvidence {
 }
 
 fn parse_discovery(data: &[u8]) -> Result<Discovery, &'static str> {
-    let entry: Discovery =
-        serde_json::from_slice(data).map_err(|_| "INVALID_DISCOVERY")?;
+    let entry: Discovery = serde_json::from_slice(data).map_err(|_| "INVALID_DISCOVERY")?;
     let expected = format!("http://127.0.0.1:{}", entry.port);
     if entry.port == 0
         || entry.endpoint != expected
         || entry.pid == 0
         || entry.token.len() != 40
-        || !entry.token.bytes().all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+        || !entry
+            .token
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
     {
         return Err("INVALID_DISCOVERY");
     }
@@ -282,8 +298,7 @@ fn parse_discovery(data: &[u8]) -> Result<Discovery, &'static str> {
 }
 
 fn parse_version(data: &[u8]) -> Result<Version, &'static str> {
-    let info: Version =
-        serde_json::from_slice(data).map_err(|_| "INVALID_PROVIDER_RESPONSE")?;
+    let info: Version = serde_json::from_slice(data).map_err(|_| "INVALID_PROVIDER_RESPONSE")?;
     if info.product != "AppSandbox"
         || info.version != EXPECTED_PRODUCT_VERSION
         || info.api_version != "v1"
@@ -306,11 +321,13 @@ fn parse_host(data: &[u8]) -> Result<HostCapacity, &'static str> {
 }
 
 fn parse_vm(data: &[u8]) -> Result<VmState, &'static str> {
-    let vm: VmState =
-        serde_json::from_slice(data).map_err(|_| "INVALID_PROVIDER_RESPONSE")?;
+    let vm: VmState = serde_json::from_slice(data).map_err(|_| "INVALID_PROVIDER_RESPONSE")?;
     if vm.name.is_empty()
         || vm.name.len() > 15
-        || !vm.name.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-')
+        || !vm
+            .name
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b == b'-')
         || normalized_disk_root(&vm.disk_directory).is_none()
         || vm.cpu_cores == 0
         || vm.ram_mb < 512
@@ -347,7 +364,9 @@ fn parse_vm_list(data: &[u8]) -> Result<Vec<VmState>, &'static str> {
     let mut names = HashSet::new();
     let mut values = Vec::with_capacity(raw.vms.len());
     for record in raw.vms {
-        let name = record.get("name").and_then(serde_json::Value::as_str)
+        let name = record
+            .get("name")
+            .and_then(serde_json::Value::as_str)
             .ok_or("INVALID_PROVIDER_RESPONSE")?;
         if name.is_empty() || !names.insert(name.to_ascii_lowercase()) {
             return Err("INVALID_PROVIDER_RESPONSE");
@@ -409,9 +428,12 @@ fn discover() -> Result<Discovery, &'static str> {
     Err("WINDOWS_HOST_REQUIRED")
 }
 
-fn get_json(agent: &ureq::Agent, endpoint: &str, route: &str, token: Option<&str>)
-    -> Result<Vec<u8>, &'static str>
-{
+fn get_json(
+    agent: &ureq::Agent,
+    endpoint: &str,
+    route: &str,
+    token: Option<&str>,
+) -> Result<Vec<u8>, &'static str> {
     let url = format!("{endpoint}/v1/{route}");
     let mut request = agent.get(&url);
     if let Some(token) = token {
@@ -507,7 +529,8 @@ fn inspect_inner() -> Result<AppSandboxInspection, &'static str> {
         let route = format!("vms/{}", item.name);
         let status_bytes = session.get(&route)?;
         let status = parse_vm(&status_bytes)?;
-        if status.name != item.name || status.os_type != "Windows"
+        if status.name != item.name
+            || status.os_type != "Windows"
             || normalized_disk_root(&status.disk_directory)
                 != normalized_disk_root(&item.disk_directory)
         {
@@ -536,8 +559,8 @@ fn inspect_inner() -> Result<AppSandboxInspection, &'static str> {
         let mut ssh = parse_ssh_info(&ssh_bytes)?;
         let mut windows_identity_observed = false;
         if ssh.key_forwarding_ready {
-            let info: SshInfo = serde_json::from_slice(&ssh_bytes)
-                .map_err(|_| "INVALID_PROVIDER_RESPONSE")?;
+            let info: SshInfo =
+                serde_json::from_slice(&ssh_bytes).map_err(|_| "INVALID_PROVIDER_RESPONSE")?;
             // No TOFU: only a separately enrolled host key permits the
             // fixed, bounded and read-only --ssh-status command.
             let proof = super::app_sandbox_ssh::probe_status(&item.name, &info._user, info.port);
@@ -615,7 +638,10 @@ pub(crate) fn inspect() -> AppSandboxInspection {
 
 #[cfg(test)]
 mod tests {
-    use super::{normalized_disk_root, parse_discovery, parse_display, parse_host, parse_snapshot_pointer, parse_ssh_info, parse_version, parse_vm, parse_vm_list, vm_power_state, VmPowerState};
+    use super::{
+        normalized_disk_root, parse_discovery, parse_display, parse_host, parse_snapshot_pointer,
+        parse_ssh_info, parse_version, parse_vm, parse_vm_list, vm_power_state, VmPowerState,
+    };
     use serde_json::json;
 
     #[test]
@@ -641,7 +667,12 @@ mod tests {
         wrong["apiVersion"] = json!("v2");
         assert!(parse_version(&serde_json::to_vec(&wrong).unwrap()).is_err());
         let host = json!({"hostCores":28,"hostRamMb":32768,"freeGb":100,"vmCores":6,"vmRamMb":12288,"vmHddGb":180});
-        assert_eq!(parse_host(&serde_json::to_vec(&host).unwrap()).unwrap().vm_ram_mb, 12288);
+        assert_eq!(
+            parse_host(&serde_json::to_vec(&host).unwrap())
+                .unwrap()
+                .vm_ram_mb,
+            12288
+        );
         let mut bad = host.clone();
         bad["hostCores"] = json!(0);
         assert!(parse_host(&serde_json::to_vec(&bad).unwrap()).is_err());
@@ -663,16 +694,28 @@ mod tests {
         bad["gpuMode"] = json!(2);
         assert!(parse_vm(&serde_json::to_vec(&bad).unwrap()).is_err());
         let list = json!({"vms":[vm("Virtual-01"),vm("Virtual-02"),vm("Virtual-03")]});
-        assert_eq!(parse_vm_list(&serde_json::to_vec(&list).unwrap()).unwrap().len(), 3);
+        assert_eq!(
+            parse_vm_list(&serde_json::to_vec(&list).unwrap())
+                .unwrap()
+                .len(),
+            3
+        );
         let duplicates = json!({"vms":[vm("Virtual-01"),vm("virtual-01")]});
         assert!(parse_vm_list(&serde_json::to_vec(&duplicates).unwrap()).is_err());
         // Linux guests with 63-character names are unrelated to our Windows
         // sessions; they must not make the read-only inventory fail.
         let foreign = json!({"vms":[vm("Virtual-01"),{"name":"unrelated-linux-guest-with-a-long-hostname-okay","osType":"Linux","state":"online","gpuMode":2}]});
-        assert_eq!(parse_vm_list(&serde_json::to_vec(&foreign).unwrap()).unwrap().len(), 1);
+        assert_eq!(
+            parse_vm_list(&serde_json::to_vec(&foreign).unwrap())
+                .unwrap()
+                .len(),
+            1
+        );
         let collision = json!({"vms":[vm("virtual-01")]});
-        assert_eq!(parse_vm_list(&serde_json::to_vec(&collision).unwrap()).unwrap_err(),
-            "TRACKED_NAME_COLLISION");
+        assert_eq!(
+            parse_vm_list(&serde_json::to_vec(&collision).unwrap()).unwrap_err(),
+            "TRACKED_NAME_COLLISION"
+        );
     }
 
     #[test]
@@ -757,11 +800,21 @@ mod tests {
         assert!(!parse_ssh_info(disabled).unwrap().key_forwarding_ready);
     }
 
-
     #[test]
     fn disk_root_checks_are_non_authorizing_and_fail_closed() {
-        assert_eq!(normalized_disk_root(r"C:\Users\QA\Vm1").unwrap(), r"c:\users\qa\vm1");
-        for bad in [r"C:relative", r"..\Vm1", r"C:\Vm1\..\Other", r"C:\Vm1/Other", r"\\server\share", r"C:\VM\.", r"C:\VM\"] {
+        assert_eq!(
+            normalized_disk_root(r"C:\Users\QA\Vm1").unwrap(),
+            r"c:\users\qa\vm1"
+        );
+        for bad in [
+            r"C:relative",
+            r"..\Vm1",
+            r"C:\Vm1\..\Other",
+            r"C:\Vm1/Other",
+            r"\\server\share",
+            r"C:\VM\.",
+            r"C:\VM\",
+        ] {
             assert!(normalized_disk_root(bad).is_none(), "{bad}");
         }
         let mut candidate = vm("Virtual-01");
@@ -773,14 +826,21 @@ mod tests {
 
     #[test]
     fn snapshot_cursor_is_observational_and_rejects_inconsistent_positions() {
-        let initial = br#"{"current":{"snapIndex":-1,"branchIndex":-1},"snapshots":[],"baseBranches":[]}"#;
+        let initial =
+            br#"{"current":{"snapIndex":-1,"branchIndex":-1},"snapshots":[],"baseBranches":[]}"#;
         let base = parse_snapshot_pointer(initial).unwrap();
         assert_eq!(base.snap_index, -1);
         assert_eq!(base.branch_index, -1);
-        assert!(parse_snapshot_pointer(br#"{"current":{"snapIndex":-1,"branchIndex":0},"snapshots":[],"baseBranches":[]}"#).is_err());
+        assert!(parse_snapshot_pointer(
+            br#"{"current":{"snapIndex":-1,"branchIndex":0},"snapshots":[],"baseBranches":[]}"#
+        )
+        .is_err());
         // Source can legitimately point at the bare base VHDX (-2/-1).
         // This is only a cursor, never a recoverable QA_READY checkpoint.
-        assert!(parse_snapshot_pointer(br#"{"current":{"snapIndex":-2,"branchIndex":-1},"snapshots":[],"baseBranches":[]}"#).is_ok());
+        assert!(parse_snapshot_pointer(
+            br#"{"current":{"snapIndex":-2,"branchIndex":-1},"snapshots":[],"baseBranches":[]}"#
+        )
+        .is_ok());
         let branch = br#"{"current":{"snapIndex":-2,"branchIndex":0},"snapshots":[],"baseBranches":[{"index":0,"name":"safe"}]}"#;
         assert_eq!(parse_snapshot_pointer(branch).unwrap().snap_index, -2);
     }

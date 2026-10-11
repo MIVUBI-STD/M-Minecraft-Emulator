@@ -2,8 +2,8 @@ use super::{
     apply_virtual_hardware_policy, base_vmx_path, client_vmx_path, command_output,
     command_output_with_timeout, ensure_parent, guest_tools_state_ready, has_suspend_state,
     listed_as_running, parse_guest_ip, promote_staging_vm, read_vmx_memory, remove_vm_container,
-    snapshot_list_contains, staging_client_vmx_path, vm_identity_key, vmx_file_present, wait_for_state, Provider,
-    DISK_STATE_TIMEOUT,
+    snapshot_list_contains, staging_client_vmx_path, vm_identity_key, vmx_file_present,
+    wait_for_state, Provider, DISK_STATE_TIMEOUT,
 };
 use crate::client::{ClientId, ClientState};
 use crate::policy::READY_SNAPSHOT_NAME;
@@ -55,7 +55,13 @@ impl VmwareFusionProvider {
         // Reconcile it, but never silently force-kill a guest with account data.
         let response = command_output_with_timeout(
             self.vmrun(),
-            ["-T", "fusion", "stop", vmx.to_string_lossy().as_ref(), "soft"],
+            [
+                "-T",
+                "fusion",
+                "stop",
+                vmx.to_string_lossy().as_ref(),
+                "soft",
+            ],
             GRACEFUL_STOP_TIMEOUT,
         );
         if let Err(error) = response {
@@ -78,8 +84,10 @@ impl VmwareFusionProvider {
                 format!("Graceful stop not confirmed: {error}. No hard stop attempted; inspect VM state."),
             ))?;
         if has_suspend_state(vmx) {
-            return Err(io::Error::new(io::ErrorKind::InvalidData,
-                "VM entered Suspended state instead of Stopped; inspect VM state."));
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "VM entered Suspended state instead of Stopped; inspect VM state.",
+            ));
         }
         Ok(())
     }
@@ -94,11 +102,16 @@ impl Provider for VmwareFusionProvider {
         let version = command_output_with_timeout(
             Path::new("plutil"),
             [
-                "-extract", "CFBundleShortVersionString", "raw", "-o", "-",
+                "-extract",
+                "CFBundleShortVersionString",
+                "raw",
+                "-o",
+                "-",
                 "/Applications/VMware Fusion.app/Contents/Info.plist",
             ],
             Duration::from_secs(10),
-        ).ok()?;
+        )
+        .ok()?;
         (!version.is_empty()).then_some(version)
     }
 
@@ -273,7 +286,11 @@ impl Provider for VmwareFusionProvider {
         }
     }
 
-    fn guest_status(&self, client: ClientId, timeout: Duration) -> io::Result<Option<crate::guest::GuestStatus>> {
+    fn guest_status(
+        &self,
+        client: ClientId,
+        timeout: Duration,
+    ) -> io::Result<Option<crate::guest::GuestStatus>> {
         super::vmware_guest_status(self, client, timeout)
     }
 

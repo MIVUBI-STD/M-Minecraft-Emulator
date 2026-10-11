@@ -90,7 +90,6 @@ pub struct ClientProfile {
     pub verified_windows_identity: Option<String>,
 }
 
-
 pub(crate) fn identity_fingerprint(value: &str) -> String {
     format!("{:x}", Sha256::digest(value.as_bytes()))
 }
@@ -115,8 +114,13 @@ impl ClientProfile {
     }
 
     pub(crate) fn identity_provenance_matches(&self, current: Option<&str>) -> bool {
-        self.verified_vm_identity.as_deref().is_some_and(|value| !value.is_empty())
-            && self.verified_windows_identity.as_deref().is_some_and(|value| !value.is_empty())
+        self.verified_vm_identity
+            .as_deref()
+            .is_some_and(|value| !value.is_empty())
+            && self
+                .verified_windows_identity
+                .as_deref()
+                .is_some_and(|value| !value.is_empty())
             && self.saved_vm_identity_matches(current)
     }
 }
@@ -232,7 +236,10 @@ pub fn write_verified_base_profile(
 
 pub fn remove_client_profile(client: ClientId) -> io::Result<()> {
     if client.is_native() {
-        return Err(io::Error::new(io::ErrorKind::InvalidInput, "Native does not have Virtual lineage provenance"));
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "Native does not have Virtual lineage provenance",
+        ));
     }
     let path = client_profile_path(client.as_str())?;
     match fs::remove_file(path) {
@@ -501,7 +508,8 @@ fn windows_native_profile() -> Option<MinecraftProfile> {
             "/reg:32",
         ],
         Duration::from_secs(4),
-    ).ok();
+    )
+    .ok();
 
     if let Some(text) = registry {
         if let Some(version) = parse_registry_version(&text) {
@@ -574,9 +582,8 @@ fn normalized_version(value: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::{
-        base_profile_matches_native, normalized_version, BaseProfile, BaseState,
-        ClientProfile, MinecraftInstallType, MinecraftProfile, BASE_PROFILE_SCHEMA,
-        CLIENT_PROFILE_SCHEMA,
+        base_profile_matches_native, normalized_version, BaseProfile, BaseState, ClientProfile,
+        MinecraftInstallType, MinecraftProfile, BASE_PROFILE_SCHEMA, CLIENT_PROFILE_SCHEMA,
     };
     use crate::guest::{GUEST_AGENT_PROTOCOL_VERSION, GUEST_STATUS_SCHEMA};
 
@@ -585,7 +592,9 @@ mod tests {
         assert!(super::require_base_launch_protocol(2).is_ok());
         for unsupported in [0, 1, 3, 99] {
             assert_eq!(
-                super::require_base_launch_protocol(unsupported).unwrap_err().kind(),
+                super::require_base_launch_protocol(unsupported)
+                    .unwrap_err()
+                    .kind(),
                 std::io::ErrorKind::InvalidData
             );
         }
@@ -626,7 +635,7 @@ mod tests {
             guest_status_schema: GUEST_STATUS_SCHEMA,
             guest_agent_protocol: GUEST_AGENT_PROTOCOL_VERSION,
             base_generation_id: "a".repeat(64),
-            };
+        };
 
         let json = serde_json::to_string(&profile).unwrap();
         let decoded: BaseProfile = serde_json::from_str(&json).unwrap();
@@ -673,7 +682,7 @@ mod tests {
             guest_status_schema: GUEST_STATUS_SCHEMA,
             guest_agent_protocol: GUEST_AGENT_PROTOCOL_VERSION,
             base_generation_id: "a".repeat(64),
-            };
+        };
 
         assert!(base_profile_matches_native(&native, &current));
 
@@ -733,8 +742,9 @@ mod tests {
         };
         assert!(profile.saved_vm_identity_matches(None));
         assert!(!profile.identity_provenance_matches(Some("uuid-a|mac-a")));
-        assert_eq!(super::identity_fingerprint("abc"),
-            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
+        assert_eq!(
+            super::identity_fingerprint("abc"),
+            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+        );
     }
-
 }

@@ -3,8 +3,8 @@ use crate::{
     doctor::DoctorReport,
     journal::{read_operation_history, OperationRecord},
     paths::runtime_root,
-    provider::staging_residue_count,
     persistence::{reject_unsafe_existing_file, write_text_transactional},
+    provider::staging_residue_count,
 };
 use serde::Serialize;
 use std::{

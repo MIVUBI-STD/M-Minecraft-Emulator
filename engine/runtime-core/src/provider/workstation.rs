@@ -1,9 +1,8 @@
 use super::{
     apply_virtual_hardware_policy, base_vmx_path, client_vmx_path, command_output,
     command_output_with_timeout, ensure_parent, guest_tools_state_ready, has_suspend_state,
-    listed_as_running, parse_guest_ip, read_vmx_memory,
-    snapshot_list_contains, vm_identity_key, vmx_file_present, wait_for_state, Provider,
-    DISK_STATE_TIMEOUT,
+    listed_as_running, parse_guest_ip, read_vmx_memory, snapshot_list_contains, vm_identity_key,
+    vmx_file_present, wait_for_state, Provider, DISK_STATE_TIMEOUT,
 };
 use crate::client::{ClientId, ClientState};
 use crate::policy::READY_SNAPSHOT_NAME;
@@ -110,8 +109,10 @@ impl VmwareWorkstationProvider {
                 format!("Graceful stop not confirmed: {error}. No hard stop attempted; inspect VM state."),
             ))?;
         if has_suspend_state(vmx) {
-            return Err(io::Error::new(io::ErrorKind::InvalidData,
-                "VM entered Suspended state instead of Stopped; inspect VM state."));
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "VM entered Suspended state instead of Stopped; inspect VM state.",
+            ));
         }
         Ok(())
     }
@@ -263,23 +264,29 @@ impl Provider for VmwareWorkstationProvider {
         } else {
             None
         };
-        Ok(entries.into_iter().map(|(client, vmx, present)| {
-            let state = if !present {
-                // An interrupted clone is not a clean missing guest.
-                if vmx.parent().is_some_and(Path::exists) {
-                    ClientState::Error
+        Ok(entries
+            .into_iter()
+            .map(|(client, vmx, present)| {
+                let state = if !present {
+                    // An interrupted clone is not a clean missing guest.
+                    if vmx.parent().is_some_and(Path::exists) {
+                        ClientState::Error
+                    } else {
+                        ClientState::NotProvisioned
+                    }
+                } else if running
+                    .as_ref()
+                    .is_some_and(|list| listed_as_running(list, &vmx))
+                {
+                    ClientState::Running
+                } else if has_suspend_state(&vmx) {
+                    ClientState::Suspended
                 } else {
-                    ClientState::NotProvisioned
-                }
-            } else if running.as_ref().is_some_and(|list| listed_as_running(list, &vmx)) {
-                ClientState::Running
-            } else if has_suspend_state(&vmx) {
-                ClientState::Suspended
-            } else {
-                ClientState::Stopped
-            };
-            (client, state)
-        }).collect())
+                    ClientState::Stopped
+                };
+                (client, state)
+            })
+            .collect())
     }
 
     fn status(&self, client: ClientId) -> io::Result<ClientState> {
@@ -338,7 +345,11 @@ impl Provider for VmwareWorkstationProvider {
         }
     }
 
-    fn guest_status(&self, client: ClientId, timeout: Duration) -> io::Result<Option<crate::guest::GuestStatus>> {
+    fn guest_status(
+        &self,
+        client: ClientId,
+        timeout: Duration,
+    ) -> io::Result<Option<crate::guest::GuestStatus>> {
         super::vmware_guest_status(self, client, timeout)
     }
 
@@ -529,7 +540,9 @@ impl Provider for VmwareWorkstationProvider {
             // disk state reached. Do not replay an unknown destructive mutation.
             return Err(io::Error::new(
                 error.kind(),
-                format!("QA_READY revert outcome is unknown; inspect the VM before retrying: {error}"),
+                format!(
+                    "QA_READY revert outcome is unknown; inspect the VM before retrying: {error}"
+                ),
             ));
         }
         let start = command_output(

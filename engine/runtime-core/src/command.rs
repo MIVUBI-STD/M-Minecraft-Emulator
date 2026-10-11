@@ -176,7 +176,9 @@ fn execute_value(command: &str, args: &[String]) -> io::Result<Value> {
         "set-ready" => to_value(app.set_ready(parse_client(one_arg(command, args)?)?)?),
         "reset" => to_value(app.reset(parse_client(one_arg(command, args)?)?)?),
         "open" => to_value(app.open(parse_client(one_arg(command, args)?)?)?),
-        "launch-minecraft" => to_value(app.launch_minecraft(parse_client(one_arg(command, args)?)?)?),
+        "launch-minecraft" => {
+            to_value(app.launch_minecraft(parse_client(one_arg(command, args)?)?)?)
+        }
         _ => Err(input_error(format!("unknown command: {command}"))),
     }
 }
@@ -221,7 +223,11 @@ pub fn execute_public_command_with_progress(
     report(OperationProgress {
         schema: 2,
         operation: command.to_string(),
-        phase: if result.success { OperationPhase::Succeeded } else { OperationPhase::Failed },
+        phase: if result.success {
+            OperationPhase::Succeeded
+        } else {
+            OperationPhase::Failed
+        },
     });
     result
 }
@@ -280,7 +286,13 @@ mod tests {
             phases.push(event.phase);
         });
         assert!(result.success);
-        assert_eq!(phases, vec![super::OperationPhase::Executing, super::OperationPhase::Succeeded]);
+        assert_eq!(
+            phases,
+            vec![
+                super::OperationPhase::Executing,
+                super::OperationPhase::Succeeded
+            ]
+        );
         assert_eq!(result.json, execute_public_command("policy", &[]).json);
     }
 
@@ -288,7 +300,9 @@ mod tests {
     fn progress_reports_failure_without_leaking_arguments() {
         let mut events = Vec::new();
         let result = super::execute_public_command_with_progress(
-            "policy", &["private-input".into()], |event| events.push(event),
+            "policy",
+            &["private-input".into()],
+            |event| events.push(event),
         );
         assert!(!result.success);
         assert_eq!(events.len(), 2);
@@ -296,5 +310,4 @@ mod tests {
         let json = serde_json::to_string(&events).unwrap();
         assert!(!json.contains("private-input"));
     }
-
 }

@@ -7,8 +7,7 @@ use fs2::FileExt;
 use serde::{Deserialize, Serialize};
 use std::{
     fs::{self, File, OpenOptions},
-    io,
-    thread,
+    io, thread,
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
@@ -72,15 +71,19 @@ fn lock_history_with_deadline(file: &File) -> io::Result<()> {
     for attempt in 0..HISTORY_LOCK_ATTEMPTS {
         match FileExt::try_lock_exclusive(file) {
             Ok(()) => return Ok(()),
-            Err(error) if error.kind() == io::ErrorKind::WouldBlock
-                && attempt + 1 < HISTORY_LOCK_ATTEMPTS =>
+            Err(error)
+                if error.kind() == io::ErrorKind::WouldBlock
+                    && attempt + 1 < HISTORY_LOCK_ATTEMPTS =>
             {
                 thread::sleep(HISTORY_LOCK_INTERVAL);
             }
             Err(error) => return Err(error),
         }
     }
-    Err(io::Error::new(io::ErrorKind::WouldBlock, "operation history is busy"))
+    Err(io::Error::new(
+        io::ErrorKind::WouldBlock,
+        "operation history is busy",
+    ))
 }
 
 // Reading may recover .bak files; reads must not race a writer's rename.
@@ -131,7 +134,11 @@ fn record_operation_inner<T>(
         Ok(_) => (OperationOutcome::Success, None, false),
         Err(error) => {
             let report = ErrorReport::from_io(error);
-            (OperationOutcome::Failed, Some(report.code), report.retryable)
+            (
+                OperationOutcome::Failed,
+                Some(report.code),
+                report.retryable,
+            )
         }
     };
     let timestamp_unix_ms = timestamp_ms()?;
@@ -175,8 +182,14 @@ pub(crate) fn record_operation<T>(
 
 #[cfg(test)]
 mod tests {
-    use super::{read_history_at, OperationKind, OperationOutcome, OperationRecord, HISTORY_LIMIT, HISTORY_LOCK_ATTEMPTS, HISTORY_LOCK_INTERVAL};
-    use std::{fs, time::{SystemTime, UNIX_EPOCH}};
+    use super::{
+        read_history_at, OperationKind, OperationOutcome, OperationRecord, HISTORY_LIMIT,
+        HISTORY_LOCK_ATTEMPTS, HISTORY_LOCK_INTERVAL,
+    };
+    use std::{
+        fs,
+        time::{SystemTime, UNIX_EPOCH},
+    };
 
     #[test]
     fn lock_contention_has_a_small_explicit_budget() {
@@ -188,16 +201,24 @@ mod tests {
     #[test]
     fn backup_only_history_is_restored_not_discarded() {
         let root = std::env::temp_dir().join(format!(
-            "history-backup-{}-{}", std::process::id(),
-            SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos()
+            "history-backup-{}-{}",
+            std::process::id(),
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
         ));
         fs::create_dir_all(&root).unwrap();
         let path = root.join("operation-history.json");
         let backup = root.join(".operation-history.json.bak");
         let record = OperationRecord {
-            schema: 1, timestamp_unix_ms: 7,
-            operation: OperationKind::Start, target: Some("Virtual-01".into()),
-            outcome: OperationOutcome::Success, error_code: None, retryable: false,
+            schema: 1,
+            timestamp_unix_ms: 7,
+            operation: OperationKind::Start,
+            target: Some("Virtual-01".into()),
+            outcome: OperationOutcome::Success,
+            error_code: None,
+            retryable: false,
         };
         fs::write(&backup, serde_json::to_string(&vec![record]).unwrap()).unwrap();
         let restored = read_history_at(&path).unwrap();

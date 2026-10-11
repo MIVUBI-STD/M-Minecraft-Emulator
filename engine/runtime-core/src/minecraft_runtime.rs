@@ -10,12 +10,14 @@ const GUEST_STATUS_TIMEOUT: Duration = Duration::from_secs(2);
 const MINECRAFT_LAUNCH_REQUEST_TIMEOUT: Duration = Duration::from_secs(40);
 
 pub fn ensure_running(provider: &dyn Provider, client: ClientId) -> io::Result<()> {
-    let status = provider.guest_status(client, GUEST_STATUS_TIMEOUT)?.ok_or_else(|| {
-        io::Error::new(
-            io::ErrorKind::NotConnected,
-            format!("{} Minecraft guest status is unavailable", client.as_str()),
-        )
-    })?;
+    let status = provider
+        .guest_status(client, GUEST_STATUS_TIMEOUT)?
+        .ok_or_else(|| {
+            io::Error::new(
+                io::ErrorKind::NotConnected,
+                format!("{} Minecraft guest status is unavailable", client.as_str()),
+            )
+        })?;
     if !guest_agent_launch_compatible(status.protocol_version) {
         return Err(io::Error::new(
             io::ErrorKind::Unsupported,

@@ -1,11 +1,11 @@
 use std::{
     ffi::OsStr,
     io,
+    io::Read,
     path::Path,
     process::{Child, Command, Stdio},
-    thread,
-    io::Read,
     sync::mpsc,
+    thread,
     time::{Duration, Instant},
 };
 
@@ -36,12 +36,22 @@ where
 
     // Drain both streams while the child is running. Waiting before reading can
     // deadlock when the child fills an OS pipe buffer.
-    let stdout = child.stdout.take().ok_or_else(|| io::Error::new(io::ErrorKind::Other, "missing stdout pipe"))?;
-    let stderr = child.stderr.take().ok_or_else(|| io::Error::new(io::ErrorKind::Other, "missing stderr pipe"))?;
+    let stdout = child
+        .stdout
+        .take()
+        .ok_or_else(|| io::Error::new(io::ErrorKind::Other, "missing stdout pipe"))?;
+    let stderr = child
+        .stderr
+        .take()
+        .ok_or_else(|| io::Error::new(io::ErrorKind::Other, "missing stderr pipe"))?;
     let (stdout_sender, stdout_reader) = mpsc::sync_channel(1);
     let (stderr_sender, stderr_reader) = mpsc::sync_channel(1);
-    thread::spawn(move || { let _ = stdout_sender.send(drain_output(stdout)); });
-    thread::spawn(move || { let _ = stderr_sender.send(drain_output(stderr)); });
+    thread::spawn(move || {
+        let _ = stdout_sender.send(drain_output(stdout));
+    });
+    thread::spawn(move || {
+        let _ = stderr_sender.send(drain_output(stderr));
+    });
 
     let started = Instant::now();
     loop {
@@ -71,7 +81,11 @@ where
             terminate_direct_child(&mut child, program, "timeout")?;
             return Err(io::Error::new(
                 io::ErrorKind::TimedOut,
-                format!("{} exceeded {}s timeout; child process reaped", program.display(), timeout.as_secs()),
+                format!(
+                    "{} exceeded {}s timeout; child process reaped",
+                    program.display(),
+                    timeout.as_secs()
+                ),
             ));
         }
         thread::sleep(Duration::from_millis(100));
@@ -111,7 +125,9 @@ fn drain_output(mut pipe: impl Read) -> io::Result<Vec<u8>> {
     let mut chunk = [0_u8; 8192];
     loop {
         let count = pipe.read(&mut chunk)?;
-        if count == 0 { break; }
+        if count == 0 {
+            break;
+        }
         // Retain one sentinel byte so callers can distinguish truncated output.
         let remaining = (OUTPUT_LIMIT + 1).saturating_sub(output.len());
         output.extend_from_slice(&chunk[..count.min(remaining)]);
@@ -119,7 +135,10 @@ fn drain_output(mut pipe: impl Read) -> io::Result<Vec<u8>> {
     Ok(output)
 }
 
-fn receive_output(reader: &mpsc::Receiver<io::Result<Vec<u8>>>, timeout: Duration) -> io::Result<Vec<u8>> {
+fn receive_output(
+    reader: &mpsc::Receiver<io::Result<Vec<u8>>>,
+    timeout: Duration,
+) -> io::Result<Vec<u8>> {
     match reader.recv_timeout(timeout) {
         Ok(result) => result,
         Err(mpsc::RecvTimeoutError::Timeout) => Err(io::Error::new(
@@ -133,25 +152,42 @@ fn receive_output(reader: &mpsc::Receiver<io::Result<Vec<u8>>>, timeout: Duratio
     }
 }
 
-fn require_success(program: &Path, success: bool, stdout: &[u8], stderr: &[u8]) -> io::Result<String> {
+fn require_success(
+    program: &Path,
+    success: bool,
+    stdout: &[u8],
+    stderr: &[u8],
+) -> io::Result<String> {
     if success {
         return Ok(String::from_utf8_lossy(stdout).trim().to_string());
     }
     let stderr = String::from_utf8_lossy(stderr).trim().to_string();
     let stdout = String::from_utf8_lossy(stdout).trim().to_string();
     let detail = if !stderr.is_empty() { stderr } else { stdout };
-    Err(io::Error::new(io::ErrorKind::Other, format!("{} failed: {}", program.display(), detail)))
+    Err(io::Error::new(
+        io::ErrorKind::Other,
+        format!("{} failed: {}", program.display(), detail),
+    ))
 }
 
-pub(crate) fn wait_for_state<F>(mut predicate: F, expected: bool, timeout: Duration) -> io::Result<()>
+pub(crate) fn wait_for_state<F>(
+    mut predicate: F,
+    expected: bool,
+    timeout: Duration,
+) -> io::Result<()>
 where
     F: FnMut() -> io::Result<bool>,
 {
     let started = Instant::now();
     loop {
-        if predicate()? == expected { return Ok(()); }
+        if predicate()? == expected {
+            return Ok(());
+        }
         if started.elapsed() >= timeout {
-            return Err(io::Error::new(io::ErrorKind::TimedOut, "virtual machine did not reach the expected power state"));
+            return Err(io::Error::new(
+                io::ErrorKind::TimedOut,
+                "virtual machine did not reach the expected power state",
+            ));
         }
         thread::sleep(Duration::from_millis(250));
     }
@@ -170,22 +206,28 @@ mod tests {
         #[cfg(not(windows))]
         let (program, args): (&Path, &[&str]) = (Path::new("sh"), &["-c", "printf command-ok"]);
 
-        let output = command_output_with_timeout(program, args.iter().copied(), Duration::from_secs(5))
-            .expect("short successful command must complete");
+        let output =
+            command_output_with_timeout(program, args.iter().copied(), Duration::from_secs(5))
+                .expect("short successful command must complete");
         assert_eq!(output, "command-ok");
     }
 
     #[test]
     fn failed_command_preserves_stderr_diagnostic() {
         #[cfg(windows)]
-        let (program, args): (&Path, &[&str]) =
-            (Path::new("cmd.exe"), &["/C", "echo expected-failure 1>&2 & exit /B 7"]);
+        let (program, args): (&Path, &[&str]) = (
+            Path::new("cmd.exe"),
+            &["/C", "echo expected-failure 1>&2 & exit /B 7"],
+        );
         #[cfg(not(windows))]
-        let (program, args): (&Path, &[&str]) =
-            (Path::new("sh"), &["-c", "printf expected-failure >&2; exit 7"]);
+        let (program, args): (&Path, &[&str]) = (
+            Path::new("sh"),
+            &["-c", "printf expected-failure >&2; exit 7"],
+        );
 
-        let error = command_output_with_timeout(program, args.iter().copied(), Duration::from_secs(5))
-            .expect_err("failed command must not be treated as success");
+        let error =
+            command_output_with_timeout(program, args.iter().copied(), Duration::from_secs(5))
+                .expect_err("failed command must not be treated as success");
         assert!(error.to_string().contains("expected-failure"));
     }
 
@@ -209,17 +251,23 @@ mod tests {
         #[cfg(windows)]
         let (program, args): (&Path, &[&str]) = (
             Path::new("cmd.exe"),
-            &["/C", "for /L %i in (1,1,12000) do @echo some-output-to-fill-the-pipe"],
+            &[
+                "/C",
+                "for /L %i in (1,1,12000) do @echo some-output-to-fill-the-pipe",
+            ],
         );
         #[cfg(not(windows))]
         let (program, args): (&Path, &[&str]) = (
             Path::new("sh"),
             &["-c", "yes some-output-to-fill-the-pipe | head -c 200000"],
         );
-        let error = command_output_with_timeout(program, args.iter().copied(), Duration::from_secs(15))
-            .expect_err("oversized command output must not be treated as complete");
+        let error =
+            command_output_with_timeout(program, args.iter().copied(), Duration::from_secs(15))
+                .expect_err("oversized command output must not be treated as complete");
         assert_eq!(error.kind(), io::ErrorKind::InvalidData);
-        assert!(error.to_string().contains("refusing truncated provider evidence"));
+        assert!(error
+            .to_string()
+            .contains("refusing truncated provider evidence"));
     }
 
     #[test]
@@ -232,7 +280,8 @@ mod tests {
             .args(args)
             .stdout(Stdio::null())
             .stderr(Stdio::null())
-            .spawn().unwrap();
+            .spawn()
+            .unwrap();
         child.wait().unwrap();
         terminate_direct_child(&mut child, program, "already exited").unwrap();
     }
@@ -240,15 +289,14 @@ mod tests {
     #[test]
     fn timed_out_command_is_reaped_before_reporting_timeout() {
         #[cfg(windows)]
-        let (program, args): (&Path, &[&str]) = (
-            Path::new("cmd.exe"),
-            &["/C", "ping -n 10 127.0.0.1 >NUL"],
-        );
+        let (program, args): (&Path, &[&str]) =
+            (Path::new("cmd.exe"), &["/C", "ping -n 10 127.0.0.1 >NUL"]);
         #[cfg(not(windows))]
         let (program, args): (&Path, &[&str]) = (Path::new("sh"), &["-c", "sleep 5"]);
 
-        let error = command_output_with_timeout(program, args.iter().copied(), Duration::from_millis(100))
-            .expect_err("long-running command must time out");
+        let error =
+            command_output_with_timeout(program, args.iter().copied(), Duration::from_millis(100))
+                .expect_err("long-running command must time out");
         assert_eq!(error.kind(), io::ErrorKind::TimedOut);
         assert!(error.to_string().contains("child process reaped"));
     }

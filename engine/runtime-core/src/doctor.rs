@@ -4,8 +4,8 @@ use crate::{
     paths::runtime_root,
     profile::current_base_vmx_path,
     profile::{
-        client_lineage_parity, load_client_profile, profile_status, BaseState,
-        ProfileParity, ProfileStatus,
+        client_lineage_parity, load_client_profile, profile_status, BaseState, ProfileParity,
+        ProfileStatus,
     },
     provider::{base_state_for_path, current_platform_provider, vmx_file_present},
     schema::{inspect_runtime_schema, SchemaStatus},
@@ -137,7 +137,10 @@ fn select_setup_action(
         SetupAction::RegisterBase
     } else if base_state == Some(BaseState::Registered) {
         SetupAction::FinalizeBase
-    } else if clients.iter().any(|client| client.provider_state == ClientState::Error) {
+    } else if clients
+        .iter()
+        .any(|client| client.provider_state == ClientState::Error)
+    {
         // A partial clone or unreadable VM state must never initiate provisioning.
         SetupAction::ReprovisionVirtuals
     } else if clients.iter().any(|client| !client.provisioned) {
@@ -298,9 +301,11 @@ pub fn doctor() -> DoctorReport {
     let logical_cpus = system.cpus().len();
     let total_memory_gb = system.total_memory() as f64 / 1024.0 / 1024.0 / 1024.0;
     let available_memory_gb = system.available_memory() as f64 / 1024.0 / 1024.0 / 1024.0;
-    let max_recommended_virtual_clients = recommended_virtual_clients(total_memory_gb, logical_cpus);
+    let max_recommended_virtual_clients =
+        recommended_virtual_clients(total_memory_gb, logical_cpus);
 
-    let base_vm_present = base.as_ref()
+    let base_vm_present = base
+        .as_ref()
         .is_some_and(|path| vmx_file_present(path).unwrap_or(false));
     let base_vm_stopped = match (provider.as_ref(), base.as_ref()) {
         (Some(provider), Some(path)) if base_vm_present => {
@@ -332,8 +337,17 @@ pub fn doctor() -> DoctorReport {
         .map(|client| {
             let state = observed_states
                 .as_ref()
-                .and_then(|states| states.iter().find(|(id, _)| *id == client).map(|(_, state)| *state))
-                .or_else(|| provider.as_ref().and_then(|provider| provider.status(client).ok()));
+                .and_then(|states| {
+                    states
+                        .iter()
+                        .find(|(id, _)| *id == client)
+                        .map(|(_, state)| *state)
+                })
+                .or_else(|| {
+                    provider
+                        .as_ref()
+                        .and_then(|provider| provider.status(client).ok())
+                });
             // Missing evidence is UNKNOWN/ERROR, never a clean VM slot.
             let provider_state = state.unwrap_or(ClientState::Error);
             let provisioned = matches!(
@@ -359,7 +373,8 @@ pub fn doctor() -> DoctorReport {
                 provisioned,
             );
 
-            let current_vm_identity = provider.as_ref()
+            let current_vm_identity = provider
+                .as_ref()
                 .and_then(|provider| provider.identity_key(client).ok().flatten());
             let identity_provenance = load_client_profile(client).ok().is_some_and(|profile| {
                 profile.identity_provenance_matches(current_vm_identity.as_deref())
@@ -419,15 +434,14 @@ pub fn doctor() -> DoctorReport {
 #[cfg(test)]
 mod tests {
     use super::{
-        collect_health_issues,
-        schema_allows_provisioning, select_setup_action, DoctorClient, HealthIssueCode,
-        HealthSeverity, SetupAction,
+        collect_health_issues, schema_allows_provisioning, select_setup_action, DoctorClient,
+        HealthIssueCode, HealthSeverity, SetupAction,
     };
     use crate::{
         guest::{GUEST_AGENT_PROTOCOL_VERSION, GUEST_STATUS_SCHEMA},
         profile::{
-            BaseProfile, BaseState, ClientProfile, MinecraftInstallType,
-            MinecraftProfile, ProfileParity, BASE_PROFILE_SCHEMA, CLIENT_PROFILE_SCHEMA,
+            BaseProfile, BaseState, ClientProfile, MinecraftInstallType, MinecraftProfile,
+            ProfileParity, BASE_PROFILE_SCHEMA, CLIENT_PROFILE_SCHEMA,
         },
         schema::{SchemaState, SchemaStatus},
     };
@@ -853,14 +867,18 @@ mod tests {
             clients[0].identity_provenance = profile.identity_provenance_matches(observed);
             assert_eq!(
                 select_setup_action(
-                    &compatible_schema(), true, true, true, ProfileParity::Match,
-                    Some(BaseState::Finalized), &clients,
+                    &compatible_schema(),
+                    true,
+                    true,
+                    true,
+                    ProfileParity::Match,
+                    Some(BaseState::Finalized),
+                    &clients,
                 ),
                 SetupAction::VerifyIdentities,
             );
         }
     }
-
 
     #[test]
     fn incomplete_vm_requires_review_not_new_provisioning() {
@@ -869,14 +887,26 @@ mod tests {
         clients[1].provisioned = false;
         assert_eq!(
             select_setup_action(
-                &compatible_schema(), true, true, true, ProfileParity::Match,
-                Some(BaseState::Finalized), &clients,
+                &compatible_schema(),
+                true,
+                true,
+                true,
+                ProfileParity::Match,
+                Some(BaseState::Finalized),
+                &clients,
             ),
             SetupAction::ReprovisionVirtuals,
         );
         let issues = collect_health_issues(
-            &compatible_schema(), true, true, true, Some(true),
-            Some(BaseState::Finalized), ProfileParity::Match, &clients, 3,
+            &compatible_schema(),
+            true,
+            true,
+            true,
+            Some(true),
+            Some(BaseState::Finalized),
+            ProfileParity::Match,
+            &clients,
+            3,
         );
         assert!(issues.iter().any(|issue| {
             issue.client == Some("Virtual-test")

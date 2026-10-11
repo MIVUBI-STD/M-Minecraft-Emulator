@@ -42,7 +42,8 @@ pub fn evaluate_pressure(
     };
     let cpu_usage_percent = cpu_usage_percent.min(100);
 
-    let memory_critical = available_percent < MEMORY_CRITICAL_PERCENT || available_memory_mb < MIN_START_AVAILABLE_MEMORY_MB;
+    let memory_critical = available_percent < MEMORY_CRITICAL_PERCENT
+        || available_memory_mb < MIN_START_AVAILABLE_MEMORY_MB;
     let memory_pressure = available_percent < MEMORY_PRESSURE_PERCENT;
     let cpu_critical = cpu_usage_percent >= CPU_SATURATED_PERCENT;
     let cpu_pressure = cpu_usage_percent >= CPU_WAIT_PERCENT;
@@ -71,7 +72,11 @@ pub fn current_host_pressure() -> HostPressure {
     system.refresh_cpu();
     std::thread::sleep(sysinfo::MINIMUM_CPU_UPDATE_INTERVAL);
     system.refresh_cpu();
-    let cpu = system.global_cpu_info().cpu_usage().round().clamp(0.0, 100.0) as u8;
+    let cpu = system
+        .global_cpu_info()
+        .cpu_usage()
+        .round()
+        .clamp(0.0, 100.0) as u8;
     evaluate_pressure(
         system.total_memory() / 1024 / 1024,
         system.available_memory() / 1024 / 1024,

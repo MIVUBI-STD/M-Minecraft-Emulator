@@ -44,7 +44,7 @@ pub fn open_folder(_path: &Path) -> io::Result<()> {
 mod tests {
     #[test]
     fn helper_does_not_define_setup_state() {
-        let source = include_str!("setup_tools.rs");
+        let source = include_str!("setup_tools.rs").split("#[cfg(test)]").next().unwrap();
         assert!(!source.contains("nextSetupAction"));
         assert!(!source.contains("FINALIZED ="));
     }

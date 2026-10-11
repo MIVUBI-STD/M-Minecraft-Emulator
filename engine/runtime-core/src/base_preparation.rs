@@ -29,7 +29,8 @@ pub fn inspect_base_preparation() -> io::Result<BasePreparationReport> {
     let native = native_minecraft_profile();
     let provider = current_platform_provider();
     let base = current_base_vmx_path().ok();
-    let base_present = base.as_ref()
+    let base_present = base
+        .as_ref()
         .is_some_and(|path| vmx_file_present(path).unwrap_or(false));
 
     let base_stopped = match (provider.as_ref(), base.as_ref()) {
@@ -65,8 +66,11 @@ pub fn inspect_base_preparation() -> io::Result<BasePreparationReport> {
                 .flatten()
         })
         .map(|value| value.eq_ignore_ascii_case("TRUE"));
-    let network_connection_type = vmx
-        .and_then(|path| read_vmx_value(path, "ethernet0.connectionType").ok().flatten());
+    let network_connection_type = vmx.and_then(|path| {
+        read_vmx_value(path, "ethernet0.connectionType")
+            .ok()
+            .flatten()
+    });
 
     Ok(BasePreparationReport {
         platform: std::env::consts::OS,

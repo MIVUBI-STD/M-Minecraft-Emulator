@@ -41,11 +41,17 @@ pub(crate) fn read_vmx_value(vmx: &Path, key: &str) -> io::Result<Option<String>
     let source = read_text_recovering(vmx)?;
     let mut result = None;
     for line in source.lines() {
-        let Some((name, value)) = vmx_assignment(line) else { continue; };
-        if !name.eq_ignore_ascii_case(key) { continue; }
+        let Some((name, value)) = vmx_assignment(line) else {
+            continue;
+        };
+        if !name.eq_ignore_ascii_case(key) {
+            continue;
+        }
         if result.is_some() {
-            return Err(io::Error::new(io::ErrorKind::InvalidData,
-                format!("VMX contains multiple definitions for {key}")));
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("VMX contains multiple definitions for {key}"),
+            ));
         }
         result = Some(value.trim_matches('"').to_owned());
     }
@@ -59,10 +65,14 @@ pub(crate) fn read_vmx_memory(vmx: &Path) -> io::Result<u64> {
         .map_err(|_| io::Error::new(io::ErrorKind::InvalidData, "invalid memsize in VMX"))
 }
 
-pub(crate) fn guest_token_for_path(vmx: &Path) -> io::Result<Option<String>> { read_vmx_value(vmx, GUEST_TOKEN_KEY) }
+pub(crate) fn guest_token_for_path(vmx: &Path) -> io::Result<Option<String>> {
+    read_vmx_value(vmx, GUEST_TOKEN_KEY)
+}
 
 pub(crate) fn base_state_for_path(vmx: &Path) -> io::Result<Option<BaseState>> {
-    read_vmx_value(vmx, BASE_STATE_KEY)?.map(|value| BaseState::from_vmx_str(&value)).transpose()
+    read_vmx_value(vmx, BASE_STATE_KEY)?
+        .map(|value| BaseState::from_vmx_str(&value))
+        .transpose()
 }
 
 pub(crate) fn set_base_state_for_path(vmx: &Path, state: BaseState) -> io::Result<()> {
@@ -76,7 +86,9 @@ pub(crate) fn set_base_state_for_path(vmx: &Path, state: BaseState) -> io::Resul
 
 pub(crate) fn ensure_guest_token_for_path(vmx: &Path) -> io::Result<String> {
     if let Some(token) = guest_token_for_path(vmx)? {
-        if valid_guest_token(&token) { return Ok(token); }
+        if valid_guest_token(&token) {
+            return Ok(token);
+        }
     }
     rotate_guest_token_for_path(vmx)
 }
@@ -98,13 +110,22 @@ pub(crate) fn valid_guest_token(token: &str) -> bool {
 
 pub(crate) fn vm_identity_key(vmx: &Path) -> io::Result<Option<String>> {
     let uuid = read_vmx_value(vmx, "uuid.bios")?.filter(|value| !value.trim().is_empty());
-    let mac = read_vmx_value(vmx, "ethernet0.generatedAddress")?.filter(|value| !value.trim().is_empty());
-    Ok(match (uuid, mac) { (Some(uuid), Some(mac)) => Some(format!("{uuid}|{mac}")), _ => None })
+    let mac =
+        read_vmx_value(vmx, "ethernet0.generatedAddress")?.filter(|value| !value.trim().is_empty());
+    Ok(match (uuid, mac) {
+        (Some(uuid), Some(mac)) => Some(format!("{uuid}|{mac}")),
+        _ => None,
+    })
 }
 
 fn generate_guest_token() -> io::Result<String> {
     let mut bytes = [0_u8; 32];
-    getrandom::getrandom(&mut bytes).map_err(|error| io::Error::new(io::ErrorKind::Other, format!("guest token entropy failed: {error}")))?;
+    getrandom::getrandom(&mut bytes).map_err(|error| {
+        io::Error::new(
+            io::ErrorKind::Other,
+            format!("guest token entropy failed: {error}"),
+        )
+    })?;
     Ok(bytes.iter().map(|byte| format!("{byte:02x}")).collect())
 }
 
@@ -113,12 +134,16 @@ fn generate_guest_token() -> io::Result<String> {
 fn vmx_assignment(line: &str) -> Option<(&str, &str)> {
     let (name, value) = line.split_once('=')?;
     let name = name.trim();
-    if name.is_empty() || name.starts_with('#') { return None; }
+    if name.is_empty() || name.starts_with('#') {
+        return None;
+    }
     Some((name, value.trim()))
 }
 
 fn remove_vmx_value(lines: &mut Vec<String>, key: &str) {
-    lines.retain(|line| !vmx_assignment(line).is_some_and(|(name, _)| name.eq_ignore_ascii_case(key)));
+    lines.retain(|line| {
+        !vmx_assignment(line).is_some_and(|(name, _)| name.eq_ignore_ascii_case(key))
+    });
 }
 
 fn set_vmx_value(lines: &mut Vec<String>, key: &str, value: &str) {

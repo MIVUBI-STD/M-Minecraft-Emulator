@@ -22,18 +22,18 @@ mod provider;
 mod resources;
 mod runtime;
 mod schema;
-mod support;
 mod startup;
+mod support;
 mod update;
 
 pub use base_preparation::{inspect_base_preparation, BasePreparationReport};
 pub use client::{
-    ActionAvailability, ClientId, ClientLifecycleActions, ClientState, ClientStatus, ConnectionHealth,
-    DestructiveConfirmation, IdentityState, LifecycleBlocker,
+    ActionAvailability, ClientId, ClientLifecycleActions, ClientState, ClientStatus,
+    ConnectionHealth, DestructiveConfirmation, IdentityState, LifecycleBlocker,
 };
 pub use command::{
-    execute_public_command, execute_public_command_with_progress, OperationPhase, OperationProgress,
-    PublicCommandResult,
+    execute_public_command, execute_public_command_with_progress, OperationPhase,
+    OperationProgress, PublicCommandResult,
 };
 pub use contract::{SuccessReport, PUBLIC_CONTRACT_SCHEMA};
 pub use diagnostics::{
@@ -48,8 +48,7 @@ pub use policy::{
     engine_policy, EnginePolicy, MAX_VIRTUAL_CLIENTS, READY_SNAPSHOT_NAME, VIRTUAL_VCPUS,
 };
 pub use profile::{
-    BaseProfile, BaseState, MinecraftInstallType, MinecraftProfile,
-    ProfileParity, ProfileStatus,
+    BaseProfile, BaseState, MinecraftInstallType, MinecraftProfile, ProfileParity, ProfileStatus,
 };
 pub use runtime::{ResourceView, RuntimeStatus, VirtualClients};
 pub use schema::{SchemaState, SchemaStatus, CURRENT_RUNTIME_SCHEMA};
@@ -80,4 +79,3 @@ where
 {
     provider::command_output_with_timeout(program, args, timeout)
 }
-

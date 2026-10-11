@@ -129,7 +129,7 @@ pub fn check_update() -> io::Result<UpdateCheck> {
                 self_update_enabled: policy.self_update_runtime_enabled,
                 staged_path,
                 reason: Some(reason),
-            })
+            });
         }
     };
 
@@ -137,12 +137,18 @@ pub fn check_update() -> io::Result<UpdateCheck> {
     let current = parse_version(env!("CARGO_PKG_VERSION"))?;
     let staged = staged_update()?;
     let platform = manifest.platforms.get(current_platform()).ok_or_else(|| {
-        io::Error::new(io::ErrorKind::NotFound, "update manifest has no package for this platform")
+        io::Error::new(
+            io::ErrorKind::NotFound,
+            "update manifest has no package for this platform",
+        )
     })?;
     validate_platform_manifest(&policy, &manifest.version, platform)?;
     let staged_matches = staged.as_ref().is_some_and(|item| {
         staged_update_matches(
-            item, &manifest.version, current_platform(), platform,
+            item,
+            &manifest.version,
+            current_platform(),
+            platform,
             Path::new(&item.installer_path).is_file(),
         )
     });
@@ -187,7 +193,9 @@ fn staged_update_matches(
         && staged.version == version
         && staged.platform == platform
         && staged.sha256.eq_ignore_ascii_case(&manifest.sha256)
-        && staged.authenticode_thumbprint.eq_ignore_ascii_case(&manifest.authenticode_thumbprint)
+        && staged
+            .authenticode_thumbprint
+            .eq_ignore_ascii_case(&manifest.authenticode_thumbprint)
 }
 
 fn staged_installer_path_is_contained(staged: &StagedUpdate) -> io::Result<bool> {
@@ -731,7 +739,6 @@ mod tests {
         };
         assert!(validate_platform_manifest(&policy, "1.2.3", &foreign_repository).is_err());
 
-
         let prefix_confusion = PlatformManifest {
             url: "https://github.com/MIVUBI-STD/M-Minecraft-Emulator/releases/download/virtual-clients-v1.2.30/M-Bedrock-Virtual-Clients-1.2.3-windows-x86_64.exe".into(),
             ..valid.clone()
@@ -754,18 +761,71 @@ mod tests {
         let staged = super::StagedUpdate {
             version: "1.2.3".into(),
             platform: "windows-x86_64".into(),
-            installer_path: "installer.exe".into(),
+            installer_path: super::update_staging_root()
+                .unwrap()
+                .join("1.2.3")
+                .join("installer.exe")
+                .to_string_lossy()
+                .into_owned(),
             sha256: "A".repeat(64),
             authenticode_thumbprint: "B".repeat(40),
         };
-        assert!(super::staged_update_matches(&staged, "1.2.3", "windows-x86_64", &manifest, true));
-        assert!(!super::staged_update_matches(&staged, "1.2.3", "windows-x86_64", &manifest, false));
-        assert!(!super::staged_update_matches(&staged, "1.2.4", "windows-x86_64", &manifest, true));
-        assert!(!super::staged_update_matches(&staged, "1.2.3", "macos", &manifest, true));
-        let changed_hash = PlatformManifest { sha256: "c".repeat(64), ..manifest.clone() };
-        assert!(!super::staged_update_matches(&staged, "1.2.3", "windows-x86_64", &changed_hash, true));
-        let changed_signer = PlatformManifest { authenticode_thumbprint: "d".repeat(40), ..manifest };
-        assert!(!super::staged_update_matches(&staged, "1.2.3", "windows-x86_64", &changed_signer, true));
+        assert!(super::staged_update_matches(
+            &staged,
+            "1.2.3",
+            "windows-x86_64",
+            &manifest,
+            true
+        ));
+        assert!(!super::staged_update_matches(
+            &staged,
+            "1.2.3",
+            "windows-x86_64",
+            &manifest,
+            false
+        ));
+        assert!(!super::staged_update_matches(
+            &staged,
+            "1.2.4",
+            "windows-x86_64",
+            &manifest,
+            true
+        ));
+        assert!(!super::staged_update_matches(
+            &staged, "1.2.3", "macos", &manifest, true
+        ));
+        let outside_staging = super::StagedUpdate {
+            installer_path: "installer.exe".into(),
+            ..staged.clone()
+        };
+        assert!(!super::staged_update_matches(
+            &outside_staging,
+            "1.2.3",
+            "windows-x86_64",
+            &manifest,
+            true
+        ));
+        let changed_hash = PlatformManifest {
+            sha256: "c".repeat(64),
+            ..manifest.clone()
+        };
+        assert!(!super::staged_update_matches(
+            &staged,
+            "1.2.3",
+            "windows-x86_64",
+            &changed_hash,
+            true
+        ));
+        let changed_signer = PlatformManifest {
+            authenticode_thumbprint: "d".repeat(40),
+            ..manifest
+        };
+        assert!(!super::staged_update_matches(
+            &staged,
+            "1.2.3",
+            "windows-x86_64",
+            &changed_signer,
+            true
+        ));
     }
-
 }

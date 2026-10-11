@@ -42,9 +42,18 @@ pub fn inspect_runtime_schema(root: &Path) -> SchemaStatus {
     // Crash recovery may have left only a .bak file, including a newer schema.
     let raw = match read_text_recovering(&path) {
         Ok(raw) => raw,
-        Err(error) if error.kind() == io::ErrorKind::NotFound =>
-            return SchemaStatus { state: SchemaState::Missing, schema: None },
-        Err(_) => return SchemaStatus { state: SchemaState::Invalid, schema: None },
+        Err(error) if error.kind() == io::ErrorKind::NotFound => {
+            return SchemaStatus {
+                state: SchemaState::Missing,
+                schema: None,
+            }
+        }
+        Err(_) => {
+            return SchemaStatus {
+                state: SchemaState::Invalid,
+                schema: None,
+            }
+        }
     };
     let Ok(schema) = serde_json::from_str::<RuntimeSchema>(&raw) else {
         return SchemaStatus {
@@ -73,28 +82,28 @@ pub fn ensure_runtime_schema(root: &Path) -> io::Result<RuntimeSchema> {
 
     match read_text_recovering(&path) {
         Ok(raw) => {
-        let schema: RuntimeSchema = serde_json::from_str(&raw).map_err(|error| {
-            io::Error::new(
-                io::ErrorKind::InvalidData,
-                format!("invalid runtime schema {}: {error}", path.display()),
-            )
-        })?;
+            let schema: RuntimeSchema = serde_json::from_str(&raw).map_err(|error| {
+                io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    format!("invalid runtime schema {}: {error}", path.display()),
+                )
+            })?;
 
-        if schema.schema > CURRENT_RUNTIME_SCHEMA {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                format!(
-                    "runtime data schema {} is newer than this app supports ({})",
-                    schema.schema, CURRENT_RUNTIME_SCHEMA
-                ),
-            ));
-        }
+            if schema.schema > CURRENT_RUNTIME_SCHEMA {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    format!(
+                        "runtime data schema {} is newer than this app supports ({})",
+                        schema.schema, CURRENT_RUNTIME_SCHEMA
+                    ),
+                ));
+            }
 
-        if schema.schema < CURRENT_RUNTIME_SCHEMA {
-            return migrate_runtime_schema(root, schema);
-        }
+            if schema.schema < CURRENT_RUNTIME_SCHEMA {
+                return migrate_runtime_schema(root, schema);
+            }
 
-        return Ok(schema);
+            return Ok(schema);
         }
         Err(error) if error.kind() == io::ErrorKind::NotFound => {}
         Err(error) => return Err(error),
@@ -208,8 +217,14 @@ mod tests {
             CURRENT_RUNTIME_SCHEMA + 1
         );
         fs::write(&backup, &content).unwrap();
-        assert_eq!(ensure_runtime_schema(&root).unwrap_err().kind(), std::io::ErrorKind::InvalidData);
-        assert_eq!(inspect_runtime_schema(&root).state, SchemaState::NewerThanApp);
+        assert_eq!(
+            ensure_runtime_schema(&root).unwrap_err().kind(),
+            std::io::ErrorKind::InvalidData
+        );
+        assert_eq!(
+            inspect_runtime_schema(&root).state,
+            SchemaState::NewerThanApp
+        );
         assert_eq!(fs::read_to_string(&path).unwrap(), content);
         assert!(!backup.exists());
         fs::remove_dir_all(root).unwrap();
@@ -220,10 +235,14 @@ mod tests {
         let root = unique_temp_dir("schema-backup-current");
         fs::create_dir_all(&root).unwrap();
         let backup = root.join(format!(".{SCHEMA_FILE}.bak"));
-        fs::write(&backup, format!(
-            r#"{{"schema":{},"createdBy":"previous","lastMigratedBy":"previous"}}"#,
-            CURRENT_RUNTIME_SCHEMA
-        )).unwrap();
+        fs::write(
+            &backup,
+            format!(
+                r#"{{"schema":{},"createdBy":"previous","lastMigratedBy":"previous"}}"#,
+                CURRENT_RUNTIME_SCHEMA
+            ),
+        )
+        .unwrap();
         assert_eq!(inspect_runtime_schema(&root).state, SchemaState::Ready);
         assert!(!backup.exists());
         assert!(root.join(SCHEMA_FILE).is_file());

@@ -10,7 +10,10 @@ use sha2::{Digest, Sha256};
 use std::{
     io::{self, Read, Write},
     net::{Shutdown, TcpListener, TcpStream},
-    sync::{atomic::{AtomicUsize, Ordering}, Arc, Mutex},
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc, Mutex,
+    },
     thread,
     time::{Duration, Instant},
 };
@@ -19,7 +22,13 @@ use std::{
 // Reuse the existing signed-in-user launcher for gameplay; no second SYSTEM
 // service, account sign-in automation or listener is created here.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum RunMode { VMwareService, RegisterLauncher, InteractiveLauncher, SshStatus, SshLaunch }
+enum RunMode {
+    VmwareService,
+    RegisterLauncher,
+    InteractiveLauncher,
+    SshStatus,
+    SshLaunch,
+}
 
 fn run_mode(args: &[String]) -> io::Result<RunMode> {
     match args {
@@ -28,7 +37,10 @@ fn run_mode(args: &[String]) -> io::Result<RunMode> {
         [flag] if flag == "--interactive-launcher" => Ok(RunMode::InteractiveLauncher),
         [flag] if flag == "--ssh-status" => Ok(RunMode::SshStatus),
         [flag] if flag == "--ssh-launch-minecraft" => Ok(RunMode::SshLaunch),
-        _ => Err(io::Error::new(io::ErrorKind::InvalidInput, "unsupported guest utility command")),
+        _ => Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "unsupported guest utility command",
+        )),
     }
 }
 
@@ -73,10 +85,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         match incoming {
             Ok(mut stream) => {
                 // Bound worker count: a slow connection must not block all status calls.
-                if active.fetch_update(
-                    Ordering::AcqRel, Ordering::Acquire,
-                    |count| (count < MAX_ACTIVE_REQUESTS).then_some(count + 1),
-                ).is_err() {
+                if active
+                    .fetch_update(Ordering::AcqRel, Ordering::Acquire, |count| {
+                        (count < MAX_ACTIVE_REQUESTS).then_some(count + 1)
+                    })
+                    .is_err()
+                {
                     let _ = stream.set_write_timeout(Some(Duration::from_millis(250)));
                     let _ = stream.write_all(SERVICE_UNAVAILABLE);
                     continue;
@@ -123,12 +137,22 @@ fn interactive_launcher_address() -> String {
 
 #[cfg(target_os = "windows")]
 fn interactive_launcher_ready() -> bool {
-    let Ok(address) = interactive_launcher_address().parse() else { return false; };
-    let Ok(mut stream) = TcpStream::connect_timeout(&address, Duration::from_millis(150)) else { return false; };
+    let Ok(address) = interactive_launcher_address().parse() else {
+        return false;
+    };
+    let Ok(mut stream) = TcpStream::connect_timeout(&address, Duration::from_millis(150)) else {
+        return false;
+    };
     let request_id = "0000000000000000";
-    if stream.set_read_timeout(Some(Duration::from_millis(250))).is_err()
-        || stream.set_write_timeout(Some(Duration::from_millis(150))).is_err()
-        || stream.write_all(format!("PING {request_id}\n").as_bytes()).is_err()
+    if stream
+        .set_read_timeout(Some(Duration::from_millis(250)))
+        .is_err()
+        || stream
+            .set_write_timeout(Some(Duration::from_millis(150)))
+            .is_err()
+        || stream
+            .write_all(format!("PING {request_id}\n").as_bytes())
+            .is_err()
         || stream.shutdown(Shutdown::Write).is_err()
     {
         return false;
@@ -138,46 +162,76 @@ fn interactive_launcher_ready() -> bool {
 }
 
 #[cfg(target_os = "windows")]
-fn request_interactive_minecraft_launch() -> Result<m_bedrock_virtual_clients_core::MinecraftLaunchResult, Box<dyn std::error::Error>> {
+fn request_interactive_minecraft_launch(
+) -> Result<m_bedrock_virtual_clients_core::MinecraftLaunchResult, Box<dyn std::error::Error>> {
     use m_bedrock_virtual_clients_core::{MinecraftLaunchResult, MinecraftLaunchState};
     if minecraft_process_running() {
-        return Ok(MinecraftLaunchResult { schema: MINECRAFT_LAUNCH_SCHEMA, state: MinecraftLaunchState::AlreadyRunning });
+        return Ok(MinecraftLaunchResult {
+            schema: MINECRAFT_LAUNCH_SCHEMA,
+            state: MinecraftLaunchState::AlreadyRunning,
+        });
     }
 
     let address = interactive_launcher_address().parse()?;
-    let mut stream = TcpStream::connect_timeout(&address, Duration::from_secs(1))
-        .map_err(|_| io::Error::new(io::ErrorKind::NotConnected, "Interactive launcher is not active for the signed-in Windows user"))?;
+    let mut stream =
+        TcpStream::connect_timeout(&address, Duration::from_secs(1)).map_err(|_| {
+            io::Error::new(
+                io::ErrorKind::NotConnected,
+                "Interactive launcher is not active for the signed-in Windows user",
+            )
+        })?;
     stream.set_read_timeout(Some(INTERACTIVE_LAUNCH_TIMEOUT))?;
     stream.set_write_timeout(Some(Duration::from_secs(2)))?;
 
     let mut request_bytes = [0u8; 8];
     getrandom::getrandom(&mut request_bytes)
         .map_err(|error| io::Error::new(io::ErrorKind::Other, error.to_string()))?;
-    let request_id: String = request_bytes.iter().map(|byte| format!("{byte:02x}")).collect();
+    let request_id: String = request_bytes
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect();
     stream.write_all(format!("MINECRAFT_EDUCATION {request_id}\n").as_bytes())?;
     stream.shutdown(Shutdown::Write)?;
     let mut response = String::new();
     stream.read_to_string(&mut response)?;
 
     if response.trim() == format!("OK:{request_id}") {
-        return Ok(MinecraftLaunchResult { schema: MINECRAFT_LAUNCH_SCHEMA, state: MinecraftLaunchState::Launched });
+        return Ok(MinecraftLaunchResult {
+            schema: MINECRAFT_LAUNCH_SCHEMA,
+            state: MinecraftLaunchState::Launched,
+        });
     }
     if response.starts_with(&format!("ERROR:{request_id}:")) {
         return Err(io::Error::new(io::ErrorKind::Other, response.trim().to_string()).into());
     }
-    Err(io::Error::new(io::ErrorKind::InvalidData, "Interactive launcher returned an invalid response").into())
+    Err(io::Error::new(
+        io::ErrorKind::InvalidData,
+        "Interactive launcher returned an invalid response",
+    )
+    .into())
 }
 
 #[cfg(target_os = "windows")]
 fn register_interactive_launcher() -> Result<(), Box<dyn std::error::Error>> {
-    let app_data = std::env::var_os("APPDATA")
-        .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "APPDATA is unavailable for the interactive Windows user"))?;
+    let app_data = std::env::var_os("APPDATA").ok_or_else(|| {
+        io::Error::new(
+            io::ErrorKind::NotFound,
+            "APPDATA is unavailable for the interactive Windows user",
+        )
+    })?;
     let startup = std::path::PathBuf::from(app_data)
-        .join("Microsoft").join("Windows").join("Start Menu").join("Programs").join("Startup");
+        .join("Microsoft")
+        .join("Windows")
+        .join("Start Menu")
+        .join("Programs")
+        .join("Startup");
     std::fs::create_dir_all(&startup)?;
     let executable = std::env::current_exe()?;
     let launcher = startup.join("M-Bedrock Virtual Interactive Launcher.cmd");
-    let command = format!("@echo off\r\nstart \"\" /min \"{}\" --interactive-launcher\r\n", executable.display());
+    let command = format!(
+        "@echo off\r\nstart \"\" /min \"{}\" --interactive-launcher\r\n",
+        executable.display()
+    );
     std::fs::write(&launcher, command)?;
     if !interactive_launcher_ready() {
         std::process::Command::new(&executable)
@@ -190,7 +244,11 @@ fn register_interactive_launcher() -> Result<(), Box<dyn std::error::Error>> {
 
 #[cfg(not(target_os = "windows"))]
 fn register_interactive_launcher() -> Result<(), Box<dyn std::error::Error>> {
-    Err(io::Error::new(io::ErrorKind::Unsupported, "Interactive launcher registration currently targets Windows guests").into())
+    Err(io::Error::new(
+        io::ErrorKind::Unsupported,
+        "Interactive launcher registration currently targets Windows guests",
+    )
+    .into())
 }
 
 #[cfg(target_os = "windows")]
@@ -204,11 +262,17 @@ fn request_interactive_shutdown() -> Result<(), Box<dyn std::error::Error>> {
 
 fn run_interactive_launcher() -> Result<(), Box<dyn std::error::Error>> {
     if !interactive_session_available() {
-        return Err(io::Error::new(io::ErrorKind::PermissionDenied, "Interactive launcher must run in an interactive Windows user session").into());
+        return Err(io::Error::new(
+            io::ErrorKind::PermissionDenied,
+            "Interactive launcher must run in an interactive Windows user session",
+        )
+        .into());
     }
     let listener = TcpListener::bind(("127.0.0.1", INTERACTIVE_LAUNCHER_PORT))?;
     for incoming in listener.incoming() {
-        let Ok(mut stream) = incoming else { continue; };
+        let Ok(mut stream) = incoming else {
+            continue;
+        };
         stream.set_read_timeout(Some(Duration::from_secs(2)))?;
         stream.set_write_timeout(Some(INTERACTIVE_LAUNCH_TIMEOUT))?;
         let mut request = String::new();
@@ -221,12 +285,16 @@ fn run_interactive_launcher() -> Result<(), Box<dyn std::error::Error>> {
             stream.write_all(b"ERROR:INVALID:request too large\n")?;
             continue;
         }
-        if request.trim().is_empty() { continue; }
+        if request.trim().is_empty() {
+            continue;
+        }
         let mut parts = request.split_whitespace();
         let verb = parts.next().unwrap_or_default();
         let request_id = parts.next().unwrap_or_default();
         let request_id_valid = request_id.len() == 16
-            && request_id.chars().all(|character| character.is_ascii_hexdigit())
+            && request_id
+                .chars()
+                .all(|character| character.is_ascii_hexdigit())
             && parts.next().is_none();
         let response = if verb == "PING" && request_id_valid {
             format!("READY:{request_id}\n")
@@ -245,7 +313,11 @@ fn run_interactive_launcher() -> Result<(), Box<dyn std::error::Error>> {
 
 #[cfg(not(target_os = "windows"))]
 fn run_interactive_launcher() -> Result<(), Box<dyn std::error::Error>> {
-    Err(io::Error::new(io::ErrorKind::Unsupported, "Interactive launcher currently targets Windows guests").into())
+    Err(io::Error::new(
+        io::ErrorKind::Unsupported,
+        "Interactive launcher currently targets Windows guests",
+    )
+    .into())
 }
 
 // TCP may split headers across multiple reads. Do not wait for EOF because
@@ -257,17 +329,26 @@ fn read_guest_request(stream: &mut TcpStream) -> io::Result<Vec<u8>> {
     loop {
         let remaining = deadline.saturating_duration_since(Instant::now());
         if remaining.is_zero() {
-            return Err(io::Error::new(io::ErrorKind::TimedOut, "Guest Agent header timed out"));
+            return Err(io::Error::new(
+                io::ErrorKind::TimedOut,
+                "Guest Agent header timed out",
+            ));
         }
         stream.set_read_timeout(Some(remaining))?;
         let limit = (MAX_GUEST_REQUEST_BYTES + 1 - request.len()).min(chunk.len());
         let size = stream.read(&mut chunk[..limit])?;
         if size == 0 {
-            return Err(io::Error::new(io::ErrorKind::UnexpectedEof, "Guest Agent header incomplete"));
+            return Err(io::Error::new(
+                io::ErrorKind::UnexpectedEof,
+                "Guest Agent header incomplete",
+            ));
         }
         request.extend_from_slice(&chunk[..size]);
         if request.len() > MAX_GUEST_REQUEST_BYTES {
-            return Err(io::Error::new(io::ErrorKind::InvalidData, "Guest Agent request exceeds size limit"));
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "Guest Agent request exceeds size limit",
+            ));
         }
         if request.windows(4).any(|bytes| bytes == b"\r\n\r\n") {
             return Ok(request);
@@ -275,7 +356,11 @@ fn read_guest_request(stream: &mut TcpStream) -> io::Result<Vec<u8>> {
     }
 }
 
-fn handle(mut stream: TcpStream, token: &str, launch_gate: &Mutex<()>) -> Result<(), Box<dyn std::error::Error>> {
+fn handle(
+    mut stream: TcpStream,
+    token: &str,
+    launch_gate: &Mutex<()>,
+) -> Result<(), Box<dyn std::error::Error>> {
     stream.set_write_timeout(Some(Duration::from_secs(2)))?;
     let request = match read_guest_request(&mut stream) {
         Ok(request) => request,
@@ -295,40 +380,67 @@ fn handle(mut stream: TcpStream, token: &str, launch_gate: &Mutex<()>) -> Result
     let request = match std::str::from_utf8(&request) {
         Ok(value) => value,
         Err(_) => {
-            stream.write_all(b"HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")?;
+            stream.write_all(
+                b"HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+            )?;
             return Ok(());
         }
     };
-    let (headers, body) = request.split_once("\r\n\r\n")
+    let (headers, body) = request
+        .split_once("\r\n\r\n")
         .expect("read_guest_request returned a complete header");
     let first_line = headers.lines().next().unwrap_or_default();
     if !body.is_empty() {
-        stream.write_all(b"HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")?;
+        stream.write_all(
+            b"HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+        )?;
         return Ok(());
     }
 
-    let supplied: Vec<&str> = headers.lines().filter_map(|line| {
-        let (name, value) = line.split_once(':')?;
-        name.eq_ignore_ascii_case("X-Virtual-Clients-Token")
-            .then(|| value.trim())
-    }).collect();
-    let request_ids: Vec<&str> = headers.lines().filter_map(|line| {
-        let (name, value) = line.split_once(':')?;
-        name.eq_ignore_ascii_case(REQUEST_ID_HEADER).then(|| value.trim())
-    }).collect();
+    let supplied: Vec<&str> = headers
+        .lines()
+        .filter_map(|line| {
+            let (name, value) = line.split_once(':')?;
+            name.eq_ignore_ascii_case("X-Virtual-Clients-Token")
+                .then(|| value.trim())
+        })
+        .collect();
+    let request_ids: Vec<&str> = headers
+        .lines()
+        .filter_map(|line| {
+            let (name, value) = line.split_once(':')?;
+            name.eq_ignore_ascii_case(REQUEST_ID_HEADER)
+                .then(|| value.trim())
+        })
+        .collect();
 
-    let host_count = headers.lines().filter(|line| line.split_once(':').is_some_and(|(name, _)| name.eq_ignore_ascii_case("Host"))).count();
-    let content_lengths: Vec<&str> = headers.lines().filter_map(|line| {
-        let (name, value) = line.split_once(':')?;
-        name.eq_ignore_ascii_case("Content-Length").then(|| value.trim())
-    }).collect();
-    let transfer_encoding = headers.lines().any(|line| line.split_once(':').is_some_and(|(name, _)| name.eq_ignore_ascii_case("Transfer-Encoding")));
+    let host_count = headers
+        .lines()
+        .filter(|line| {
+            line.split_once(':')
+                .is_some_and(|(name, _)| name.eq_ignore_ascii_case("Host"))
+        })
+        .count();
+    let content_lengths: Vec<&str> = headers
+        .lines()
+        .filter_map(|line| {
+            let (name, value) = line.split_once(':')?;
+            name.eq_ignore_ascii_case("Content-Length")
+                .then(|| value.trim())
+        })
+        .collect();
+    let transfer_encoding = headers.lines().any(|line| {
+        line.split_once(':')
+            .is_some_and(|(name, _)| name.eq_ignore_ascii_case("Transfer-Encoding"))
+    });
     if host_count != 1
         || transfer_encoding
         || content_lengths.len() > 1
         || content_lengths.first().is_some_and(|value| *value != "0")
     {
-        stream.write_all(b"HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")?;
+        stream.write_all(
+            b"HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+        )?;
         return Ok(());
     }
 
@@ -341,7 +453,9 @@ fn handle(mut stream: TcpStream, token: &str, launch_gate: &Mutex<()>) -> Result
 
     if request_ids.len() != 1
         || request_ids[0].len() != 32
-        || !request_ids[0].chars().all(|character| character.is_ascii_hexdigit())
+        || !request_ids[0]
+            .chars()
+            .all(|character| character.is_ascii_hexdigit())
     {
         stream.write_all(
             b"HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
@@ -379,8 +493,11 @@ fn handle(mut stream: TcpStream, token: &str, launch_gate: &Mutex<()>) -> Result
     }
 }
 
-
-fn write_json(stream: &mut TcpStream, request_id: &str, value: &impl serde::Serialize) -> Result<(), Box<dyn std::error::Error>> {
+fn write_json(
+    stream: &mut TcpStream,
+    request_id: &str,
+    value: &impl serde::Serialize,
+) -> Result<(), Box<dyn std::error::Error>> {
     let body = serde_json::to_string(value)?;
     let response = format!(
         "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n{REQUEST_ID_HEADER}: {request_id}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
@@ -417,19 +534,29 @@ fn minecraft_process_running() -> bool {
 }
 
 #[cfg(target_os = "windows")]
-fn launch_minecraft() -> Result<m_bedrock_virtual_clients_core::MinecraftLaunchResult, Box<dyn std::error::Error>> {
+fn launch_minecraft(
+) -> Result<m_bedrock_virtual_clients_core::MinecraftLaunchResult, Box<dyn std::error::Error>> {
     request_interactive_minecraft_launch()
 }
 
 #[cfg(target_os = "windows")]
 fn launch_minecraft_interactive() -> Result<(), Box<dyn std::error::Error>> {
     if !interactive_session_available() {
-        return Err(io::Error::new(io::ErrorKind::PermissionDenied, "Interactive launcher is not running in an interactive Windows user session").into());
+        return Err(io::Error::new(
+            io::ErrorKind::PermissionDenied,
+            "Interactive launcher is not running in an interactive Windows user session",
+        )
+        .into());
     }
-    if minecraft_process_running() { return Ok(()); }
+    if minecraft_process_running() {
+        return Ok(());
+    }
 
     let profile = guest_agent_minecraft_profile().ok_or_else(|| {
-        io::Error::new(io::ErrorKind::NotFound, "Minecraft Education installation is unavailable")
+        io::Error::new(
+            io::ErrorKind::NotFound,
+            "Minecraft Education installation is unavailable",
+        )
     })?;
 
     let command = match profile.install_type {
@@ -442,10 +569,21 @@ fn launch_minecraft_interactive() -> Result<(), Box<dyn std::error::Error>> {
     };
     bounded_command_output(
         std::path::Path::new("powershell.exe"),
-        ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", command],
+        [
+            "-NoLogo",
+            "-NoProfile",
+            "-NonInteractive",
+            "-Command",
+            command,
+        ],
         Duration::from_secs(10),
     )
-    .map_err(|error| io::Error::new(error.kind(), format!("Minecraft Education launch failed: {error}")))?;
+    .map_err(|error| {
+        io::Error::new(
+            error.kind(),
+            format!("Minecraft Education launch failed: {error}"),
+        )
+    })?;
 
     let deadline = std::time::Instant::now() + MINECRAFT_PROCESS_START_TIMEOUT;
     while std::time::Instant::now() < deadline {
@@ -454,12 +592,21 @@ fn launch_minecraft_interactive() -> Result<(), Box<dyn std::error::Error>> {
         }
         std::thread::sleep(Duration::from_millis(500));
     }
-    Err(io::Error::new(io::ErrorKind::TimedOut, "Minecraft Education did not start within 30 seconds").into())
+    Err(io::Error::new(
+        io::ErrorKind::TimedOut,
+        "Minecraft Education did not start within 30 seconds",
+    )
+    .into())
 }
 
 #[cfg(not(target_os = "windows"))]
-fn launch_minecraft() -> Result<m_bedrock_virtual_clients_core::MinecraftLaunchResult, Box<dyn std::error::Error>> {
-    Err(io::Error::new(io::ErrorKind::Unsupported, "Minecraft launch currently targets Windows guests").into())
+fn launch_minecraft(
+) -> Result<m_bedrock_virtual_clients_core::MinecraftLaunchResult, Box<dyn std::error::Error>> {
+    Err(io::Error::new(
+        io::ErrorKind::Unsupported,
+        "Minecraft launch currently targets Windows guests",
+    )
+    .into())
 }
 
 #[cfg(target_os = "windows")]
@@ -510,7 +657,10 @@ fn guest_agent_token() -> io::Result<String> {
     if !vmtoolsd.is_file() {
         return Err(io::Error::new(
             io::ErrorKind::NotFound,
-            format!("VMware Tools vmtoolsd.exe is missing: {}", vmtoolsd.display()),
+            format!(
+                "VMware Tools vmtoolsd.exe is missing: {}",
+                vmtoolsd.display()
+            ),
         ));
     }
     let token = bounded_command_output(
@@ -518,7 +668,12 @@ fn guest_agent_token() -> io::Result<String> {
         ["--cmd", "info-get guestinfo.virtualclients.token"],
         Duration::from_secs(10),
     )
-    .map_err(|error| io::Error::new(error.kind(), "Guest Agent token could not be read from VMware Tools"))?;
+    .map_err(|error| {
+        io::Error::new(
+            error.kind(),
+            "Guest Agent token could not be read from VMware Tools",
+        )
+    })?;
     if token.len() != 64 || !token.chars().all(|character| character.is_ascii_hexdigit()) {
         return Err(io::Error::new(
             io::ErrorKind::InvalidData,
@@ -538,8 +693,15 @@ fn guest_agent_token() -> io::Result<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{read_guest_request, run_mode, timing_safe_token_eq, RunMode, MAX_ACTIVE_REQUESTS, MAX_GUEST_REQUEST_BYTES, MAX_INTERACTIVE_REQUEST_BYTES};
-    use std::{io::{self, Write}, net::{Shutdown, TcpListener, TcpStream}, thread};
+    use super::{
+        read_guest_request, run_mode, timing_safe_token_eq, RunMode, MAX_ACTIVE_REQUESTS,
+        MAX_GUEST_REQUEST_BYTES, MAX_INTERACTIVE_REQUEST_BYTES,
+    };
+    use std::{
+        io::{self, Write},
+        net::{Shutdown, TcpListener, TcpStream},
+        thread,
+    };
 
     #[test]
     fn transport_limits_are_small_and_explicit() {
@@ -568,17 +730,24 @@ mod tests {
 
         let header = b"GET /status HTTP/1.1\r\nHost: virtual-client\r\n\r\n";
         assert_eq!(
-            exchange(&[b"GET /status HTTP/1.1\r\nHost:", b" virtual-client\r\n", b"\r\n"]).unwrap(),
+            exchange(&[
+                b"GET /status HTTP/1.1\r\nHost:",
+                b" virtual-client\r\n",
+                b"\r\n"
+            ])
+            .unwrap(),
             header
         );
         assert_eq!(
             exchange(&[&vec![b'X'; MAX_GUEST_REQUEST_BYTES + 1]])
-                .unwrap_err().kind(),
+                .unwrap_err()
+                .kind(),
             io::ErrorKind::InvalidData
         );
         assert_eq!(
             exchange(&[b"GET /status HTTP/1.1\r\nHost: virtual-client\r\n"])
-                .unwrap_err().kind(),
+                .unwrap_err()
+                .kind(),
             io::ErrorKind::UnexpectedEof
         );
     }
@@ -586,9 +755,18 @@ mod tests {
     #[test]
     fn ssh_one_shot_modes_do_not_fall_through_to_vmware_service() {
         assert_eq!(run_mode(&[]).unwrap(), RunMode::VmwareService);
-        assert_eq!(run_mode(&["--ssh-status".into()]).unwrap(), RunMode::SshStatus);
-        assert_eq!(run_mode(&["--ssh-launch-minecraft".into()]).unwrap(), RunMode::SshLaunch);
-        assert_eq!(run_mode(&["--interactive-launcher".into()]).unwrap(), RunMode::InteractiveLauncher);
+        assert_eq!(
+            run_mode(&["--ssh-status".into()]).unwrap(),
+            RunMode::SshStatus
+        );
+        assert_eq!(
+            run_mode(&["--ssh-launch-minecraft".into()]).unwrap(),
+            RunMode::SshLaunch
+        );
+        assert_eq!(
+            run_mode(&["--interactive-launcher".into()]).unwrap(),
+            RunMode::InteractiveLauncher
+        );
         for invalid in [
             vec!["--ssh-status".into(), "--interactive-launcher".into()],
             vec!["--unknown-flag".into()],

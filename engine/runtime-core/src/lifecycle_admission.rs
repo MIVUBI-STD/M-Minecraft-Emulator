@@ -40,10 +40,7 @@ pub(super) fn validate_power_state(
         LifecycleAction::Suspend => {
             matches!(state, ClientState::Running | ClientState::Suspended)
         }
-        LifecycleAction::Stop => matches!(
-            state,
-            ClientState::Stopped | ClientState::Running
-        ),
+        LifecycleAction::Stop => matches!(state, ClientState::Stopped | ClientState::Running),
         LifecycleAction::Open => matches!(
             state,
             ClientState::Stopped | ClientState::Suspended | ClientState::Running
@@ -141,7 +138,10 @@ pub(super) fn evaluate_lifecycle_admission(
     facts: &LifecycleFacts,
 ) -> ActionAvailability {
     if !client.is_native()
-        && matches!(action, LifecycleAction::SetReady | LifecycleAction::Reset | LifecycleAction::StartSetup)
+        && matches!(
+            action,
+            LifecycleAction::SetReady | LifecycleAction::Reset | LifecycleAction::StartSetup
+        )
         && facts.ready_snapshot.is_none()
     {
         return ActionAvailability {
@@ -193,15 +193,20 @@ pub(super) fn evaluate_lifecycle_admission(
         return blocked("A VM UUID or MAC address is shared with another client.");
     }
     if action == LifecycleAction::StartSetup
-        && (!facts.fresh_client_profile || facts.ready_snapshot != Some(false) || !facts.vm_identity_unique || !facts.base_finalized_and_stopped)
+        && (!facts.fresh_client_profile
+            || facts.ready_snapshot != Some(false)
+            || !facts.vm_identity_unique
+            || !facts.base_finalized_and_stopped)
     {
         return blocked("First-time setup requires a fresh client, unique VM identity, no recovery point, and a finalized stopped Base.");
     }
     if action == LifecycleAction::SetReady && !facts.identity_provenance_bound {
         return blocked("Verify client identities before saving a recovery point.");
     }
-    if matches!(action, LifecycleAction::Start | LifecycleAction::Reset | LifecycleAction::StartSetup)
-        && facts.state != ClientState::Running
+    if matches!(
+        action,
+        LifecycleAction::Start | LifecycleAction::Reset | LifecycleAction::StartSetup
+    ) && facts.state != ClientState::Running
         && !facts.can_start
     {
         return blocked("Host memory is insufficient to start or resume this client.");
@@ -221,7 +226,11 @@ pub(super) fn require_lifecycle_admission(
         Err(io::Error::new(
             io::ErrorKind::InvalidInput,
             admission.reason.map(ToOwned::to_owned).unwrap_or_else(|| {
-                format!("{} action blocked: {:?}", client.as_str(), admission.blocker)
+                format!(
+                    "{} action blocked: {:?}",
+                    client.as_str(),
+                    admission.blocker
+                )
             }),
         ))
     }
@@ -378,7 +387,8 @@ mod tests {
             LifecycleAction::Reset,
             ClientState::Suspended,
             true,
-        ).is_err());
+        )
+        .is_err());
         assert!(validate_power_state(
             ClientId::Virtual01,
             LifecycleAction::Reset,
@@ -423,21 +433,32 @@ mod tests {
     #[test]
     fn action_projection_and_execution_share_admission_decisions() {
         for state in [
-            ClientState::NotProvisioned, ClientState::Stopped,
-            ClientState::Suspended, ClientState::Running, ClientState::Error,
+            ClientState::NotProvisioned,
+            ClientState::Stopped,
+            ClientState::Suspended,
+            ClientState::Running,
+            ClientState::Error,
         ] {
             for action in [
-                LifecycleAction::Start, LifecycleAction::StartSetup, LifecycleAction::Suspend, LifecycleAction::Stop,
-                LifecycleAction::Open, LifecycleAction::Restart, LifecycleAction::SetReady,
-                LifecycleAction::Reset, LifecycleAction::Reprovision,
+                LifecycleAction::Start,
+                LifecycleAction::StartSetup,
+                LifecycleAction::Suspend,
+                LifecycleAction::Stop,
+                LifecycleAction::Open,
+                LifecycleAction::Restart,
+                LifecycleAction::SetReady,
+                LifecycleAction::Reset,
+                LifecycleAction::Reprovision,
             ] {
                 let mut facts = admitted_facts(state);
                 for ready in [Some(false), Some(true), None] {
                     facts.ready_snapshot = ready;
-                    let projected = super::evaluate_lifecycle_admission(ClientId::Virtual01, action, &facts);
+                    let projected =
+                        super::evaluate_lifecycle_admission(ClientId::Virtual01, action, &facts);
                     assert_eq!(
                         projected.allowed,
-                        super::require_lifecycle_admission(ClientId::Virtual01, action, &facts).is_ok()
+                        super::require_lifecycle_admission(ClientId::Virtual01, action, &facts)
+                            .is_ok()
                     );
                 }
             }
@@ -448,16 +469,36 @@ mod tests {
     fn start_admission_blocks_stale_versions_identity_and_memory() {
         let base = admitted_facts(ClientState::Stopped);
         let cases = [
-            super::LifecycleFacts { base_compatible: false, ..base.clone() },
-            super::LifecycleFacts { client_compatible: false, ..base.clone() },
-            super::LifecycleFacts { saved_vm_identity_matches: false, ..base.clone() },
-            super::LifecycleFacts { vm_identity_duplicate: true, ..base.clone() },
-            super::LifecycleFacts { can_start: false, ..base.clone() },
-            super::LifecycleFacts { schema_ready: false, ..base },
+            super::LifecycleFacts {
+                base_compatible: false,
+                ..base.clone()
+            },
+            super::LifecycleFacts {
+                client_compatible: false,
+                ..base.clone()
+            },
+            super::LifecycleFacts {
+                saved_vm_identity_matches: false,
+                ..base.clone()
+            },
+            super::LifecycleFacts {
+                vm_identity_duplicate: true,
+                ..base.clone()
+            },
+            super::LifecycleFacts {
+                can_start: false,
+                ..base.clone()
+            },
+            super::LifecycleFacts {
+                schema_ready: false,
+                ..base
+            },
         ];
         for facts in cases {
             let result = super::evaluate_lifecycle_admission(
-                ClientId::Virtual01, LifecycleAction::Start, &facts,
+                ClientId::Virtual01,
+                LifecycleAction::Start,
+                &facts,
             );
             assert!(!result.allowed);
             assert!(result.reason.is_some());
@@ -475,7 +516,9 @@ mod tests {
             ..admitted_facts(ClientState::Running)
         };
         for action in [LifecycleAction::Stop, LifecycleAction::Suspend] {
-            assert!(super::evaluate_lifecycle_admission(ClientId::Virtual01, action, &facts).allowed);
+            assert!(
+                super::evaluate_lifecycle_admission(ClientId::Virtual01, action, &facts).allowed
+            );
         }
     }
 
@@ -485,32 +528,57 @@ mod tests {
             client_compatible: false,
             ..admitted_facts(ClientState::Stopped)
         };
-        assert!(!super::evaluate_lifecycle_admission(
-            ClientId::Virtual01, LifecycleAction::Reprovision, &facts,
-        ).allowed);
+        assert!(
+            !super::evaluate_lifecycle_admission(
+                ClientId::Virtual01,
+                LifecycleAction::Reprovision,
+                &facts,
+            )
+            .allowed
+        );
         facts.base_finalized_and_stopped = false;
-        assert!(!super::evaluate_lifecycle_admission(
-            ClientId::Virtual01, LifecycleAction::Reprovision, &facts,
-        ).allowed);
+        assert!(
+            !super::evaluate_lifecycle_admission(
+                ClientId::Virtual01,
+                LifecycleAction::Reprovision,
+                &facts,
+            )
+            .allowed
+        );
     }
 
     #[test]
     fn recovery_point_admission_requires_identity_and_known_snapshot_state() {
         let mut facts = admitted_facts(ClientState::Stopped);
         facts.identity_provenance_bound = false;
-        assert!(!super::evaluate_lifecycle_admission(
-            ClientId::Virtual01, LifecycleAction::SetReady, &facts,
-        ).allowed);
+        assert!(
+            !super::evaluate_lifecycle_admission(
+                ClientId::Virtual01,
+                LifecycleAction::SetReady,
+                &facts,
+            )
+            .allowed
+        );
         facts.identity_provenance_bound = true;
         facts.ready_snapshot = None;
-        assert!(!super::evaluate_lifecycle_admission(
-            ClientId::Virtual01, LifecycleAction::SetReady, &facts,
-        ).allowed);
+        assert!(
+            !super::evaluate_lifecycle_admission(
+                ClientId::Virtual01,
+                LifecycleAction::SetReady,
+                &facts,
+            )
+            .allowed
+        );
         facts.ready_snapshot = Some(true);
         facts.can_start = false;
-        assert!(!super::evaluate_lifecycle_admission(
-            ClientId::Virtual01, LifecycleAction::Reset, &facts,
-        ).allowed);
+        assert!(
+            !super::evaluate_lifecycle_admission(
+                ClientId::Virtual01,
+                LifecycleAction::Reset,
+                &facts,
+            )
+            .allowed
+        );
     }
 
     #[test]
@@ -519,9 +587,14 @@ mod tests {
             can_start: false,
             ..admitted_facts(ClientState::Running)
         };
-        assert!(super::evaluate_lifecycle_admission(
-            ClientId::Virtual01, LifecycleAction::Start, &facts,
-        ).allowed);
+        assert!(
+            super::evaluate_lifecycle_admission(
+                ClientId::Virtual01,
+                LifecycleAction::Start,
+                &facts,
+            )
+            .allowed
+        );
         assert!(super::evaluate_lifecycle_admission(
             ClientId::Virtual01, LifecycleAction::Open, &facts,
         ).allowed);
@@ -531,9 +604,15 @@ mod tests {
     fn native_client_never_receives_vm_lifecycle_permission() {
         let facts = admitted_facts(ClientState::Running);
         for action in [
-            LifecycleAction::Start, LifecycleAction::StartSetup, LifecycleAction::Suspend, LifecycleAction::Stop,
-            LifecycleAction::Open, LifecycleAction::Restart, LifecycleAction::SetReady,
-            LifecycleAction::Reset, LifecycleAction::Reprovision,
+            LifecycleAction::Start,
+            LifecycleAction::StartSetup,
+            LifecycleAction::Suspend,
+            LifecycleAction::Stop,
+            LifecycleAction::Open,
+            LifecycleAction::Restart,
+            LifecycleAction::SetReady,
+            LifecycleAction::Reset,
+            LifecycleAction::Reprovision,
         ] {
             let result = super::evaluate_lifecycle_admission(ClientId::Native, action, &facts);
             assert!(!result.allowed);
@@ -551,7 +630,10 @@ mod tests {
         for action in [LifecycleAction::Stop, LifecycleAction::Suspend] {
             let result = super::evaluate_lifecycle_admission(ClientId::Virtual01, action, &facts);
             assert!(!result.allowed);
-            assert_eq!(result.reason, Some("Runtime data is incompatible with this application."));
+            assert_eq!(
+                result.reason,
+                Some("Runtime data is incompatible with this application.")
+            );
         }
     }
 
@@ -562,24 +644,60 @@ mod tests {
             fresh_client_profile: true,
             ..admitted_facts(ClientState::Stopped)
         };
-        assert!(super::evaluate_lifecycle_admission(
-            ClientId::Virtual01, LifecycleAction::StartSetup, &base,
-        ).allowed);
+        assert!(
+            super::evaluate_lifecycle_admission(
+                ClientId::Virtual01,
+                LifecycleAction::StartSetup,
+                &base,
+            )
+            .allowed
+        );
         for facts in [
-            super::LifecycleFacts { fresh_client_profile: false, ..base.clone() },
-            super::LifecycleFacts { vm_identity_unique: false, ..base.clone() },
-            super::LifecycleFacts { ready_snapshot: Some(true), ..base.clone() },
-            super::LifecycleFacts { ready_snapshot: None, ..base.clone() },
-            super::LifecycleFacts { can_start: false, ..base.clone() },
-            super::LifecycleFacts { client_compatible: false, ..base.clone() },
-            super::LifecycleFacts { base_compatible: false, ..base.clone() },
-            super::LifecycleFacts { schema_ready: false, ..base.clone() },
-            super::LifecycleFacts { base_finalized_and_stopped: false, ..base.clone() },
+            super::LifecycleFacts {
+                fresh_client_profile: false,
+                ..base.clone()
+            },
+            super::LifecycleFacts {
+                vm_identity_unique: false,
+                ..base.clone()
+            },
+            super::LifecycleFacts {
+                ready_snapshot: Some(true),
+                ..base.clone()
+            },
+            super::LifecycleFacts {
+                ready_snapshot: None,
+                ..base.clone()
+            },
+            super::LifecycleFacts {
+                can_start: false,
+                ..base.clone()
+            },
+            super::LifecycleFacts {
+                client_compatible: false,
+                ..base.clone()
+            },
+            super::LifecycleFacts {
+                base_compatible: false,
+                ..base.clone()
+            },
+            super::LifecycleFacts {
+                schema_ready: false,
+                ..base.clone()
+            },
+            super::LifecycleFacts {
+                base_finalized_and_stopped: false,
+                ..base.clone()
+            },
         ] {
-            assert!(!super::evaluate_lifecycle_admission(
-                ClientId::Virtual01, LifecycleAction::StartSetup, &facts,
-            ).allowed);
+            assert!(
+                !super::evaluate_lifecycle_admission(
+                    ClientId::Virtual01,
+                    LifecycleAction::StartSetup,
+                    &facts,
+                )
+                .allowed
+            );
         }
     }
-
 }

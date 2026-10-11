@@ -22,7 +22,6 @@ pub(crate) fn current_host_capacity() -> HostCapacity {
     }
 }
 
-
 pub(crate) fn recommended_virtual_clients(total_memory_gb: f64, logical_cpus: usize) -> usize {
     recommended_by_memory(total_memory_gb)
         .min(recommended_by_cpu(logical_cpus))

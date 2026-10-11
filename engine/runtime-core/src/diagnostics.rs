@@ -1,7 +1,11 @@
 use serde::Serialize;
 use std::{io, path::Path, time::Duration};
 
-use crate::{client::ClientId, provider::{command_output_with_timeout, current_platform_provider}, runtime::RuntimeStatus};
+use crate::{
+    client::ClientId,
+    provider::{command_output_with_timeout, current_platform_provider},
+    runtime::RuntimeStatus,
+};
 use sysinfo::System;
 
 #[derive(Debug, Clone, Serialize)]
@@ -112,15 +116,22 @@ fn graphics_summary() -> Vec<String> {
     let output = command_output_with_timeout(
         Path::new("powershell.exe"),
         [
-            "-NoLogo", "-NoProfile", "-NonInteractive", "-Command",
+            "-NoLogo",
+            "-NoProfile",
+            "-NonInteractive",
+            "-Command",
             r#"Get-CimInstance Win32_VideoController | ForEach-Object { "$($_.Name)|$($_.DriverVersion)" }"#,
         ],
         Duration::from_secs(12),
     );
     match output {
-        Ok(output) => output.lines().map(str::trim)
+        Ok(output) => output
+            .lines()
+            .map(str::trim)
             .filter(|line| !line.is_empty())
-            .take(8).map(str::to_string).collect(),
+            .take(8)
+            .map(str::to_string)
+            .collect(),
         Err(_) => Vec::new(),
     }
 }
@@ -128,15 +139,22 @@ fn graphics_summary() -> Vec<String> {
 #[cfg(target_os = "macos")]
 fn graphics_summary() -> Vec<String> {
     let output = command_output_with_timeout(
-        Path::new("system_profiler"), ["SPDisplaysDataType"], Duration::from_secs(20),
+        Path::new("system_profiler"),
+        ["SPDisplaysDataType"],
+        Duration::from_secs(20),
     );
     match output {
-        Ok(output) => output.lines().map(str::trim)
+        Ok(output) => output
+            .lines()
+            .map(str::trim)
             .filter(|line| {
                 line.starts_with("Chipset Model:")
                     || line.starts_with("Metal Support:")
                     || line.starts_with("VRAM")
-            }).take(8).map(str::to_string).collect(),
+            })
+            .take(8)
+            .map(str::to_string)
+            .collect(),
         Err(_) => Vec::new(),
     }
 }
@@ -151,9 +169,16 @@ fn windows_virtualization_state() -> Option<(bool, Option<u32>)> {
     let script = r#"$h=(Get-CimInstance Win32_ComputerSystem).HypervisorPresent; $v=(Get-CimInstance -Namespace root\Microsoft\Windows\DeviceGuard -ClassName Win32_DeviceGuard -ErrorAction SilentlyContinue).VirtualizationBasedSecurityStatus; Write-Output "$h|$v""#;
     let output = command_output_with_timeout(
         Path::new("powershell.exe"),
-        ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", script],
+        [
+            "-NoLogo",
+            "-NoProfile",
+            "-NonInteractive",
+            "-Command",
+            script,
+        ],
         Duration::from_secs(12),
-    ).ok()?;
+    )
+    .ok()?;
     let (hypervisor, vbs) = output.trim().split_once('|')?;
     let hypervisor = match hypervisor.trim().to_ascii_lowercase().as_str() {
         "true" => true,

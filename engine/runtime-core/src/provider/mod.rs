@@ -1,22 +1,29 @@
+mod app_sandbox;
+mod app_sandbox_pilot;
+mod app_sandbox_registry;
+mod app_sandbox_ssh;
 #[cfg(target_os = "macos")]
 mod fusion;
-#[cfg(target_os = "windows")]
-mod workstation;
 mod process;
 mod storage;
 mod vmx;
-mod app_sandbox;
-mod app_sandbox_ssh;
-mod app_sandbox_registry;
-mod app_sandbox_pilot;
+#[cfg(target_os = "windows")]
+mod workstation;
 
 pub(crate) use app_sandbox_pilot::execute as app_sandbox_pilot_command;
 
 pub(crate) use app_sandbox::inspect as inspect_app_sandbox;
 
 pub(crate) use process::{command_output, command_output_with_timeout, wait_for_state};
-pub(crate) use storage::{cleanup_staging, ensure_parent, has_suspend_state, promote_staging_vm, remove_vm_container, staging_residue_count};
-pub(crate) use vmx::{apply_virtual_hardware_policy, base_state_for_path, ensure_guest_token_for_path, guest_token_for_path, read_vmx_memory, read_vmx_value, set_base_state_for_path, vm_identity_key, vmx_file_present};
+pub(crate) use storage::{
+    cleanup_staging, ensure_parent, has_suspend_state, promote_staging_vm, remove_vm_container,
+    staging_residue_count,
+};
+pub(crate) use vmx::{
+    apply_virtual_hardware_policy, base_state_for_path, ensure_guest_token_for_path,
+    guest_token_for_path, read_vmx_memory, read_vmx_value, set_base_state_for_path,
+    vm_identity_key, vmx_file_present,
+};
 
 use crate::{
     client::{ClientId, ClientState},
@@ -292,11 +299,11 @@ pub(crate) fn host_working_sets_mb() -> Vec<(ClientId, u64)> {
 
 #[cfg(test)]
 mod tests {
+    use super::vmx::{valid_guest_token, BASE_STATE_KEY, GUEST_TOKEN_KEY};
     use super::{
         apply_virtual_hardware_policy, guest_token_for_path, guest_tools_state_ready,
         listed_as_running, parse_guest_ip, snapshot_list_contains,
     };
-    use super::vmx::{valid_guest_token, BASE_STATE_KEY, GUEST_TOKEN_KEY};
     use crate::profile::BaseState;
     use std::{
         fs,
@@ -375,23 +382,37 @@ mod tests {
         fs::create_dir_all(&root).unwrap();
         let vmx = root.join("Virtual-01.vmx");
         let base_token = "a".repeat(64);
-        fs::write(&vmx, format!(r#"# Keep this comment
+        fs::write(
+            &vmx,
+            format!(
+                r#"# Keep this comment
 MEMSIZE="1024"
 memsize = "2048"
 memsizeExtra = "KEEP"
 GUESTINFO.VIRTUALCLIENTS.TOKEN = "{base_token}"
 guestinfo.virtualclients.token="{base_token}"
 GuestInfo.VirtualClients.BaseState = "FINALIZED"
-"#)).unwrap();
+"#
+            ),
+        )
+        .unwrap();
 
-        assert_eq!(super::read_vmx_value(&vmx, "memsize").unwrap_err().kind(),
-            std::io::ErrorKind::InvalidData);
+        assert_eq!(
+            super::read_vmx_value(&vmx, "memsize").unwrap_err().kind(),
+            std::io::ErrorKind::InvalidData
+        );
         apply_virtual_hardware_policy(&vmx).unwrap();
 
-        assert_eq!(super::read_vmx_value(&vmx, "memsize").unwrap().as_deref(),
-            Some("4096"));
-        assert_eq!(super::read_vmx_value(&vmx, "memsizeExtra").unwrap().as_deref(),
-            Some("KEEP"));
+        assert_eq!(
+            super::read_vmx_value(&vmx, "memsize").unwrap().as_deref(),
+            Some("4096")
+        );
+        assert_eq!(
+            super::read_vmx_value(&vmx, "memsizeExtra")
+                .unwrap()
+                .as_deref(),
+            Some("KEEP")
+        );
         assert!(super::base_state_for_path(&vmx).unwrap().is_none());
         let rotated = guest_token_for_path(&vmx).unwrap().unwrap();
         assert!(valid_guest_token(&rotated));
@@ -399,8 +420,15 @@ GuestInfo.VirtualClients.BaseState = "FINALIZED"
 
         let content = fs::read_to_string(&vmx).unwrap();
         for key in ["memsize", "guestinfo.virtualclients.token"] {
-            assert_eq!(content.lines().filter(|line| line.split_once('=')
-                .is_some_and(|(name, _)| name.trim().eq_ignore_ascii_case(key))).count(), 1);
+            assert_eq!(
+                content
+                    .lines()
+                    .filter(|line| line
+                        .split_once('=')
+                        .is_some_and(|(name, _)| name.trim().eq_ignore_ascii_case(key)))
+                    .count(),
+                1
+            );
         }
         assert!(content.contains("# Keep this comment"));
         fs::remove_dir_all(root).unwrap();
@@ -417,11 +445,20 @@ GuestInfo.VirtualClients.BaseState = "FINALIZED"
         assert!(super::vmx_file_present(&path).unwrap());
         assert!(path.is_file());
         assert!(!backup.exists());
-        assert_eq!(super::read_vmx_value(&path, "memsize").unwrap().as_deref(), Some("4096"));
+        assert_eq!(
+            super::read_vmx_value(&path, "memsize").unwrap().as_deref(),
+            Some("4096")
+        );
 
         super::set_base_state_for_path(&path, BaseState::Registered).unwrap();
-        assert_eq!(super::base_state_for_path(&path).unwrap(), Some(BaseState::Registered));
-        assert_eq!(super::read_vmx_value(&path, "memsize").unwrap().as_deref(), Some("4096"));
+        assert_eq!(
+            super::base_state_for_path(&path).unwrap(),
+            Some(BaseState::Registered)
+        );
+        assert_eq!(
+            super::read_vmx_value(&path, "memsize").unwrap().as_deref(),
+            Some("4096")
+        );
         assert!(!backup.exists());
         fs::remove_dir_all(root).unwrap();
     }
@@ -495,4 +532,3 @@ GuestInfo.VirtualClients.BaseState = "FINALIZED"
         ))
     }
 }
-

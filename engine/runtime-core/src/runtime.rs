@@ -1,8 +1,8 @@
 use crate::{
     capacity::current_host_capacity,
     client::{
-        ActionAvailability, ClientId, ClientLifecycleActions, ClientState, ClientStatus, ConnectionHealth,
-        DestructiveConfirmation, IdentityState, LifecycleBlocker,
+        ActionAvailability, ClientId, ClientLifecycleActions, ClientState, ClientStatus,
+        ConnectionHealth, DestructiveConfirmation, IdentityState, LifecycleBlocker,
     },
     diagnostics::{collect as collect_diagnostics, DiagnosticsReport},
     doctor::{doctor, DoctorReport},
@@ -22,26 +22,22 @@ use crate::{
     profile::{
         client_lineage_parity, current_base_vmx_path, identity_fingerprint, load_base_profile,
         load_client_profile, native_minecraft_profile, profile_status,
-        require_base_launch_protocol, require_base_matches_native, require_client_matches_native, write_client_profile,
-        write_verified_base_profile, write_verified_client_identities, BaseProfile, BaseState,
-        MinecraftProfile, ProfileParity, ProfileStatus,
+        require_base_launch_protocol, require_base_matches_native, require_client_matches_native,
+        write_client_profile, write_verified_base_profile, write_verified_client_identities,
+        BaseProfile, BaseState, MinecraftProfile, ProfileParity, ProfileStatus,
     },
     provider::{
         base_state_for_path, cleanup_staging, current_platform_provider,
         ensure_guest_token_for_path, set_base_state_for_path, vmx_file_present, Provider,
     },
     resources::{current_host_pressure, HostPressure, StartDecision, VIRTUAL_MEMORY_LIMIT_MB},
-    startup::wait_until_start_is_safe,
     schema::{inspect_runtime_schema, SchemaState},
+    startup::wait_until_start_is_safe,
     support::{capture_time_ms, write_support_bundle, EngineSnapshot, SupportBundleResult},
     update::{check_update, stage_update, StagedUpdate, UpdateCheck},
 };
 use serde::Serialize;
-use std::{
-    fs,
-    io, thread,
-    time::Duration,
-};
+use std::{fs, io, thread, time::Duration};
 
 #[derive(Debug, Default)]
 pub struct VirtualClients;
@@ -188,9 +184,9 @@ fn collect_lifecycle_facts(
     let saved_vm_identity_matches = client_profile.as_ref().map_or(true, |profile| {
         profile.saved_vm_identity_matches(current_vm.as_deref())
     });
-    let identity_provenance_bound = client_profile.as_ref().is_some_and(|profile| {
-        profile.identity_provenance_matches(current_vm.as_deref())
-    });
+    let identity_provenance_bound = client_profile
+        .as_ref()
+        .is_some_and(|profile| profile.identity_provenance_matches(current_vm.as_deref()));
     let client_compatible = client_lineage_parity(
         profile.native.as_ref(),
         profile.base.as_ref(),
@@ -317,7 +313,9 @@ fn stop_targets(
 ) -> io::Result<()> {
     // Deterministic admission must succeed for the whole batch before mutation.
     // Recheck before each command to detect newly changed provider state.
-    for &client in targets { admit(client)?; }
+    for &client in targets {
+        admit(client)?;
+    }
     execute_non_atomic_power_batch(provider, targets, "Stop", |client| {
         admit(client)?;
         provider.stop(client).map(|_| ())
@@ -329,7 +327,9 @@ fn suspend_targets(
     targets: &[ClientId],
     mut admit: impl FnMut(ClientId) -> io::Result<()>,
 ) -> io::Result<()> {
-    for &client in targets { admit(client)?; }
+    for &client in targets {
+        admit(client)?;
+    }
     execute_non_atomic_power_batch(provider, targets, "Suspend", |client| {
         admit(client)?;
         provider.suspend(client).map(|_| ())
@@ -339,9 +339,13 @@ fn suspend_targets(
 // Guest verification can fail after a VM was already reset/restarted. Never
 // power it off as a hidden rollback; preserve the observed state in the error.
 fn observed_post_action_failure(
-    provider: &dyn Provider, client: ClientId, action: &str, error: io::Error,
+    provider: &dyn Provider,
+    client: ClientId,
+    action: &str,
+    error: io::Error,
 ) -> io::Error {
-    let state = provider.status(client)
+    let state = provider
+        .status(client)
         .map(|value| format!("{value:?}"))
         .unwrap_or_else(|probe| format!("UNKNOWN({probe})"));
     io::Error::new(error.kind(), format!(
@@ -421,16 +425,23 @@ fn execute_setup_start(
     client: ClientId,
     prepare: impl FnMut(ClientId, ClientState) -> io::Result<()>,
 ) -> io::Result<ClientState> {
-    let mut states = execute_start_batch(provider, &[client], prepare, |client| provider.open(client))?;
+    let mut states =
+        execute_start_batch(provider, &[client], prepare, |client| provider.open(client))?;
     states.pop().ok_or_else(|| {
-        io::Error::new(io::ErrorKind::Other, "first-time setup returned no client state")
+        io::Error::new(
+            io::ErrorKind::Other,
+            "first-time setup returned no client state",
+        )
     })
 }
 
 fn guest_status_once(provider: &dyn Provider, client: ClientId) -> Option<GuestStatus> {
     // A provider must return explicit Minecraft guest evidence. VM/agent online
     // alone cannot be substituted for the Education-specific GuestStatus.
-    provider.guest_status(client, Duration::from_secs(1)).ok().flatten()
+    provider
+        .guest_status(client, Duration::from_secs(1))
+        .ok()
+        .flatten()
 }
 
 fn lineage_parity(native: Option<&MinecraftProfile>, client: ClientId) -> ProfileParity {
@@ -478,19 +489,19 @@ fn wait_for_guest_compatibility(
 
     loop {
         match provider.guest_status(client, Duration::from_secs(2)) {
-                Ok(Some(status)) => {
-                    let guest = status.minecraft.as_ref().ok_or_else(|| {
-                        io::Error::new(
-                            io::ErrorKind::NotFound,
-                            format!(
-                                "{} Guest Agent cannot detect Minecraft Education",
-                                client.as_str()
-                            ),
-                        )
-                    })?;
+            Ok(Some(status)) => {
+                let guest = status.minecraft.as_ref().ok_or_else(|| {
+                    io::Error::new(
+                        io::ErrorKind::NotFound,
+                        format!(
+                            "{} Guest Agent cannot detect Minecraft Education",
+                            client.as_str()
+                        ),
+                    )
+                })?;
 
-                    if !guest_agent_launch_compatible(status.protocol_version) {
-                        return Err(io::Error::new(
+                if !guest_agent_launch_compatible(status.protocol_version) {
+                    return Err(io::Error::new(
                             io::ErrorKind::InvalidData,
                             format!(
                                 "{} Guest Agent protocol {} cannot launch Minecraft Education; backend launch protocol {} required",
@@ -499,14 +510,14 @@ fn wait_for_guest_compatibility(
                                 GUEST_AGENT_PROTOCOL_VERSION
                             ),
                         ));
-                    }
+                }
 
-                    if enforce_verified_windows_identity {
-                        if let Some(expected_windows_identity) = load_client_profile(client)
-                            .ok()
-                            .and_then(|profile| profile.verified_windows_identity)
-                        {
-                            let current_windows_identity =
+                if enforce_verified_windows_identity {
+                    if let Some(expected_windows_identity) = load_client_profile(client)
+                        .ok()
+                        .and_then(|profile| profile.verified_windows_identity)
+                    {
+                        let current_windows_identity =
                                 status.machine_identity.as_deref().ok_or_else(|| {
                                     io::Error::new(
                                         io::ErrorKind::InvalidData,
@@ -516,40 +527,40 @@ fn wait_for_guest_compatibility(
                                         ),
                                     )
                                 })?;
-                            if current_windows_identity != expected_windows_identity {
-                                return Err(io::Error::new(
+                        if current_windows_identity != expected_windows_identity {
+                            return Err(io::Error::new(
                                     io::ErrorKind::InvalidData,
                                     format!(
                                         "{} Windows identity changed after verification; reprovision or run verify-identities after resolving the identity change",
                                         client.as_str()
                                     ),
                                 ));
-                            }
                         }
                     }
-
-                    if guest.version != native.version {
-                        return Err(io::Error::new(
-                            io::ErrorKind::InvalidData,
-                            format!(
-                                "{} Minecraft Education version {} does not match Native {}",
-                                client.as_str(),
-                                guest.version,
-                                native.version
-                            ),
-                        ));
-                    }
-
-                    return Ok(status);
                 }
-                Ok(None) => {}
-                Err(error) if guest_probe_error_is_terminal(&error) => {
+
+                if guest.version != native.version {
                     return Err(io::Error::new(
-                        error.kind(),
-                        format!("{} Guest Agent probe failed: {error}", client.as_str()),
+                        io::ErrorKind::InvalidData,
+                        format!(
+                            "{} Minecraft Education version {} does not match Native {}",
+                            client.as_str(),
+                            guest.version,
+                            native.version
+                        ),
                     ));
                 }
-                Err(_) => {}
+
+                return Ok(status);
+            }
+            Ok(None) => {}
+            Err(error) if guest_probe_error_is_terminal(&error) => {
+                return Err(io::Error::new(
+                    error.kind(),
+                    format!("{} Guest Agent probe failed: {error}", client.as_str()),
+                ));
+            }
+            Err(_) => {}
         }
 
         if started.elapsed() >= timeout {
@@ -567,10 +578,7 @@ fn wait_for_guest_compatibility(
     }
 }
 
-fn windows_identity_state(
-    client: ClientId,
-    observations: &[ClientObservation],
-) -> IdentityState {
+fn windows_identity_state(client: ClientId, observations: &[ClientObservation]) -> IdentityState {
     let Ok(current) = observation_for(observations, client) else {
         return IdentityState::Unknown;
     };
@@ -755,7 +763,11 @@ fn client_status_from_observations(
     })
 }
 
-fn connection_health(state: ClientState, guest_tools_ready: Option<bool>, guest: Option<&GuestStatus>) -> Option<ConnectionHealth> {
+fn connection_health(
+    state: ClientState,
+    guest_tools_ready: Option<bool>,
+    guest: Option<&GuestStatus>,
+) -> Option<ConnectionHealth> {
     if state != ClientState::Running {
         return (!matches!(state, ClientState::NotProvisioned | ClientState::Error))
             .then_some(ConnectionHealth::VmOffline);
@@ -830,7 +842,9 @@ impl VirtualClients {
                 Ok(ClientLifecycleActions {
                     id: client.as_str(),
                     start: action(LifecycleAction::Start),
-                    start_setup: facts.fresh_client_profile.then(|| action(LifecycleAction::StartSetup)),
+                    start_setup: facts
+                        .fresh_client_profile
+                        .then(|| action(LifecycleAction::StartSetup)),
                     suspend: action(LifecycleAction::Suspend),
                     stop: action(LifecycleAction::Stop),
                     open: action(LifecycleAction::Open),
@@ -1165,9 +1179,16 @@ impl VirtualClients {
                 "Native Minecraft Education version could not be detected",
             )
         })?;
-        let base_generation_id = profile.base.as_ref().map(|base| base.base_generation_id.clone()).ok_or_else(|| {
-            io::Error::new(io::ErrorKind::NotFound, "registered Base generation is unavailable")
-        })?;
+        let base_generation_id = profile
+            .base
+            .as_ref()
+            .map(|base| base.base_generation_id.clone())
+            .ok_or_else(|| {
+                io::Error::new(
+                    io::ErrorKind::NotFound,
+                    "registered Base generation is unavailable",
+                )
+            })?;
         let base = current_base_vmx_path()?;
         if base_state_for_path(&base)? != Some(BaseState::Finalized) {
             return Err(io::Error::new(
@@ -1420,11 +1441,13 @@ impl VirtualClients {
         })
     }
 
-
     fn start_setup_inner(&self, client: ClientId) -> io::Result<ClientStatus> {
         let _lock = OperationLock::acquire()?;
         let provider = current_platform_provider().ok_or_else(|| {
-            io::Error::new(io::ErrorKind::NotFound, "virtualization provider is unavailable")
+            io::Error::new(
+                io::ErrorKind::NotFound,
+                "virtualization provider is unavailable",
+            )
         })?;
         check_action_admission(provider.as_ref(), client, LifecycleAction::StartSetup)?;
         // Reuse the same mutation/rollback owner. Missing Guest Agent during
@@ -1496,12 +1519,17 @@ impl VirtualClients {
                     Duration::from_secs(90),
                     true,
                 )?;
-                crate::minecraft_runtime::ensure_running(provider.as_ref(), client).map_err(|error| {
-                    io::Error::new(error.kind(), format!(
-                        "{} VM started, but Minecraft Education launch failed: {error}",
-                        client.as_str()
-                    ))
-                })?;
+                crate::minecraft_runtime::ensure_running(provider.as_ref(), client).map_err(
+                    |error| {
+                        io::Error::new(
+                            error.kind(),
+                            format!(
+                                "{} VM started, but Minecraft Education launch failed: {error}",
+                                client.as_str()
+                            ),
+                        )
+                    },
+                )?;
                 provider.open(client).map_err(|error| {
                     io::Error::new(error.kind(), format!(
                         "{} Minecraft launch was requested, but VMware window could not be opened: {error}",
@@ -1626,12 +1654,20 @@ impl VirtualClients {
         if let Err(error) =
             wait_for_guest_compatibility(provider.as_ref(), client, Duration::from_secs(90), true)
         {
-            return Err(observed_post_action_failure(provider.as_ref(), client, "Restart", error));
+            return Err(observed_post_action_failure(
+                provider.as_ref(),
+                client,
+                "Restart",
+                error,
+            ));
         }
         if let Err(error) = crate::minecraft_runtime::ensure_running(provider.as_ref(), client) {
             return Err(io::Error::new(
                 error.kind(),
-                format!("{} is running, but Minecraft Education could not be opened: {error}", client.as_str()),
+                format!(
+                    "{} is running, but Minecraft Education could not be opened: {error}",
+                    client.as_str()
+                ),
             ));
         }
         if let Err(error) = provider.open(client) {
@@ -1699,12 +1735,20 @@ impl VirtualClients {
         if let Err(error) =
             wait_for_guest_compatibility(provider.as_ref(), client, Duration::from_secs(90), true)
         {
-            return Err(observed_post_action_failure(provider.as_ref(), client, "Reset", error));
+            return Err(observed_post_action_failure(
+                provider.as_ref(),
+                client,
+                "Reset",
+                error,
+            ));
         }
         if let Err(error) = crate::minecraft_runtime::ensure_running(provider.as_ref(), client) {
             return Err(io::Error::new(
                 error.kind(),
-                format!("{} is running, but Minecraft Education could not be opened: {error}", client.as_str()),
+                format!(
+                    "{} is running, but Minecraft Education could not be opened: {error}",
+                    client.as_str()
+                ),
             ));
         }
         if let Err(error) = provider.open(client) {
@@ -1725,19 +1769,33 @@ impl VirtualClients {
 
     fn launch_minecraft_inner(&self, client: ClientId) -> io::Result<ClientStatus> {
         if client.is_native() {
-            return Err(io::Error::new(io::ErrorKind::InvalidInput, "Native Minecraft is launched by the desktop app"));
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "Native Minecraft is launched by the desktop app",
+            ));
         }
         let _lock = OperationLock::acquire()?;
         let provider = current_platform_provider().ok_or_else(|| {
-            io::Error::new(io::ErrorKind::NotFound, "virtualization provider is unavailable")
+            io::Error::new(
+                io::ErrorKind::NotFound,
+                "virtualization provider is unavailable",
+            )
         })?;
         if provider.status(client)? != ClientState::Running {
-            return Err(io::Error::new(io::ErrorKind::InvalidInput, "Virtual client must be running before Minecraft can be launched"));
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "Virtual client must be running before Minecraft can be launched",
+            ));
         }
         crate::minecraft_runtime::ensure_running(provider.as_ref(), client)?;
         let working_sets = provider.host_working_sets_mb()?;
         let native_profile = native_minecraft_profile();
-        client_status(provider.as_ref(), &working_sets, native_profile.as_ref(), client)
+        client_status(
+            provider.as_ref(),
+            &working_sets,
+            native_profile.as_ref(),
+            client,
+        )
     }
 
     fn open_inner(&self, client: ClientId) -> io::Result<ClientStatus> {
@@ -1771,9 +1829,9 @@ impl VirtualClients {
 #[cfg(test)]
 mod tests {
     use super::{
-        classify_identity_state, connection_health, guest_probe_error_is_terminal, missing_provision_targets,
-        restore_batch_state, stop_targets, suspend_targets, validate_power_state, LifecycleAction,
-        vm_identity_state, ConnectionHealth,
+        classify_identity_state, connection_health, guest_probe_error_is_terminal,
+        missing_provision_targets, restore_batch_state, stop_targets, suspend_targets,
+        validate_power_state, vm_identity_state, ConnectionHealth, LifecycleAction,
     };
     use crate::profile::BaseState;
     use crate::{
@@ -1885,11 +1943,19 @@ mod tests {
             Ok(Some(true))
         }
 
-        fn guest_status(&self, _client: ClientId, _timeout: std::time::Duration) -> io::Result<Option<crate::guest::GuestStatus>> {
+        fn guest_status(
+            &self,
+            _client: ClientId,
+            _timeout: std::time::Duration,
+        ) -> io::Result<Option<crate::guest::GuestStatus>> {
             Ok(None)
         }
 
-        fn launch_minecraft(&self, _client: ClientId, _timeout: std::time::Duration) -> io::Result<()> {
+        fn launch_minecraft(
+            &self,
+            _client: ClientId,
+            _timeout: std::time::Duration,
+        ) -> io::Result<()> {
             Self::unsupported()
         }
 
@@ -1961,7 +2027,10 @@ mod tests {
 
         fn open(&self, client: ClientId) -> io::Result<ClientState> {
             if self.fail_open {
-                return Err(io::Error::new(io::ErrorKind::Other, "injected UI open failure"));
+                return Err(io::Error::new(
+                    io::ErrorKind::Other,
+                    "injected UI open failure",
+                ));
             }
             self.state(client)
         }
@@ -2034,11 +2103,17 @@ mod tests {
     #[test]
     fn vm_identity_classification_is_fail_closed() {
         assert_eq!(
-            classify_identity_state(Some("uuid-a|mac-a"), [Some("uuid-b|mac-b"), Some("uuid-c|mac-c")]),
+            classify_identity_state(
+                Some("uuid-a|mac-a"),
+                [Some("uuid-b|mac-b"), Some("uuid-c|mac-c")]
+            ),
             IdentityState::Unique
         );
         assert_eq!(
-            classify_identity_state(Some("uuid-a|mac-a"), [Some("uuid-a|mac-a"), Some("uuid-c|mac-c")]),
+            classify_identity_state(
+                Some("uuid-a|mac-a"),
+                [Some("uuid-a|mac-a"), Some("uuid-c|mac-c")]
+            ),
             IdentityState::Duplicate
         );
         assert_eq!(
@@ -2059,7 +2134,11 @@ mod tests {
                 ClientState::Stopped,
                 ClientState::Stopped,
             ],
-            [Some("uuid-a|mac-a"), Some("uuid-b|mac-b"), Some("uuid-c|mac-c")],
+            [
+                Some("uuid-a|mac-a"),
+                Some("uuid-b|mac-b"),
+                Some("uuid-c|mac-c"),
+            ],
         );
         assert_eq!(
             vm_identity_state(&provider, ClientId::Virtual01),
@@ -2072,7 +2151,11 @@ mod tests {
                 ClientState::Stopped,
                 ClientState::Stopped,
             ],
-            [Some("uuid-a|mac-a"), Some("uuid-a|mac-a"), Some("uuid-c|mac-c")],
+            [
+                Some("uuid-a|mac-a"),
+                Some("uuid-a|mac-a"),
+                Some("uuid-c|mac-c"),
+            ],
         );
         assert_eq!(
             vm_identity_state(&duplicate, ClientId::Virtual01),
@@ -2087,7 +2170,11 @@ mod tests {
                     ClientState::Stopped,
                     ClientState::Stopped,
                 ],
-                [Some("uuid-a|mac-a"), Some("uuid-b|mac-b"), Some("uuid-c|mac-c")],
+                [
+                    Some("uuid-a|mac-a"),
+                    Some("uuid-b|mac-b"),
+                    Some("uuid-c|mac-c"),
+                ],
             )
         };
         assert_eq!(
@@ -2099,23 +2186,40 @@ mod tests {
     #[test]
     fn provisioning_preflight_rejects_bad_existing_profile_before_any_clone() {
         let provider = FakeProvider::new(
-            [ClientState::NotProvisioned, ClientState::Stopped, ClientState::NotProvisioned],
+            [
+                ClientState::NotProvisioned,
+                ClientState::Stopped,
+                ClientState::NotProvisioned,
+            ],
             [None, None, None],
         );
         let error = missing_provision_targets(&provider, |client| {
             if client == ClientId::Virtual02 {
-                Err(io::Error::new(io::ErrorKind::InvalidData, "invalid saved lineage"))
+                Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "invalid saved lineage",
+                ))
             } else {
                 Ok(())
             }
-        }).unwrap_err();
+        })
+        .unwrap_err();
         assert_eq!(error.kind(), io::ErrorKind::InvalidData);
-        assert!(error.to_string().contains("no new clients were provisioned"));
-        assert_eq!(*provider.states.borrow(), [
-            ClientState::NotProvisioned, ClientState::Stopped, ClientState::NotProvisioned
-        ]);
-        assert_eq!(missing_provision_targets(&provider, |_| Ok(())).unwrap(),
-            vec![ClientId::Virtual01, ClientId::Virtual03]);
+        assert!(error
+            .to_string()
+            .contains("no new clients were provisioned"));
+        assert_eq!(
+            *provider.states.borrow(),
+            [
+                ClientState::NotProvisioned,
+                ClientState::Stopped,
+                ClientState::NotProvisioned
+            ]
+        );
+        assert_eq!(
+            missing_provision_targets(&provider, |_| Ok(())).unwrap(),
+            vec![ClientId::Virtual01, ClientId::Virtual03]
+        );
     }
 
     #[test]
@@ -2123,51 +2227,95 @@ mod tests {
         let provider = FakeProvider {
             fail_stop: Some(ClientId::Virtual02),
             ..FakeProvider::new(
-                [ClientState::Running, ClientState::Running, ClientState::Running],
+                [
+                    ClientState::Running,
+                    ClientState::Running,
+                    ClientState::Running,
+                ],
                 [None, None, None],
             )
         };
-        let targets = [ClientId::Virtual01, ClientId::Virtual02, ClientId::Virtual03];
+        let targets = [
+            ClientId::Virtual01,
+            ClientId::Virtual02,
+            ClientId::Virtual03,
+        ];
         let error = stop_targets(&provider, &targets, |_| Ok(())).unwrap_err();
         assert!(error.to_string().contains("Partial completion possible"));
         assert!(error.to_string().contains("Virtual-01=Stopped"));
         assert!(error.to_string().contains("Virtual-02=Running"));
         assert!(error.to_string().contains("Virtual-03=Running"));
-        assert_eq!(provider.state(ClientId::Virtual01).unwrap(), ClientState::Stopped);
-        assert_eq!(provider.state(ClientId::Virtual03).unwrap(), ClientState::Running);
+        assert_eq!(
+            provider.state(ClientId::Virtual01).unwrap(),
+            ClientState::Stopped
+        );
+        assert_eq!(
+            provider.state(ClientId::Virtual03).unwrap(),
+            ClientState::Running
+        );
     }
 
     #[test]
     fn stop_batch_admission_failure_preserves_unattempted_clients() {
         let provider = FakeProvider::new(
-            [ClientState::Running, ClientState::Running, ClientState::Running],
+            [
+                ClientState::Running,
+                ClientState::Running,
+                ClientState::Running,
+            ],
             [None, None, None],
         );
-        let targets = [ClientId::Virtual01, ClientId::Virtual02, ClientId::Virtual03];
+        let targets = [
+            ClientId::Virtual01,
+            ClientId::Virtual02,
+            ClientId::Virtual03,
+        ];
         let error = stop_targets(&provider, &targets, |client| {
             if client == ClientId::Virtual02 {
-                Err(io::Error::new(io::ErrorKind::PermissionDenied, "injected admission failure"))
+                Err(io::Error::new(
+                    io::ErrorKind::PermissionDenied,
+                    "injected admission failure",
+                ))
             } else {
                 Ok(())
             }
-        }).unwrap_err();
+        })
+        .unwrap_err();
         assert_eq!(error.kind(), io::ErrorKind::PermissionDenied);
-        assert_eq!(*provider.states.borrow(), [ClientState::Running; 3],
-            "preflight must not mutate any VM when target admission fails");
+        assert_eq!(
+            *provider.states.borrow(),
+            [ClientState::Running; 3],
+            "preflight must not mutate any VM when target admission fails"
+        );
     }
 
     #[test]
     fn suspended_stop_preflight_preserves_all_other_vm_sessions() {
         let provider = FakeProvider::new(
-            [ClientState::Running, ClientState::Suspended, ClientState::Running],
+            [
+                ClientState::Running,
+                ClientState::Suspended,
+                ClientState::Running,
+            ],
             [None, None, None],
         );
         let result = stop_targets(&provider, &ClientId::VIRTUAL, |client| {
-            validate_power_state(client, LifecycleAction::Stop, provider.state(client)?, false)
+            validate_power_state(
+                client,
+                LifecycleAction::Stop,
+                provider.state(client)?,
+                false,
+            )
         });
         assert_eq!(result.unwrap_err().kind(), io::ErrorKind::InvalidInput);
-        assert_eq!(*provider.states.borrow(),
-            [ClientState::Running, ClientState::Suspended, ClientState::Running]);
+        assert_eq!(
+            *provider.states.borrow(),
+            [
+                ClientState::Running,
+                ClientState::Suspended,
+                ClientState::Running
+            ]
+        );
     }
 
     #[test]
@@ -2178,13 +2326,12 @@ mod tests {
             let provider = FakeProvider {
                 fail_suspend: Some(ClientId::Virtual02),
                 fail_after_suspend: mutated_before_error,
-                ..FakeProvider::new(
-                    [ClientState::Running; 3],
-                    [None, None, None],
-                )
+                ..FakeProvider::new([ClientState::Running; 3], [None, None, None])
             };
             let error = suspend_targets(&provider, &targets, |_| Ok(())).unwrap_err();
-            assert!(error.to_string().contains("Suspend batch interrupted at Virtual-02"));
+            assert!(error
+                .to_string()
+                .contains("Suspend batch interrupted at Virtual-02"));
             assert!(error.to_string().contains("Partial completion possible"));
             assert!(error.to_string().contains("Virtual-01=Suspended"));
             assert!(error.to_string().contains(if mutated_before_error {
@@ -2193,8 +2340,14 @@ mod tests {
                 "Virtual-02=Running"
             }));
             assert!(error.to_string().contains("Virtual-03=Running"));
-            assert_eq!(provider.state(ClientId::Virtual01).unwrap(), ClientState::Suspended);
-            assert_eq!(provider.state(ClientId::Virtual03).unwrap(), ClientState::Running);
+            assert_eq!(
+                provider.state(ClientId::Virtual01).unwrap(),
+                ClientState::Suspended
+            );
+            assert_eq!(
+                provider.state(ClientId::Virtual03).unwrap(),
+                ClientState::Running
+            );
         }
     }
 
@@ -2203,34 +2356,57 @@ mod tests {
         let provider = FakeProvider::new([ClientState::Running; 3], [None, None, None]);
         let error = suspend_targets(&provider, &ClientId::VIRTUAL, |client| {
             if client == ClientId::Virtual02 {
-                Err(io::Error::new(io::ErrorKind::PermissionDenied, "admission rejected"))
+                Err(io::Error::new(
+                    io::ErrorKind::PermissionDenied,
+                    "admission rejected",
+                ))
             } else {
                 Ok(())
             }
-        }).unwrap_err();
+        })
+        .unwrap_err();
         assert_eq!(error.kind(), io::ErrorKind::PermissionDenied);
-        assert_eq!(*provider.states.borrow(), [ClientState::Running; 3],
-            "suspend preflight must not mutate any VM on admission failure");
+        assert_eq!(
+            *provider.states.borrow(),
+            [ClientState::Running; 3],
+            "suspend preflight must not mutate any VM on admission failure"
+        );
     }
 
     #[test]
     fn post_action_failure_preserves_observed_vm_state() {
         let provider = FakeProvider::new(
-            [ClientState::Running, ClientState::Suspended, ClientState::Stopped],
+            [
+                ClientState::Running,
+                ClientState::Suspended,
+                ClientState::Stopped,
+            ],
             [None, None, None],
         );
         for (client, action, state) in [
             (ClientId::Virtual01, "Restart", "Running"),
             (ClientId::Virtual02, "Reset", "Suspended"),
         ] {
-            let error = super::observed_post_action_failure(&provider, client, action,
-                io::Error::new(io::ErrorKind::TimedOut, "guest not ready"));
+            let error = super::observed_post_action_failure(
+                &provider,
+                client,
+                action,
+                io::Error::new(io::ErrorKind::TimedOut, "guest not ready"),
+            );
             assert_eq!(error.kind(), io::ErrorKind::TimedOut);
-            assert!(error.to_string().contains(&format!("Observed VM state: {state}")));
+            assert!(error
+                .to_string()
+                .contains(&format!("Observed VM state: {state}")));
             assert!(error.to_string().contains("No automatic stop attempted"));
         }
-        assert_eq!(*provider.states.borrow(),
-            [ClientState::Running, ClientState::Suspended, ClientState::Stopped]);
+        assert_eq!(
+            *provider.states.borrow(),
+            [
+                ClientState::Running,
+                ClientState::Suspended,
+                ClientState::Stopped
+            ]
+        );
     }
 
     #[test]
@@ -2241,7 +2417,11 @@ mod tests {
                 ClientState::Running,
                 ClientState::Stopped,
             ],
-            [Some("uuid-a|mac-a"), Some("uuid-b|mac-b"), Some("uuid-c|mac-c")],
+            [
+                Some("uuid-a|mac-a"),
+                Some("uuid-b|mac-b"),
+                Some("uuid-c|mac-c"),
+            ],
         );
 
         let failed = restore_batch_state(
@@ -2277,7 +2457,11 @@ mod tests {
                     ClientState::Running,
                     ClientState::Stopped,
                 ],
-                [Some("uuid-a|mac-a"), Some("uuid-b|mac-b"), Some("uuid-c|mac-c")],
+                [
+                    Some("uuid-a|mac-a"),
+                    Some("uuid-b|mac-b"),
+                    Some("uuid-c|mac-c"),
+                ],
             )
         };
 
@@ -2326,14 +2510,22 @@ mod tests {
     fn stopped_provider() -> FakeProvider {
         FakeProvider::new(
             [ClientState::Stopped; 3],
-            [Some("uuid-a|mac-a"), Some("uuid-b|mac-b"), Some("uuid-c|mac-c")],
+            [
+                Some("uuid-a|mac-a"),
+                Some("uuid-b|mac-b"),
+                Some("uuid-c|mac-c"),
+            ],
         )
     }
 
     #[test]
     fn start_batch_launch_failure_restores_new_vm_and_preserves_existing_running() {
         let provider = FakeProvider::new(
-            [ClientState::Running, ClientState::Stopped, ClientState::Stopped],
+            [
+                ClientState::Running,
+                ClientState::Stopped,
+                ClientState::Stopped,
+            ],
             [None, None, None],
         );
         let error = super::execute_start_batch(
@@ -2342,16 +2534,25 @@ mod tests {
             |_, _| Ok(()),
             |client| {
                 if client == ClientId::Virtual02 {
-                    Err(io::Error::new(io::ErrorKind::Other, "injected Minecraft launch failure"))
+                    Err(io::Error::new(
+                        io::ErrorKind::Other,
+                        "injected Minecraft launch failure",
+                    ))
                 } else {
                     provider.state(client)
                 }
             },
-        ).unwrap_err();
+        )
+        .unwrap_err();
         assert!(error.to_string().contains("Minecraft launch failure"));
-        assert_eq!(*provider.states.borrow(), [
-            ClientState::Running, ClientState::Stopped, ClientState::Stopped
-        ]);
+        assert_eq!(
+            *provider.states.borrow(),
+            [
+                ClientState::Running,
+                ClientState::Stopped,
+                ClientState::Stopped
+            ]
+        );
     }
 
     #[test]
@@ -2366,12 +2567,16 @@ mod tests {
                     provider.open(client)?;
                     Ok(provider.state(client)?)
                 } else if client == ClientId::Virtual03 {
-                    Err(io::Error::new(io::ErrorKind::Other, "injected window open failure"))
+                    Err(io::Error::new(
+                        io::ErrorKind::Other,
+                        "injected window open failure",
+                    ))
                 } else {
                     provider.state(client)
                 }
             },
-        ).unwrap_err();
+        )
+        .unwrap_err();
         assert!(error.to_string().contains("window open failure"));
         assert_eq!(*provider.states.borrow(), [ClientState::Stopped; 3]);
     }
@@ -2384,7 +2589,10 @@ mod tests {
             &ClientId::VIRTUAL,
             |client, _| {
                 if client == ClientId::Virtual02 {
-                    Err(io::Error::new(io::ErrorKind::InvalidData, "lineage changed"))
+                    Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        "lineage changed",
+                    ))
                 } else {
                     Ok(())
                 }
@@ -2399,8 +2607,16 @@ mod tests {
     #[test]
     fn start_batch_rolls_back_result_collection_failure() {
         let provider = FakeProvider::new(
-            [ClientState::Suspended, ClientState::Stopped, ClientState::Stopped],
-            [Some("uuid-a|mac-a"), Some("uuid-b|mac-b"), Some("uuid-c|mac-c")],
+            [
+                ClientState::Suspended,
+                ClientState::Stopped,
+                ClientState::Stopped,
+            ],
+            [
+                Some("uuid-a|mac-a"),
+                Some("uuid-b|mac-b"),
+                Some("uuid-c|mac-c"),
+            ],
         );
         let result = super::execute_start_batch(
             &provider,
@@ -2417,15 +2633,27 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             *provider.states.borrow(),
-            [ClientState::Suspended, ClientState::Stopped, ClientState::Stopped]
+            [
+                ClientState::Suspended,
+                ClientState::Stopped,
+                ClientState::Stopped
+            ]
         );
     }
 
     #[test]
     fn start_batch_preserves_preexisting_running_client_on_verification_failure() {
         let provider = FakeProvider::new(
-            [ClientState::Stopped, ClientState::Running, ClientState::Stopped],
-            [Some("uuid-a|mac-a"), Some("uuid-b|mac-b"), Some("uuid-c|mac-c")],
+            [
+                ClientState::Stopped,
+                ClientState::Running,
+                ClientState::Stopped,
+            ],
+            [
+                Some("uuid-a|mac-a"),
+                Some("uuid-b|mac-b"),
+                Some("uuid-c|mac-c"),
+            ],
         );
         let result = super::execute_start_batch(
             &provider,
@@ -2442,7 +2670,11 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             *provider.states.borrow(),
-            [ClientState::Stopped, ClientState::Running, ClientState::Stopped]
+            [
+                ClientState::Stopped,
+                ClientState::Running,
+                ClientState::Stopped
+            ]
         );
     }
 
@@ -2487,8 +2719,16 @@ mod tests {
             fail_start: Some(ClientId::Virtual03),
             fail_after_start: true,
             ..FakeProvider::new(
-                [ClientState::Running, ClientState::Stopped, ClientState::Stopped],
-                [Some("uuid-a|mac-a"), Some("uuid-b|mac-b"), Some("uuid-c|mac-c")],
+                [
+                    ClientState::Running,
+                    ClientState::Stopped,
+                    ClientState::Stopped,
+                ],
+                [
+                    Some("uuid-a|mac-a"),
+                    Some("uuid-b|mac-b"),
+                    Some("uuid-c|mac-c"),
+                ],
             )
         };
         let result = super::execute_start_batch(
@@ -2500,7 +2740,11 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             *provider.states.borrow(),
-            [ClientState::Running, ClientState::Stopped, ClientState::Stopped]
+            [
+                ClientState::Running,
+                ClientState::Stopped,
+                ClientState::Stopped
+            ]
         );
     }
 
@@ -2516,33 +2760,77 @@ mod tests {
             machine_identity: None,
         };
 
-        assert_eq!(connection_health(ClientState::Stopped, None, None), Some(ConnectionHealth::VmOffline));
-        assert_eq!(connection_health(ClientState::Running, None, None), Some(ConnectionHealth::VmRunning));
-        assert_eq!(connection_health(ClientState::Running, Some(true), None), Some(ConnectionHealth::GuestToolsReady));
-        assert_eq!(connection_health(ClientState::Running, Some(true), Some(&guest(Some(false), Some(false)))), Some(ConnectionHealth::GuestAgentReady));
-        assert_eq!(connection_health(ClientState::Running, Some(true), Some(&guest(Some(false), Some(true)))), Some(ConnectionHealth::InteractiveLauncherReady));
-        assert_eq!(connection_health(ClientState::Running, Some(true), Some(&guest(Some(true), Some(false)))), Some(ConnectionHealth::MinecraftRunning));
-        assert_eq!(connection_health(ClientState::NotProvisioned, None, None), None);
+        assert_eq!(
+            connection_health(ClientState::Stopped, None, None),
+            Some(ConnectionHealth::VmOffline)
+        );
+        assert_eq!(
+            connection_health(ClientState::Running, None, None),
+            Some(ConnectionHealth::VmRunning)
+        );
+        assert_eq!(
+            connection_health(ClientState::Running, Some(true), None),
+            Some(ConnectionHealth::GuestToolsReady)
+        );
+        assert_eq!(
+            connection_health(
+                ClientState::Running,
+                Some(true),
+                Some(&guest(Some(false), Some(false)))
+            ),
+            Some(ConnectionHealth::GuestAgentReady)
+        );
+        assert_eq!(
+            connection_health(
+                ClientState::Running,
+                Some(true),
+                Some(&guest(Some(false), Some(true)))
+            ),
+            Some(ConnectionHealth::InteractiveLauncherReady)
+        );
+        assert_eq!(
+            connection_health(
+                ClientState::Running,
+                Some(true),
+                Some(&guest(Some(true), Some(false)))
+            ),
+            Some(ConnectionHealth::MinecraftRunning)
+        );
+        assert_eq!(
+            connection_health(ClientState::NotProvisioned, None, None),
+            None
+        );
         assert_eq!(connection_health(ClientState::Error, None, None), None);
     }
 
     #[test]
-    fn restore_batch_state_recovers_stopped_and_suspended_clients() {
+    fn start_rollback_never_restarts_a_previously_running_client() {
         let provider = FakeProvider::new(
-            [ClientState::Stopped, ClientState::Stopped, ClientState::Stopped],
-            [Some("uuid-a|mac-a"), Some("uuid-b|mac-b"), Some("uuid-c|mac-c")],
-        );
-        let failed = restore_batch_state(
-            &provider,
-            &[
-                (ClientId::Virtual01, ClientState::Running),
-                (ClientId::Virtual02, ClientState::Suspended),
+            [
+                ClientState::Stopped,
+                ClientState::Stopped,
+                ClientState::Stopped,
+            ],
+            [
+                Some("uuid-a|mac-a"),
+                Some("uuid-b|mac-b"),
+                Some("uuid-c|mac-c"),
             ],
         );
+        let failed = restore_batch_state(&provider, &[(ClientId::Virtual01, ClientState::Running)]);
         assert!(failed.is_empty());
-        assert_eq!(provider.state(ClientId::Virtual01).unwrap(), ClientState::Running);
-        assert_eq!(provider.state(ClientId::Virtual02).unwrap(), ClientState::Suspended);
-        assert_eq!(provider.state(ClientId::Virtual03).unwrap(), ClientState::Stopped);
+        assert_eq!(
+            provider.state(ClientId::Virtual01).unwrap(),
+            ClientState::Stopped
+        );
+        assert_eq!(
+            provider.state(ClientId::Virtual02).unwrap(),
+            ClientState::Stopped
+        );
+        assert_eq!(
+            provider.state(ClientId::Virtual03).unwrap(),
+            ClientState::Stopped
+        );
     }
 
     #[test]
@@ -2564,15 +2852,27 @@ mod tests {
         assert!(message.contains("rollback incomplete for Virtual-01"));
         assert_eq!(
             *provider.states.borrow(),
-            [ClientState::Running, ClientState::Stopped, ClientState::Stopped]
+            [
+                ClientState::Running,
+                ClientState::Stopped,
+                ClientState::Stopped
+            ]
         );
     }
 
     #[test]
     fn start_batch_rolls_back_a_later_invalid_state() {
         let provider = FakeProvider::new(
-            [ClientState::Stopped, ClientState::Error, ClientState::Stopped],
-            [Some("uuid-a|mac-a"), Some("uuid-b|mac-b"), Some("uuid-c|mac-c")],
+            [
+                ClientState::Stopped,
+                ClientState::Error,
+                ClientState::Stopped,
+            ],
+            [
+                Some("uuid-a|mac-a"),
+                Some("uuid-b|mac-b"),
+                Some("uuid-c|mac-c"),
+            ],
         );
         assert!(super::execute_start_batch(
             &provider,
@@ -2581,8 +2881,14 @@ mod tests {
             |client| provider.state(client),
         )
         .is_err());
-        assert_eq!(provider.state(ClientId::Virtual01).unwrap(), ClientState::Stopped);
-        assert_eq!(provider.state(ClientId::Virtual02).unwrap(), ClientState::Error);
+        assert_eq!(
+            provider.state(ClientId::Virtual01).unwrap(),
+            ClientState::Stopped
+        );
+        assert_eq!(
+            provider.state(ClientId::Virtual02).unwrap(),
+            ClientState::Error
+        );
     }
 
     #[test]
@@ -2598,15 +2904,27 @@ mod tests {
         assert_eq!(result, vec![ClientState::Running]);
         assert_eq!(
             *provider.states.borrow(),
-            [ClientState::Stopped, ClientState::Running, ClientState::Stopped]
+            [
+                ClientState::Stopped,
+                ClientState::Running,
+                ClientState::Stopped
+            ]
         );
     }
 
     #[test]
     fn start_batch_stops_a_resumed_client_that_fails_verification() {
         let provider = FakeProvider::new(
-            [ClientState::Suspended, ClientState::Stopped, ClientState::Stopped],
-            [Some("uuid-a|mac-a"), Some("uuid-b|mac-b"), Some("uuid-c|mac-c")],
+            [
+                ClientState::Suspended,
+                ClientState::Stopped,
+                ClientState::Stopped,
+            ],
+            [
+                Some("uuid-a|mac-a"),
+                Some("uuid-b|mac-b"),
+                Some("uuid-c|mac-c"),
+            ],
         );
         let result: io::Result<Vec<ClientState>> = super::execute_start_batch(
             &provider,
@@ -2632,21 +2950,34 @@ mod tests {
 
     #[test]
     fn setup_open_failure_stops_only_a_newly_started_client() {
-        let provider = FakeProvider { fail_open: true, ..stopped_provider() };
+        let provider = FakeProvider {
+            fail_open: true,
+            ..stopped_provider()
+        };
         assert!(super::execute_setup_start(&provider, ClientId::Virtual01, |_, _| Ok(())).is_err());
         assert_eq!(*provider.states.borrow(), [ClientState::Stopped; 3]);
-        provider.set_state(ClientId::Virtual01, ClientState::Running).unwrap();
+        provider
+            .set_state(ClientId::Virtual01, ClientState::Running)
+            .unwrap();
         assert!(super::execute_setup_start(&provider, ClientId::Virtual01, |_, _| Ok(())).is_err());
-        assert_eq!(provider.state(ClientId::Virtual01).unwrap(), ClientState::Running);
+        assert_eq!(
+            provider.state(ClientId::Virtual01).unwrap(),
+            ClientState::Running
+        );
     }
 
     #[test]
     fn setup_admission_failure_does_not_start_a_client() {
         let provider = stopped_provider();
-        assert!(super::execute_setup_start(&provider, ClientId::Virtual01, |_, _| {
-            Err(io::Error::new(io::ErrorKind::InvalidInput, "not a fresh client"))
-        }).is_err());
+        assert!(
+            super::execute_setup_start(&provider, ClientId::Virtual01, |_, _| {
+                Err(io::Error::new(
+                    io::ErrorKind::InvalidInput,
+                    "not a fresh client",
+                ))
+            })
+            .is_err()
+        );
         assert_eq!(*provider.states.borrow(), [ClientState::Stopped; 3]);
     }
-
 }

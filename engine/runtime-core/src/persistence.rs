@@ -39,16 +39,25 @@ fn unresolved_temporary(path: &Path) -> io::Result<Option<PathBuf>> {
     let parent = path.parent().ok_or_else(|| {
         io::Error::new(io::ErrorKind::InvalidInput, "metadata path has no parent")
     })?;
-    let name = path.file_name().and_then(|name| name.to_str()).ok_or_else(|| {
-        io::Error::new(io::ErrorKind::InvalidInput, "metadata filename is invalid")
-    })?;
+    let name = path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .ok_or_else(|| {
+            io::Error::new(io::ErrorKind::InvalidInput, "metadata filename is invalid")
+        })?;
     let prefix = format!(".{name}.");
     for entry in fs::read_dir(parent)? {
         let entry = entry?;
         let filename = entry.file_name();
-        let Some(filename) = filename.to_str() else { continue };
-        let Some(pid) = filename.strip_prefix(&prefix)
-            .and_then(|value| value.strip_suffix(".tmp")) else { continue };
+        let Some(filename) = filename.to_str() else {
+            continue;
+        };
+        let Some(pid) = filename
+            .strip_prefix(&prefix)
+            .and_then(|value| value.strip_suffix(".tmp"))
+        else {
+            continue;
+        };
         if pid.is_empty() || !pid.bytes().all(|byte| byte.is_ascii_digit()) {
             continue;
         }
@@ -65,7 +74,10 @@ pub(crate) fn reject_unsafe_existing_file(path: &Path) -> io::Result<()> {
         Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(()),
         Err(error) => return Err(error),
     };
-    if metadata.file_type().is_symlink() || is_reparse_point(&metadata) || !metadata.file_type().is_file() {
+    if metadata.file_type().is_symlink()
+        || is_reparse_point(&metadata)
+        || !metadata.file_type().is_file()
+    {
         return Err(io::Error::new(
             io::ErrorKind::InvalidData,
             format!("metadata path is not a regular file: {}", path.display()),
@@ -104,14 +116,16 @@ fn recover_interrupted_replace(path: &Path) -> io::Result<()> {
 
     match (path.exists(), backup.exists()) {
         (false, true) => {
-            fs::rename(&backup, path)
-                .or_else(|error| peer_completed_recovery(path, &backup, error))
-        },
+            fs::rename(&backup, path).or_else(|error| peer_completed_recovery(path, &backup, error))
+        }
         (true, true) => {
             // A crash may leave an incomplete primary beside the original.
             // Preserve the last candidate backup if the primary is corrupt.
             let current = fs::read_to_string(path)?;
-            if path.extension().is_some_and(|ext| ext.eq_ignore_ascii_case("json")) {
+            if path
+                .extension()
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("json"))
+            {
                 serde_json::from_str::<serde_json::Value>(&current).map_err(|error| {
                     io::Error::new(
                         io::ErrorKind::InvalidData,
@@ -122,9 +136,8 @@ fn recover_interrupted_replace(path: &Path) -> io::Result<()> {
                     )
                 })?;
             }
-            fs::remove_file(&backup)
-                .or_else(|error| peer_completed_recovery(path, &backup, error))
-        },
+            fs::remove_file(&backup).or_else(|error| peer_completed_recovery(path, &backup, error))
+        }
         _ => Ok(()),
     }
 }
@@ -147,7 +160,10 @@ pub(crate) fn write_text_transactional(path: &Path, contents: &str) -> io::Resul
     if let Some(unresolved) = unresolved_temporary(path)? {
         return Err(io::Error::new(
             io::ErrorKind::AlreadyExists,
-            format!("interrupted metadata write preserved at {}; inspect before retrying", unresolved.display()),
+            format!(
+                "interrupted metadata write preserved at {}; inspect before retrying",
+                unresolved.display()
+            ),
         ));
     }
 
@@ -191,7 +207,10 @@ pub(crate) fn write_text_transactional(path: &Path, contents: &str) -> io::Resul
             }
             Err(io::Error::new(
                 error.kind(),
-                format!("metadata promotion failed ({error}); temporary candidate preserved at {}", temporary.display()),
+                format!(
+                    "metadata promotion failed ({error}); temporary candidate preserved at {}",
+                    temporary.display()
+                ),
             ))
         }
     }
@@ -246,11 +265,15 @@ mod tests {
         fs::write(&temporary, r#"{"candidate":true}"#).unwrap();
         assert_eq!(
             write_text_transactional(&path, r#"{"replacement":true}"#)
-                .unwrap_err().kind(),
+                .unwrap_err()
+                .kind(),
             std::io::ErrorKind::AlreadyExists
         );
         assert_eq!(fs::read_to_string(&path).unwrap(), r#"{"original":true}"#);
-        assert_eq!(fs::read_to_string(&temporary).unwrap(), r#"{"candidate":true}"#);
+        assert_eq!(
+            fs::read_to_string(&temporary).unwrap(),
+            r#"{"candidate":true}"#
+        );
         fs::remove_dir_all(root).unwrap();
     }
 
@@ -263,8 +286,7 @@ mod tests {
         fs::write(&path, r#"{"account":"original"}"#).unwrap();
         fs::write(&temporary, r#"{"account":"unfinished"}"#).unwrap();
 
-        let error = write_text_transactional(&path, r#"{"account":"replacement"}"#)
-            .unwrap_err();
+        let error = write_text_transactional(&path, r#"{"account":"replacement"}"#).unwrap_err();
         assert_eq!(error.kind(), std::io::ErrorKind::AlreadyExists);
         assert_eq!(
             fs::read_to_string(&path).unwrap(),
@@ -296,11 +318,17 @@ mod tests {
                 .kind(),
             std::io::ErrorKind::InvalidData
         );
-        assert_eq!(fs::read_to_string(&backup).unwrap(), r#"{"account":"original"}"#);
+        assert_eq!(
+            fs::read_to_string(&backup).unwrap(),
+            r#"{"account":"original"}"#
+        );
         assert_eq!(fs::read_to_string(&path).unwrap(), "{not valid json");
 
         fs::remove_file(&path).unwrap();
-        assert_eq!(read_text_recovering(&path).unwrap(), r#"{"account":"original"}"#);
+        assert_eq!(
+            read_text_recovering(&path).unwrap(),
+            r#"{"account":"original"}"#
+        );
         assert!(!backup.exists());
         fs::remove_dir_all(root).unwrap();
     }
@@ -351,9 +379,7 @@ mod tests {
     }
     #[test]
     fn peer_backup_recovery_is_idempotent_but_never_clobbers_a_remaining_backup() {
-        let root = std::env::temp_dir().join(format!(
-            "vc-peer-recovery-{}", std::process::id()
-        ));
+        let root = std::env::temp_dir().join(format!("vc-peer-recovery-{}", std::process::id()));
         fs::create_dir_all(&root).unwrap();
         let path = root.join("metadata.json");
         let backup = super::backup_path(&path).unwrap();
@@ -361,17 +387,22 @@ mod tests {
 
         // The other reader already restored a regular primary and consumed .bak.
         super::peer_completed_recovery(
-            &path, &backup, std::io::Error::from(std::io::ErrorKind::NotFound),
-        ).unwrap();
+            &path,
+            &backup,
+            std::io::Error::from(std::io::ErrorKind::NotFound),
+        )
+        .unwrap();
         assert_eq!(fs::read_to_string(&path).unwrap(), r#"{"complete":true}"#);
 
         // Still-present backup cannot be dismissed as a harmless losing reader.
         fs::write(&backup, r#"{"previous":true}"#).unwrap();
         assert!(super::peer_completed_recovery(
-            &path, &backup, std::io::Error::from(std::io::ErrorKind::NotFound),
-        ).is_err());
+            &path,
+            &backup,
+            std::io::Error::from(std::io::ErrorKind::NotFound),
+        )
+        .is_err());
         assert_eq!(fs::read_to_string(&backup).unwrap(), r#"{"previous":true}"#);
         fs::remove_dir_all(root).unwrap();
     }
-
 }
