@@ -66,7 +66,7 @@ describe("Native candidate IPC evidence", () => {
     })).toThrow(TypeError);
   });
 
-  it("registers only the two native Desktop operations in active Tauri", () => {
+  it("registers native observation and exactly one isolated Client 02 launch experiment", () => {
     const bootstrap = readFileSync(new URL("../src-tauri/src/app_bootstrap.rs", import.meta.url), "utf8");
     const commands = readFileSync(new URL("../src-tauri/src/commands/native_clients.rs", import.meta.url), "utf8");
     const engine = readFileSync(new URL("../src-tauri/src/engine/native_clients.rs", import.meta.url), "utf8");
@@ -75,6 +75,19 @@ describe("Native candidate IPC evidence", () => {
 
     expect(bootstrap).toContain("commands::native_clients::desktop_open_native_minecraft,");
     expect(bootstrap).toContain("commands::native_clients::desktop_inspect_native_candidates,");
+    expect(bootstrap).toContain("commands::native_clients::desktop_select_education_exe,");
+    expect(bootstrap).toContain("commands::native_clients::desktop_request_sandbox_client_02,");
+    expect(commands).toContain("fn desktop_request_sandbox_client_02(");
+    expect(engine).toContain("pub fn request_sandbox_client_02(");
+    expect(engine).toContain("$box = 'Mivubi2'");
+    expect(engine).toContain("AutoDelete");
+    expect(engine).toContain("AutoRemove");
+    expect(engine).toContain("Get-AuthenticodeSignature");
+    expect(engine).toContain("Start-Process -FilePath $start");
+    expect(engine).not.toContain("delete_sandbox");
+    expect(engine).not.toContain("/terminate_all");
+    expect(bridge).toContain('"desktop_request_sandbox_client_02"');
+    expect(active).toContain("nativeFeasibility.requestSandboxClient02(");
     expect(bootstrap).not.toContain("commands::virtual_clients::virtual_clients_");
     expect(bootstrap).not.toContain("commands::setup_tools::setup_");
     expect(bootstrap).not.toContain("commands::window_arrangement::window_");
