@@ -26,7 +26,8 @@ param(
   [ValidatePattern('^(?:$|[A-Za-z0-9_.-]{1,80})$')]
   [string]$EvidenceReference = '',
   [string]$OutputDirectory = '',
-  [switch]$SummaryOnly
+  [switch]$SummaryOnly,
+  [switch]$ImageProof
 )
 
 $ErrorActionPreference = 'Stop'
@@ -35,6 +36,9 @@ if ($env:OS -ne 'Windows_NT') {
 }
 if ($SummaryOnly -and $Stage -ne 'INSPECT') {
   throw 'SummaryOnly is available for read-only INSPECT observations only.'
+}
+if ($ImageProof -and (-not $SummaryOnly -or $Stage -ne 'INSPECT')) {
+  throw 'ImageProof is supported only for explicit read-only SummaryOnly inspection.'
 }
 $observations = @($LicensedForUse, $NativeWorldPlayable, $SandboxWorldPlayable,
   $DistinctAccounts, $IndependentInput, $AccountCrossingObserved,
@@ -292,7 +296,7 @@ $gameCandidates = @(
       [bool]($boxedPids -contains [int]$_.Id)
     } else { $null }
     $imageEvidence = 'UNKNOWN'
-    if ($inBox -eq $false -and $null -ne $handle) {
+    if ($ImageProof -and $inBox -eq $false -and $null -ne $handle) {
       $imageEvidence = Get-EducationImageCandidate $_
     }
     [ordered]@{
