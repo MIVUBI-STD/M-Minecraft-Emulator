@@ -156,6 +156,7 @@
     busy = true;
     activeOperation = "Inspecting Windows and Sandboxie process membership…";
     error = "";
+    notice = "";
     observation = undefined;
     try {
       // A single canonical Sandboxie collector call covers BOTH clients.
