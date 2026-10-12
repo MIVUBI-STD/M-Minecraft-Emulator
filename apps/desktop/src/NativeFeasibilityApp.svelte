@@ -48,8 +48,6 @@
   const slots = [
     { title: "Client 01", description: "Official Minecraft Education desktop launch" },
     { title: "Client 02", description: "Mivubi2 · Sandboxie Windows isolation" },
-    { title: "Client 03", description: "Independent account not verified" },
-    { title: "Client 04", description: "Independent account not verified" },
   ] as const;
 
   $: processCandidates = observation?.candidates.length ?? null;
@@ -113,8 +111,8 @@
     <div class="pilot-main">
       <section class="pilot-intro">
         <span class="eyebrow">ACTIVE DEVELOPMENT ROUTE</span>
-        <h2>One Windows PC. Four separate accounts.</h2>
-        <p>The goal is four independently playable Minecraft Education sessions from one official installation. We must first confirm whether Windows can show two separate game processes, and whether two licensed Microsoft accounts stay independent.</p>
+        <h2>Two independent Minecraft Education accounts — feasibility pilot</h2>
+        <p>Current focus: one normal Windows Minecraft Education game plus one Mivubi2 sandboxed game, using two different licensed accounts. Four concurrent clients remain a future goal, not an active implementation.</p>
         <div class="pilot-actions">
           <button class="pilot-primary" disabled={opening || inspecting} on:click={launchOfficialMinecraft}>
             {opening ? "Requesting launch…" : "Request official Minecraft launch"}
@@ -168,13 +166,13 @@
       </section>
 
       <section class="pilot-section">
-        <span class="eyebrow">FOUR-CLIENT PRODUCT TARGET</span>
+        <span class="eyebrow">TWO-CLIENT FEASIBILITY TARGET</span>
         <div class="pilot-grid">
           {#each slots as slot, index}
             <article class="pilot-slot">
               <strong>{slot.title}</strong>
               <p>{slot.description}</p>
-              <span>{index === 0 ? "Official launch only · gameplay unverified" : index === 1 ? "Isolated launch available · game/login unverified" : "Disabled · independent session unverified"}</span>
+              <span>{index === 0 ? "Official launch only · gameplay unverified" : "Isolated launch available · game/login unverified"}</span>
             </article>
           {/each}
         </div>

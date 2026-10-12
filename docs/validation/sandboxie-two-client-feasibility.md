@@ -9,19 +9,20 @@ lifecycle: ACTIVE
 
 # Sandboxie Plus — two-client application-isolation experiment
 
-**Work:** emulator/native-multi-instance-feasibility. This document is a
-**backup experiment**, not a selected production provider, a second runtime
-owner, or permission to replace the current VMware installation. Do not
-delete/stop/reprovision old guest VMs or change installed accounts.
+**Work:** emulator/sandboxie-client02. This is the **single selected Windows
+isolation experiment**: one normal Minecraft Education Desktop game and one
+launch requested inside the persistent Sandboxie Plus `Mivubi2` box.
+It is not a proven multi-account product or a production provider. Do not
+stop/delete VMware guests, modify sign-in data or duplicate game binaries.
 
 ## Why this small experiment exists
 
 The target is one official Minecraft Education Windows Desktop installation
 and four concurrently playable accounts, with **no full Windows guest VMs if
-possible**. First prefer the existing native
-[two-client test](./native-multi-instance-feasibility.md). If native
-cannot sustain two independent sessions, test one host-native game plus
-one game launched through an independently configured Sandboxie Plus box.
+possible**. Development is currently restricted to **two Windows Desktop
+clients**, one host native and one inside the preconfigured `Mivubi2` box.
+No Android emulator, controller, multi-provider engine or 4-client scheduler
+is developed in this experiment.
 
 Sandboxie Plus provides:
 - SbieIni.exe query SECTION SETTING to read box configuration;
@@ -29,9 +30,11 @@ Sandboxie Plus provides:
   Start.exe is a GUI subsystem program; redirected stdout may not work
   on every configuration. No result means UNKNOWN, not zero processes.
 
-These are **read-only** calls in this experiment. The collector never
-uses Sandboxie's delete, terminate, reload, set, update, or launch actions.
-It never creates boxes, installs Sandboxie or touches Minecraft account data.
+These calls remain **read-only** in the collector. The active desktop adds
+one separate, explicitly requested launch action via the official
+`Start.exe /box:Mivubi2 <installed Education EXE>` command, without
+creating, deleting, resetting or configuring Sandboxie boxes. The app never
+copies Microsoft account data or modifies Minecraft executable files.
 
 Upstream references:
 - https://sandboxie-plus.github.io/sandboxie-docs/Content/SbieIniCommandLine/
@@ -41,6 +44,29 @@ Upstream references:
 - https://github.com/sandboxie-plus/Sandboxie/blob/master/Sandboxie/install/SbieSettings.ini
 - https://github.com/sandboxie-plus/sandboxie-docs/blob/main/docs/PlusContent/supporter-certificate.md
 - https://edusupport.minecraft.net/hc/en-us/articles/13106858087956-Windows-Installation-Guide
+
+## Single desktop experiment — Client 01 + Client 02
+
+In a clean `Local` checkout, run `npm run setup`, `npm run
+verify:source`, then `npm run dev`. Use the **MIVUBI Launcher**
+interface, not the blocked VMware NSIS installer. Start Client 01 through
+the existing official Windows launcher. For Client 02:
+
+1. Prepare exactly one persistent `Mivubi2` box in the licensed Sandboxie
+   Plus interface; keep AutoDelete/AutoRemove OFF.
+2. Select the **installed** Minecraft Education Windows Desktop EXE in MIVUBI.
+   Do not select the downloaded installer.
+3. Acknowledge Sandboxie licensing and click **Launch isolated Client 02**.
+   The Rust backend checks game/box preconditions and sends one Sandboxie
+   launch request; this is not yet proof of a second game process.
+4. Run the existing **read-only inspector** below to observe whether the
+   candidate Minecraft process is truly in the selected box. Independently
+   verify two different licensed Microsoft Education logins, world/input,
+   multiplayer and persistence. Mark unknown evidence UNKNOWN.
+
+A launch or PID count does not override a manual game observation; a failed
+launch is diagnosed without altering account/VM data. Sandboxie Plus requires
+a Business Certificate for business/educational use as described upstream.
 
 ## Prerequisites, manually managed
 
@@ -64,8 +90,9 @@ Before running the two-game test, an authorized operator:
    or profile copying. A default of OFF is not proof against manual deletion.
 4. Starts one official Minecraft Education Windows Desktop game natively,
    then requests the official game from within that selected Sandboxie box
-   via the Sandboxie UI. Merely starting explorer.exe in a box is **not**
-   evidence that the actual Minecraft process is sandboxed.
+   through the **MIVUBI Client 02** launch action using the same signed,
+   installed executable. Neither a launch request nor explorer.exe alone
+   proves that Minecraft is actually sandboxed.
 5. If *two real independent windows* appear, signs in to two distinct,
    properly entitled Education accounts **manually**. Checks both worlds,
    Microsoft sign-in redirects, input, multiplayer, closing and reopening,

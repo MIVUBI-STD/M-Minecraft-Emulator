@@ -1,3 +1,43 @@
+## Current work — fixed Windows Client 02 Sandboxie experiment (2026-10-12)
+
+**Work:** emulator/sandboxie-client02
+**State:** SOURCE_PATCHED / WINDOWS_GAMEPLAY_NOT_EXECUTED.
+**One selected direction:** Minecraft Education Windows Desktop, Client 01
+native plus Client 02 in a single persistent `Mivubi2` Sandboxie Plus box.
+No Android, controllers, extra hypervisor/provider or four-client work.
+
+### Implemented on Local
+
+- Active desktop has one Client 02 launch path: Windows native file picker,
+  manual Sandboxie licensing acknowledgement, thin Tauri command and
+  backend Rust checks for official Desktop install, signed Education game
+  identity, signed Sandboxie tools, running service, enabled Mivubi2 and
+  AutoDelete/AutoRemove OFF.
+- The backend issues Sandboxie `Start.exe /box:Mivubi2` for the selected
+  installed game executable, **not** `shell:AppsFolder` again. It does not
+  copy EXE, clone world/token/profile data, mutate sandbox contents or
+  register VMware handlers.
+- Separate existing read-only `collect-sandboxie-feasibility.ps1` and
+  evaluator remain authoritative for process membership and manually
+  reported account/gameplay proof. A GUI launch request is only a request.
+- Existing desktop tests and repository source assertions now protect the
+  single fixed non-destructive route. Legacy NSIS installer and all VM
+  mutations remain blocked; `main` and account-bearing data stay untouched.
+
+### Evidence ceiling and first real unknown
+
+This turn verifies source wiring and bounded structural assertions only.
+Actual Rust/Node/Svelte/PowerShell execution, Sandboxie driver compatibility,
+licensed Minecraft Education login, 2 concurrent game windows, independent
+Microsoft sessions, multiplayer and persistence remain **NOT_EXECUTED**.
+Do not claim two-client GO without observed evidence.
+
+**Next:** run the Client 01/Client 02 experiment on Windows and collect the
+existing Sandboxie membership report, then diagnose the first genuine failed
+technical boundary. Do not expand to four clients yet.
+
+---
+
 ## Current work — repair native pre-localtest architecture (2026-10-12)
 
 **Work:** emulator/native-prelocaltest-correctness
