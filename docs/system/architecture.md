@@ -59,9 +59,13 @@ separate launcher process should be built.
 
 ## ADB-like control semantics without Android
 
-- **Addressability:** `Client 01` is always host-native; `Client 02`
-  always means Sandboxie box `MinecraftClient02`. Sandbox membership
-  is authoritative for the latter, not a duplicated window title or PID alone.
+- **Addressability:** `Client 01` denotes the host-native launch path;
+  `Client 02` denotes Sandboxie box `MinecraftClient02`. The on-demand
+  candidate inventory now carries PID, optional Windows creation FILETIME,
+  HWND and observed box membership (desktop schema 3). PID alone is reusable;
+  missing creation time remains unknown. A process outside the selected box
+  is not automatically proven host-native, and name-matched candidates do
+  not establish Education edition, login or gameplay.
 - **Explicit operations:** `Launch`, `Inspect`, and later `Focus/Arrange`
   act on one selected instance. No timer silently starts or restarts a game.
 - **Observed states:** `UNKNOWN → REQUESTED → PROCESS_CANDIDATE →
