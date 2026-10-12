@@ -83,6 +83,9 @@ describe("Native candidate IPC evidence", () => {
     expect(engine).toContain("include_str!(concat!(");
     expect(engine).toContain("WaitForExit(8000)");
     expect(engine).toContain("$launcher.ExitCode");
+    expect(engine).toContain("-WorkingDirectory $gameFolder");
+    expect(engine).toContain("observation.isolated_visible_candidates > 0");
+    expect(engine).toContain("GetEnvironmentVariable('ProgramW6432')");
     expect(engine).toContain('observation.credential_host_access != "OFF"');
     expect(bridge).toContain('"desktop_inspect_sandbox_client_02"');
     expect(active).toContain("nativeFeasibility.inspectIsolatedClient02()");

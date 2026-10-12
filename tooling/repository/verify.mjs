@@ -254,6 +254,9 @@ requireFact(nativeDesktop.includes("pub fn request_sandbox_client_02(") &&
   nativeDesktop.includes('observation.credential_host_access != "OFF"') &&
   nativeDesktop.includes("WaitForExit(8000)") &&
   nativeDesktop.includes("$launcher.ExitCode") &&
+  nativeDesktop.includes("-WorkingDirectory $gameFolder") &&
+  nativeDesktop.includes("observation.isolated_visible_candidates > 0") &&
+  nativeDesktop.includes("GetEnvironmentVariable('ProgramW6432')") &&
   read("apps/desktop/src-tauri/src/app_bootstrap.rs").includes(
     "commands::native_clients::desktop_inspect_sandbox_client_02,") &&
   isolatedBridge.includes('"desktop_request_sandbox_client_02"') &&

@@ -1,3 +1,50 @@
+## Current work — deeper source and architecture audit before Windows validation (2026-10-12)
+
+**Work:** emulator/client02-deep-pretest-audit
+**State:** PROACTIVE_SOURCE_REPAIR / WINDOWS_GAMEPLAY_NOT_EXECUTED.
+
+**Only selected engine:** Minecraft Education Windows Desktop host Client 01
+plus Sandboxie Plus `MinecraftClient02` Client 02. Avoid second provider,
+guest Windows VM, login token or test-checker proliferation.
+
+### Material source repairs
+
+- Existing Sandboxie collector now inspects both *global* and selected-box
+  explicitly configured `Template=OpenProtectedStorage`, plus declared
+  legacy direct settings. Earlier global inheritance was a missed path.
+  Unknown or failed queries remain UNKNOWN, not a claim of account separation.
+  Nested template expansion, WinCred read-through and Windows WAM remain
+  unresolved for actual Microsoft account identity.
+- Backend refuses a repeated isolated launch if a boxed Minecraft-name
+  candidate is already visibly running. The selected signed game's directory
+  is supplied as the Start.exe working directory; executable lookup shares
+  canonical trusted Program Files roots with the read-only collector.
+  This reduces obvious startup/relaunch error surfaces without adding
+  persistent workers or forced game-affinity settings.
+- Existing evaluator/source regressions updated. One canonical
+  `-SummaryOnly` UI Refresh remains the only active process observation,
+  with zero idle polling and no new diagnostic DB.
+- [Architecture](../docs/system/architecture.md) contains a bounded
+  failure-mode analysis including broker identity, global templates,
+  headless startup, PID ownership, input focus, service/driver cost,
+  sandbox overlay growth, packaging and two-account gameplay proof.
+
+### Evidence and proof ceiling
+
+15/15 existing Sandboxie evaluator callbacks executed successfully in
+ChatGPT V8 against source at the intermediate pinned revision
+`31796b6cf5d8853f8121e91b70f4e45ffd5565c6`. This is not Windows
+PowerShell execution, Node test runner, Svelte/Vitest build or Rust
+compilation at this new revision. Actual two licensed Education logins,
+interactive worlds, multiplayer and native resource benchmarks remain
+**NOT_EXECUTED**. Any source evidence is limited to what it inspected.
+
+**Next:** run the exact `Local` source build, then perform the narrow two
+independently licensed Minecraft Education Windows clients experiment;
+diagnose the first actual blocker within the same selected engine.
+
+---
+
 ## Current work — correct pre-Windows proof and overhead claims (2026-10-12)
 
 **Work:** emulator/client02-preruntime-audit

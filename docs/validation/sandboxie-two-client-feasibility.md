@@ -111,7 +111,9 @@ Before running the two-game test, an authorized operator:
    Storage / OpenCredentials** in the selected box. AutoDelete/AutoRemove
    must be OFF. The collector resolves OpenCredentials in the box and
    inherited GlobalSettings; it also checks a box's explicit
-   `OpenProtectedStorage` template if configured. A known bypass or
+   `OpenProtectedStorage` template from both the local box and
+   `GlobalSettings` selections, plus an explicit direct flag if present.
+   This cannot resolve arbitrary nested template settings. A known bypass or
    unreadable/UNKNOWN setting prevents launch. Even with OFF, intercepted
    WinCred operations can fall back to host credential reads; therefore
    OFF **does not independently establish Windows-account or WAM/SSO

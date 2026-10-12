@@ -207,16 +207,43 @@ or public mutation routes by accident.
 the **same Sandboxie isolation model** to four separately licensed clients;
 do not implement Client 03/04 or create boxes now.
 
+## Deep pre-Windows-test failure analysis (bounded, one engine)
+
+The source audit is **not limited to previously proven behavior**: it also
+anticipates technically plausible failures, but it does not label hypotheses
+as observed bugs or invent secondary virtualization providers.
+
+| Risk | Pre-test decision / mitigation | Boundary still unresolved |
+| --- | --- | --- |
+| Microsoft WAM / Entra broker identity shared under the host Windows account | Manual licensed login, no token copying, no fake credential manager; block known WinCred-bypass settings and keep read-through caveat explicit | Two different playable accounts must be observed; sandbox configuration alone can never prove broker isolation |
+| Single-instance handoff / shared IPC objects | Launch the official signed Desktop EXE in one fixed Sandboxie box; require its real PID membership before accepting process isolation | A launcher return code or second window label cannot prove the Minecraft child remained inside the box |
+| Inherited/local templates and permission overrides | Canonical collector now checks locally and globally selected explicit OpenProtectedStorage and the legacy direct flag where declared; failures are UNKNOWN | Nested custom templates, runtime effective config, other paths and application compatibility may still be unknown; no automatic *full isolation* verdict |
+| Repeated launch during startup | Refuse a new request when a selected-box Minecraft-named **visible** candidate is already observed. Do not start a supervisor or kill a process as an automatic retry | A headless/starting game can still be present; observation on Windows must resolve whether the launch path is idempotent |
+| Installed EXE current directory, helper discovery and identity | Use the selected signed game directory as the launcher working directory, find the Sandboxie Plus helper under the same trusted Program Files roots as the collector, verify installed Desktop product metadata | Launcher/API behavior, Authenticode publisher for actual installed release, and game resource loading are not yet tested |
+| GUI Start.exe output / listpids integrity | Bound executable calls, verify Start.exe exit code and listpids membership; retain UNKNOWN for malformed/unavailable output | Standard-output behavior for specific Sandboxie and Windows versions cannot be proven here |
+| Game window, input and graphics ownership | Use native Windows rendering and keyboard/mouse; only window candidates identified, no gameplay or concurrent-input claims | One keyboard and mouse have one foreground-focus target at a time; independent *sequential* playability is not simultaneous independent physical input |
+| Per-client operating cost | No resident extra service, VM memory reservation, screenshot streaming, background polling or power throttling. One SummaryOnly request per user Refresh | PowerShell and SbieIni still launch multiple short-lived helpers per refresh; idle vs click latency and whole-machine RAM/VRAM impact require actual benchmark |
+| Persistent box and world data | Never delete, reset, clone, auto-clean or import signed-in worlds/tokens | Sandbox write overlay/disk growth and persistence through reboot are unmeasured |
+| Legacy installer / environment | Existing VMware/installer identities remain untouched; experimental Tauri development route only | An installable two-client Windows release is not yet produced |
+
+**Do not solve unknowns by adding validators that prevent every launch.**
+Only reject unsafe or contradictory evidence that is actually observable.
+For unresolved Microsoft identity or compatibility behavior, preserve
+UNKNOWN and use the existing single two-account acceptance workflow.
+The first objective remains real playable Minecraft, not a large
+catalogue of static checker passes.
+
 ## Security and technical caveats
 
 - Sandboxie is **not** a Windows user account. `OpenCredentials=OFF`
   means Sandboxie's WinCred hooks are not explicitly bypassed, **not**
   that a sandboxed process cannot read host credentials. The WinCred
-  compatibility layer may fall back to native reads. An explicit
+  compatibility layer may fall back to native reads. A locally or globally selected
   `Template=OpenProtectedStorage` can disable the WinCred hooks regardless
-  of `OpenCredentials`; the on-demand collector conservatively detects
-  this declared box template (or treats unreadable template settings as
-  UNKNOWN). Neither setting establishes WAM/ADAL login-helper or SSO
+  of `OpenCredentials`; the on-demand collector checks these explicit
+  selections and the deprecated direct Boolean. This is not a complete
+  effective-template graph audit (custom templates can include other rules);
+  unreadable settings remain UNKNOWN. Neither setting establishes WAM/ADAL login-helper or SSO
   isolation; only actual independent account/gameplay evidence can do that.
 - Sandboxie may be incompatible with an Education release, login broker,
   anti-tamper mechanism or protected process. Never bypass game instance
