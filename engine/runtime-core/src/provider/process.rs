@@ -308,6 +308,13 @@ mod tests {
     }
 
     #[test]
+    fn excessive_pipe_workers_are_rejected_before_starting_another_helper() {
+        // An impossible request must be rejected independently of other
+        // concurrently executing tests and without spawning any child.
+        assert!(super::reserve_io_workers(super::MAX_BOUNDED_IO_WORKERS + 1).is_err());
+    }
+
+    #[test]
     fn oversized_stdin_is_rejected_before_child_launch() {
         let error = super::command_output_with_stdin(
             Path::new("not-a-real-executable"),
