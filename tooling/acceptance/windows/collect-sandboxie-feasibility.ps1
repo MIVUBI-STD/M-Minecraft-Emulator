@@ -73,7 +73,12 @@ function Invoke-BoundedReadOnlyTool {
     return $result.Trim()
   }
   catch { return $null }
-  finally { $process.Dispose() }
+  finally {
+    # Closing the reader also releases its pipe if an inherited writer
+    # prevents EOF; never terminate a Minecraft game to finish inspection.
+    try { $process.StandardOutput.Dispose() } catch { }
+    $process.Dispose()
+  }
 }
 
 $dirs = @()
