@@ -245,11 +245,20 @@ $gameCandidates = @(
   } |
   Sort-Object Id |
   ForEach-Object {
+    # PID alone is reusable. Capture the start timestamp from this
+    # particular process object while enumerating; UNKNOWN is allowed if
+    # access is denied or the process exits between reads.
+    $createdFileTime = $null
+    try {
+      $createdFileTime = $_.StartTime.ToFileTimeUtc().ToString(
+        [System.Globalization.CultureInfo]::InvariantCulture)
+    } catch { }
     $handle = if ($_.MainWindowHandle -ne [IntPtr]::Zero) {
       '0x' + $_.MainWindowHandle.ToInt64().ToString('x')
     } else { $null }
     [ordered]@{
       pid = [int]$_.Id
+      createdFileTime = $createdFileTime
       windowHandle = $handle
       inSelectedBox = $(if ($membershipStatus -eq 'OBSERVED') {
         [bool]($boxedPids -contains [int]$_.Id)
@@ -289,7 +298,15 @@ $report = [ordered]@{
   machine = [ordered]@{
     interactiveSession = ($session -ne 0)
     processEvidenceClass = 'NAME_MATCH_CANDIDATE_ONLY'
-    candidateProcesses = @($gameCandidates)
+    # Preserve the existing schema-1 persisted report exactly. Process
+    # creation time is exposed only by the bounded live desktop summary.
+    candidateProcesses = @($gameCandidates | ForEach-Object {
+      [ordered]@{
+        pid = $_.pid
+        windowHandle = $_.windowHandle
+        inSelectedBox = $_.inSelectedBox
+      }
+    })
   }
   operator = [ordered]@{
     attribution = 'OPERATOR_DECLARED_NOT_MACHINE_VERIFIED'
@@ -316,7 +333,7 @@ if (-not $SummaryOnly) {
 $summary = [ordered]@{
   # Desktop summary schema evolves independently of the persisted
   # schema-1 CLI report consumed by the existing evidence evaluator.
-  schema = 2
+  schema = 3
   boxName = $BoxName
   stage = $Stage
   boxConfigured = $boxConfigured
@@ -328,6 +345,7 @@ $summary = [ordered]@{
   interactiveSession = ($session -ne 0)
   processEvidenceClass = 'NAME_MATCH_CANDIDATE_ONLY'
   candidateProcessCount = $gameCandidates.Count
+  processCandidates = @($gameCandidates)
   # Include Minecraft-name processes that have not created an HWND yet.
   # UNKNOWN Sandboxie membership is never treated as an empty box.
   isolatedCandidateProcesses = @($gameCandidates | Where-Object {
