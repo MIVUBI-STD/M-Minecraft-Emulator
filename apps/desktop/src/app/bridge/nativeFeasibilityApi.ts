@@ -71,7 +71,7 @@ export function parseNativeObservation(value: unknown): NativeProcessObservation
 }
 
 export interface IsolatedClientObservation {
-  schema: 1;
+  schema: 2;
   boxName: "MinecraftClient02";
   stage: "INSPECT";
   boxConfigured: "YES" | "NO" | "UNKNOWN";
@@ -83,6 +83,7 @@ export interface IsolatedClientObservation {
   interactiveSession: boolean;
   processEvidenceClass: "NAME_MATCH_CANDIDATE_ONLY";
   candidateProcessCount: number;
+  isolatedCandidateProcesses: number;
   nativeVisibleCandidates: number;
   isolatedVisibleCandidates: number;
   interpretation: "CONFIG_AND_PROCESS_CANDIDATES_ONLY_NO_AUTHENTICATION_PROOF";
@@ -93,14 +94,14 @@ export function parseIsolatedClientObservation(value: unknown): IsolatedClientOb
     "schema", "boxName", "stage", "boxConfigured", "boxSettingsSource",
     "autoDelete", "autoRemove", "credentialHostAccess", "membershipStatus",
     "interactiveSession", "processEvidenceClass", "candidateProcessCount",
-    "nativeVisibleCandidates", "isolatedVisibleCandidates", "interpretation",
+    "isolatedCandidateProcesses", "nativeVisibleCandidates", "isolatedVisibleCandidates", "interpretation",
   ];
   const flag = (v: unknown): v is "ON" | "OFF" | "UNKNOWN" =>
     v === "ON" || v === "OFF" || v === "UNKNOWN";
   const bounded = (v: unknown): v is number =>
     typeof v === "number" && Number.isSafeInteger(v) && v >= 0 && v <= 16;
   if (!isRecord(value) || !hasOnly(value, keys) ||
-    value.schema !== 1 || value.boxName !== "MinecraftClient02" ||
+    value.schema !== 2 || value.boxName !== "MinecraftClient02" ||
     value.stage !== "INSPECT" ||
     !["YES", "NO", "UNKNOWN"].includes(value.boxConfigured as string) ||
     !["BOX_SECTION_ENUMERATED", "UNKNOWN"].includes(value.boxSettingsSource as string) ||
@@ -114,11 +115,15 @@ export function parseIsolatedClientObservation(value: unknown): IsolatedClientOb
     value.processEvidenceClass !== "NAME_MATCH_CANDIDATE_ONLY" ||
     value.interpretation !== "CONFIG_AND_PROCESS_CANDIDATES_ONLY_NO_AUTHENTICATION_PROOF" ||
     !bounded(value.candidateProcessCount) ||
+    !bounded(value.isolatedCandidateProcesses) ||
+    (value.isolatedCandidateProcesses as number) > (value.candidateProcessCount as number) ||
     !bounded(value.nativeVisibleCandidates) ||
     !bounded(value.isolatedVisibleCandidates) ||
+    (value.isolatedVisibleCandidates as number) > (value.isolatedCandidateProcesses as number) ||
     (value.nativeVisibleCandidates as number) + (value.isolatedVisibleCandidates as number) > (value.candidateProcessCount as number) ||
     (value.membershipStatus === "UNKNOWN" &&
-      (value.nativeVisibleCandidates !== 0 || value.isolatedVisibleCandidates !== 0))
+      (value.nativeVisibleCandidates !== 0 || value.isolatedVisibleCandidates !== 0 ||
+       value.isolatedCandidateProcesses !== 0))
   ) {
     throw new TypeError("Untrusted isolated Minecraft process observation.");
   }
