@@ -132,6 +132,8 @@ describe("Native candidate IPC evidence", () => {
     expect(parseIsolatedClientObservation(valid)).toEqual(valid);
     const invalid = [
       { ...valid, boxName: "AnotherBox" },
+      { ...valid, boxConfigured: "UNKNOWN" },
+      { ...valid, boxSettingsSource: "UNKNOWN" },
       { ...valid, credentialHostAccess: "GAMEPLAY_VERIFIED" },
       { ...valid, candidateProcessCount: 1 },
       { ...valid, nativeVisibleCandidates: 17 },
@@ -153,6 +155,8 @@ describe("Native candidate IPC evidence", () => {
     const desktopConfig = JSON.parse(readFileSync(new URL("../src-tauri/tauri.conf.json", import.meta.url), "utf8"));
     expect(screen).toContain("Minecraft Instance Manager");
     expect(screen).toContain("MinecraftClient02");
+    expect(screen).toContain("native unverified");
+    expect(screen).toContain("WinCred bypass configuration");
     expect(screen).not.toContain("MIVUBI");
     expect(backend).toContain('const CLIENT_02_BOX_NAME: &str = "MinecraftClient02";');
     expect(sandboxCollector).toContain("BoxName = 'MinecraftClient02'");

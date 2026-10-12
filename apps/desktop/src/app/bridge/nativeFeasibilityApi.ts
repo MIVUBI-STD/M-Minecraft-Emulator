@@ -107,6 +107,9 @@ export function parseIsolatedClientObservation(value: unknown): IsolatedClientOb
     !flag(value.autoDelete) || !flag(value.autoRemove) ||
     !flag(value.credentialHostAccess) ||
     !["OBSERVED", "UNKNOWN"].includes(value.membershipStatus as string) ||
+    (value.membershipStatus === "OBSERVED" && value.boxConfigured !== "YES") ||
+    (value.boxSettingsSource === "BOX_SECTION_ENUMERATED" && value.boxConfigured !== "YES") ||
+    (value.credentialHostAccess !== "UNKNOWN" && value.boxSettingsSource !== "BOX_SECTION_ENUMERATED") ||
     typeof value.interactiveSession !== "boolean" ||
     value.processEvidenceClass !== "NAME_MATCH_CANDIDATE_ONLY" ||
     value.interpretation !== "CONFIG_AND_PROCESS_CANDIDATES_ONLY_NO_AUTHENTICATION_PROOF" ||

@@ -132,7 +132,7 @@
           <article class="pilot-slot">
             <strong>Client 01 · Native</strong>
             <p>Minecraft Education Windows host</p>
-            <span>{nativeWindows === null ? "Membership UNKNOWN" : nativeWindows > 0 ? `${nativeWindows} visible process candidate(s)` : "No visible candidate observed"}</span>
+            <span>{nativeWindows === null ? "Membership UNKNOWN" : nativeWindows > 0 ? `${nativeWindows} visible candidate(s) outside selected box — native unverified` : "No candidate outside selected box"}</span>
           </article>
           <article class="pilot-slot">
             <strong>Client 02 · Isolated</strong>
@@ -144,12 +144,12 @@
           <p class="pilot-caution">
             Sandboxie box: {observation.boxConfigured}.
             PID membership: {observation.membershipStatus}.
-            Host credential-store access: {observation.credentialHostAccess}.
+            WinCred bypass configuration: {observation.credentialHostAccess}.
             AutoDelete: {observation.autoDelete}.
             AutoRemove: {observation.autoRemove}.
           </p>
           <p class="pilot-caution">
-            Process names and visible windows are candidates only. Sandbox membership does not prove Minecraft Education identity, two Microsoft sign-ins, world rendering or multiplayer.
+            A process outside MinecraftClient02 is not necessarily host-native; it may belong to another sandbox or Minecraft edition. OpenCredentials OFF may still read host credentials. Process/window counts cannot prove identity, separate Microsoft sign-ins, game rendering or multiplayer.
           </p>
         {:else}
           <p class="pilot-caution">No current inspection. Click Refresh both clients to inspect process membership.</p>
@@ -182,7 +182,7 @@
       <section class="pilot-section pilot-boundary">
         <span class="eyebrow">VALIDATION BOUNDARY</span>
         <h3>Two independent licensed game accounts are not yet proven</h3>
-        <p>OpenCredentials OFF is only a sandbox setting. Microsoft WAM/ADAL helpers may behave differently. Independently verify login, input, world playability, multiplayer and persistence before declaring Client 02 compatible.</p>
+        <p>OpenCredentials OFF is only a WinCred hook setting and may still permit host credential reads. OpenProtectedStorage can bypass the hooks. Microsoft WAM/ADAL helpers may behave differently. Independently verify login, input, world playability, multiplayer and persistence before declaring Client 02 compatible.</p>
         <p>The former VMware runtime remains disabled and its account data untouched. The old VMware NSIS installer is blocked.</p>
       </section>
     </div>
