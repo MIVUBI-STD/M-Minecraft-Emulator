@@ -50,8 +50,10 @@ if ($Stage -eq 'INSPECT' -and (
   throw 'Account, license and game claims belong only to TWO_CLIENT.'
 }
 
-# The only commands ever invoked are exact read-only SbieIni query and
-# Start.exe /listpids, never install, launch, terminate, delete or config write.
+# Read-only SbieIni/Start.exe queries are preferred. When Start.exe stdout is
+# unavailable, a bounded SbieApi_EnumProcessEx read can run in this short-lived
+# collector after verifying the installed vendor DLL signature. Never mutate
+# Sandboxie settings, terminate processes, read tokens or infer gameplay.
 function Invoke-BoundedReadOnlyTool {
   param([string]$Exe, [string]$Arguments)
   $psi = [System.Diagnostics.ProcessStartInfo]::new()
@@ -119,6 +121,26 @@ if ($installed) {
 }
 $service = Get-Service -Name 'SbieSvc' -ErrorAction SilentlyContinue
 $serviceRunning = ($null -ne $service -and $service.Status -eq 'Running')
+
+# One trust boundary shared by both on-demand Sandboxie DLL probes. Never
+# load an unsigned, mismatched or unexpected DLL into the persistent Tauri app.
+function Get-TrustedSbieDll {
+  if (-not $trustedTools -or -not $serviceRunning -or -not $dir) { return $null }
+  $dll = Join-Path $dir 'SbieDll.dll'
+  if (-not (Test-Path -LiteralPath $dll -PathType Leaf)) { return $null }
+  try {
+    $dllSig = Get-AuthenticodeSignature -LiteralPath $dll
+    $toolSig = Get-AuthenticodeSignature -LiteralPath $startExe
+    if ($dllSig.Status -eq 'Valid' -and $toolSig.Status -eq 'Valid' -and
+        $null -ne $dllSig.SignerCertificate -and
+        $null -ne $toolSig.SignerCertificate -and
+        $dllSig.SignerCertificate.Thumbprint -eq
+          $toolSig.SignerCertificate.Thumbprint) {
+      return $dll
+    }
+  } catch { }
+  return $null
+}
 
 function Read-BoxSetting {
   param([string]$Section, [string]$Key)
@@ -246,6 +268,127 @@ if ($trustedTools -and $serviceRunning -and $boxConfigured -eq 'YES') {
   }
 }
 
+# The normal /listpids path can fail because Start.exe is a GUI executable
+# whose stdout pipe is not consistently captured. Only in that case, try
+# the vendor's read-only SbieApi_EnumProcessEx in this short-lived child.
+# Exact upstream implementation (pinned):
+# https://github.com/sandboxie-plus/Sandboxie/blob/43b629be6c17628e6298befccfec279774895ba5/Sandboxie/core/dll/sbieapi.c
+# https://github.com/sandboxie-plus/Sandboxie/blob/43b629be6c17628e6298befccfec279774895ba5/Sandboxie/core/drv/process_api.c
+# The API uses five arguments and boxed_count is a separate ULONG pointer.
+# A zero return alone cannot prove completeness: the driver can truncate
+# to the supplied buffer capacity. Compare two full bounded snapshots and
+# a final independent count, failing closed on churn, duplicates or truncation.
+if ($membershipStatus -ne 'OBSERVED' -and
+    $trustedTools -and $serviceRunning -and $boxConfigured -eq 'YES') {
+  $sbieDll = Get-TrustedSbieDll
+  if ($null -ne $sbieDll) {
+    try {
+      if (-not ('MivubiReadOnlySbieEnumeration' -as [type])) {
+        Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+
+public static class MivubiReadOnlySbieEnumeration {
+  const uint LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR = 0x100;
+  const uint LOAD_LIBRARY_SEARCH_DEFAULT_DIRS = 0x1000;
+
+  [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+  static extern IntPtr LoadLibraryExW(string path, IntPtr reserved, uint flags);
+  [DllImport("kernel32.dll", CharSet = CharSet.Ansi, ExactSpelling = true)]
+  static extern IntPtr GetProcAddress(IntPtr module, string name);
+  [DllImport("kernel32.dll")]
+  [return: MarshalAs(UnmanagedType.Bool)]
+  static extern bool FreeLibrary(IntPtr module);
+
+  [UnmanagedFunctionPointer(CallingConvention.StdCall, CharSet = CharSet.Unicode)]
+  delegate int EnumProcessEx(
+    [In, MarshalAs(UnmanagedType.LPArray, ArraySubType = UnmanagedType.U2, SizeConst = 34)]
+      char[] boxName,
+    [MarshalAs(UnmanagedType.U1)] bool allSessions,
+    uint whichSession,
+    [Out, MarshalAs(UnmanagedType.LPArray)] uint[] boxedPids,
+    ref uint boxedCount);
+
+  static uint[] Read(EnumProcessEx query, char[] box, uint capacity) {
+    uint[] data = new uint[capacity];
+    uint count = capacity;
+    int status = query(box, false, uint.MaxValue, data, ref count);
+    // count == capacity might be truncated by the Sandboxie driver.
+    if (status != 0 || count > 256 || count >= capacity)
+      throw new InvalidOperationException("Sandboxie PID enumeration incomplete");
+    uint[] result = new uint[count];
+    Array.Copy(data, result, count);
+    Array.Sort(result);
+    for (int i = 0; i < result.Length; i++) {
+      if (result[i] == 0 || (i > 0 && result[i] == result[i - 1]))
+        throw new InvalidOperationException("Invalid Sandboxie PID inventory");
+    }
+    return result;
+  }
+
+  public sealed class Inventory {
+    public readonly uint[] Pids;
+    public Inventory(uint[] pids) { Pids = pids; }
+  }
+
+  public static Inventory Query(string dll, string box) {
+    if (String.IsNullOrEmpty(box) || box.Length > 32 ||
+        !System.Text.RegularExpressions.Regex.IsMatch(
+          box, @"^[A-Za-z][A-Za-z0-9]{0,31}$"))
+      throw new ArgumentException("Invalid selected box");
+    IntPtr module = LoadLibraryExW(dll, IntPtr.Zero,
+      LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_DEFAULT_DIRS);
+    if (module == IntPtr.Zero)
+      throw new InvalidOperationException("Signed SbieDll load unavailable");
+    try {
+      IntPtr entry = GetProcAddress(module, "SbieApi_EnumProcessEx");
+      if (entry == IntPtr.Zero)
+        throw new MissingMethodException("Vendor enumeration export unavailable");
+      EnumProcessEx query = (EnumProcessEx)Marshal.GetDelegateForFunctionPointer(
+        entry, typeof(EnumProcessEx));
+      // The Sandboxie driver probes a fixed 32-WCHAR prefix, even when
+      // a shorter name is supplied. Allocate the documented WCHAR[34].
+      char[] name = new char[34];
+      box.CopyTo(0, name, 0, box.Length);
+      uint expected = 0;
+      if (query(name, false, uint.MaxValue, null, ref expected) != 0 ||
+          expected > 256)
+        throw new InvalidOperationException("Sandboxie count unavailable");
+      // 128 slots of race headroom match upstream Start.exe. The consumer
+      // accepts at most 256 actual PIDs, independently of the buffer size.
+      uint capacity = (uint)Math.Min(384, Math.Max(16, (int)expected + 128));
+      uint[] first = Read(query, name, capacity);
+      uint[] second = Read(query, name, capacity);
+      uint finalCount = 0;
+      if (query(name, false, uint.MaxValue, null, ref finalCount) != 0 ||
+          finalCount != expected || first.Length != (int)expected ||
+          second.Length != first.Length)
+        throw new InvalidOperationException("Sandboxie inventory changed");
+      for (int i = 0; i < first.Length; i++)
+        if (first[i] != second[i])
+          throw new InvalidOperationException("Sandboxie inventory identity changed");
+      // Wrap the array: PowerShell otherwise unwraps a valid empty list
+      // to null and mistakes an OBSERVED empty box for UNKNOWN.
+      return new Inventory(first);
+    } finally { FreeLibrary(module); }
+  }
+}
+'@ -ErrorAction Stop | Out-Null
+      }
+      # Empty array is an observed empty box; null is a failed probe.
+      $enumerated = [MivubiReadOnlySbieEnumeration]::Query($sbieDll, $BoxName)
+      if ($null -ne $enumerated) {
+        $boxedPids = @($enumerated.Pids | ForEach-Object { [int64]$_ })
+        $membershipStatus = 'OBSERVED'
+      }
+    } catch {
+      # No fallback to zero PIDs or assumptions about native processes.
+      $boxedPids = @()
+      $membershipStatus = 'UNKNOWN'
+    }
+  }
+}
+
 $session = [System.Diagnostics.Process]::GetCurrentProcess().SessionId
 # This cold, explicit Refresh path may inspect image signatures, but only
 # for visible candidates outside the selected box. Cache by path for this
@@ -333,16 +476,8 @@ $signedOutside = @($gameCandidates | Where-Object {
 if ($ImageProof -and $signedOutside.Count -gt 0) {
   $directPidQuery = 'UNAVAILABLE'
   $signedUnknownBoxCount = $signedOutside.Count
-  $sbieDll = if ($dir) { Join-Path $dir 'SbieDll.dll' } else { $null }
-  if ($trustedTools -and $serviceRunning -and
-      $null -ne $sbieDll -and
-      (Test-Path -LiteralPath $sbieDll -PathType Leaf)) {
-    $sig = Get-AuthenticodeSignature -LiteralPath $sbieDll
-    $toolSig = Get-AuthenticodeSignature -LiteralPath $startExe
-    if ($sig.Status -eq 'Valid' -and $toolSig.Status -eq 'Valid' -and
-        $null -ne $sig.SignerCertificate -and
-        $null -ne $toolSig.SignerCertificate -and
-        $sig.SignerCertificate.Thumbprint -eq $toolSig.SignerCertificate.Thumbprint) {
+  $sbieDll = Get-TrustedSbieDll
+  if ($null -ne $sbieDll) {
       try {
         if (-not ('MivubiReadOnlySbieProcessQuery' -as [type])) {
           Add-Type -TypeDefinition @'
@@ -453,7 +588,6 @@ public static class MivubiReadOnlySbieProcessQuery {
         $signedOtherBoxCount = 0
         $signedUnknownBoxCount = $signedOutside.Count
       }
-    }
   }
 }
 

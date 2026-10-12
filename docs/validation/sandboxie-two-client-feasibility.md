@@ -32,6 +32,12 @@ Sandboxie Plus provides:
   The count includes all sandbox processes, not just game candidates:
   the collector accepts up to 256 listed PIDs with a 4096-character
   output limit, while the Minecraft candidate list remains limited to 16.
+  When that CLI output is missing or invalid, the same short-lived collector
+  may fall back to the verified installed `SbieDll.dll`
+  `SbieApi_EnumProcessEx` read-only export. The fallback must confirm
+  stable count and PIDs across separate bounded reads; otherwise membership
+  stays UNKNOWN and Client 02 launch is rejected. No game data, identities
+  or sign-in tokens are accessed.
 
 These calls remain **read-only** in the collector. The active desktop adds
 one separate, explicitly requested launch action via the official
@@ -42,11 +48,40 @@ copies Microsoft account data or modifies Minecraft executable files.
 Upstream references:
 - https://sandboxie-plus.github.io/sandboxie-docs/Content/SbieIniCommandLine/
 - https://sandboxie-plus.github.io/sandboxie-docs/Content/StartCommandLine/
+- https://github.com/sandboxie-plus/Sandboxie/blob/43b629be6c17628e6298befccfec279774895ba5/Sandboxie/core/dll/sbieapi.c
+- https://github.com/sandboxie-plus/Sandboxie/blob/43b629be6c17628e6298befccfec279774895ba5/Sandboxie/core/dll/sbieapi.h
+- https://github.com/sandboxie-plus/Sandboxie/blob/43b629be6c17628e6298befccfec279774895ba5/Sandboxie/core/drv/process_api.c
+- https://github.com/sandboxie-plus/Sandboxie/blob/43b629be6c17628e6298befccfec279774895ba5/Sandboxie/apps/start/start.cpp
 - https://sandboxie-plus.github.io/sandboxie-docs/Content/SandboxieIni/
 - https://sandboxie-plus.github.io/sandboxie-docs/Content/SandboxRemoval.html
 - https://github.com/sandboxie-plus/Sandboxie/blob/master/Sandboxie/install/SbieSettings.ini
 - https://github.com/sandboxie-plus/sandboxie-docs/blob/main/docs/PlusContent/supporter-certificate.md
 - https://edusupport.minecraft.net/hc/en-us/articles/13106858087956-Windows-Installation-Guide
+
+## Fallback trust and proof boundary
+
+The pinned upstream C implementation accepts five arguments:
+`(box_name, all_sessions, which_session, boxed_pids, boxed_count)`.
+The current driver uses a separately supplied count pointer and may return
+a **truncated but successful** PID list when the buffer fills. The older
+documentation describes a legacy first-array-element count, which **must
+not** be used for this version's five-argument binding. The collector
+supplies an allocated WCHAR[34] box-name buffer, current-session mode,
+a 256-process acceptance bound and buffer headroom. It independently checks
+two sorted PID inventories and a final count before accepting the result.
+Even a stable snapshot can race with an out-of-band process launch and cannot
+prove Microsoft WAM isolation or Minecraft gameplay.
+
+Fallback is requested only after the CLI read has failed. The collector
+requires the SbieDll signature to match its trusted Start.exe, uses the
+vendor export in a *short-lived PowerShell process*, and returns UNKNOWN
+if validation/ABI/loading/enumeration fails. Loading the vendor DLL on a
+real Windows machine, its actual resource cost and crash behavior are
+**NOT_EXECUTED**. The app's 30-second collector deadline bounds the
+parent wait; it does not establish that vendor DLL initialization is safe
+for every Sandboxie version. The persistent Tauri manager never loads it.
+The separate ImageProof-only per-PID QueryProcess attribution remains
+manual-only.
 
 ## Canonical, generic naming
 

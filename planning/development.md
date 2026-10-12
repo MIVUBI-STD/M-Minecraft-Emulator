@@ -1,10 +1,39 @@
 # Current Development Handoff
 
 **Branch:** `Local` only. **Product:** Minecraft Instance Manager.
-**Current work:** `emulator/sandboxie-process-discovery-safety` (source-only; runtime tests postponed).
+**Current work:** `emulator/sandboxie-enumeration-fallback` (source-only; runtime tests postponed).
 **Engineering state:** source prototype / **Windows build and two-account gameplay NOT_EXECUTED**.
 
-## Latest source-only batch — Sandboxie process discovery and launch admission
+## Latest source-only batch — signed read-only enumeration fallback
+
+- Cross-checked upstream Sandboxie `SbieApi_EnumProcessEx` against pinned
+  DLL implementation, driver capacity handling and Start.exe caller. The
+  current upstream uses a five-argument API with a separate count pointer;
+  driver truncation can otherwise appear as a successful read.
+- In the existing short-lived canonical PowerShell collector, added a
+  **fallback only when /listpids cannot be parsed**. It loads the installed
+  SbieDll only after signature and signer-certificate checks match Start.exe;
+  its bounded API call checks two PID snapshots plus a final count, rejects
+  duplicates/zero PIDs, oversized and saturated inventories and races.
+  Valid zero-PID results use a typed wrapper to avoid being treated as null
+  by PowerShell.
+- Reused the one vendor-DLL trust guard for the existing manual ImageProof
+  attribution. No new service, provider, persistent state, API or schema.
+  Backend launch still requires verified OBSERVED membership with no
+  Minecraft-name process, and UNKNOWN still blocks.
+- Aligned source-level regression assertions, including a stale UI text
+  assertion from the preceding guidance update.
+- **Proof:** pinned exact-upstream C sources and exact-current GitHub code
+  and consumer review; *checks are authored, not executed*.
+  Node/Rust/PowerShell builds, vendor DLL loading and Windows/Minecraft
+  runtime remain **NOT_EXECUTED** (user postponed tests).
+- **Unresolved:** SbieDll load/ABI/crash/latency behavior across installed
+  releases is unproven; enumeration remains a race-prone snapshot;
+  Microsoft WAM isolation and two gameplays are unproven.
+- **Next:** narrow source review of process/window ownership and candidate
+  attribution, with no account or VM route changes.
+
+## Previous source-only batch — Sandboxie process discovery and launch admission
 
 - Corrected a source-proven duplicate-launch risk: Client 02 now refuses
   launching when Sandboxie membership is UNKNOWN. Only a fresh OBSERVED

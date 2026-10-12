@@ -268,10 +268,20 @@ describe("Native candidate IPC evidence", () => {
     expect(screen).toContain("Minecraft Instance Manager");
     expect(screen).toContain("MinecraftClient02");
     expect(screen).toContain("native unverified");
-    expect(screen).toContain("WinCred bypass configuration");
+    expect(screen).toContain("Known credential bypass settings");
     expect(screen).not.toContain("MIVUBI");
     expect(backend).toContain('const CLIENT_02_BOX_NAME: &str = "MinecraftClient02";');
     expect(sandboxCollector).toContain("BoxName = 'MinecraftClient02'");
+    // Vendor fallback is bounded, signed, read-only, and cannot infer login.
+    expect(sandboxCollector).toContain("function Get-TrustedSbieDll");
+    expect(sandboxCollector).toContain("SbieApi_EnumProcessEx");
+    expect(sandboxCollector).toContain("if ($membershipStatus -ne 'OBSERVED' -and");
+    expect(sandboxCollector).toContain("char[] name = new char[34];");
+    expect(sandboxCollector).toContain("uint[] second = Read(query, name, capacity);");
+    expect(sandboxCollector).toContain("return new Inventory(first);");
+    expect(sandboxCollector).toContain("finalCount != expected");
+    expect(sandboxCollector).toContain("$membershipStatus = 'UNKNOWN'");
+    expect(sandboxCollector).toContain("if ($gameCandidates.Count -gt 16)");
     expect(pilotLease).toContain('.join("MinecraftInstanceManager")');
     expect(pilotLease).toContain('.join("NativePilot")');
     expect(desktopConfig.app.windows[0].title).toBe("Minecraft Instance Manager");
