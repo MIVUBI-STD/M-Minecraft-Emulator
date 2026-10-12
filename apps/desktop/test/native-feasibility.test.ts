@@ -117,6 +117,8 @@ describe("Native candidate IPC evidence", () => {
     expect(active).toContain('placeClient02("RIGHT")');
     expect(active).toContain("Client 01 was not moved.");
     expect(active).toContain("officialImageOutsideSelectedBoxCount");
+    expect(bridge).toContain("officialImageOutsideSelectedBoxCount");
+    expect(engine).toContain("official_image_outside_selected_box_count");
     expect(active).toContain("Other Sandboxie boxes are not excluded");
     expect(active).toContain("nativeFeasibility.focusObservedClient02(target)");
     expect(active).toContain("disabled={busy || !focusTarget}");
@@ -126,6 +128,11 @@ describe("Native candidate IPC evidence", () => {
     expect(active).toContain("observation = await nativeFeasibility.inspectIsolatedClient02()");
     expect(active).not.toContain("nativeFeasibility.inspectCandidates()");
     expect(engine).toContain('["& {\\n", INSPECT, "\\n} -SummaryOnly"].concat()');
+    expect(engine).toContain('["& {\\n", INSPECT, "\\n} -SummaryOnly -ImageProof"].concat()');
+    expect(engine).toContain("inspect_sandbox_client_02_mode(true)");
+    expect(engine).toContain("inspect_sandbox_client_02_mode(false)");
+    expect(engine).toContain("let fresh = inspect_sandbox_client_02_fast()?;");
+    expect(engine).toContain("let observation = inspect_sandbox_client_02_fast()?;");
     expect(active).toContain('typeof reason === "string"');
     expect(commands).toContain("fn desktop_request_sandbox_client_02(");
     expect(engine).toContain("pub fn request_sandbox_client_02(");
