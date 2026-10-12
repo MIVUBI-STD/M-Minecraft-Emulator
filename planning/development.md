@@ -1,7 +1,7 @@
 # Current Development Handoff
 
 **Branch:** `Local` only. **Product:** Minecraft Instance Manager.
-**Current work:** `emulator/cross-box-attribution`.
+**Current work:** `emulator/direct-pid-box-attribution`.
 **Engineering state:** source prototype / **Windows build and two-account gameplay NOT_EXECUTED**.
 
 ## One selected outcome and engine
@@ -41,7 +41,7 @@ part of the active implementation.
   including explicit local/global protected-storage template selections.
 - Backend launch admission serializes Client 02 preflight and requests without
   relying on UI buttons; a brief retry gap guards ambiguous requests.
-- The SummaryOnly IPC schema is now 5: one bounded candidate list carries
+- The SummaryOnly IPC schema is now 6: one bounded candidate list carries
   PID, optional creation FILETIME, HWND and observed box membership, with
   Rust/TypeScript validation of counts, uniqueness and attribution.
   Creation FILETIME is a decimal string so JavaScript cannot lose precision.
@@ -52,17 +52,25 @@ part of the active implementation.
   and count, not paths, account data or passwords. This does not prove native
   Windows ownership because other Sandboxie boxes may exist.
   On manual -ImageProof only, if signed candidates exist outside Client 02,
-  SbieIni query /boxes * enumerates up to six enabled active boxes available
-  to this user and Start.exe /box:... /listpids inspects the others.
-  The summary distinguishes matches in another active box from candidates
-  without a match among enumerated boxes. Failed/incomplete enumeration stays
-  UNKNOWN; absence is never treated as proof of a native client. These
-  snapshots are not atomic, and inactive/other-user boxes are not covered.
-  Launch preflight and Focus/Place use the same collector without the
-  expensive -ImageProof switch or cross-box enumeration; a per-Refresh
-  in-memory path cache avoids repeated signer checks for one executable.
+  the collector probes the signed installed SbieDll.dll export
+  SbieApi_QueryProcess for each candidate PID. The query uses a Windows
+  process handle and checks creation FILETIME before and after the vendor
+  call, avoiding PID-reuse false attribution. A successful box name other
+  than MinecraftClient02 is OTHER_BOX; every API failure, missing process
+  or inconsistent identity stays UNKNOWN, never "native".
+  Loading Sandboxie's DLL is confined to the short-lived PowerShell
+  collector, never the Tauri manager. Only modules signed with the same
+  certificate as the trusted Sandboxie Start.exe are loaded. DLL in-process
+  startup behavior, ABI across installed versions, image load failure and
+  real latency are still NOT_EXECUTED; a catastrophic DLL init failure
+  could terminate the collector child and surface an inspection error.
+  The old multi-box SbieIni/Start.exe CLI sweep has been replaced; there
+  is no fallback that infers native status from missing box matches.
+  Launch preflight and Focus/Place use the existing SummaryOnly collector
+  without -ImageProof or SbieDll loading; one-shot image caching remains.
   Persisted CLI evidence remains schema 1. The collector runs only on demand;
-  no background process or new vendor-DLL binding is introduced.
+  the optional vendor-DLL call exists ONLY in its short-lived child, not
+  in any always-running application or service.
   Collector stdout wait is bounded after helper exit; the launch
   helper handle is disposed without terminating game or box.
 - Client 02 now has one explicit Focus action: Rust obtains a fresh
@@ -120,12 +128,12 @@ PowerShell or a two-game proof. Do not promote old evidence to new HEAD.
 TypeScript and collector regression checks only. Node, Rust, PowerShell and
 Windows/Minecraft executions on current HEAD remain **NOT_EXECUTED**.
 
-**Next bounded engineering action:** examine the exact vendor SbieApi_QueryProcess
-ABI and supported per-PID behavior if further native attribution is worth
-the integration risk. Current cross-box read-only enumeration is a bounded
-candidate refinement, not exhaustive/atomic proof that Client 01 is native.
-Do not expose automatic Client 01 Focus/Arrange on this evidence; Node/Rust/
-PowerShell/Windows/gameplay execution and latency measurements remain NOT_EXECUTED.
+**Next bounded engineering action:** verify the installed SbieDll vendor
+signature, load/return behavior and actual per-PID access on Windows
+when permitted execution evidence is available. A nonzero return does not
+prove native Client 01. If load behavior is incompatible or costly, keep
+direct PID query unavailable and return UNKNOWN without changing Launch,
+Focus, Place or user account data. No two-client automatic layout yet.
 
 ## Historical provenance (not active task state)
 
