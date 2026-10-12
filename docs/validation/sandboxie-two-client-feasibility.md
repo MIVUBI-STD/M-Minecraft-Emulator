@@ -79,9 +79,10 @@ the existing official Windows launcher. For Client 02:
    OpenCredentials OFF (box-local or inherited), then requests launch.
    A nonzero Start.exe exit code is reported as an error; a launcher that
    never exits before the deadline is UNKNOWN, not gameplay success.
-4. Click **Refresh both clients**. One collector reports candidate
-   windows classified as native versus in MinecraftClient02, plus the
-   credential-host-access configuration. The desktop uses
+4. Click **Refresh both clients**. One collector reports candidates
+   **outside the selected box** versus **inside MinecraftClient02**.
+   Being outside the box is not proof a process belongs to native Client 01.
+   It also reports the WinCred hook-bypass configuration. The desktop uses
    `-SummaryOnly`, which does not write an evidence file. A PID/window
    candidate is not Microsoft account proof.
 5. Independently verify two different licensed Microsoft Education logins,
@@ -109,8 +110,12 @@ Before running the two-game test, an authorized operator:
 3. Reviews **Auto Delete**, **Auto Remove** and **Open System Protected
    Storage / OpenCredentials** in the selected box. AutoDelete/AutoRemove
    must be OFF. The collector resolves OpenCredentials in the box and
-   inherited GlobalSettings: ON or unreadable/UNKNOWN prevents launching.
-   This does not independently establish WAM/SSO session isolation.
+   inherited GlobalSettings; it also checks a box's explicit
+   `OpenProtectedStorage` template if configured. A known bypass or
+   unreadable/UNKNOWN setting prevents launch. Even with OFF, intercepted
+   WinCred operations can fall back to host credential reads; therefore
+   OFF **does not independently establish Windows-account or WAM/SSO
+   session isolation**.
    Do not enable profile copying, credential sharing or automatic cleanup.
 4. Starts one official Minecraft Education Windows Desktop game natively,
    then requests the official game from within that selected Sandboxie box
@@ -132,8 +137,11 @@ broker restrictions or Sandboxie driver protections.
 
 The collector checks signed installed Start.exe / SbieIni.exe,
 Sandboxie service state, enabled-box/AutoDelete/AutoRemove settings,
-OpenCredentials host-store access, selected box PID membership and
-Windows candidate process windows. Its source is embedded in the development
+the WinCred-hook bypass setting (including an explicitly configured
+OpenProtectedStorage template), selected-box PID membership and Windows
+candidate process windows. The historical JSON field
+`credentialHostAccess` must be interpreted as a configuration/bypass
+indicator, not a proof that host credentials are inaccessible. Its source is embedded in the development
 Tauri backend so the inspector and launcher preflight reuse the same rules.
 It first queries the enabled box and enumerates its explicit box-local
 setting keys using SbieIni.exe query BOX *. If that enumeration succeeds,
@@ -144,7 +152,8 @@ SandMan lifecycle controls. New reports record boxSettingsSource as
 BOX_SECTION_ENUMERATED or UNKNOWN; legacy reports lacking provenance remain
 readable but cannot be reported compatible. Old records that omit
 credentialHostAccess likewise stay INCONCLUSIVE until new host evidence
-is collected.
+is collected. Full evidence reports now contain this field (older reports
+are not silently migrated or treated as complete).
 It never records full process paths, CLI arguments, box filesystem paths,
 world names, account identities, cookies or tokens. Its OpenCredentials
 field is a Sandboxie configuration observation, not proof that Microsoft's

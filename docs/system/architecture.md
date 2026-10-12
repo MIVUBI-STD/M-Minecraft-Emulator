@@ -210,8 +210,14 @@ do not implement Client 03/04 or create boxes now.
 ## Security and technical caveats
 
 - Sandboxie is **not** a Windows user account. `OpenCredentials=OFF`
-  is one configuration fact, **not proof that WAM/ADAL login helpers and
-  cross-process SSO are isolated**.
+  means Sandboxie's WinCred hooks are not explicitly bypassed, **not**
+  that a sandboxed process cannot read host credentials. The WinCred
+  compatibility layer may fall back to native reads. An explicit
+  `Template=OpenProtectedStorage` can disable the WinCred hooks regardless
+  of `OpenCredentials`; the on-demand collector conservatively detects
+  this declared box template (or treats unreadable template settings as
+  UNKNOWN). Neither setting establishes WAM/ADAL login-helper or SSO
+  isolation; only actual independent account/gameplay evidence can do that.
 - Sandboxie may be incompatible with an Education release, login broker,
   anti-tamper mechanism or protected process. Never bypass game instance
   protection, licensed account checks or authentication enforcement by

@@ -1,3 +1,46 @@
+## Current work — correct pre-Windows proof and overhead claims (2026-10-12)
+
+**Work:** emulator/client02-preruntime-audit
+**State:** SOURCE_CORRECTED / WINDOWS_AND_PERFORMANCE_UNPROVEN.
+**One selected approach:** Native Client 01 and persistent Sandboxie Plus
+`MinecraftClient02` for Client 02. No extra engine, poller, VM, service,
+credential cache, graphics capture or forced CPU/RAM governor.
+
+### Findings and actual corrections
+
+- The exact GitHub collector source was restored after a malformed intermediate
+  edit. Each new Git blob is now checked by a full-content round trip
+  **before it is committed**, rather than trusting a static substring.
+- Full manual CLI evidence now includes `credentialHostAccess`, previously
+  emitted only by desktop SummaryOnly. Legacy reports without that field
+  remain inconclusive in the evaluator.
+- Box-local `Template=OpenProtectedStorage` is checked only when a Template
+  setting exists; unreadable values remain UNKNOWN and the bypass is
+  treated as ON. `OpenCredentials=OFF` does **not** guarantee host credential
+  confidentiality: Sandboxie's WinCred hooks allow native read-through;
+  Microsoft WAM/SSO isolation is still **NOT_PROVEN**.
+- The status UI no longer equates *outside MinecraftClient02* with proven
+  native Client 01. Rust/TypeScript typed boundaries reject contradictory
+  box/membership evidence.
+- On-demand one-pass SummaryOnly inspection and zero idle polling remain the
+  lightweight operating rule. No game process resource throttling was
+  introduced or benchmarked.
+
+### Actual proof ceiling
+
+Current source/contract review, manual Git object equality and sandbox
+evaluator cases are supporting evidence only. Windows PowerShell execution,
+Rust/Tauri compilation, Svelte/Vitest build, licensed Education account
+separation, gameplay and real CPU/RAM measurements remain **NOT_EXECUTED**
+on the current revision. Source evidence must never be described as actual
+Minecraft compatibility or ADB-level measured memory usage.
+
+**Next:** run an exact-revision build, then identify an authentic second
+Minecraft Education process and independently signed-in account in the
+fixed selected Sandboxie box.
+
+---
+
 ## Current work — implement lightweight instance inspection (2026-10-12)
 
 **Work:** emulator/lightweight-client-inspection

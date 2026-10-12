@@ -4,7 +4,10 @@ The active Windows developer pilot is **Minecraft Instance Manager**. The single
 `NativeFeasibilityApp.svelte` provides Client 01 launch, one Client 02
 Sandboxie (`MinecraftClient02`) launch request with checked launcher exit,
 and **one explicit Refresh** that observes native/boxed process candidates
-and OpenCredentials through `src/app/bridge/nativeFeasibilityApi.ts`.
+and WinCred-hook configuration through `src/app/bridge/nativeFeasibilityApi.ts`.
+An outside-box PID is not verified host-native, and OpenCredentials OFF
+still permits native WinCred read-through. Login identity needs an actual
+Minecraft Education observation.
 The canonical Windows Sandboxie collector owns the box/membership facts.
 Its `-SummaryOnly` mode returns a non-persistent response to the desktop,
 while the manual CLI still writes a bounded evidence report. No duplicate
