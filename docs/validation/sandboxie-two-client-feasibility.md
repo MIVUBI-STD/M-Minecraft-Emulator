@@ -137,8 +137,10 @@ The pilot offers a manual **Focus Client 02** button only when a single
 boxed, visible Minecraft-name process candidate has a known creation FILETIME.
 The Rust owner re-inspects Sandboxie membership on every Focus and compares
 PID, creation FILETIME and HWND with the selected snapshot. The Windows call
-then verifies the process creation time and current HWND owner before
-requesting foreground activation. This does not establish official Education
+then verifies the process creation time, HWND's owning PID, and that it is
+a visible, unowned root window (not an owned dialog/popup) before requesting
+foreground activation. The HWND is converted to a native pointer width
+without truncation and validated again after restoring a minimized window. This does not establish official Education
 identity, an authenticated account or playable gameplay. If the process
 changed, Refresh first; if Windows rejects foreground activation, click the
 game window or use Alt+Tab. No keyboard simulation, hidden polling,
@@ -147,8 +149,14 @@ The adjacent **Place Left** and **Place Right** controls request half of
 Client 02's current monitor work area only, after the same identity check.
 They neither identify nor move Client 01, keep the existing Z-order and
 focus, and require the game window to be restored from minimized/maximized
-state first. Windows may adjust the final size to Minecraft's constraints;
-the accepted placement request does not certify the final rendering. Sandboxie Plus requires
+state first. Immediately before placement, the backend rechecks the full
+live window ownership, minimized/maximized state, and whether the window
+moved to another monitor while its work area was inspected. A changing
+window fails closed and asks for Refresh. Windows can queue SetWindowPos
+asynchronously, so even a successful request is not a guarantee of final
+size/position or protection against every HWND race. Windows may adjust the
+final size to Minecraft's constraints; the accepted request does not
+certify rendering. Sandboxie Plus requires
 a Business Certificate for business/educational use as described upstream.
 
 ## Prerequisites, manually managed

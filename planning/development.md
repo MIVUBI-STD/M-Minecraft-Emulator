@@ -1,10 +1,36 @@
 # Current Development Handoff
 
 **Branch:** `Local` only. **Product:** Minecraft Instance Manager.
-**Current work:** `emulator/sandboxie-enumeration-fallback` (source-only; runtime tests postponed).
+**Current work:** `emulator/native-window-ownership-hardening` (source-only; runtime tests postponed).
 **Engineering state:** source prototype / **Windows build and two-account gameplay NOT_EXECUTED**.
 
-## Latest source-only batch — signed read-only enumeration fallback
+## Latest source-only batch — PID/window ownership hardening
+
+- Cross-checked Microsoft Win32 GetAncestor GA_ROOT, GetWindow GW_OWNER,
+  GetWindowThreadProcessId, SetWindowPos and SetForegroundWindow contracts.
+  GA_ROOT does not exclude owned top-level popups; the previous Focus/Place
+  owner validation did not check GW_OWNER.
+- Reused one Rust live-window validation helper for both actions. It checks
+  HWND validity/visibility, PID ownership, root status and absence of an
+  owner window. Retained the existing Sandboxie membership and creation-
+  FILETIME verification with an open process handle for the action.
+- Checked the 64-bit observed HWND before conversion to platform pointer
+  width; refused silent truncation. After Focus restoration, the live
+  window is checked again; immediately before Place, full window checks,
+  minimized/maximized state and current monitor are revalidated.
+- Updated UI guidance, focused source assertions and validation procedure;
+  no additional daemon, polling, login automation, IPC schema or VM routes.
+- **Proof:** pinned GitHub source review and Microsoft Win32 references,
+  GitHub source/consumer inspection; regression assertions are *authored,
+  not executed*. Windows/Rust/Node/Minecraft remain NOT_EXECUTED by request.
+- **Unresolved:** a same-process HWND could be destroyed/reused between the
+  final check and the API call; asynchronous placement may be delivered
+  after the check. Name-matched boxed game processes are not authenticated
+  Minecraft Education images or accounts. Native Windows acceptance pending.
+- **Next:** bounded audit of process image attribution for boxed candidates
+  (without credential access, EXE modifications, or expanded provider scope).
+
+## Previous source-only batch — signed read-only enumeration fallback
 
 - Cross-checked upstream Sandboxie `SbieApi_EnumProcessEx` against pinned
   DLL implementation, driver capacity handling and Start.exe caller. The

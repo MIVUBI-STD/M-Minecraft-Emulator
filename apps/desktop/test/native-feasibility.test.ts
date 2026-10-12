@@ -96,7 +96,17 @@ describe("Native candidate IPC evidence", () => {
     expect(engine).toContain("fn placement_slot_keeps_all_pieces_inside_monitor_work_area()");
     expect(engine).toContain("verify_fresh_focus_target(&target, &fresh)");
     expect(engine).toContain("GetProcessTimes(process, &mut created");
-    expect(engine).toContain("GetWindowThreadProcessId(hwnd, &mut window_pid)");
+    expect(engine).toContain("GetWindowThreadProcessId(hwnd, &mut actual_pid)");
+    expect(engine).toContain("fn verify_live_client_02_window(");
+    expect(engine).toContain("GetWindow(hwnd, GW_OWNER)");
+    expect(engine).toContain("GetAncestor(hwnd, GA_ROOT)");
+    expect(engine).toContain("usize::try_from(hwnd_number)");
+    expect(engine).toContain("verify_live_client_02_window(hwnd, target.pid)?;");
+    expect(engine).toContain("verify_live_client_02_window(hwnd, process_id)?;");
+    expect(engine).toContain("MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST) } != monitor");
+    expect(engine).toContain("Client 02 window state changed before placement");
+    expect(engine).not.toContain("hwnd_number as usize as *mut");
+    expect(active).toContain("not a dialog or owned popup");
     expect(engine).toContain("SetForegroundWindow(hwnd)");
     expect(engine).not.toContain("AllowSetForegroundWindow");
     expect(engine).not.toContain("SendInput(");

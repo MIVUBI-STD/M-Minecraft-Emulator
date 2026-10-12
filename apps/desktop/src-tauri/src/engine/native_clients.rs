@@ -482,6 +482,33 @@ fn client_02_half_slot(
     Ok(Client02PlacementRect { x, y: top, width: slot_width, height })
 }
 
+// GA_ROOT checks parents, not an owned top-level popup. Require an unowned,
+// visible root belonging to this exact PID; do not read window titles or
+// claim that a matching name establishes official Minecraft/gameplay.
+// HWND may be reused, so recheck immediately before each Win32 mutation.
+#[cfg(windows)]
+fn verify_live_client_02_window(
+    hwnd: windows_sys::Win32::Foundation::HWND,
+    expected_pid: u32,
+) -> io::Result<()> {
+    use windows_sys::Win32::UI::WindowsAndMessaging::{
+        GetAncestor, GetWindow, GetWindowThreadProcessId, IsWindow,
+        IsWindowVisible, GA_ROOT, GW_OWNER,
+    };
+    let mut actual_pid = 0_u32;
+    if unsafe { IsWindow(hwnd) } == 0
+        || unsafe { IsWindowVisible(hwnd) } == 0
+        || unsafe { GetWindowThreadProcessId(hwnd, &mut actual_pid) } == 0
+        || actual_pid != expected_pid
+        || unsafe { GetAncestor(hwnd, GA_ROOT) } != hwnd
+        || !unsafe { GetWindow(hwnd, GW_OWNER) }.is_null()
+    {
+        return Err(io::Error::new(io::ErrorKind::NotFound,
+            "Client 02 game window changed, closed or became an owned popup; Refresh first"));
+    }
+    Ok(())
+}
+
 // One ownership boundary for both Focus and Place. Keep the process handle
 // alive across the entire Win32 action to prevent PID reuse. Recheck the
 // observed box membership and HWND owner immediately before calling the OS.
@@ -493,9 +520,6 @@ fn with_verified_client_02_window(
     use windows_sys::Win32::{
         Foundation::{CloseHandle, FILETIME},
         System::Threading::{GetProcessTimes, OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION},
-        UI::WindowsAndMessaging::{
-            GetAncestor, GetWindowThreadProcessId, IsWindow, IsWindowVisible, GA_ROOT,
-        },
     };
     // An explicit operation never bypasses an in-progress launch or another
     // window mutation in the same manager.
@@ -530,17 +554,11 @@ fn with_verified_client_02_window(
                 "Client 02 PID was reused or process identity changed; Refresh first"));
         }
 
-        let hwnd = hwnd_number as usize as *mut core::ffi::c_void;
-        let mut window_pid = 0_u32;
-        if unsafe { IsWindow(hwnd) } == 0
-            || unsafe { IsWindowVisible(hwnd) } == 0
-            || unsafe { GetWindowThreadProcessId(hwnd, &mut window_pid) } == 0
-            || window_pid != target.pid
-            || unsafe { GetAncestor(hwnd, GA_ROOT) } != hwnd
-        {
-            return Err(io::Error::new(io::ErrorKind::NotFound,
-                "Client 02 window no longer belongs to the observed process; Refresh first"));
-        }
+        // Avoid silent truncation of an HWND recorded as a 64-bit integer.
+        let native_handle = usize::try_from(hwnd_number)
+            .map_err(|_| invalid_evidence("Client 02 HWND exceeds native pointer width"))?;
+        let hwnd = native_handle as *mut core::ffi::c_void;
+        verify_live_client_02_window(hwnd, target.pid)?;
         action(hwnd)
     })();
     unsafe { CloseHandle(process); }
@@ -552,10 +570,17 @@ pub fn focus_observed_client_02(target: ProcessIdentityCandidate) -> io::Result<
     use windows_sys::Win32::UI::WindowsAndMessaging::{
         IsIconic, SetForegroundWindow, ShowWindow, SW_RESTORE,
     };
+    let process_id = target.pid;
     with_verified_client_02_window(target, |hwnd| {
         if unsafe { IsIconic(hwnd) } != 0 {
             unsafe { ShowWindow(hwnd, SW_RESTORE); }
+            if unsafe { IsIconic(hwnd) } != 0 {
+                return Err(io::Error::new(io::ErrorKind::WouldBlock,
+                    "Windows did not restore Client 02; restore the game window manually"));
+            }
         }
+        // Restore may replace the window; never focus a stale HWND.
+        verify_live_client_02_window(hwnd, process_id)?;
         if unsafe { SetForegroundWindow(hwnd) } == 0 {
             return Err(io::Error::new(io::ErrorKind::PermissionDenied,
                 "Windows refused to focus Client 02; select its window or use Alt+Tab"));
@@ -580,8 +605,8 @@ pub fn place_observed_client_02(
             GetMonitorInfoW, MonitorFromWindow, MONITORINFO, MONITOR_DEFAULTTONEAREST,
         },
         UI::WindowsAndMessaging::{
-            GetWindowThreadProcessId, IsIconic, IsZoomed, SetWindowPos,
-            SWP_ASYNCWINDOWPOS, SWP_NOACTIVATE, SWP_NOOWNERZORDER, SWP_NOZORDER,
+            IsIconic, IsZoomed, SetWindowPos, SWP_ASYNCWINDOWPOS,
+            SWP_NOACTIVATE, SWP_NOOWNERZORDER, SWP_NOZORDER,
         },
     };
     let process_id = target.pid;
@@ -606,14 +631,16 @@ pub fn place_observed_client_02(
         let slot = client_02_half_slot(
             work.left, work.top, work.right, work.bottom, side,
         )?;
-        // A HWND may be replaced while monitor geometry is queried. Recheck
-        // ownership immediately before the only window mutation.
-        let mut owner = 0_u32;
-        if unsafe { GetWindowThreadProcessId(hwnd, &mut owner) } == 0
-            || owner != process_id
-        {
-            return Err(io::Error::new(io::ErrorKind::NotFound,
-                "Client 02 window ownership changed before placement"));
+        // Monitor/window state can change while querying the work area.
+        // Revalidate the entire window and layout target before the move.
+        verify_live_client_02_window(hwnd, process_id)?;
+        if unsafe { IsIconic(hwnd) } != 0 || unsafe { IsZoomed(hwnd) } != 0 {
+            return Err(io::Error::new(io::ErrorKind::WouldBlock,
+                "Client 02 window state changed before placement; restore and Refresh"));
+        }
+        if unsafe { MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST) } != monitor {
+            return Err(io::Error::new(io::ErrorKind::WouldBlock,
+                "Client 02 moved to another monitor; Refresh before placing"));
         }
         // Async placement avoids waiting indefinitely on a game window's
         // input queue. Success means the request was accepted, not that the

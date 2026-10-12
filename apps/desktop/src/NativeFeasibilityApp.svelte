@@ -248,7 +248,7 @@
                 Place Right
               </button>
             </div>
-            <p class="pilot-caution">Place Left/Right uses the current monitor's available area. It only moves Client 02, does not change game accounts, and will refuse minimized or maximized windows. Restore the game window first if needed.</p>
+            <p class="pilot-caution">Focus and placement require one verified process/window candidate, not a dialog or owned popup. Place Left/Right uses the current monitor's work area, never moves Client 01, and refuses minimized/maximized or changed windows. Restore and Refresh if necessary.</p>
             {#if isolatedWindows !== null && !focusTarget}
               <p class="pilot-caution">Focus and placement require exactly one boxed window with a known process start time. Refresh or select the game window manually.</p>
             {/if}
