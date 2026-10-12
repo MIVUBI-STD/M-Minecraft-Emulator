@@ -247,6 +247,7 @@ $report = [ordered]@{
     boxSettingsSource = $boxSettingsSource
     autoDelete = (& $toFlag $delete)
     autoRemove = (& $toFlag $remove)
+    credentialHostAccess = $credentialHostAccess
     membershipStatus = $membershipStatus
   }
   machine = [ordered]@{
