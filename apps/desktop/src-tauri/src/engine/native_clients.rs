@@ -214,6 +214,7 @@ pub struct SandboxieClientObservation {
     pub interactive_session: bool,
     pub process_evidence_class: String,
     pub candidate_process_count: u32,
+    pub isolated_candidate_processes: u32,
     pub native_visible_candidates: u32,
     pub isolated_visible_candidates: u32,
     pub interpretation: String,
@@ -223,7 +224,7 @@ fn parse_sandboxie_observation(raw: &str) -> io::Result<SandboxieClientObservati
     let report: SandboxieClientObservation = serde_json::from_str(raw)
         .map_err(|_| invalid_evidence("invalid Sandboxie collector summary"))?;
     let one_of = |value: &str, allowed: &[&str]| allowed.contains(&value);
-    if report.schema != 1
+    if report.schema != 2
         || report.box_name != CLIENT_02_BOX_NAME
         || report.stage != "INSPECT"
         || report.process_evidence_class != "NAME_MATCH_CANDIDATE_ONLY"
@@ -238,11 +239,14 @@ fn parse_sandboxie_observation(raw: &str) -> io::Result<SandboxieClientObservati
         || (report.box_settings_source == "BOX_SECTION_ENUMERATED" && report.box_configured != "YES")
         || (report.credential_host_access != "UNKNOWN" && report.box_settings_source != "BOX_SECTION_ENUMERATED")
         || report.candidate_process_count > 16
+        || report.isolated_candidate_processes > report.candidate_process_count
+        || report.isolated_visible_candidates > report.isolated_candidate_processes
         || report.native_visible_candidates.saturating_add(report.isolated_visible_candidates)
             > report.candidate_process_count
         || (report.membership_status == "UNKNOWN"
             && (report.native_visible_candidates != 0
-                || report.isolated_visible_candidates != 0))
+                || report.isolated_visible_candidates != 0
+                || report.isolated_candidate_processes != 0))
     {
         return Err(invalid_evidence("untrusted or contradictory Sandboxie process observation"));
     }
@@ -330,14 +334,15 @@ pub fn request_sandbox_client_02(executable: String, licensed: bool) -> io::Resu
         return Err(io::Error::new(io::ErrorKind::PermissionDenied,
             "Sandboxie Client 02 preflight blocked: box must be enabled, persistent and OpenCredentials must be verifiably OFF (including inherited global settings)"));
     }
-    // The selected box is dedicated to this test client. Refuse an explicit
-    // second launch when an existing visible boxed Minecraft-name candidate
-    // has already been observed; this does not prove which edition it is.
-    if observation.membership_status == "OBSERVED" &&
-        observation.isolated_visible_candidates > 0
+    // A Minecraft-name process can still be starting without any HWND.
+    // Refuse duplicates when membership is observed; never infer gameplay.
+    // Unknown membership remains explicitly unknown: some Sandboxie GUI
+    // versions provide no stdout from /listpids.
+    if observation.membership_status == "OBSERVED"
+        && observation.isolated_candidate_processes > 0
     {
         return Err(io::Error::new(io::ErrorKind::AlreadyExists,
-            "Client 02 already has a visible Minecraft process candidate in its box; inspect or close that game before launching another"));
+            "Client 02 already contains a Minecraft process candidate, possibly without a window; inspect before retrying"));
     }
     let escaped = executable.replace('\'', "''");
     let box_name = CLIENT_02_BOX_NAME;
@@ -473,13 +478,13 @@ mod tests {
     #[test]
     fn sandboxie_summary_rejects_fabricated_membership_and_credentials() {
         let base = serde_json::json!({
-            "schema":1, "boxName":"MinecraftClient02", "stage":"INSPECT",
+            "schema":2, "boxName":"MinecraftClient02", "stage":"INSPECT",
             "boxConfigured":"YES", "boxSettingsSource":"BOX_SECTION_ENUMERATED",
             "autoDelete":"OFF", "autoRemove":"OFF", "credentialHostAccess":"OFF",
             "membershipStatus":"OBSERVED", "interactiveSession":true,
             "processEvidenceClass":"NAME_MATCH_CANDIDATE_ONLY",
-            "candidateProcessCount":2, "nativeVisibleCandidates":1,
-            "isolatedVisibleCandidates":1,
+            "candidateProcessCount":2, "isolatedCandidateProcesses":1,
+            "nativeVisibleCandidates":1, "isolatedVisibleCandidates":1,
             "interpretation":"CONFIG_AND_PROCESS_CANDIDATES_ONLY_NO_AUTHENTICATION_PROOF"
         });
         assert!(parse_sandboxie_observation(&base.to_string()).is_ok());
@@ -491,6 +496,12 @@ mod tests {
         assert!(parse_sandboxie_observation(&wrong.to_string()).is_err());
         let mut wrong = base.clone();
         wrong["credentialHostAccess"] = serde_json::json!("VERIFIED_GAMEPLAY");
+        assert!(parse_sandboxie_observation(&wrong.to_string()).is_err());
+        let mut wrong = base.clone();
+        wrong["isolatedCandidateProcesses"] = serde_json::json!(0);
+        assert!(parse_sandboxie_observation(&wrong.to_string()).is_err());
+        let mut wrong = base.clone();
+        wrong["isolatedCandidateProcesses"] = serde_json::json!(3);
         assert!(parse_sandboxie_observation(&wrong.to_string()).is_err());
     }
 
