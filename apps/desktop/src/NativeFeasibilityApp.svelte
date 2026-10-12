@@ -175,10 +175,10 @@
             <span>{nativeWindows === null ? "Membership UNKNOWN" : nativeWindows > 0 ? `${nativeWindows} visible candidate(s) outside selected box — native unverified` : "No candidate outside selected box"}</span>
             {#if membershipObserved}
               <p class="pilot-caution">{observation?.officialImageOutsideSelectedBoxCount ?? 0} Microsoft-signed Education image candidate(s) outside the selected box. Native identity and account login remain unverified.</p>
-              {#if observation?.activeBoxCoverage === "OBSERVED"}
-                <p class="pilot-caution">{observation.signedImageOtherActiveBoxCount} signed candidate(s) appeared in another active Sandboxie box; {observation.signedImageNoActiveBoxMatchCount} had no match among this user's enumerated active boxes. Neither result proves an unsandboxed process.</p>
-              {:else if observation?.activeBoxCoverage === "UNKNOWN"}
-                <p class="pilot-caution">Other active-box membership could not be established. No native attribution is available.</p>
+              {#if observation?.directPidQuery === "QUERIED"}
+                <p class="pilot-caution">Sandboxie PID lookup: {observation.signedImageOtherBoxCount} signed candidate(s) confirmed in another box; {observation.signedImageUnknownBoxCount} have UNKNOWN sandbox attribution. Neither result proves an unsandboxed native process.</p>
+              {:else if observation?.directPidQuery === "UNAVAILABLE"}
+                <p class="pilot-caution">Direct Sandboxie PID lookup unavailable. All {observation.signedImageUnknownBoxCount} outside-box signed candidate(s) retain UNKNOWN attribution.</p>
               {/if}
             {/if}
           </article>
