@@ -88,9 +88,10 @@ It never returns PASS or claims automated account verification. A human
 must review the true game/window evidence and any sign-in or multiplayer
 behavior before approving an architectural shift.
 
-If one usable game remains the limit, mark native NO-GO and investigate
-a separate application-isolation pilot, including Sandboxie Plus licensing
-and Microsoft authentication compatibility. Do not patch, copy or inject
+If one usable game remains the limit, mark native NO-GO and consult
+the separate [Sandboxie Plus application-isolation pilot](./sandboxie-two-client-feasibility.md),
+which inspects licensed persistent box configuration and isolates observed
+process membership without claiming Microsoft authentication compatibility. Do not patch, copy or inject
 the game to circumvent its restrictions. Do not change the production
 provider, uninstall VMware, or clear account-bearing VM disks based on
 this pilot alone.

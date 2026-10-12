@@ -15,6 +15,8 @@ This is a **navigation guide**, not a second registry or copy of implementation 
 
 | Question / fault | Primary implementation owner | Consumer / companion |
 | --- | --- | --- |
+| Prove two Minecraft Education Desktop sessions can run natively without VMs | `tooling/acceptance/windows/collect-native-feasibility.ps1`, `tooling/acceptance/evaluate-native-feasibility.mjs` | [Native feasibility](../validation/native-multi-instance-feasibility.md); test-only, no production launch adapter |
+| Inspect Sandboxie Plus box membership and persistent settings without changing game or VM state | `tooling/acceptance/windows/collect-sandboxie-feasibility.ps1`, `tooling/acceptance/evaluate-sandboxie-feasibility.mjs` | [Sandboxie feasibility](../validation/sandboxie-two-client-feasibility.md); only after native GO/NO-GO review |
 | Prove one disposable Windows guest can boot, sign in and render Minecraft Education on VMware or App Sandbox GPU-PV, with provider-specific graphics evidence | `tooling/acceptance/windows/collect-client-feasibility.ps1`, `tooling/acceptance/evaluate-client-feasibility.mjs` | [Client Feasibility](../validation/client-feasibility.md); no production VM mutation |
 | VM status, start/stop/suspend/restart/reprovision and rollback | `engine/runtime-core/src/runtime.rs` | `lifecycle_admission.rs`, provider implementation |
 | Lifecycle eligibility / guard decisions | `engine/runtime-core/src/lifecycle_admission.rs` | `runtime.rs`, `client.rs` |

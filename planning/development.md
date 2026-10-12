@@ -1,3 +1,48 @@
+## Current work — Sandboxie Plus account-isolation feasibility, read-only (2026-10-12)
+
+**Work:** emulator/native-multi-instance-feasibility
+**State:** ISOLATION_PILOT_SOURCE_AUTHORED / WINDOWS_COMPATIBILITY_NOT_EXECUTED.
+**User target:** one official Minecraft Education Desktop installation,
+four concurrently playable accounts in one Windows PC, minimum storage,
+simple launcher experience. Do not turn the product into a new hypervisor.
+
+### Current bounded implementation
+
+- The original native two-client experiment remains first. No actual
+  two-client Windows Minecraft evidence is currently available. Do not
+  mark native NO-GO on source observations alone.
+- A *fallback only* Sandboxie Plus read-only pilot is now available:
+  tooling/acceptance/windows/collect-sandboxie-feasibility.ps1 and
+  tooling/acceptance/evaluate-sandboxie-feasibility.mjs with pure
+  .test.mjs regression fixtures. The collector invokes only signed,
+  already-installed Sandboxie Start.exe /listpids and SbieIni.exe query.
+  No sandbox creation, app launch, deletion, forced stops, credential
+  handling, Windows feature changes or VM operations are implemented.
+- The pilot fails closed if AutoDelete/AutoRemove cannot be verified
+  OFF, if Sandboxie signer/service, box PID membership, process windows
+  or licensed/manual account proof is missing. It never reports an
+  automatic account/gameplay PASS or four-client production readiness.
+- Canonical procedure:
+  docs/validation/sandboxie-two-client-feasibility.md. The product
+  remains VMware implementation and unchanged Tauri/guest/VM data,
+  installer identity, old release contracts and manual-only CI.
+  Root npm includes a separate optional pure report evaluator test.
+
+### Evidence and next decision
+
+**Proof:** REMOTE_GITHUB source/tree inspection only unless executed
+evidence is attached. Sandboxie CLI output on Windows, Sandboxie current
+license, Microsoft WAM/SSO isolation, gameplay, cross-account persistence,
+multiplayer and four-client stability are NOT_EXECUTED. Previous legacy
+G0 PASS at 509ce10f0fd5129e4da2990614651fb57241b256 is unrelated.
+**Next:** review genuine two-client native Windows game evidence first.
+Only if native fails, review this Sandboxie fallback pilot, and only
+after authentic compatibility evidence implement one production
+launch adapter. Do not change main, uninstall VMware, erase account
+disks, install external software or initiate background automation.
+
+---
+
 ## Current work — native two-client launcher feasibility pilot (2026-10-12)
 
 **Work:** emulator/native-multi-instance-feasibility

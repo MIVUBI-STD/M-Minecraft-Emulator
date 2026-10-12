@@ -18,9 +18,14 @@ The first engineering work is a bounded, non-destructive
 This is an evidence collector and evaluator only; it does not imply native
 multi-instance works or supersede any passed legacy VM package G0 record.
 Existing VMware G1–G4 remain unexecuted and unrelated to native viability.
+A separate [Sandboxie Plus read-only feasibility pilot](./sandboxie-two-client-feasibility.md)
+is available **only as a fallback**, without modifying old VM data or
+claiming that Microsoft authentication is compatible.
 
 | Question | Authoritative reference |
 | --- | --- |
+| Can one official Minecraft Desktop installation sustain two independent native game accounts? | [Native two-client feasibility](./native-multi-instance-feasibility.md) — observational pilot; not VM gate PASS |
+| If native fails, can one licensed Sandboxie Plus box preserve an independent Minecraft account? | [Sandboxie two-client feasibility](./sandboxie-two-client-feasibility.md) — alternate pilot only, no runtime cutover |
 | What are the only product-test progress gates and their exit criteria? | [Acceptance G0–G4](./acceptance.md) — one canonical five-gate campaign |
 | What comprises the first source/package integrity gate? | [G0 Source & Package Readiness](./pre-local-test-readiness.md) — four mandatory checks within G0 |
 | Can one Windows VMware guest boot, install/sign in and play Minecraft Education responsively? | [Client Feasibility Gate](./client-feasibility.md) — before Base cloning |
