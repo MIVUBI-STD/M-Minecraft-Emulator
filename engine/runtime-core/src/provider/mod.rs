@@ -14,7 +14,9 @@ pub(crate) use app_sandbox_pilot::execute as app_sandbox_pilot_command;
 
 pub(crate) use app_sandbox::inspect as inspect_app_sandbox;
 
-pub(crate) use process::{command_output, command_output_with_timeout, wait_for_state};
+pub(crate) use process::{
+    command_output, command_output_with_stdin, command_output_with_timeout, wait_for_state,
+};
 pub(crate) use storage::{
     cleanup_staging, ensure_parent, has_suspend_state, promote_staging_vm, remove_vm_container,
     staging_residue_count,

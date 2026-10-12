@@ -401,9 +401,11 @@ $session = [System.Diagnostics.Process]::GetCurrentProcess().SessionId
 # paths, account data, world data or imply authenticated gameplay.
 $educationImageProof = @{}
 function Get-EducationImageCandidate {
-  param([object]$ProcessObject)
-  $image = $null
-  try { $image = [string]$ProcessObject.Path } catch { }
+  param([object]$ProcessObject, [string]$ImagePath = '')
+  $image = $ImagePath
+  if ([string]::IsNullOrWhiteSpace($image)) {
+    try { $image = [string]$ProcessObject.Path } catch { }
+  }
   if ([string]::IsNullOrWhiteSpace($image) -or
       -not (Test-Path -LiteralPath $image -PathType Leaf)) {
     return 'UNKNOWN'
@@ -457,28 +459,155 @@ $gameCandidates = @(
         [uint32]$_.Id -eq $BoxedImageProofPid -and
         $inBox -eq $true -and $null -ne $handle -and
         $null -ne $createdFileTime) {
-      # Trust only the targeted, observed boxed process. Its PID can be
-      # recycled while Authenticode is being read: open it again and
-      # compare creation FILETIME and executable path after verification.
-      # This is signed-file evidence, not cryptographic attestation of
-      # the mapped running image, Microsoft account or world.
-      $beforePath = $null
-      try { $beforePath = [string]$_.Path } catch { }
-      if (-not [string]::IsNullOrWhiteSpace($beforePath)) {
-        $imageEvidence = Get-EducationImageCandidate $_
-        if ($imageEvidence -eq 'SIGNED_EDUCATION_IMAGE_CANDIDATE') {
-          try {
-            $after = Get-Process -Id $_.Id -ErrorAction Stop
-            $afterTime = $after.StartTime.ToFileTimeUtc().ToString(
-              [System.Globalization.CultureInfo]::InvariantCulture)
-            $afterPath = [string]$after.Path
-            if ($afterTime -ne $createdFileTime -or
-                -not [string]::Equals($beforePath, $afterPath,
-                  [System.StringComparison]::OrdinalIgnoreCase)) {
-              $imageEvidence = 'UNKNOWN'
-            }
-          } catch { $imageEvidence = 'UNKNOWN' }
+      # Pin a minimal process handle and the signed file's underlying
+      # identity while Authenticode reads it. This is read-only, does not
+      # attest the in-memory image, and never returns the path in IPC.
+      $lease = $null
+      try {
+        if (-not ('MivubiReadOnlyImageLease' -as [type])) {
+          Add-Type -TypeDefinition @'
+using System;
+using System.IO;
+using System.Text;
+using System.Globalization;
+using System.Runtime.InteropServices;
+using Microsoft.Win32.SafeHandles;
+
+public sealed class MivubiReadOnlyImageLease : IDisposable {
+  const uint PROCESS_QUERY_LIMITED_INFORMATION = 0x1000;
+  const int FileIdInfo = 18;
+  IntPtr process;
+  FileStream pinned;
+  ulong created;
+  string path;
+  ulong volume;
+  byte[] fileId;
+  bool disposed;
+
+  [StructLayout(LayoutKind.Sequential)]
+  struct FILETIME { public uint Low, High; }
+  [StructLayout(LayoutKind.Sequential)]
+  struct FILE_ID_INFO {
+    public ulong VolumeSerialNumber;
+    [MarshalAs(UnmanagedType.ByValArray, SizeConst = 16)]
+    public byte[] FileId;
+  }
+  [DllImport("kernel32.dll", SetLastError = true)]
+  static extern IntPtr OpenProcess(uint access, bool inherit, uint pid);
+  [DllImport("kernel32.dll")]
+  [return: MarshalAs(UnmanagedType.Bool)]
+  static extern bool CloseHandle(IntPtr h);
+  [DllImport("kernel32.dll", SetLastError = true)]
+  [return: MarshalAs(UnmanagedType.Bool)]
+  static extern bool GetProcessTimes(IntPtr h, out FILETIME c,
+    out FILETIME e, out FILETIME k, out FILETIME u);
+  [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+  [return: MarshalAs(UnmanagedType.Bool)]
+  static extern bool QueryFullProcessImageNameW(IntPtr h, uint flags,
+    StringBuilder buffer, ref uint length);
+  [DllImport("kernel32.dll", SetLastError = true)]
+  [return: MarshalAs(UnmanagedType.Bool)]
+  static extern bool GetFileInformationByHandleEx(SafeFileHandle h,
+    int infoClass, out FILE_ID_INFO info, uint size);
+
+  static ulong Time(IntPtr h) {
+    FILETIME c,e,k,u;
+    if (!GetProcessTimes(h,out c,out e,out k,out u))
+      throw new InvalidOperationException("Process time unavailable");
+    return ((ulong)c.High << 32) | c.Low;
+  }
+  static string Name(IntPtr h) {
+    StringBuilder b = new StringBuilder(4096);
+    uint n = (uint)b.Capacity;
+    if (!QueryFullProcessImageNameW(h,0,b,ref n) || n == 0 ||
+        n >= (uint)b.Capacity)
+      throw new InvalidOperationException("Process path unavailable");
+    return b.ToString();
+  }
+  static void NoRedirect(string name) {
+    if (String.IsNullOrWhiteSpace(name) || name.Length > 4096 ||
+        !System.Text.RegularExpressions.Regex.IsMatch(name, @"^[A-Za-z]:\\"))
+      throw new InvalidOperationException("Non-local image path");
+    for (string item = name; !String.IsNullOrEmpty(item); ) {
+      if ((File.GetAttributes(item) & FileAttributes.ReparsePoint) != 0)
+        throw new InvalidOperationException("Reparse path is not trusted");
+      string parent = Path.GetDirectoryName(item);
+      if (String.IsNullOrEmpty(parent) ||
+          String.Equals(item,parent,StringComparison.OrdinalIgnoreCase)) break;
+      item = parent;
+    }
+  }
+  static FILE_ID_INFO Id(FileStream stream) {
+    FILE_ID_INFO info;
+    if (!GetFileInformationByHandleEx(stream.SafeFileHandle,FileIdInfo,
+          out info,(uint)Marshal.SizeOf(typeof(FILE_ID_INFO))) ||
+        info.FileId == null || info.FileId.Length != 16)
+      throw new InvalidOperationException("File ID unavailable");
+    return info;
+  }
+  public static MivubiReadOnlyImageLease Acquire(uint pid,string expected) {
+    return new MivubiReadOnlyImageLease(pid,expected);
+  }
+  MivubiReadOnlyImageLease(uint pid,string expected) {
+    ulong t;
+    if (pid == 0 || !ulong.TryParse(expected,NumberStyles.None,
+          CultureInfo.InvariantCulture,out t) || t == 0)
+      throw new ArgumentException("Unknown process identity");
+    process = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION,false,pid);
+    if (process == IntPtr.Zero)
+      throw new InvalidOperationException("Cannot pin process");
+    try {
+      created = Time(process);
+      if (created != t) throw new InvalidOperationException("PID reused");
+      path = Name(process);
+      NoRedirect(path);
+      // Share only read: deny concurrent write/delete attempts while the
+      // Authenticode operation is in progress. Never mutate the executable.
+      pinned = new FileStream(path,FileMode.Open,FileAccess.Read,FileShare.Read);
+      FILE_ID_INFO id = Id(pinned);
+      volume = id.VolumeSerialNumber;
+      fileId = id.FileId;
+      if (Time(process) != created ||
+          !String.Equals(Name(process),path,StringComparison.OrdinalIgnoreCase))
+        throw new InvalidOperationException("Process image changed");
+    } catch { Dispose(); throw; }
+  }
+  public string ImagePath { get { return path; } }
+  public bool StillSame() {
+    if (disposed || process == IntPtr.Zero || pinned == null) return false;
+    try {
+      if (Time(process) != created ||
+          !String.Equals(Name(process),path,StringComparison.OrdinalIgnoreCase))
+        return false;
+      NoRedirect(path);
+      using (FileStream reopened = new FileStream(path,FileMode.Open,
+               FileAccess.Read,FileShare.Read)) {
+        FILE_ID_INFO next = Id(reopened);
+        if (volume != next.VolumeSerialNumber) return false;
+        for (int i=0; i<16; i++)
+          if (fileId[i] != next.FileId[i]) return false;
+        return true;
+      }
+    } catch { return false; }
+  }
+  public void Dispose() {
+    if (disposed) return;
+    disposed = true;
+    if (pinned != null) { pinned.Dispose(); pinned = null; }
+    if (process != IntPtr.Zero) { CloseHandle(process); process = IntPtr.Zero; }
+  }
+}
+'@ -ErrorAction Stop | Out-Null
         }
+        $lease = [MivubiReadOnlyImageLease]::Acquire(
+          [uint32]$_.Id, $createdFileTime)
+        $imageEvidence = Get-EducationImageCandidate -ImagePath $lease.ImagePath
+        if ($imageEvidence -eq 'SIGNED_EDUCATION_IMAGE_CANDIDATE' -and
+            -not $lease.StillSame()) { $imageEvidence = 'UNKNOWN' }
+      } catch {
+        $imageEvidence = 'UNKNOWN'
+      } finally {
+        if ($null -ne $lease) { $lease.Dispose() }
       }
     }
     [ordered]@{

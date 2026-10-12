@@ -393,10 +393,16 @@ fn inspect_sandbox_client_02_mode(
     } else {
         ["& {\n", INSPECT, "\n} -SummaryOnly"].concat()
     };
-    let output = virtual_clients_core::bounded_command_output(
+    // Passing the whole embedded collector as -Command exceeds Windows'
+    // 32,767-character CreateProcess command-line limit. Stream it as
+    // UTF-8 through stdin and parse via an ASCII-only fixed bootstrap.
+    // The source stays embedded and read-only; no .ps1 file is written.
+    const BOOTSTRAP: &str = "$r=[System.IO.StreamReader]::new([Console]::OpenStandardInput(),[System.Text.Encoding]::UTF8);& ([ScriptBlock]::Create($r.ReadToEnd()))";
+    let output = virtual_clients_core::bounded_command_output_with_stdin(
         Path::new("powershell.exe"),
-        ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", script.as_str()],
+        ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", BOOTSTRAP],
         Duration::from_secs(30),
+        script.as_bytes(),
     )?;
     parse_sandboxie_observation(&output)
 }

@@ -140,10 +140,14 @@ requests an **on-demand Authenticode verification of only the selected boxed
 PID** through the existing short-lived read-only PowerShell collector
 (`-SummaryOnly -BoxedImageProofPid <PID>`). The collector requires
 the selected boxed process to have a visible window and known creation
-FILETIME, checks the executable ProductName and valid Microsoft Corporation
-signature, and reopens the process after verification to compare its
-creation time and executable path. If inaccessible, changed, unsigned or
-unrecognized, image evidence remains UNKNOWN; no Focus/Place occurs.
+FILETIME. The collector obtains a minimal query-only process handle, uses
+`QueryFullProcessImageNameW` to read its executable path, rejects nonlocal
+or reparse-point path components, and holds a read-only file handle with
+`FileShare.Read` during Microsoft Authenticode/ProductName verification.
+Before accepting the result it rechecks process creation time/image path,
+reopens the same path and compares the file's `FileIdInfo` 128-bit ID and
+volume identity. If access, path identity, file ID or signing is
+inconclusive, evidence is UNKNOWN and Focus/Place are refused.
 The Rust backend compares the fresh, signed boxed candidate's PID,
 creation FILETIME and HWND with the previous UI observation and still
 checks the open process handle and window ownership immediately before
@@ -154,9 +158,10 @@ dialog/popup) before requesting foreground activation. The HWND is converted
 to a native pointer width without truncation and validated again after
 restoring a minimized window. This supplies only evidence for the signed
 executable file currently reported for the PID, not immutable attestation
-of its mapped running image. File paths are not returned in IPC or stored
-in reports. A changed
-or reparse-linked file remains a potential filesystem race. It does not
+of its mapped running image. File paths and file IDs are neither returned
+in IPC nor saved in reports. The read-only file handle reduces replacement
+risk but cannot eliminate every filesystem or in-memory image race.
+Files with unsupported path/handle semantics fail closed. It does not
 establish authenticated accounts or playable gameplay. If the process
 changed, Refresh first; if Windows rejects foreground activation, click the
 game window or use Alt+Tab. No keyboard simulation, hidden polling,
@@ -175,6 +180,19 @@ final size to Minecraft's constraints; the accepted request does not
 certify rendering. Sandboxie Plus requires
 a Business Certificate for business/educational use as described upstream.
 
+## Bounded collector transport
+
+The collector is embedded in the Rust/Tauri binary but **is not passed
+as a long `-Command` argument**. Large scripts can exceed Windows'
+32,767-character process-command-line limit. The existing bounded
+subprocess runner now accepts an optional UTF-8 stdin payload (128 KiB
+maximum), and PowerShell uses a fixed short `-Command` bootstrap to
+read it as UTF-8 and execute a script block. It retains one explicit
+inspection, a 30-second command deadline, bounded stdout/stderr, direct
+child cleanup, no background polling and no persistent script file.
+Normal provider callers still use the original no-input command route.
+This transport has not been exercised on a real Windows machine.
+
 ## Boxed executable attribution (source-only)
 
 - **Manual Refresh:** `-ImageProof` still checks visible outside-box
@@ -192,9 +210,14 @@ a Business Certificate for business/educational use as described upstream.
   publisher and Education product metadata are a *signed-file candidate*,
   not Microsoft sign-in, gameplay, graphics, multiplayer or a guarantee
   that a mapped running image cannot change. Signature checks happen on
-  the file path obtained from the process and must fail closed if the
-  path or process identity is unavailable or changes. No credentials,
-  token material, window titles or private world data are read.
+  a path obtained from the bounded process handle, not a caller-supplied
+  path. The collector pins that path read-only during verification and
+  compares a freshly reopened file's 128-bit FileIdInfo and volume
+  identity. Failure to resolve path, open the handle, reject reparse
+  points, or keep the process/file identity stable returns UNKNOWN.
+  This remains signed-file evidence, not in-memory image attestation.
+  No credentials, token material, window titles, account data or private
+  world files are read.
 - **Source/proof boundary:** no schema version changes: the existing
   `imageEvidence` label now permits signed candidates either outside
   the selected box or inside its verified membership. The existing
@@ -205,6 +228,9 @@ a Business Certificate for business/educational use as described upstream.
 References:
 - https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.security/get-authenticodesignature
 - https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-queryfullprocessimagenamew
+- https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-getfileinformationbyhandleex
+- https://learn.microsoft.com/en-us/windows/win32/api/winbase/ns-winbase-file_id_info
+- https://learn.microsoft.com/en-us/dotnet/api/system.io.fileshare
 
 ## Prerequisites, manually managed
 

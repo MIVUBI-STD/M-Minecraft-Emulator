@@ -1,7 +1,7 @@
 use std::{
     ffi::OsStr,
     io,
-    io::Read,
+    io::{Read, Write},
     path::Path,
     process::{Child, Command, Stdio},
     sync::mpsc,
@@ -28,11 +28,58 @@ where
     I: IntoIterator<Item = S>,
     S: AsRef<OsStr>,
 {
+    bounded_process(program, args, timeout, None)
+}
+
+// Keep long, fixed PowerShell source off the Windows command line. The
+// canonical bounded runner owns its subprocess, streams and timeout.
+pub(crate) fn command_output_with_stdin<I, S>(
+    program: &Path,
+    args: I,
+    timeout: Duration,
+    input: &[u8],
+) -> io::Result<String>
+where
+    I: IntoIterator<Item = S>,
+    S: AsRef<OsStr>,
+{
+    const MAX_SCRIPT_BYTES: usize = 128 * 1024;
+    if input.is_empty() || input.len() > MAX_SCRIPT_BYTES {
+        return Err(io::Error::new(io::ErrorKind::InvalidInput,
+            "bounded process input is empty or exceeds 128 KiB"));
+    }
+    bounded_process(program, args, timeout, Some(input))
+}
+
+fn bounded_process<I, S>(
+    program: &Path,
+    args: I,
+    timeout: Duration,
+    input: Option<&[u8]>,
+) -> io::Result<String>
+where
+    I: IntoIterator<Item = S>,
+    S: AsRef<OsStr>,
+{
     let mut child = Command::new(program)
         .args(args)
+        .stdin(if input.is_some() { Stdio::piped() } else { Stdio::null() })
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()?;
+    // Write stdin concurrently with stdout/stderr drainage. This prevents
+    // deadlocks when the script is larger than the child's stdin pipe.
+    let input_result = if let Some(bytes) = input {
+        let mut writer = child.stdin.take()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::Other,
+                "missing bounded command stdin"))?;
+        let data = bytes.to_vec();
+        let (tx, rx) = mpsc::sync_channel(1);
+        thread::spawn(move || { let _ = tx.send(writer.write_all(&data)); });
+        Some(rx)
+    } else {
+        None
+    };
 
     // Drain both streams while the child is running. Waiting before reading can
     // deadlock when the child fills an OS pipe buffer.
@@ -63,6 +110,12 @@ where
             }
         };
         if let Some(status) = observed_status {
+            if let Some(receiver) = &input_result {
+                let remaining = timeout.saturating_sub(started.elapsed());
+                receiver.recv_timeout(remaining).map_err(|_| io::Error::new(
+                    io::ErrorKind::TimedOut,
+                    "bounded command input writer did not complete"))??;
+            }
             // A descendant may inherit a pipe even after vmrun exits. Do not
             // block indefinitely waiting for EOF from an unrelated process.
             let remaining = timeout.saturating_sub(started.elapsed());
@@ -198,6 +251,35 @@ mod tests {
     use super::{command_output_with_timeout, terminate_direct_child};
     use std::process::{Command, Stdio};
     use std::{io, path::Path, time::Duration};
+
+    #[test]
+    fn bounded_stdin_command_delivers_data_without_command_line_embedding() {
+        #[cfg(windows)]
+        let (program, args): (&Path, &[&str]) = (
+            Path::new("powershell.exe"),
+            &["-NoLogo", "-NoProfile", "-NonInteractive", "-Command",
+              "[Console]::In.ReadToEnd()"],
+        );
+        #[cfg(not(windows))]
+        let (program, args): (&Path, &[&str]) = (Path::new("cat"), &[]);
+
+        let output = super::command_output_with_stdin(
+            program, args.iter().copied(), Duration::from_secs(5),
+            b"short-input",
+        ).expect("bounded stdin should close with EOF and produce output");
+        assert_eq!(output, "short-input");
+    }
+
+    #[test]
+    fn oversized_stdin_is_rejected_before_child_launch() {
+        let error = super::command_output_with_stdin(
+            Path::new("not-a-real-executable"),
+            std::iter::empty::<&str>(),
+            Duration::from_secs(1),
+            &vec![b'x'; 128 * 1024 + 1],
+        ).expect_err("input beyond bound must fail before spawn");
+        assert_eq!(error.kind(), io::ErrorKind::InvalidInput);
+    }
 
     #[test]
     fn successful_command_returns_complete_output() {

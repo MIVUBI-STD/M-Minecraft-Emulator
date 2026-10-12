@@ -1,10 +1,47 @@
 # Current Development Handoff
 
 **Branch:** `Local` only. **Product:** Minecraft Instance Manager.
-**Current work:** `emulator/boxed-education-image-attribution` (source-only; runtime tests postponed).
+**Current work:** `emulator/executable-file-provenance` (source-only; runtime tests postponed).
 **Engineering state:** source prototype / **Windows build and two-account gameplay NOT_EXECUTED**.
 
-## Latest source-only batch — boxed executable identity before window actions
+## Latest source-only batch — executable file provenance and replacement guard
+
+- Found the gap: unchanged path strings before/after Authenticode do not
+  prove that the path still names the same filesystem object.
+- In the existing read-only, short-lived PowerShell collector, the
+  targeted boxed-PID proof now uses a bounded `MivubiReadOnlyImageLease`
+  C# helper: OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION),
+  QueryFullProcessImageNameW, creation FILETIME, local/reparse path checks,
+  and a read-only FileStream held with FileShare.Read during verification.
+- The helper obtains the 128-bit FileIdInfo and volume identity using
+  GetFileInformationByHandleEx. After signature validation, it checks
+  process time/path again and reopens the path to compare file identity
+  while the original handle remains open; uncertain results stay UNKNOWN
+  and the existing Rust Focus/Place admission refuses the action.
+- Existing Education ProductName, Microsoft Authenticode trust, manual
+  outside-box ImageProof, launch, schemas, reports and all account/VM
+  boundaries remain unchanged. No new service or persisted identity cache.
+- Found and addressed a more fundamental transport limit in the same
+  batch: the embedded collector had grown beyond the Windows
+  CreateProcess command-line boundary. Extended the one canonical
+  bounded subprocess runner with an optional <=128 KiB stdin input and
+  switched the active collector to a short PowerShell UTF-8 bootstrap
+  that reads the embedded source from stdin. No .ps1 file is written.
+  The existing no-input callers continue through the same runner.
+- **Proof:** reviewed exact GitHub source against Microsoft Win32/.NET
+  APIs and authored source assertions. Node/Rust/PowerShell/Add-Type,
+  Windows, Minecraft and performance tests remain **NOT_EXECUTED**.
+- **Unresolved:** the PowerShell stdin bootstrap, its encoding and the
+  updated shared subprocess transport still need actual Windows execution.
+  Input is bounded and the source-only tests are authored, not executed.
+  File sharing/AV/Sandboxie may prevent acquiring the
+  read-only handle (safe UNKNOWN); file identity is not an attestation of
+  the executable already mapped in memory. Reparse/long-path cases can be
+  conservatively refused. Latency/compatibility remain unmeasured.
+- **Next:** bounded source-only audit of signing/installation path
+  provenance and diagnostic failure messaging without a second manager.
+
+## Previous source-only batch — boxed executable identity before window actions
 
 - Confirmed a concrete gap: Focus/Place only required a name-matched,
   sandboxed process. A non-Education process named Minecraft.Windows
