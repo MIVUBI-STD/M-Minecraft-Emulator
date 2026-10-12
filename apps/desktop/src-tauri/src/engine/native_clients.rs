@@ -426,11 +426,17 @@ foreach ($key in @('AutoDelete','AutoRemove')) {{
 # Sandboxie's GUI Start.exe may return before a child actually launches.
 # Never interpret this request as process membership, login or gameplay.
 $launcher = Start-Process -FilePath $start -WorkingDirectory $gameFolder -ArgumentList @(('/box:' + $box), ('"' + $game + '"')) -PassThru -ErrorAction Stop
-if (-not $launcher.WaitForExit(8000)) {{
-    throw 'Sandboxie Start.exe did not confirm the launch request within 8 seconds; game state remains UNKNOWN'
-}}
-if ($launcher.ExitCode -ne 0) {{
-    throw "Sandboxie Start.exe rejected the launch request (exit code $($launcher.ExitCode))"
+try {{
+    if (-not $launcher.WaitForExit(8000)) {{
+        # Start.exe is not Minecraft. Leave game and box untouched when
+        # the helper's outcome is ambiguous, but release our process handle.
+        throw 'Sandboxie Start.exe did not confirm the launch request within 8 seconds; game state remains UNKNOWN'
+    }}
+    if ($launcher.ExitCode -ne 0) {{
+        throw "Sandboxie Start.exe rejected the launch request (exit code $($launcher.ExitCode))"
+    }}
+}} finally {{
+    $launcher.Dispose()
 }}
 "#);
     // Even a timed-out launch command might have spawned Minecraft already.
