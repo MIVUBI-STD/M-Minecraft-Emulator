@@ -166,6 +166,18 @@ if ($boxSettingsSource -eq 'BOX_SECTION_ENUMERATED') {
     }
   }
 }
+# The selected box may bypass WinCred hooks using OpenProtectedStorage
+# even when OpenCredentials=n. Check only explicitly configured templates.
+if ($boxSettingsSource -eq 'BOX_SECTION_ENUMERATED' -and ($names -contains 'Template')) {
+  $templatesRaw = Invoke-BoundedReadOnlyTool $iniExe ('query ' + $BoxName + ' Template')
+  if ($null -eq $templatesRaw) {
+    $credentialValue = $null
+  } elseif (@($templatesRaw -split '\r?\n' |
+      ForEach-Object { $_.Trim() }) -contains 'OpenProtectedStorage') {
+    $credentialValue = 'y'
+  }
+}
+# OFF still permits host credential read-through and does NOT prove WAM isolation.
 $toFlag = { param($value) if ($value -eq 'y') { return 'ON' } if ($value -eq 'n') { return 'OFF' } return 'UNKNOWN' }
 $credentialHostAccess = (& $toFlag $credentialValue)
 $boxConfigured = if ($enabled -eq 'y') { 'YES' } elseif ($enabled -eq 'n') { 'NO' } else { 'UNKNOWN' }
