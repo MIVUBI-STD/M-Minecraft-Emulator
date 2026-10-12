@@ -14,8 +14,8 @@
 
   $: membershipObserved = observation?.interactiveSession === true &&
     observation?.membershipStatus === "OBSERVED";
-  $: nativeWindows = membershipObserved ? observation?.nativeVisibleCandidates : null;
-  $: isolatedWindows = membershipObserved ? observation?.isolatedVisibleCandidates : null;
+  $: nativeWindows = membershipObserved ? (observation?.nativeVisibleCandidates ?? null) : null;
+  $: isolatedWindows = membershipObserved ? (observation?.isolatedVisibleCandidates ?? null) : null;
 
   function errorMessage(reason: unknown): string {
     if (typeof reason === "string" && reason.trim()) return reason.trim();

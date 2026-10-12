@@ -86,7 +86,10 @@ describe("Native candidate IPC evidence", () => {
     expect(engine).toContain('observation.credential_host_access != "OFF"');
     expect(bridge).toContain('"desktop_inspect_sandbox_client_02"');
     expect(active).toContain("nativeFeasibility.inspectIsolatedClient02()");
-    expect(active).toContain("Promise.allSettled");
+    expect(active).not.toContain("Promise.allSettled");
+    expect(active).toContain("observation = await nativeFeasibility.inspectIsolatedClient02()");
+    expect(active).not.toContain("nativeFeasibility.inspectCandidates()");
+    expect(engine).toContain('["& {\\n", INSPECT, "\\n} -SummaryOnly"].concat()');
     expect(active).toContain('typeof error === "string"');
     expect(commands).toContain("fn desktop_request_sandbox_client_02(");
     expect(engine).toContain("pub fn request_sandbox_client_02(");
@@ -110,7 +113,7 @@ describe("Native candidate IPC evidence", () => {
     expect(commands).toContain("fn desktop_inspect_native_candidates(");
     expect(engine).toContain("pub fn inspect_native_candidates()");
     expect(bridge).toContain('"desktop_inspect_native_candidates"');
-    expect(active).toContain("nativeFeasibility.inspectCandidates()");
+    expect(active).toContain("nativeFeasibility.inspectIsolatedClient02()");
     expect(active).toContain("nativeFeasibility.openOfficialMinecraft()");
     expect(active).not.toContain("backend.");
   });

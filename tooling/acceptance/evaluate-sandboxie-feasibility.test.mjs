@@ -284,4 +284,9 @@ test("source-side collector must distinguish missing box keys from failed querie
   assert.ok(!source.includes("Read-BoxSetting 'GlobalSettings' 'AutoRemove'"));
   assert.ok(source.includes("Read-BoxSetting 'GlobalSettings' 'OpenCredentials'"));
   assert.ok(source.includes("credentialHostAccess = $credentialHostAccess"));
+  assert.ok(source.includes("[switch]$SummaryOnly"));
+  assert.ok(source.includes("if (-not $SummaryOnly)"));
+  assert.ok(source.includes("if ($null -ne $path) { $summary['reportPath'] = $path }"));
+  assert.equal((source.match(/\\$boxConfigured = if \\(\\$enabled/g) || []).length, 1);
+  assert.equal((source.match(/\\$membershipStatus = 'UNKNOWN'/g) || []).length, 1);
 });

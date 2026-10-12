@@ -131,7 +131,10 @@ requireFact(activeEntry.includes('import NativeFeasibilityApp from "./NativeFeas
   !activeEntry.includes('import App from "./App.svelte";'),
   "Old VMware UI was mounted instead of the native-first pilot");
 requireFact(activeSurface.includes("nativeFeasibility.openOfficialMinecraft()") &&
-  activeSurface.includes("nativeFeasibility.inspectCandidates()") &&
+  activeSurface.includes("nativeFeasibility.inspectIsolatedClient02()") &&
+  !activeSurface.includes("nativeFeasibility.inspectCandidates()") &&
+  !activeSurface.includes("Promise.allSettled") &&
+  !activeSurface.includes("setInterval(") &&
   !activeSurface.includes("backend.snapshot()") &&
   !activeSurface.includes("backend.startClient(") &&
   !activeSurface.includes("backend.provision("),
@@ -190,6 +193,12 @@ requireFact(nativeEvidenceEvaluator.includes("processFeasibility") &&
   "Native process/account observations must stay distinct from final four-client acceptance");
 
 const sandboxCollector = read("tooling/acceptance/windows/collect-sandboxie-feasibility.ps1");
+requireFact(sandboxCollector.includes("[switch]$SummaryOnly") &&
+  sandboxCollector.includes("if (-not $SummaryOnly)") &&
+  sandboxCollector.includes("if ($null -ne $path) { $summary['reportPath'] = $path }") &&
+  (sandboxCollector.match(/\\$boxConfigured = if \\(\\$enabled/g) || []).length === 1 &&
+  (sandboxCollector.match(/\\$membershipStatus = 'UNKNOWN'/g) || []).length === 1,
+  "One valid Sandboxie evidence owner; desktop summary refresh writes no report");
 const nativeProcessPattern = "^(Minecraft\\.Windows|Minecraft.*Education.*|Education.*Minecraft.*)$";
 requireFact(nativeOwner.includes(nativeProcessPattern) &&
   nativeEvidenceCollector.includes(nativeProcessPattern) &&
@@ -239,7 +248,8 @@ requireFact(nativeDesktop.includes("pub fn request_sandbox_client_02(") &&
     "commands::native_clients::desktop_request_sandbox_client_02,") &&
   isolatedScreen.includes("nativeFeasibility.requestSandboxClient02(") &&
   isolatedScreen.includes("nativeFeasibility.inspectIsolatedClient02()") &&
-  isolatedScreen.includes("Promise.allSettled") &&
+  isolatedScreen.includes("observation = await nativeFeasibility.inspectIsolatedClient02()") &&
+  nativeDesktop.includes('-SummaryOnly"].concat()') &&
   nativeDesktop.includes("include_str!(concat!(") &&
   nativeDesktop.includes('observation.credential_host_access != "OFF"') &&
   nativeDesktop.includes("WaitForExit(8000)") &&
