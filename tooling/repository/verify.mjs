@@ -24,6 +24,7 @@ const required = [
   "docs/product/four-concurrent-accounts.md",
   "apps/desktop/src-tauri/src/engine/native_clients.rs",
   "apps/desktop/src-tauri/src/commands/native_clients.rs",
+  "apps/desktop/src/NativeFeasibilityApp.svelte", "docs/system/legacy-retirement.md",
   "tooling/acceptance/windows/collect-client-feasibility.ps1",
   "tooling/acceptance/evaluate-client-feasibility.mjs",
   "tooling/acceptance/evaluate-client-feasibility.test.mjs"
@@ -119,13 +120,47 @@ requireFact(prepareBase.includes("[Microsoft.Win32.RegistryView]::Registry32") &
 requireFact(read("docs/product/four-concurrent-accounts.md").includes(
   "four separate Minecraft Education Windows desktop clients concurrently"),
   "Four-client end-user outcome was removed from canonical product contract");
+const activeEntry = read("apps/desktop/src/main.ts");
+const activeSurface = read("apps/desktop/src/NativeFeasibilityApp.svelte");
+const rustCommandBoundary = read("engine/runtime-core/src/command.rs");
+const activeTauri = read("apps/desktop/src-tauri/src/app_bootstrap.rs");
+requireFact(activeEntry.includes('import NativeFeasibilityApp from "./NativeFeasibilityApp.svelte";') &&
+  activeEntry.includes("mount(NativeFeasibilityApp, { target });") &&
+  !activeEntry.includes('import App from "./App.svelte";'),
+  "Old VMware UI was mounted instead of the native-first pilot");
+requireFact(activeSurface.includes("desktop.openNativeMinecraft()") &&
+  !activeSurface.includes("backend.snapshot()") &&
+  !activeSurface.includes("backend.startClient(") &&
+  !activeSurface.includes("backend.provision("),
+  "Native feasibility screen must not call the legacy VM runtime");
+requireFact(activeTauri.includes("commands::native_clients::desktop_open_native_minecraft,") &&
+  !/commands::virtual_clients::virtual_clients_|commands::setup_tools::setup_|commands::window_arrangement::window_/.test(activeTauri),
+  "Deprecated VM/setup/VMware-layout handlers must not be registered");
+requireFact(rustCommandBoundary.includes("legacy_operation_paused(command, args)") &&
+  rustCommandBoundary.includes('"product-status" =>') &&
+  rustCommandBoundary.includes('io::ErrorKind::Unsupported') &&
+  rustCommandBoundary.includes('"app-sandbox-pilot"'),
+  "Legacy VM command boundary must fail closed and expose read-only mode");
+for (const operation of [
+  "actions", "stage-update", "register-base", "open-base-finalization",
+  "provision", "reprovision", "verify-identities", "start", "start-setup",
+  "start-client", "suspend", "stop", "restart", "set-ready", "reset",
+  "open", "launch-minecraft",
+]) {
+  requireFact(rustCommandBoundary.includes('"' + operation + '",'),
+    "VM command pause list dropped: " + operation);
+}
+for (const command of ["test:native-feasibility", "test:sandboxie-feasibility"]) {
+  requireFact(rootPackage.scripts["verify:source"].includes("npm run " + command),
+    "Native-first source checks omit " + command);
+}
 const nativeDesktop = read("apps/desktop/src-tauri/src/engine/native_clients.rs");
 const desktopFacade = read("apps/desktop/src/app/bridge/virtualClientsApi.ts");
 const desktopBootstrap = read("apps/desktop/src-tauri/src/app_bootstrap.rs");
 requireFact(read("apps/desktop/src-tauri/src/commands/native_clients.rs").includes("fn desktop_open_native_minecraft(") &&
   desktopFacade.includes('"desktop_open_native_minecraft"') &&
   desktopBootstrap.includes("commands::native_clients::desktop_open_native_minecraft,"),
-  "Only native Windows Minecraft desktop launcher may be exposed outside the canonical VMware runtime");
+  "Active desktop must retain only the official native game launcher");
 requireFact(!nativeDesktop.includes("BlueStacks") && !nativeDesktop.includes("open_android") &&
   !nativeDesktop.includes("Get-Credential") && !nativeDesktop.includes("vmrun.exe"),
   "Desktop native launcher must not own another emulator, credential or VM lifecycle");

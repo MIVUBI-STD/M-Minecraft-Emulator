@@ -11,7 +11,11 @@ lifecycle: ACTIVE
 
 ## Product scope
 
-**End-user objective:** Four Windows desktop Minecraft Education clients and four distinct concurrent accounts on one Windows host. Chosen architecture: one native Windows desktop client + three Windows VMware Workstation guests. Windows guest client compatibility and graphics are not yet proven. See [Four-account Product Goal](../product/four-concurrent-accounts.md).
+**End-user objective:** four simultaneously playable Minecraft Education Windows Desktop clients, each with a licensed account, on one PC. The active desktop is only a native launch feasibility pilot; no multi-account gameplay is verified. [Legacy Retirement](./legacy-retirement.md) documents disabled routes. The VMware architecture below is previous as-built source, not the active product. See [Four-account Product Goal](../product/four-concurrent-accounts.md).
+
+## Paused VMware implementation (as-built layering)
+
+Desktop now mounts NativeFeasibilityApp only and does not register old VMware/guest handlers. The public Rust VM mutation path fails closed. Existing guest and account files are retained. The diagram below is historical, for controlled future removal.
 
 ## One runtime owner per responsibility
 

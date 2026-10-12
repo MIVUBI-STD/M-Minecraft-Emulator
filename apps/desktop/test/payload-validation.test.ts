@@ -196,7 +196,7 @@ describe("Frontend boundary wiring", () => {
     expect(commands.length).toBe(23);
   });
 
-  it("registers every frontend command in Tauri and the core dispatcher", () => {
+  it("retains legacy IPC source but unregisters every VM command from the active desktop", () => {
     const facade = readFileSync(new URL("../src/app/bridge/virtualClientsApi.ts", import.meta.url), "utf8");
     const adapters = readFileSync(new URL("../src-tauri/src/commands/virtual_clients.rs", import.meta.url), "utf8");
     const bootstrap = readFileSync(new URL("../src-tauri/src/app_bootstrap.rs", import.meta.url), "utf8");
@@ -205,11 +205,12 @@ describe("Frontend boundary wiring", () => {
     expect(commands).toHaveLength(23);
     for (const command of commands) {
       expect(adapters).toContain(`fn ${command}(`);
-      expect(bootstrap).toContain(`commands::virtual_clients::${command},`);
+      expect(bootstrap).not.toContain(`commands::virtual_clients::${command},`);
     }
     for (const match of adapters.matchAll(/run\("([^"]+)"/g)) {
       expect(core).toContain(`"${match[1]}" =>`);
     }
+    expect(core).toContain("legacy_operation_paused(command, args)");
   });
 
   it("registers only the Windows desktop native launcher", () => {
@@ -227,7 +228,7 @@ describe("Frontend boundary wiring", () => {
     expect(desktopOwner).not.toContain("vmrun.exe");
   });
 
-  it("keeps Window Layout on one registered desktop mutation path", () => {
+  it("retains the old Window Layout adapter but unregisters its VMware-only IPC route", () => {
     const facade = readFileSync(new URL("../src/app/bridge/virtualClientsApi.ts", import.meta.url), "utf8");
     const commands = readFileSync(new URL("../src-tauri/src/commands/window_arrangement.rs", import.meta.url), "utf8");
     const bootstrap = readFileSync(new URL("../src-tauri/src/app_bootstrap.rs", import.meta.url), "utf8");
@@ -239,8 +240,8 @@ describe("Frontend boundary wiring", () => {
     expect(commands).toContain("fn window_apply_layout(");
     expect(commands).not.toContain("fn window_arrange(");
     expect(commands).not.toContain("fn window_clear_overlay(");
-    expect(bootstrap).toContain("commands::window_arrangement::window_displays,");
-    expect(bootstrap).toContain("commands::window_arrangement::window_apply_layout");
+    expect(bootstrap).not.toContain("commands::window_arrangement::window_displays,");
+    expect(bootstrap).not.toContain("commands::window_arrangement::window_apply_layout");
   });
 
   it("refreshes on return without introducing a diagnostic polling loop", () => {

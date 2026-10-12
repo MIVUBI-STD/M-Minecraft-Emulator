@@ -10,6 +10,8 @@ describe("Emulator source verification routing", () => {
     expect(root.scripts["verify:source"].split(" && ")).toEqual([
       "npm run verify:repository -- --g0",
       "npm run test:feasibility",
+      "npm run test:native-feasibility",
+      "npm run test:sandboxie-feasibility",
       "npm run check:desktop",
       "npm run check:runtime",
       "npm run test:runtime",

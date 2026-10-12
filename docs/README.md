@@ -13,8 +13,9 @@ This is the **single documentation entrypoint**. Load only the domain needed for
 
 | Task | Domain route | Canonical source where applicable |
 | --- | --- | --- |
-| Product goal: four simultaneous logged-in Minecraft Education clients on one PC | [Four-account definition](./product/four-concurrent-accounts.md) | Windows VMware guest gameplay proof before provisioning three clients |
-| First-run VM Base, guest preparation and product setup | [Product](./product/README.md) | `engine/runtime-core/`, `engine/guest/windows/` |
+| Product goal: four logged-in Minecraft Education clients on one PC | [Four-account definition](./product/four-concurrent-accounts.md) | Native feasibility first; concurrent gameplay still unverified |
+| Paused VMware, App Sandbox and Guest Agent routes | [Legacy Retirement](./system/legacy-retirement.md) | Mutations blocked and account-bearing data preserved |
+| Old VM Base and guest setup (legacy reference only) | [Product](./product/README.md) | `engine/runtime-core/`, `engine/guest/windows/` (inactive) |
 | Architecture, ownership, naming, developer commands | [System](./system/README.md) | `apps/desktop/`, `engine/runtime-core/`, `tooling/` |
 | Source proof, Windows/VMware/ Minecraft acceptance | [Validation](./validation/README.md) | `tooling/acceptance/windows/` and live evidence |
 | Installer packaging, update and trust policy | [Distribution](../engine/distribution/README.md) | `engine/distribution/`, Tauri packaging |

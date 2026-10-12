@@ -48,10 +48,56 @@ fn to_value<T: Serialize>(value: T) -> io::Result<Value> {
     serde_json::to_value(value).map_err(|error| io::Error::new(io::ErrorKind::Other, error))
 }
 
+// Single public-command boundary for pausing all legacy VM mutations.
+// Direct native launches live in the desktop adapter, not this VM runtime.
+const PAUSED_VM_COMMANDS: &[&str] = &[
+    "actions",
+    "stage-update",
+    "register-base",
+    "open-base-finalization",
+    "provision",
+    "reprovision",
+    "verify-identities",
+    "start",
+    "start-setup",
+    "start-client",
+    "suspend",
+    "stop",
+    "restart",
+    "set-ready",
+    "reset",
+    "open",
+    "launch-minecraft",
+];
+
+fn legacy_operation_paused(command: &str, args: &[String]) -> bool {
+    PAUSED_VM_COMMANDS.contains(&command)
+        || (command == "app-sandbox-pilot"
+            && args.first().map(String::as_str) != Some("inspect"))
+}
+
 fn execute_value(command: &str, args: &[String]) -> io::Result<Value> {
+    // Fail closed before provider discovery, privilege escalation, VM
+    // creation/deletion, state writes, snapshots, or guest power operations.
+    if legacy_operation_paused(command, args) {
+        return Err(io::Error::new(
+            io::ErrorKind::Unsupported,
+            "Legacy VM controls are paused for native-first development; existing guest/account data is preserved",
+        ));
+    }
+
     let app = VirtualClients;
 
     match command {
+        "product-status" => {
+            require_no_args(command, args)?;
+            to_value(serde_json::json!({
+                "mode": "NATIVE_FEASIBILITY",
+                "legacyVmMutationsEnabled": false,
+                "fourClientGameplayVerified": false,
+                "legacyAccountData": "PRESERVE"
+            }))
+        }
         "doctor" => {
             require_no_args(command, args)?;
             to_value(app.doctor())
@@ -261,6 +307,43 @@ fn execute_public_command_result(command: &str, args: &[String]) -> PublicComman
 #[cfg(test)]
 mod tests {
     use super::execute_public_command;
+
+    #[test]
+    fn native_first_product_mode_is_explicit_and_read_only() {
+        let result = execute_public_command("product-status", &[]);
+        assert!(result.success);
+        let json: serde_json::Value = serde_json::from_str(&result.json).unwrap();
+        assert_eq!(json["data"]["mode"], "NATIVE_FEASIBILITY");
+        assert_eq!(json["data"]["legacyVmMutationsEnabled"], false);
+        assert_eq!(json["data"]["fourClientGameplayVerified"], false);
+        assert_eq!(json["data"]["legacyAccountData"], "PRESERVE");
+    }
+
+    #[test]
+    fn all_legacy_vm_mutations_fail_closed_before_touching_provider() {
+        let commands = [
+            "actions", "stage-update", "register-base",
+            "open-base-finalization", "provision", "reprovision",
+            "verify-identities", "start", "start-setup", "start-client",
+            "suspend", "stop", "restart", "set-ready", "reset", "open",
+            "launch-minecraft"
+        ];
+        for command in commands {
+            let result = execute_public_command(command, &[]);
+            assert!(!result.success, "legacy {command} was accepted");
+            let json: serde_json::Value = serde_json::from_str(&result.json).unwrap();
+            assert_eq!(json["code"], "UNSUPPORTED", "{command}");
+            assert_eq!(json["retryable"], false);
+        }
+        for operation in ["start", "shutdown", "display"] {
+            let result = execute_public_command(
+                "app-sandbox-pilot",
+                &[operation.into(), "--confirm-disposable-pilot".into()],
+            );
+            assert!(!result.success);
+            assert!(result.json.contains("UNSUPPORTED"));
+        }
+    }
 
     #[test]
     fn command_boundary_rejects_extra_arguments() {

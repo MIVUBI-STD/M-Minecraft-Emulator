@@ -1,6 +1,6 @@
 # M-Minecraft-Emulator
 
-**Product goal:** four concurrent, independently playable Minecraft Education **Windows desktop** sessions with four separately licensed accounts on one Windows PC. The **preferred new direction** is a launcher using one official Desktop installation, native processes and application isolation **only if real tests prove account/session compatibility**. The currently implemented production source still uses one native client plus three VMware Workstation guests; it remains legacy and must preserve all account-bearing VM data. No claim of multi-instance gameplay success is made.
+**Product goal:** four concurrent, independently playable Minecraft Education **Windows desktop** sessions with four separately licensed accounts on one Windows PC. The **preferred new direction** is a launcher using one official Desktop installation, native processes and application isolation **only if real tests prove account/session compatibility**. The previous VMware implementation remains as **inactive legacy source**: VM mutation commands are paused and its UI is unmounted. All existing account-bearing guest data is preserved. No claim of multi-instance gameplay success is made.
 
 ## Branch authority
 
@@ -20,7 +20,11 @@ AGENTS.md → GITHUB_RULES.md → docs/system/implementation-map.md
 
 An operator does **not** need a local checkout to complete repository/source-verifiable tasks. Windows or Minecraft acceptance is a separate, higher proof context. `DEV.cmd` is an optional local developer convenience, never the remote GitHub completion requirement.
 
-**Definition of DONE:** [Four simultaneous Minecraft Education accounts](docs/product/four-concurrent-accounts.md). **Current tests:** [Native two-client experiment](docs/validation/native-multi-instance-feasibility.md); [Sandboxie Plus isolation experiment](docs/validation/sandboxie-two-client-feasibility.md), read-only first. Documentation: [docs/README.md](docs/README.md). **Next Codex/localtest handoff:** [read the opening section of planning/development.md](planning/development.md#codex-next-session--one-pass-g0-and-localtest-handoff-2026-10-12) rather than the full development history; full continuation remains in that same canonical file.
+**Definition of DONE:** [Four simultaneous Minecraft Education accounts](docs/product/four-concurrent-accounts.md). **Current tests:** [Native two-client experiment](docs/validation/native-multi-instance-feasibility.md); [Sandboxie Plus isolation experiment](docs/validation/sandboxie-two-client-feasibility.md), read-only first. Documentation: [docs/README.md](docs/README.md). **Current handoff:** [planning/development.md](planning/development.md) (top section). **Removal map:** [Legacy Retirement](docs/system/legacy-retirement.md).
+
+## Current operating mode
+
+The desktop now mounts only the native feasibility pilot. It can request an official Minecraft Education launch, but does not claim two or four working accounts. No VM refresh, guest setup or old updater runs on startup. Legacy VMware/App Sandbox mutation commands return UNSUPPORTED; the VM-oriented routes below remain documentation and read-only reference, not active workflows.
 
 ## Choose one work route
 

@@ -20,8 +20,9 @@ VMware or App Sandbox in the target daily workflow if native succeeds.
 Avoid game EXE modification, injection, single-instance/authentication bypass,
 or collection of account secrets.
 
-**Implementation and proof status:** the production source below is still
-the older VMware-based manager. Native two-client feasibility is NOT_EXECUTED;
+**Implementation and proof status:** the VMware implementation below is still
+retained as legacy code, but its UI and public mutation commands are paused.
+Native two-client feasibility is NOT_EXECUTED;
 one native install does NOT yet imply two playable authenticated sessions.
 Begin with [Native Feasibility](../validation/native-multi-instance-feasibility.md).
 If native fails, separately assess licensed application isolation; retain

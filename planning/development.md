@@ -1,3 +1,50 @@
+## Current work — native-first launcher, old VM routes paused (2026-10-12)
+
+**Work:** emulator/native-first-legacy-retirement
+**State:** SOURCE_CUTOVER_AUTHORED / WINDOWS_BUILD_AND_GAMEPLAY_NOT_EXECUTED.
+**User direction:** minimize setup and storage for four concurrent
+Minecraft Education Desktop accounts on one Windows PC. Prefer native
+processes and independent app sessions; no full Windows VM unless
+real tests show that no lighter solution works.
+
+### Current bounded source change
+
+- Desktop src/main.ts mounts src/NativeFeasibilityApp.svelte only,
+  with one ordinary official Minecraft launch request, four explicitly
+  unverified slots, no VMware startup probe and no update polling.
+- Tauri app_bootstrap.rs registers only the native official launch
+  command. Old VM, guest setup and VMware window-arrangement command
+  adapters remain in source but are not reachable via active desktop IPC.
+- engine/runtime-core/src/command.rs fails closed with UNSUPPORTED for
+  legacy mutation verbs and the App Sandbox pilot start/shutdown/display,
+  before provider interaction. product-status is a read-only declaration.
+  Existing old VM read-only CLI diagnostics are retained.
+- Legacy VM disks, snapshots, saved guest credentials/sessions, Base
+  folders, Windows runtime paths, guest protocol, existing package
+  identity/release contracts, and main branch are NOT mutated.
+- One canonical retirement inventory with deletion criteria:
+  docs/system/legacy-retirement.md. Old screens and adapters are kept
+  in place for explicit future deletion, not automatically re-enabled.
+- Source verification and regression expectations now treat old VM
+  routes as deliberately unregistered; source-only legacy tests remain
+  available, plus Rust command denial tests and accurate root scripts.
+
+### Proof and handoff
+
+REMOTE_GITHUB exact-tree and static source review can show which
+handlers are registered, which commands are blocked and which files
+changed. Node/Rust/Svelte packaging on the actual revision, Windows
+Minecraft login, native two-client account independence, Sandboxie
+compatibility and four-client gameplay remain NOT_EXECUTED unless
+separately tested. The previous installer G0 PASS remains specific to
+SHA 509ce10f0fd5129e4da2990614651fb57241b256 and does not apply
+to this source.
+**Next:** obtain real native two-client Minecraft evidence. Do not
+revive VMware onboarding or delete legacy files/account state merely
+because the new pilot UI is mounted.
+
+---
+
 ## Current work — Sandboxie Plus account-isolation feasibility, read-only (2026-10-12)
 
 **Work:** emulator/native-multi-instance-feasibility

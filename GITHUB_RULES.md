@@ -24,6 +24,10 @@ Before mutation, establish repository, branch `Local`, HEAD SHA, first semantic 
 
 A static test **authored** is not a test **executed**. A VM process is not game-ready, signed-in, or network-ready proof. Multiple SHAs cannot be combined as exact-head acceptance.
 
+## Paused legacy VM routes
+
+The old VMware App, App Sandbox power controls and Guest Agent operations are preserved as source but paused by engine/runtime-core/src/command.rs and not registered in Tauri. Consult docs/system/legacy-retirement.md before any future changes; do not resume VMware onboarding, remove saved guest data or re-enable guest mutations without explicit authorization and real Windows/gameplay evidence. Read-only diagnostics are not permission to mutate VM state.
+
 ## 3. Read minimum
 
 Default work starts with `AGENTS.md` → [Implementation Map](docs/system/implementation-map.md) → one source owner and consumers. Read more only to answer a concrete unresolved question. Relevant source authority outranks stale planning/prose.

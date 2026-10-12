@@ -1,6 +1,6 @@
 # Virtual Clients Desktop
 
-Canonical user-facing desktop source for M-Bedrock Virtual Clients. Non-UI product authority lives under `../../engine/`.
+Canonical desktop source for M-Bedrock Virtual Clients. The current src/main.ts mounts **NativeFeasibilityApp.svelte** only. Old App.svelte and VMware surfaces/IPC adapters are preserved but unmounted or unregistered. Public Rust VM mutation commands are paused. See [Legacy Retirement](../../docs/system/legacy-retirement.md) for deletion criteria. No four-account gameplay is verified. Non-UI authority remains in ../../engine/.
 
 ## Stack
 

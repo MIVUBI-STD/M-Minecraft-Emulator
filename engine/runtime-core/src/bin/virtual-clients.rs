@@ -3,32 +3,14 @@
 use m_bedrock_virtual_clients_core::execute_public_command;
 
 fn print_help() {
-    println!("M-Bedrock Virtual Clients");
-    println!("  doctor");
-    println!("  policy");
-    println!("  actions");
-    println!("  diagnostics");
-    println!("  app-sandbox-pilot inspect");
-    println!("  app-sandbox-pilot start|shutdown|display --confirm-disposable-pilot");
-    println!("  snapshot");
-    println!("  support-bundle");
-    println!("  history");
-    println!("  check-update");
-    println!("  stage-update");
-    println!("  register-base");
-    println!("  provision");
-    println!("  status");
-    println!("  resources <1-3>");
-    println!("  verify-identities");
-    println!("  reprovision <Virtual-01..03> --destroy-account-state");
-    println!("  start <1-3>");
-    println!("  start-setup <Virtual-01..03>");
-    println!("  open <Virtual-01..03>");
-    println!("  suspend [Virtual-01..03]");
-    println!("  restart <Virtual-01..03>");
-    println!("  set-ready <Virtual-01..03>");
-    println!("  reset <Virtual-01..03>");
-    println!("  stop [Virtual-01..03]");
+    println!("M-Bedrock Virtual Clients — native-first feasibility");
+    println!("  product-status");
+    println!("  doctor / status / snapshot / diagnostics / history (legacy read-only)");
+    println!("  policy / base-preflight / resources <1-3> (legacy reference only)");
+    println!("  support-bundle / check-update (read-only)");
+    println!("  app-sandbox-pilot inspect (explicit read-only diagnostic)");
+    println!("Legacy VM start, stop, provision, snapshot mutation, reset and");
+    println!("App Sandbox pilot power operations are paused; no account data removed.");
 }
 
 fn main() {

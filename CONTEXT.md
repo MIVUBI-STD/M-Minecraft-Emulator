@@ -1,12 +1,12 @@
 # Emulator Stable Context
 
-Verified product direction: 2026-10-11. This file contains **stable product and repository facts only**. Current tasks, progress and evidence status belong in `planning/development.md`.
+Verified product direction: 2026-10-12. This file contains **stable product and repository facts only**. Current tasks, progress and evidence status belong in `planning/development.md`.
 
 ## Product and target
 
 **Approved product outcome (2026-10-12):** Four concurrently playable Minecraft Education Windows desktop game windows with four different legitimately licensed accounts on one PC. **New engineering direction:** feasibility-first native multi-process with one official Desktop installation; if unsupported, test application isolation before considering guest VMs. No process/account-isolation method is proven yet. Do not modify game binaries, bypass sign-in, or promise supported native multi-instance.
 
-**Current implemented source remains VMware Workstation (legacy/frozen for new features).** Its virtual accounts, disks and guest-state must be preserved. App Sandbox GPU-PV remains a guarded experimental pilot only, not the chosen launcher implementation. No UI/provider cutover may occur until native feasibility evidence is independently reviewed. Current development experiment and proof owner: docs/validation/native-multi-instance-feasibility.md; planning/development.md.
+**Current active desktop is the native-launch feasibility pilot.** The old VMware manager, Guest Agent and App Sandbox power controls remain source-only legacy routes: old UI unmounted, Tauri handlers unregistered, public Rust VM mutations blocked. No guest-data migration or playable four-client cutover has occurred. Preserve all existing disks, snapshots and guest accounts. The single deprecation register is docs/system/legacy-retirement.md. Current evidence owners: docs/validation/native-multi-instance-feasibility.md and planning/development.md.
 
 The legacy implementation path is:
 

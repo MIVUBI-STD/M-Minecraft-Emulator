@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { actionLabel } from "../src/view-model.js";
 import { setupExperience, setupPhaseIndex, shouldShowClientControls } from "../src/app/setupFlow.js";
 
-describe("Virtual Clients first-run presentation", () => {
+describe("Legacy VM setup presentation (retained but unmounted)", () => {
   it("routes client-owned setup phases to actual client controls instead of a looping wizard", () => {
     for (const action of ["VERIFY_IDENTITIES", "CREATE_READY_SNAPSHOTS", "REPROVISION_VIRTUALS", "READY"] as const) {
       expect(shouldShowClientControls(action)).toBe(true);
