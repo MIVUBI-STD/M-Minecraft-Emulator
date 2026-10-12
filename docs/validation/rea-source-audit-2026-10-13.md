@@ -9,6 +9,29 @@ lifecycle: ACTIVE
 
 # REA-aligned Full Audit — M-Minecraft-Emulator
 
+## Follow-up remediation on `Local` — 2026-10-13
+
+The findings below are a **historical baseline** pinned to
+`d6f9da73b24c79ded0cdf0f75526feacb43f8f9f`. Subsequent source work:
+- **F02:** collector now downgrades box membership to UNKNOWN if the Windows
+  process list fails or any Sandboxie-reported PID cannot be reconciled.
+- **F06:** Sandboxie helper stdout is now read into bounded buffers with one
+  total EOF deadline; no unbounded helper `ReadToEndAsync()`.
+- **F12:** Client 02 launch button and invocation now require the same
+  complete, empty, observed box snapshot; backend always re-inspects.
+- **F09:** pure UI projection behavior tests were added, and stale verifier/test
+  assertions updated; this is **partial test hardening**, not end-to-end proof.
+- **F01/F03/F04/F05/F07/F08/F10/F11/F13–F16:** still require Windows/source
+  execution, additional coding, compatibility evidence, gameplay, or release
+  decisions as specified below. Stage progress is not inferred from source.
+- **Execution ceiling:** 14 targeted source-contract predicates and 24 documentation
+  metadata/link inspections were run and matched; `npm run verify:source`,
+  PowerShell, Svelte/Vitest, Rust, Windows, Minecraft and REA artifact/runtime
+  analysis remain **NOT_EXECUTED**. Follow the [Windows local test](./native-pilot-localtest.md).
+  The current handoff is in `planning/development.md`.
+
+
+
 - **Date:** 2026-10-13 (Asia/Jakarta)
 - **Target repository / branch:** MIVUBI-STD/M-Minecraft-Emulator @ `Local`
 - **Pinned source HEAD audited:** `d6f9da73b24c79ded0cdf0f75526feacb43f8f9f`
