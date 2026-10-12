@@ -117,6 +117,9 @@ describe("Native candidate IPC evidence", () => {
     expect(active).toContain('placeClient02("RIGHT")');
     expect(active).toContain("Client 01 was not moved.");
     expect(active).toContain("officialImageOutsideSelectedBoxCount");
+    expect(active).toContain("signedImageOtherActiveBoxCount");
+    expect(active).toContain("signedImageNoActiveBoxMatchCount");
+    expect(active).toContain("Neither result proves an unsandboxed process.");
     expect(bridge).toContain("officialImageOutsideSelectedBoxCount");
     expect(engine).toContain("official_image_outside_selected_box_count");
     expect(active).toContain("Other Sandboxie boxes are not excluded");
@@ -163,7 +166,7 @@ describe("Native candidate IPC evidence", () => {
 
   it("accepts only non-authoritative isolated process and box observations", () => {
     const valid = {
-      schema: 4, boxName: "MinecraftClient02", stage: "INSPECT",
+      schema: 5, boxName: "MinecraftClient02", stage: "INSPECT",
       boxConfigured: "YES", boxSettingsSource: "BOX_SECTION_ENUMERATED",
       autoDelete: "OFF", autoRemove: "OFF", credentialHostAccess: "OFF",
       membershipStatus: "OBSERVED", interactiveSession: true,
@@ -174,11 +177,21 @@ describe("Native candidate IPC evidence", () => {
         { pid: 202, createdFileTime: "133400000000000001", windowHandle: "0x200", inSelectedBox: true, imageEvidence: "UNKNOWN" },
       ],
       officialImageOutsideSelectedBoxCount: 1,
+      activeBoxCoverage: "OBSERVED",
+      signedImageOtherActiveBoxCount: 0,
+      signedImageNoActiveBoxMatchCount: 1,
       isolatedCandidateProcesses: 1,
       nativeVisibleCandidates: 1, isolatedVisibleCandidates: 1,
       interpretation: "CONFIG_AND_PROCESS_CANDIDATES_ONLY_NO_AUTHENTICATION_PROOF",
     };
     expect(parseIsolatedClientObservation(valid)).toEqual(valid);
+    expect(parseIsolatedClientObservation({
+      ...valid, signedImageOtherActiveBoxCount: 1, signedImageNoActiveBoxMatchCount: 0,
+    }).activeBoxCoverage).toBe("OBSERVED");
+    expect(parseIsolatedClientObservation({
+      ...valid, activeBoxCoverage: "UNKNOWN",
+      signedImageNoActiveBoxMatchCount: 0,
+    }).activeBoxCoverage).toBe("UNKNOWN");
     const invalid = [
       { ...valid, boxName: "AnotherBox" },
       { ...valid, boxConfigured: "UNKNOWN" },
@@ -187,7 +200,11 @@ describe("Native candidate IPC evidence", () => {
       { ...valid, candidateProcessCount: 1 },
       { ...valid, isolatedCandidateProcesses: 0 },
       { ...valid, isolatedCandidateProcesses: 3 },
-      { ...valid, schema: 3 },
+      { ...valid, schema: 4 },
+      { ...valid, activeBoxCoverage: "NATIVE_VERIFIED" },
+      { ...valid, activeBoxCoverage: "UNKNOWN" },
+      { ...valid, signedImageOtherActiveBoxCount: 2 },
+      { ...valid, signedImageNoActiveBoxMatchCount: 0 },
       { ...valid, officialImageOutsideSelectedBoxCount: 0 },
       { ...valid, processCandidates: [
         valid.processCandidates[0],
@@ -222,6 +239,9 @@ describe("Native candidate IPC evidence", () => {
       ...valid, membershipStatus: "UNKNOWN",
       nativeVisibleCandidates: 0, isolatedVisibleCandidates: 0, isolatedCandidateProcesses: 0,
       officialImageOutsideSelectedBoxCount: 0,
+      activeBoxCoverage: "NOT_REQUESTED",
+      signedImageOtherActiveBoxCount: 0,
+      signedImageNoActiveBoxMatchCount: 0,
       processCandidates: valid.processCandidates.map(p => ({ ...p, inSelectedBox: null, imageEvidence: "UNKNOWN" })),
     }).membershipStatus).toBe("UNKNOWN");
     expect(parseIsolatedClientObservation({
