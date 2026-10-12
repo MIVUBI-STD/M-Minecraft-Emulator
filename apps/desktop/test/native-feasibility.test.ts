@@ -109,7 +109,7 @@ describe("Native candidate IPC evidence", () => {
     expect(engine).toContain("MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST) } != monitor");
     expect(engine).toContain("Client 02 window state changed before placement");
     expect(engine).not.toContain("hwnd_number as usize as *mut");
-    expect(active).toContain("not a dialog or owned popup");
+    expect(active).toContain("not an owned popup");
     expect(engine).toContain("SetForegroundWindow(hwnd)");
     expect(engine).not.toContain("AllowSetForegroundWindow");
     expect(engine).not.toContain("SendInput(");
