@@ -116,6 +116,8 @@ describe("Native candidate IPC evidence", () => {
     expect(active).toContain('placeClient02("LEFT")');
     expect(active).toContain('placeClient02("RIGHT")');
     expect(active).toContain("Client 01 was not moved.");
+    expect(active).toContain("officialImageOutsideSelectedBoxCount");
+    expect(active).toContain("Other Sandboxie boxes are not excluded");
     expect(active).toContain("nativeFeasibility.focusObservedClient02(target)");
     expect(active).toContain("disabled={busy || !focusTarget}");
     expect(active).not.toContain("SetForegroundWindow");
@@ -154,16 +156,17 @@ describe("Native candidate IPC evidence", () => {
 
   it("accepts only non-authoritative isolated process and box observations", () => {
     const valid = {
-      schema: 3, boxName: "MinecraftClient02", stage: "INSPECT",
+      schema: 4, boxName: "MinecraftClient02", stage: "INSPECT",
       boxConfigured: "YES", boxSettingsSource: "BOX_SECTION_ENUMERATED",
       autoDelete: "OFF", autoRemove: "OFF", credentialHostAccess: "OFF",
       membershipStatus: "OBSERVED", interactiveSession: true,
       processEvidenceClass: "NAME_MATCH_CANDIDATE_ONLY",
       candidateProcessCount: 2,
       processCandidates: [
-        { pid: 101, createdFileTime: "133400000000000000", windowHandle: "0x100", inSelectedBox: false },
-        { pid: 202, createdFileTime: "133400000000000001", windowHandle: "0x200", inSelectedBox: true },
+        { pid: 101, createdFileTime: "133400000000000000", windowHandle: "0x100", inSelectedBox: false, imageEvidence: "SIGNED_EDUCATION_IMAGE_CANDIDATE" },
+        { pid: 202, createdFileTime: "133400000000000001", windowHandle: "0x200", inSelectedBox: true, imageEvidence: "UNKNOWN" },
       ],
+      officialImageOutsideSelectedBoxCount: 1,
       isolatedCandidateProcesses: 1,
       nativeVisibleCandidates: 1, isolatedVisibleCandidates: 1,
       interpretation: "CONFIG_AND_PROCESS_CANDIDATES_ONLY_NO_AUTHENTICATION_PROOF",
@@ -177,7 +180,16 @@ describe("Native candidate IPC evidence", () => {
       { ...valid, candidateProcessCount: 1 },
       { ...valid, isolatedCandidateProcesses: 0 },
       { ...valid, isolatedCandidateProcesses: 3 },
-      { ...valid, schema: 2 },
+      { ...valid, schema: 3 },
+      { ...valid, officialImageOutsideSelectedBoxCount: 0 },
+      { ...valid, processCandidates: [
+        valid.processCandidates[0],
+        { ...valid.processCandidates[1], imageEvidence: "SIGNED_EDUCATION_IMAGE_CANDIDATE" },
+      ] },
+      { ...valid, processCandidates: [
+        { ...valid.processCandidates[0], imageEvidence: "NATIVE_AUTHENTICATED" },
+        valid.processCandidates[1],
+      ] },
       { ...valid, processCandidates: [] },
       { ...valid, processCandidates: [
         { ...valid.processCandidates[0], pid: 202 }, valid.processCandidates[1],
@@ -202,7 +214,8 @@ describe("Native candidate IPC evidence", () => {
     expect(parseIsolatedClientObservation({
       ...valid, membershipStatus: "UNKNOWN",
       nativeVisibleCandidates: 0, isolatedVisibleCandidates: 0, isolatedCandidateProcesses: 0,
-      processCandidates: valid.processCandidates.map(p => ({ ...p, inSelectedBox: null })),
+      officialImageOutsideSelectedBoxCount: 0,
+      processCandidates: valid.processCandidates.map(p => ({ ...p, inSelectedBox: null, imageEvidence: "UNKNOWN" })),
     }).membershipStatus).toBe("UNKNOWN");
     expect(parseIsolatedClientObservation({
       ...valid, processCandidates: [
