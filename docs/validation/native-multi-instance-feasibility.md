@@ -41,21 +41,42 @@ The installed official Desktop and Store editions must not coexist as a
 shortcut. Minecraft sign-in can also involve its own Windows authentication
 helper; sandboxing file paths alone does not establish separate accounts.
 
+## Source-to-localtest boundary
+
+The active native pilot is a developer-mode experiment, **not** the legacy
+NSIS installer. On a clean pinned `Local` checkout, source verification
+is `npm run setup` followed by `npm run verify:source`; the experimental
+desktop may then be exercised via `npm run dev`. Never use `DEV.cmd g0`,
+`DEV.cmd package` or the existing NSIS bundle to install the native pilot:
+the old VMware distribution contract is explicitly blocked. A successful
+source check is not a Windows/Minecraft acceptance result.
+
+Do not classify a second-game launch as NO-GO merely because the process
+counter is zero. First distinguish a detector error from an actual failure
+to open an independent, playable game. Evidence records no account secrets.
+
 ## Single-app preflight before the two-account experiment
 
 The new native-first desktop offers two explicit actions:
 
 1. **Request official Minecraft launch** makes a single launch request
-   through Windows' registered official Start app. Repeat only after
-   observing the first game; it may focus the same instance again.
+   through Windows' registered official Start app only when a unique
+   Desktop install is detected in the official 32-bit registry view, its
+   Store counterpart is absent, and the current Windows session is
+   interactive. Repeat only after observing the first game; it may focus
+   the same instance again.
 2. **Inspect Windows (read-only)** observes the current interactive
    Windows session once, showing candidate process and visible-window
    counts. This does not poll, enumerate email addresses, store world
    data, inspect executable paths, or read account tokens.
 
 Requesting a launch invalidates the previous observation; inspect again
-after the game has opened. Counts are NAME_MATCH_CANDIDATE_ONLY, not
-evidence of a licensed account or Minecraft rendering.
+after the game has opened. The collector and active desktop now include
+`Minecraft.Windows`, a process name used by Minecraft Education **and**
+other Minecraft editions. Counts remain NAME_MATCH_CANDIDATE_ONLY, not
+certified Education binaries, licensed accounts or actual game rendering.
+Presence of unrelated Bedrock processes must be checked manually; neither
+a positive count nor a zero count alone establishes game compatibility.
 
 **Required verification order:** verify two distinct game windows;
 manually sign in to two separate licensed Education accounts; load two

@@ -42,7 +42,11 @@ claiming that Microsoft authentication is compatible.
 
 The existing Rust tests, Vitest, static checks, and Windows stage recorder provide supporting evidence. They do not introduce more product-progress gates; no new status schema or runner is used.
 
-## Evidence hierarchy
+## Historical VMware evidence hierarchy (inactive for the native pilot)
+
+The sequence below documents the preserved VMware implementation. Native
+feasibility first checks two independently playable accounts without VMs;
+it does **not** require guest cloning or an NSIS package.
 
 ```text
 Exact GitHub source / package verification

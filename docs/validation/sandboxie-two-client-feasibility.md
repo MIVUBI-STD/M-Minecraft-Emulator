@@ -124,9 +124,9 @@ Pure Node fixture tests only:
 - OPERATOR_REPORTED_FAILURE: operator observed failed sign-in, loss of
   persistence, cross-account reuse, failed world, or missing entitlement.
 - OPERATOR_REPORTED_COMPATIBLE: candidate Windows PID/window
-  inventory, verified box-local settings evidence and exact *operator
-  claims* meet the bounded two-client criterion, but **not**
-  automated Minecraft or account proof.
+  inventory, verified box-local settings, and operator reports include
+  both independent gameplay, multiplayer success, and reboot persistence.
+  This is **not** automated Minecraft or account proof.
 - INCONCLUSIVE: absent or incomplete evidence, including unknown storage
   settings, unsigned tools, service failure, or unverified PID membership.
 
@@ -134,8 +134,10 @@ The evaluator additionally distinguishes processFeasibility
 (TWO_WINDOW_CANDIDATES_OBSERVED or INCONCLUSIVE) from accountFeasibility
 (operator-reported, failure or inconclusive). Neither is a product
 acceptance gate: productAcceptance remains NOT_EVALUATED for four clients.
-An unknown reboot/persistence result does not erase genuine intermediate
-account observations; it still prevents the final compatible verdict.
+An unknown reboot/persistence **or multiplayer** result does not erase
+genuine intermediate account observations; it still prevents the final
+compatible verdict. An explicitly failed multiplayer attempt yields an
+operator-reported failure, not a compatible verdict.
 
 A valid Authenticode signature proves binary-signature integrity only,
 **not** the current license/certificate, game compatibility or account

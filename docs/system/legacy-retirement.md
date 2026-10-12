@@ -68,14 +68,14 @@ explicitly invoked. The active desktop makes no such startup calls.
 - Existing VM directories; VMX/VMDK, VHDX, Base disks, snapshots,
   account-bearing guest profiles, worlds, saved Microsoft sessions.
 - The persisted Windows runtime root at
-  %ProgramData%\M-Bedrock\VirtualClients and its provenance files.
+  %LOCALAPPDATA%\M-Bedrock\VirtualClients and its provenance files.
 - Installed identifier com.mivubi.mbedrock.virtualclients, release naming,
   signing/update contracts, guest protocol IDs and compatibility paths.
 - Old test evidence, exact-SHA G0 proof, Git history and migration notes.
 
 The canonical npm build:app flow is deliberately blocked with
-PACKAGE_BLOCKED_NATIVE_FEASIBILITY as long as the native-only pilot is
-mounted or runtime product-status declares NATIVE_FEASIBILITY. This is not
+PACKAGE_BLOCKED_NATIVE_FEASIBILITY by an explicit release hold, independent
+of Svelte component names or runtime product-status. This is not
 a missing-dependency failure or a completed native installer. A direct
 unsupported invocation that bypasses package preparation is not
 an authorized release workflow.
@@ -98,9 +98,10 @@ through reviewed source and real package execution:
   installation/uninstall registry identity, with an approved migration
   policy if it ever replaces the old installed product.
 - A distinct per-user launcher-state directory and single-instance marker.
-  The existing desktop instance lock currently writes under
-  %LOCALAPPDATA%\\M-Bedrock\\VirtualClients; it must not be reused by
-  an independently installable pilot.
+  The native developer pilot now places its lock under
+  `%LOCALAPPDATA%\MIVUBI\MinecraftEmulatorNativePilot`; existing legacy
+  VM profiles and account disks remain under their original paths.
+  This source isolation does not approve a new installer identity.
 - No VMware Guest Agent, Base/Sysprep scripts, HCS/App Sandbox provider
   binaries, VM management CLI, or legacy acceptance payload in the new
   installer. **A Tauri config overlay by itself may inherit resources
