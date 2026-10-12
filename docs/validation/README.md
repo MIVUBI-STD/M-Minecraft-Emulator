@@ -33,6 +33,7 @@ returns **no-write SummaryOnly** evidence to the desktop; a separately invoked f
 | Question | Authoritative reference |
 | --- | --- |
 | Can one native Minecraft and one sandboxed Windows Minecraft run independently? | [Sandboxie Client 02 feasibility](./sandboxie-two-client-feasibility.md) — single active experiment, not game-proof |
+| What is the current REA-aligned repository audit and prioritized closure plan? | [REA-aligned source audit, 13 Oct 2026](./rea-source-audit-2026-10-13.md) — read-only source evidence, conditional risks and pending real artifact/runtime proof |
 | What was the earlier native-only experiment? | [Native two-client feasibility](./native-multi-instance-feasibility.md) — historical evidence route; not active architecture |
 | What are the only product-test progress gates and their exit criteria? | [Acceptance G0–G4](./acceptance.md) — one canonical five-gate campaign |
 | What comprises the first source/package integrity gate? | [G0 Source & Package Readiness](./pre-local-test-readiness.md) — four mandatory checks within G0 |
