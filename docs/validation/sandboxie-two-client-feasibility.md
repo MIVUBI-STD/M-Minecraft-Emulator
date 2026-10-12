@@ -162,7 +162,7 @@ candidate process windows. The historical JSON field
 `credentialHostAccess` must be interpreted as a configuration/bypass
 indicator, not a proof that host credentials are inaccessible. Its source is embedded in the development
 Tauri backend so the inspector and launcher preflight reuse the same rules.
-The current desktop summary is IPC schema 4 and includes a bounded
+The current desktop summary is IPC schema 5 and includes a bounded
 list of Minecraft-name process candidates with PID, optional Windows
 creation FILETIME string, HWND, observed sandbox membership and image
 evidence. The list is internally reconciled against visible/boxed counters,
@@ -172,9 +172,15 @@ uses SummaryOnly -ImageProof: only visible candidates outside the
 selected box are checked for valid Microsoft Corporation Authenticode
 and Minecraft Education product metadata, using an invocation-local cache
 without sending paths to the UI. Launch/Focus/Place omit -ImageProof to
-avoid repeated signer checks. **A signed Education image outside
-MinecraftClient02 is not proof of an unsandboxed/native process: it
-may run in another box.** The persisted full JSON report remains schema 1
+avoid repeated signer checks. When a signed candidate exists, explicit Refresh also queries
+SbieIni /boxes * for at most six enabled active boxes belonging to the
+current Windows user, and reads the other boxes' process IDs. If every
+query succeeds, the UI distinguishes candidates found in another active
+box from those not found in enumerated active boxes. If discovery fails,
+is too large or ambiguous, coverage remains UNKNOWN. **Neither a no-match
+result nor a signed Education image proves an unsandboxed/native process.**
+These are separate, time-skewed observations; inactive/other-user boxes
+and process changes are not excluded. The persisted full JSON report remains schema 1
 with earlier process field shapes for the existing evaluator.
 The Rust backend serializes manager-initiated launch attempts and suppresses
 rapid ambiguous retries; it does not control independent launches made
