@@ -297,13 +297,22 @@ test("source-side collector must distinguish missing box keys from failed querie
   assert.ok(source.includes("if (-not $reading.Wait(1000)) { return $null }"));
   assert.ok(source.includes("$process.StandardOutput.Dispose()"));
   assert.ok(source.includes("schema = 1")); // durable full CLI report
-  assert.ok(source.includes("schema = 4")); // on-demand desktop summary only
+  assert.ok(source.includes("schema = 5")); // on-demand desktop summary only
   assert.ok(source.includes("isolatedCandidateProcesses = @($gameCandidates | Where-Object {"));
   assert.ok(source.includes("createdFileTime = $createdFileTime"));
   assert.ok(source.includes("imageEvidence = $imageEvidence"));
   assert.ok(source.includes("officialImageOutsideSelectedBoxCount = @($gameCandidates | Where-Object {"));
   assert.ok(source.includes("$educationImageProof = @{}"));
   assert.ok(source.includes("Get-AuthenticodeSignature -LiteralPath $image"));
+  assert.ok(source.includes("Invoke-BoundedReadOnlyTool $iniExe 'query /boxes *'"));
+  assert.ok(source.includes("$boxes.Count -le 6"));
+  assert.ok(source.includes("('/box:' + $box + ' /listpids')"));
+  assert.ok(source.includes("if ($ImageProof -and $signedOutside.Count -gt 0)"));
+  assert.ok(source.includes("$activeBoxCoverage = 'UNKNOWN'"));
+  assert.ok(source.includes("$activeBoxCoverage = 'OBSERVED'"));
+  assert.ok(source.includes("$signedOtherActiveBoxCount++"));
+  assert.ok(source.includes("$signedNoActiveBoxMatchCount++"));
+  assert.ok(source.includes("activeBoxCoverage = $activeBoxCoverage"));
   assert.ok(!source.includes("imagePath = $image"));
   assert.ok(source.includes("processCandidates = @($gameCandidates)"));
   assert.ok(source.includes("candidateProcesses = @($gameCandidates | ForEach-Object {"));
