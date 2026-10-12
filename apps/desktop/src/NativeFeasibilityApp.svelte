@@ -2,6 +2,7 @@
   import {
     nativeFeasibility,
     type IsolatedClientObservation,
+    type ProcessIdentityCandidate,
   } from "./app/bridge/nativeFeasibilityApi.js";
 
   // One short-lived request at a time; zero timers or background observers.
@@ -16,6 +17,11 @@
     observation?.membershipStatus === "OBSERVED";
   $: nativeWindows = membershipObserved ? (observation?.nativeVisibleCandidates ?? null) : null;
   $: isolatedWindows = membershipObserved ? (observation?.isolatedVisibleCandidates ?? null) : null;
+  // The backend still refreshes and verifies identity on every Focus request.
+  $: focusCandidates = (observation?.processCandidates ?? []).filter((candidate) =>
+    candidate.inSelectedBox === true && candidate.createdFileTime !== null &&
+    candidate.windowHandle !== null);
+  $: focusTarget = focusCandidates.length === 1 ? focusCandidates[0] : null;
 
   function errorMessage(reason: unknown): string {
     if (typeof reason === "string" && reason.trim()) return reason.trim();
@@ -67,6 +73,23 @@
       await nativeFeasibility.requestSandboxClient02(selectedExecutable, licenseConfirmed);
       notice = "Client 02 launch requested in MinecraftClient02. Use Refresh to verify sandbox PID membership. Login and gameplay remain unverified.";
     } catch (reason) {
+      error = errorMessage(reason);
+    } finally {
+      busy = false;
+    }
+  }
+
+  async function focusClient02() {
+    if (busy || !focusTarget) return;
+    const target: ProcessIdentityCandidate = focusTarget;
+    busy = true;
+    error = "";
+    notice = "";
+    try {
+      await nativeFeasibility.focusObservedClient02(target);
+      notice = "Windows accepted the Client 02 focus request. Game and account status remain unverified.";
+    } catch (reason) {
+      observation = undefined;
       error = errorMessage(reason);
     } finally {
       busy = false;
@@ -138,6 +161,14 @@
             <strong>Client 02 · Isolated</strong>
             <p>Sandboxie box MinecraftClient02</p>
             <span>{isolatedWindows === null ? "Membership UNKNOWN" : observation?.isolatedCandidateProcesses ? `${observation.isolatedCandidateProcesses} process candidate(s) in box · ${isolatedWindows} with window` : "No Minecraft-name process candidate observed in box"}</span>
+            <div class="pilot-actions">
+              <button class="pilot-secondary" disabled={busy || !focusTarget} on:click={focusClient02}>
+                Focus Client 02
+              </button>
+            </div>
+            {#if isolatedWindows !== null && !focusTarget}
+              <p class="pilot-caution">Focus requires exactly one boxed window with a known process start time. Refresh or select the game window manually.</p>
+            {/if}
           </article>
         </div>
         {#if observation}
