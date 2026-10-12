@@ -124,7 +124,7 @@ observed (replace YES/NO with UNKNOWN wherever not verified):
     powershell.exe -NoProfile -File tooling/acceptance/windows/collect-native-feasibility.ps1 -Stage TWO_CLIENT -DistinctAccounts YES -BothWorldsPlayable YES -IndependentInput YES -AccountCrossingObserved NO -MultiplayerJoined YES -ReopenAndRebootPersistent YES -ObservedMinutes 10 -EvidenceReference two-client-local-001
 
 By default the report is saved as a fresh JSON under
-%TEMP%\MIVUBI-Native-Feasibility. This file is machine-observed process
+%TEMP%\MinecraftInstanceManager\NativeFeasibility. This file is machine-observed process
 candidate data **plus** operator statements, not verified accounts.
 
 Review that specific JSON using Node:

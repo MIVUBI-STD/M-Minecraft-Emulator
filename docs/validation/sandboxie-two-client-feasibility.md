@@ -11,7 +11,7 @@ lifecycle: ACTIVE
 
 **Work:** emulator/sandboxie-client02. This is the **single selected Windows
 isolation experiment**: one normal Minecraft Education Desktop game and one
-launch requested inside the persistent Sandboxie Plus `Mivubi2` box.
+launch requested inside the persistent Sandboxie Plus `MinecraftClient02` box.
 It is not a proven multi-account product or a production provider. Do not
 stop/delete VMware guests, modify sign-in data or duplicate game binaries.
 
@@ -20,7 +20,7 @@ stop/delete VMware guests, modify sign-in data or duplicate game binaries.
 The target is one official Minecraft Education Windows Desktop installation
 and four concurrently playable accounts, with **no full Windows guest VMs if
 possible**. Development is currently restricted to **two Windows Desktop
-clients**, one host native and one inside the preconfigured `Mivubi2` box.
+clients**, one host native and one inside the preconfigured `MinecraftClient02` box.
 No Android emulator, controller, multi-provider engine or 4-client scheduler
 is developed in this experiment.
 
@@ -32,7 +32,7 @@ Sandboxie Plus provides:
 
 These calls remain **read-only** in the collector. The active desktop adds
 one separate, explicitly requested launch action via the official
-`Start.exe /box:Mivubi2 <installed Education EXE>` command, without
+`Start.exe /box:MinecraftClient02 <installed Education EXE>` command, without
 creating, deleting, resetting or configuring Sandboxie boxes. The app never
 copies Microsoft account data or modifies Minecraft executable files.
 
@@ -45,16 +45,29 @@ Upstream references:
 - https://github.com/sandboxie-plus/sandboxie-docs/blob/main/docs/PlusContent/supporter-certificate.md
 - https://edusupport.minecraft.net/hc/en-us/articles/13106858087956-Windows-Installation-Guide
 
+## Canonical, generic naming
+
+- Manager: **Minecraft Instance Manager** (developer UI only).
+- Native process: **Client 01**.
+- Isolated process: **Client 02**, fixed Sandboxie box `MinecraftClient02`.
+- Pilot state: `%LOCALAPPDATA%\MinecraftInstanceManager\NativePilot`.
+- Reports: `%TEMP%\MinecraftInstanceManager\SandboxieFeasibility`.
+
+An older developer experiment may have created a differently named box.
+The manager does **not** rename, erase, or import data from it. Prepare a
+new, clean, persistent `MinecraftClient02` box manually in Sandboxie Plus;
+never clone saved Microsoft login data into the new box.
+
 ## Single desktop experiment — Client 01 + Client 02
 
 In a clean `Local` checkout, run `npm run setup`, `npm run
-verify:source`, then `npm run dev`. Use the **MIVUBI Launcher**
+verify:source`, then `npm run dev`. Use the **Minecraft Instance Manager**
 interface, not the blocked VMware NSIS installer. Start Client 01 through
 the existing official Windows launcher. For Client 02:
 
-1. Prepare exactly one persistent `Mivubi2` box in the licensed Sandboxie
+1. Prepare exactly one persistent `MinecraftClient02` box in the licensed Sandboxie
    Plus interface; keep AutoDelete/AutoRemove OFF.
-2. Select the **installed** Minecraft Education Windows Desktop EXE in MIVUBI.
+2. Select the **installed** Minecraft Education Windows Desktop EXE in Minecraft Instance Manager.
    Do not select the downloaded installer.
 3. Acknowledge Sandboxie licensing and click **Launch isolated Client 02**.
    The Rust backend checks game/box preconditions and sends one Sandboxie
@@ -73,7 +86,7 @@ a Business Certificate for business/educational use as described upstream.
 Use the official **Desktop** version of Minecraft Education, not a copied
 executable or a Store/Win32 dual installation. Leave native Minecraft world
 files unchanged. Sandboxie Plus is optional and third party: its drivers,
-installer, box creation and license are NOT managed by MIVUBI.
+installer, box creation and license are NOT managed by Minecraft Instance Manager.
 
 Before running the two-game test, an authorized operator:
 1. Verifies Sandboxie Plus is legitimately licensed for its intended use.
@@ -81,7 +94,7 @@ Before running the two-game test, an authorized operator:
    educational environments; App Compartment options require an eligible
    Supporter Certificate. Do not assume access is licensed.
 2. Creates a **test-only**, ordinary, persistent box using Sandboxie Plus
-   SandMan GUI named Mivubi2 (or another 1–32-character alphanumeric name
+   SandMan GUI named MinecraftClient02 (or another 1–32-character alphanumeric name
    starting with a letter).
 3. Reviews **Auto Delete** and **Auto Remove** in the selected box.
    SandMan defaults both to OFF when absent from a successfully read box
@@ -90,7 +103,7 @@ Before running the two-game test, an authorized operator:
    or profile copying. A default of OFF is not proof against manual deletion.
 4. Starts one official Minecraft Education Windows Desktop game natively,
    then requests the official game from within that selected Sandboxie box
-   through the **MIVUBI Client 02** launch action using the same signed,
+   through the **Minecraft Instance Manager Client 02** launch action using the same signed,
    installed executable. Neither a launch request nor explorer.exe alone
    proves that Minecraft is actually sandboxed.
 5. If *two real independent windows* appear, signs in to two distinct,
@@ -104,7 +117,7 @@ broker restrictions or Sandboxie driver protections.
 
 ## Read-only inspection (runs from repo root)
 
-    powershell.exe -NoProfile -File tooling/acceptance/windows/collect-sandboxie-feasibility.ps1 -Stage INSPECT -BoxName Mivubi2
+    powershell.exe -NoProfile -File tooling/acceptance/windows/collect-sandboxie-feasibility.ps1 -Stage INSPECT -BoxName MinecraftClient02
 
 The collector checks only signed, installed Start.exe / SbieIni.exe,
 Sandboxie service state, enabled-box/AutoDelete/AutoRemove settings,
@@ -133,9 +146,9 @@ After actually observing **both** login/gameplay sessions and completing
 the close/reopen/reboot persistence check, record operator statements.
 Replace each YES/NO with UNKNOWN unless personally observed:
 
-    powershell.exe -NoProfile -File tooling/acceptance/windows/collect-sandboxie-feasibility.ps1 -Stage TWO_CLIENT -BoxName Mivubi2 -LicensedForUse YES -NativeWorldPlayable YES -SandboxWorldPlayable YES -DistinctAccounts YES -IndependentInput YES -AccountCrossingObserved NO -ReopenAndRebootPersistent YES -MultiplayerJoined UNKNOWN -ObservedMinutes 10 -EvidenceReference isolated-local-001
+    powershell.exe -NoProfile -File tooling/acceptance/windows/collect-sandboxie-feasibility.ps1 -Stage TWO_CLIENT -BoxName MinecraftClient02 -LicensedForUse YES -NativeWorldPlayable YES -SandboxWorldPlayable YES -DistinctAccounts YES -IndependentInput YES -AccountCrossingObserved NO -ReopenAndRebootPersistent YES -MultiplayerJoined UNKNOWN -ObservedMinutes 10 -EvidenceReference isolated-local-001
 
-The JSON is written under %TEMP%\MIVUBI-Sandboxie-Feasibility.
+The JSON is written under %TEMP%\MinecraftInstanceManager\SandboxieFeasibility. Previous reports remain at their prior paths; nothing is migrated or deleted.
 Record no screenshots/account identifiers in Git. Evaluate the specific file:
 
     node tooling/acceptance/evaluate-sandboxie-feasibility.mjs "<report.json>"

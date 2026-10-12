@@ -24,7 +24,7 @@ An operator does **not** need a local checkout to complete repository/source-ver
 
 ## Current operating mode
 
-The desktop now mounts one focused **two-client Windows feasibility pilot**: official native Client 01 plus one explicitly requested Sandboxie `Mivubi2` Client 02, with read-only candidate process/window counts. This does not claim two or four authenticated playable sessions. No VM refresh, guest setup or old updater runs on startup. The existing
+The desktop now mounts one focused **two-client Windows feasibility pilot**: official native Client 01 plus one explicitly requested Sandboxie `MinecraftClient02` Client 02, with read-only candidate process/window counts. This does not claim two or four authenticated playable sessions. No VM refresh, guest setup or old updater runs on startup. The existing
 VMware-based installer build is explicitly blocked while this experimental
 native launcher is active; there is no approved native release installer yet. Legacy VMware/App Sandbox mutation commands return UNSUPPORTED; the VM-oriented routes below remain documentation and read-only reference, not active workflows.
 

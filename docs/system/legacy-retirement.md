@@ -99,7 +99,7 @@ through reviewed source and real package execution:
   policy if it ever replaces the old installed product.
 - A distinct per-user launcher-state directory and single-instance marker.
   The native developer pilot now places its lock under
-  `%LOCALAPPDATA%\MIVUBI\MinecraftEmulatorNativePilot`; existing legacy
+  `%LOCALAPPDATA%\MinecraftInstanceManager\NativePilot`; existing legacy
   VM profiles and account disks remain under their original paths.
   This source isolation does not approve a new installer identity.
 - No VMware Guest Agent, Base/Sysprep scripts, HCS/App Sandbox provider

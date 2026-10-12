@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "M-Bedrock Virtual Clients",
+        "title": "Minecraft Instance Manager",
         "width": 1180,
         "height": 760,
         "minWidth": 920,

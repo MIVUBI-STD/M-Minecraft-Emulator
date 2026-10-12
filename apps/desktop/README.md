@@ -1,6 +1,14 @@
-# Virtual Clients Desktop
+# Minecraft Instance Manager — Experimental Desktop
 
-Canonical desktop source for M-Bedrock Virtual Clients. The current src/main.ts mounts **NativeFeasibilityApp.svelte** only. Its two explicit controls are the official Minecraft Desktop launch request and a read-only same-session candidate PID/HWND inspection through the strict typed src/app/bridge/nativeFeasibilityApi.ts bridge. Old App.svelte and VMware surfaces/IPC adapters are preserved but unmounted or unregistered. Public Rust VM mutation commands are paused. See [Legacy Retirement](../../docs/system/legacy-retirement.md) for deletion criteria. No four-account gameplay is verified. Non-UI authority remains in ../../engine/.
+The active Windows developer pilot is **Minecraft Instance Manager**. The single mounted
+`NativeFeasibilityApp.svelte` provides official Client 01 launch, one Client 02
+Sandboxie box (`MinecraftClient02`) launch request, and explicit candidate-only
+process inspection through `src/app/bridge/nativeFeasibilityApi.ts`.
+The game executable is not copied and logins are manual. Two independent
+Minecraft Education account sessions are not yet verified. The former
+`M-Bedrock Virtual Clients` installed product identifier and VMware runtime
+are legacy compatibility boundaries: VM/Guest Agent controls remain disabled,
+and the old NSIS bundle is blocked. See [Legacy Retirement](../../docs/system/legacy-retirement.md).
 
 ## Stack
 
