@@ -681,8 +681,12 @@ if ($gameCandidates.Count -gt 16) {
 $directPidQuery = 'NOT_REQUESTED'
 $signedOtherBoxCount = 0
 $signedUnknownBoxCount = 0
+# This counter is OUTSIDE-only. A successful targeted boxed ImageProof
+# must never be counted as an outside process, or Rust rejects Focus/Place
+# because the published counter contradicts the signed PID identities.
 $signedOutside = @($gameCandidates | Where-Object {
-  $_.imageEvidence -eq 'SIGNED_EDUCATION_IMAGE_CANDIDATE'
+  $_.imageEvidence -eq 'SIGNED_EDUCATION_IMAGE_CANDIDATE' -and
+  $_.inSelectedBox -eq $false
 })
 if ($ImageProof -and $signedOutside.Count -gt 0) {
   $directPidQuery = 'UNAVAILABLE'
