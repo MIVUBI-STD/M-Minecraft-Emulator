@@ -4,12 +4,37 @@ use std::{
     io::{Read, Write},
     path::Path,
     process::{Child, Command, Stdio},
-    sync::mpsc,
+    sync::{atomic::{AtomicUsize, Ordering}, mpsc},
     thread,
     time::{Duration, Instant},
 };
 
 const COMMAND_TIMEOUT: Duration = Duration::from_secs(45);
+
+// Pipe readers may outlive a direct child if an unrelated descendant inherits
+// stdout/stderr. Cap retained workers rather than allowing repeated timed-out
+// inspections to accumulate unbounded detached threads. This is a safety
+// ceiling, not proof that OS pipe cancellation or descendant cleanup works.
+const MAX_BOUNDED_IO_WORKERS: usize = 24;
+static BOUNDED_IO_WORKERS: AtomicUsize = AtomicUsize::new(0);
+
+struct IoWorkerSlot;
+
+impl Drop for IoWorkerSlot {
+    fn drop(&mut self) {
+        BOUNDED_IO_WORKERS.fetch_sub(1, Ordering::AcqRel);
+    }
+}
+
+fn reserve_io_workers(count: usize) -> io::Result<Vec<IoWorkerSlot>> {
+    BOUNDED_IO_WORKERS
+        .fetch_update(Ordering::AcqRel, Ordering::Acquire, |current| {
+            current.checked_add(count).filter(|next| *next <= MAX_BOUNDED_IO_WORKERS)
+        })
+        .map_err(|_| io::Error::new(io::ErrorKind::WouldBlock,
+            "too many active provider I/O workers; previous subprocess pipes may still be open"))?;
+    Ok((0..count).map(|_| IoWorkerSlot).collect())
+}
 
 pub(crate) fn command_output<I, S>(program: &Path, args: I) -> io::Result<String>
 where
@@ -61,6 +86,10 @@ where
     I: IntoIterator<Item = S>,
     S: AsRef<OsStr>,
 {
+    // Reserve before spawning the process. An unavailable slot refuses work
+    // without starting another helper or increasing resource pressure.
+    let slots = reserve_io_workers(if input.is_some() { 3 } else { 2 })?;
+    let mut slots = slots.into_iter();
     let mut child = Command::new(program)
         .args(args)
         .stdin(if input.is_some() { Stdio::piped() } else { Stdio::null() })
@@ -75,7 +104,11 @@ where
                 "missing bounded command stdin"))?;
         let data = bytes.to_vec();
         let (tx, rx) = mpsc::sync_channel(1);
-        thread::spawn(move || { let _ = tx.send(writer.write_all(&data)); });
+        let slot = slots.next().expect("reserved stdin worker slot");
+        thread::spawn(move || {
+            let _slot = slot;
+            let _ = tx.send(writer.write_all(&data));
+        });
         Some(rx)
     } else {
         None
@@ -93,10 +126,14 @@ where
         .ok_or_else(|| io::Error::new(io::ErrorKind::Other, "missing stderr pipe"))?;
     let (stdout_sender, stdout_reader) = mpsc::sync_channel(1);
     let (stderr_sender, stderr_reader) = mpsc::sync_channel(1);
+    let stdout_slot = slots.next().expect("reserved stdout worker slot");
+    let stderr_slot = slots.next().expect("reserved stderr worker slot");
     thread::spawn(move || {
+        let _slot = stdout_slot;
         let _ = stdout_sender.send(drain_output(stdout));
     });
     thread::spawn(move || {
+        let _slot = stderr_slot;
         let _ = stderr_sender.send(drain_output(stderr));
     });
 
