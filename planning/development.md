@@ -1,3 +1,56 @@
+## Current work — correct feasibility layers and Sandboxie defaults (2026-10-12)
+
+**Work:** emulator/feasibility-evidence-correction
+**State:** SOURCE_CORRECTION_AUTHORED / WINDOWS_GAMEPLAY_NOT_EXECUTED.
+**Target:** one official Minecraft Education Desktop installation, four
+independently signed-in playable sessions, minimum overhead, no guest OS
+unless experiments establish that lighter isolation is infeasible.
+
+### Bounded implementation correction
+
+- Sandboxie read-only collector queries SbieIni.exe for the enabled
+  box's explicit setting names before reading AutoDelete / AutoRemove.
+  SandMan's box-local defaults are OFF when absent in a successful box
+  enumeration; an unreadable query is UNKNOWN. No GlobalSettings
+  fallback and no sandbox creation/deletion/activation were added.
+- Sandboxie evaluator requires boxSettingsSource =
+  BOX_SECTION_ENUMERATED for any positive two-client compatibility
+  report. Older schema-1 reports without provenance remain parseable
+  but inconclusive; failed/ambiguous enumeration cannot prove storage
+  persistence. Strict staged source checks protect this behavior.
+- The existing native evaluator and Sandboxie evaluator now each
+  project three different evidence levels: processFeasibility (two
+  candidate windows, not gameplay), accountFeasibility (explicitly
+  OPERATOR_REPORTED_PLAYABLE or failure/inconclusive), and
+  productAcceptance = NOT_EVALUATED (four-client proof out of scope).
+  No new daemon, service, state store, IPC manager or provider was built.
+- The prior conservative final two-client verdict remains a distinct
+  compatibility criterion; it still requires manually observed
+  multiplayer and reopen/reboot persistence. Those later checks
+  no longer block a useful intermediate account-feasibility report.
+- The old VMware installer/package builder remains blocked.
+  docs/system/legacy-retirement.md now records a separate prototype
+  app identity/data-root/payload design boundary. No app identifier,
+  product install, recovery paths, Guest Agent, VM disks or 'main'
+  branch are changed.
+
+### Evidence ceiling and continuation
+
+Exact GitHub source/static review and pure JS evaluator regression
+execution in the ChatGPT V8 sandbox can test source logic. Windows
+SbieIni command behavior, Sandboxie/Microsoft Education compatibility,
+Node/Vitest/Rust/Tauri/NSIS build and full four-client gameplay are
+NOT_EXECUTED. Source from Sandboxie Plus docs supports interpreting
+missing box settings only when the section was successfully read;
+this is not live compatibility evidence.
+
+**Next:** undertake only bounded source-verifiable improvements in
+ChatGPT/GitHub. Actual native two-client or Sandboxie acceptance will
+require genuine target Windows game observations later. Do not
+reactivate VMware or alter existing installed accounts.
+
+---
+
 ## Current work — tighten two-account evidence and block legacy packaging (2026-10-12)
 
 **Work:** emulator/native-multi-instance-readiness

@@ -27,9 +27,19 @@ data under the normal per-user AppData location. Never change, move,
 delete, inspect or copy that data during this pilot.
 
 Sources:
+- https://edusupport.minecraft.net/hc/en-us/community/posts/360072475972-Multi-World-Setup
 - https://edusupport.minecraft.net/hc/en-us/articles/13106858087956-Windows-Installation-Guide
 - https://edusupport.minecraft.net/hc/en-us/articles/4404785703316-Location-of-World-Files
 - https://edusupport.minecraft.net/hc/en-us/articles/360061382672-Sign-Into-Minecraft-Education
+
+**Support caveat:** Minecraft Education support explicitly said in 2019
+that multiple app instances on one machine were not supported. This is a
+historical platform statement, NOT a live 2026 compatibility verdict.
+If the official app continues to restrict independent processes, record
+that result; do not bypass its single-instance or licensing mechanisms.
+The installed official Desktop and Store editions must not coexist as a
+shortcut. Minecraft sign-in can also involve its own Windows authentication
+helper; sandboxing file paths alone does not establish separate accounts.
 
 ## Single-app preflight before the two-account experiment
 
@@ -104,6 +114,28 @@ To execute evaluator unit tests (which do not run Minecraft):
 
     npm run test:native-feasibility
 
+## Evidence interpretation: three levels, one evaluator
+
+| Level | Output field | Meaning |
+| --- | --- | --- |
+| Process feasibility | processFeasibility | TWO_WINDOW_CANDIDATES_OBSERVED means two separate PID/HWND **candidates** in an interactive Windows session, not confirmed Minecraft gameplay |
+| Account feasibility | accountFeasibility | OPERATOR_REPORTED_PLAYABLE requires a manually observed pair of separately signed-in playable worlds and independent input, plus duration/reference; it does not require multiplayer or reboot |
+| Product acceptance | productAcceptance | NOT_EVALUATED always for the two-client pilot; four playable clients are a separate future verification |
+
+The pre-existing top-level verdict remains conservative for compatibility
+with older consumers: OPERATOR_REPORTED_TWO_CLIENTS requires the
+operator-reported account result **plus** successful multiplayer and
+separated accounts retained after reopening and reboot. Thus process
+and account observations may advance while verdict remains INCONCLUSIVE.
+A multiplayer failure must not be mislabelled a process-launch failure.
+No level automatically verifies account ownership or official support.
+
+A first TWO_CLIENT report can use MultiplayerJoined UNKNOWN and
+ReopenAndRebootPersistent UNKNOWN while manually observing the two
+licensed worlds. This may yield accountFeasibility
+OPERATOR_REPORTED_PLAYABLE but no final compatibility verdict. Do not
+invent positive values just to pass the stricter final criterion.
+
 ## Acceptance boundaries
 
 The evaluator produces one of:
@@ -112,7 +144,8 @@ The evaluator produces one of:
 - OPERATOR_REPORTED_TWO_CLIENTS: two distinct process and visible-window
   candidates plus the required operator statements, including observed
   multiplayer success and retained independent sessions after reopening
-  and a host reboot. Reports without either are INCONCLUSIVE.
+  and a host reboot. Reports without either have an INCONCLUSIVE
+  final verdict even if accountFeasibility is operator-reported playable.
 
 Old schema-1 reports that lack reopen/reboot evidence remain readable,
 but cannot be positively classified. Duplicate numeric HWNDs (even with

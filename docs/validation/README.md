@@ -15,9 +15,10 @@ The approved *new product outcome* is four Minecraft Education Windows
 sessions with four independent accounts, **without VM guests if feasible**.
 The first engineering work is a bounded, non-destructive
 [native two-client feasibility experiment](./native-multi-instance-feasibility.md).
-Its positive operator-reported outcome now requires actual observed
-multiplayer and account persistence after reopening and reboot; PID and
-HWND counts do not establish gameplay.
+The evaluator distinguishes process candidates from manually reported
+two-account gameplay. Its *final two-client verdict* still requires observed
+multiplayer and account persistence after reopening and reboot; no two-client
+result establishes four-client product acceptance.
 This is an evidence collector and evaluator only; it does not imply native
 multi-instance works or supersede any passed legacy VM package G0 record.
 Existing VMware G1–G4 remain unexecuted and unrelated to native viability.

@@ -84,6 +84,42 @@ The pilot desktop cannot stop existing running VMs. If needed, an
 authorized user must use the vendor's existing console to perform a
 manual graceful shutdown. Installing this code does not stop or erase VMs.
 
+## Separate native prototype package — design boundary, not a release
+
+The installed Tauri identifier and current NSIS payload still belong to
+the old VM manager. The canonical packaging command therefore remains
+blocked while the native feasibility surface is mounted. **Do not remove
+this block** merely to obtain a downloadable test installer.
+
+A future isolated prototype must first demonstrate all of these properties
+through reviewed source and real package execution:
+
+- A **different Tauri app identifier**, installer/product name, and
+  installation/uninstall registry identity, with an approved migration
+  policy if it ever replaces the old installed product.
+- A distinct per-user launcher-state directory and single-instance marker.
+  The existing desktop instance lock currently writes under
+  %LOCALAPPDATA%\\M-Bedrock\\VirtualClients; it must not be reused by
+  an independently installable pilot.
+- No VMware Guest Agent, Base/Sysprep scripts, HCS/App Sandbox provider
+  binaries, VM management CLI, or legacy acceptance payload in the new
+  installer. **A Tauri config overlay by itself may inherit resources
+  from the base config**; inspect the final merged bundle contract.
+- No automatic uninstallation, migration, reset or deletion of
+  legacy runtime files, VM disks, snapshots or Microsoft sessions.
+- No new Microsoft sign-in implementation, credentials store,
+  patched Minecraft executable, or copied official app binaries.
+- Independent verification of the actual Windows package file list,
+  installation coexistence, upgrade, removal and preserved account
+  data before calling a prototype installable.
+
+This is a release-isolation specification, not authorization to rename
+the current production identifier or implement another packaging system.
+The current source pilot can still be developed and statically reviewed
+without an installer. Old core runtime and VM libraries remain compiled
+in existing dependency graphs, so reduced package/RAM/storage size is
+not yet demonstrated.
+
 ## Deletion criteria — not yet met
 
 1. Two independently logged-in Education sessions verified through actual

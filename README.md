@@ -20,7 +20,7 @@ AGENTS.md → GITHUB_RULES.md → docs/system/implementation-map.md
 
 An operator does **not** need a local checkout to complete repository/source-verifiable tasks. Windows or Minecraft acceptance is a separate, higher proof context. `DEV.cmd` is an optional local developer convenience, never the remote GitHub completion requirement.
 
-**Definition of DONE:** [Four simultaneous Minecraft Education accounts](docs/product/four-concurrent-accounts.md). **Current tests:** [Native two-client experiment](docs/validation/native-multi-instance-feasibility.md); [Sandboxie Plus isolation experiment](docs/validation/sandboxie-two-client-feasibility.md), read-only first. Documentation: [docs/README.md](docs/README.md). **Current handoff:** [planning/development.md](planning/development.md) (top section). **Removal map:** [Legacy Retirement](docs/system/legacy-retirement.md).
+**Definition of DONE:** [Four simultaneous Minecraft Education accounts](docs/product/four-concurrent-accounts.md). **Technical status:** candidate PID/window observations and manually reported two-account playability are separate intermediate evidence; neither proves four-client acceptance. **Current tests:** [Native two-client experiment](docs/validation/native-multi-instance-feasibility.md); [Sandboxie Plus isolation experiment](docs/validation/sandboxie-two-client-feasibility.md), read-only first. Documentation: [docs/README.md](docs/README.md). **Current handoff:** [planning/development.md](planning/development.md) (top section). **Removal map:** [Legacy Retirement](docs/system/legacy-retirement.md).
 
 ## Current operating mode
 

@@ -111,11 +111,35 @@ function Read-BoxSetting {
   if ($value -eq 'y' -or $value -eq 'n') { return $value }
   return $null
 }
+# SandMan reads these two lifecycle controls from the box itself. Both
+# default to "n" when absent from a successfully queried box section.
+# Do not fall back to GlobalSettings; do not treat a failed query as absence.
+# SbieIni query <BoxName> * lists explicit box-local setting NAMES.
 $enabled = Read-BoxSetting $BoxName 'Enabled'
-$delete = Read-BoxSetting $BoxName 'AutoDelete'
-$remove = Read-BoxSetting $BoxName 'AutoRemove'
-if ($null -eq $delete) { $delete = Read-BoxSetting 'GlobalSettings' 'AutoDelete' }
-if ($null -eq $remove) { $remove = Read-BoxSetting 'GlobalSettings' 'AutoRemove' }
+$boxSettingsSource = 'UNKNOWN'
+$delete = $null
+$remove = $null
+if ($trustedTools -and $serviceRunning -and $enabled -eq 'y') {
+  $rawNames = Invoke-BoundedReadOnlyTool $iniExe ('query ' + $BoxName + ' *')
+  if ($null -ne $rawNames) {
+    $names = @($rawNames -split '\r?\n' |
+      ForEach-Object { $_.Trim() } |
+      Where-Object { $_ -ne '' })
+    $allNamesValid = $names.Count -ge 1 -and $names.Count -le 128 -and
+      @($names | Where-Object { $_ -cnotmatch '^[A-Za-z_][A-Za-z0-9_.:-]{0,79}$' }).Count -eq 0 -and
+      @($names | Select-Object -Unique).Count -eq $names.Count -and
+      ($names -contains 'Enabled')
+    if ($allNamesValid) {
+      $boxSettingsSource = 'BOX_SECTION_ENUMERATED'
+      $delete = if ($names -contains 'AutoDelete') {
+        Read-BoxSetting $BoxName 'AutoDelete'
+      } else { 'n' }
+      $remove = if ($names -contains 'AutoRemove') {
+        Read-BoxSetting $BoxName 'AutoRemove'
+      } else { 'n' }
+    }
+  }
+}
 $toFlag = { param($value) if ($value -eq 'y') { return 'ON' } if ($value -eq 'n') { return 'OFF' } return 'UNKNOWN' }
 $boxConfigured = if ($enabled -eq 'y') { 'YES' } elseif ($enabled -eq 'n') { 'NO' } else { 'UNKNOWN' }
 
@@ -190,6 +214,7 @@ $report = [ordered]@{
     toolSignaturesValid = [bool]$trustedTools
     serviceRunning = [bool]$serviceRunning
     boxConfigured = $boxConfigured
+    boxSettingsSource = $boxSettingsSource
     autoDelete = (& $toFlag $delete)
     autoRemove = (& $toFlag $remove)
     membershipStatus = $membershipStatus

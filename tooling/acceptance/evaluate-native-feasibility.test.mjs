@@ -41,6 +41,9 @@ test("operator reported playability never becomes automated gameplay or account 
   assert.equal(r.licensedAccountsVerified, false);
   assert.equal(r.automatedGameplayProof, false);
   assert.equal(r.noVmFeasibilityProven, false);
+  assert.equal(r.processFeasibility, "TWO_WINDOW_CANDIDATES_OBSERVED");
+  assert.equal(r.accountFeasibility, "OPERATOR_REPORTED_PLAYABLE");
+  assert.equal(r.productAcceptance, "NOT_EVALUATED");
   assert.ok(!r.risks.includes("MULTIPLAYER_NOT_OBSERVED"));
   assert.ok(!r.risks.includes("SESSION_PERSISTENCE_NOT_OBSERVED"));
 });
@@ -196,4 +199,62 @@ test("baseline rejects persistence claims and explicit multiplayer/persistence f
   multiplayer.operator.multiplayerJoined = "NO";
   assert.equal(evaluateNativeFeasibility(multiplayer).verdict, "OPERATOR_REPORTED_FAILURE");
   assert.ok(evaluateNativeFeasibility(multiplayer).risks.includes("MULTIPLAYER_FAILED"));
+});
+
+
+test("native process evidence can advance without account, multiplayer or reboot claims", () => {
+  const r = sample();
+  r.stage = "BASELINE";
+  for (const key of ["distinctAccounts", "bothWorldsPlayable", "independentInput",
+    "accountCrossingObserved", "multiplayerJoined"]) r.operator[key] = "UNKNOWN";
+  r.operator.reopenAndRebootPersistent = "UNKNOWN";
+  r.operator.observedMinutes = 0;
+  r.operator.evidenceReference = null;
+  const result = evaluateNativeFeasibility(r);
+  assert.equal(result.processFeasibility, "TWO_WINDOW_CANDIDATES_OBSERVED");
+  assert.equal(result.accountFeasibility, "INCONCLUSIVE");
+  assert.equal(result.productAcceptance, "NOT_EVALUATED");
+  assert.equal(result.verdict, "INCONCLUSIVE");
+  assert.equal(result.noVmFeasibilityProven, false);
+});
+
+test("account feasibility is independent of multiplayer and reboot evidence", () => {
+  const r = sample();
+  r.operator.multiplayerJoined = "UNKNOWN";
+  r.operator.reopenAndRebootPersistent = "UNKNOWN";
+  const result = evaluateNativeFeasibility(r);
+  assert.equal(result.processFeasibility, "TWO_WINDOW_CANDIDATES_OBSERVED");
+  assert.equal(result.accountFeasibility, "OPERATOR_REPORTED_PLAYABLE");
+  assert.equal(result.verdict, "INCONCLUSIVE");
+  assert.equal(result.productAcceptance, "NOT_EVALUATED");
+  assert.equal(result.licensedAccountsVerified, false);
+});
+
+test("failure of networking/persistence must not erase separately reported playable accounts", () => {
+  for (const key of ["multiplayerJoined", "reopenAndRebootPersistent"]) {
+    const r = sample();
+    r.operator[key] = "NO";
+    const result = evaluateNativeFeasibility(r);
+    assert.equal(result.accountFeasibility, "OPERATOR_REPORTED_PLAYABLE");
+    assert.equal(result.verdict, "OPERATOR_REPORTED_FAILURE");
+    assert.equal(result.productAcceptance, "NOT_EVALUATED");
+  }
+});
+
+test("game/account failure prevents positive account feasibility independently", () => {
+  const r = sample();
+  r.operator.distinctAccounts = "NO";
+  const result = evaluateNativeFeasibility(r);
+  assert.equal(result.processFeasibility, "TWO_WINDOW_CANDIDATES_OBSERVED");
+  assert.equal(result.accountFeasibility, "OPERATOR_REPORTED_FAILURE");
+  assert.equal(result.verdict, "OPERATOR_REPORTED_FAILURE");
+});
+
+test("two Windows candidates are necessary even when operator flags claim success", () => {
+  const r = sample();
+  r.machine.candidateProcesses.pop();
+  const result = evaluateNativeFeasibility(r);
+  assert.equal(result.processFeasibility, "INCONCLUSIVE");
+  assert.equal(result.accountFeasibility, "INCONCLUSIVE");
+  assert.equal(result.verdict, "INCONCLUSIVE");
 });

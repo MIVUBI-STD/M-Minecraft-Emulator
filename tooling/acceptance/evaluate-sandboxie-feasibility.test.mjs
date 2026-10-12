@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import { evaluateSandboxieFeasibility } from "./evaluate-sandboxie-feasibility.mjs";
 
@@ -13,6 +14,7 @@ const sample = () => ({
     toolSignaturesValid: true,
     serviceRunning: true,
     boxConfigured: "YES",
+    boxSettingsSource: "BOX_SECTION_ENUMERATED",
     autoDelete: "OFF",
     autoRemove: "OFF",
     membershipStatus: "OBSERVED"
@@ -75,6 +77,7 @@ test("automatic deletion or removal blocks even when operator claims success", (
     // A disabled box cannot have trustworthy observed PID membership.
     if (r.sandboxie.boxConfigured === "NO") {
       r.sandboxie.membershipStatus = "UNKNOWN";
+      r.sandboxie.boxSettingsSource = "UNKNOWN";
       for (const p of r.machine.candidateProcesses) p.inSelectedBox = null;
     }
     const result = evaluateSandboxieFeasibility(r);
@@ -172,4 +175,86 @@ test("no box membership can be reported with missing tools, service or enabled b
 test("inspection mode rejects user-injected game or licensing assertions", () => {
   const r = sample(); r.stage = "INSPECT";
   assert.throws(() => evaluateSandboxieFeasibility(r), TypeError);
+});
+
+
+test("box-local absent-by-default settings can be OFF only after successful box enumeration", () => {
+  const actual = sample();
+  assert.equal(evaluateSandboxieFeasibility(actual).verdict, "OPERATOR_REPORTED_COMPATIBLE");
+  assert.equal(evaluateSandboxieFeasibility(actual).boxLocalSettingsVerified, true);
+
+  // Backwards-compatible older schema-1 reports without provenance are
+  // readable, but can no longer assert a persistent Sandboxie box.
+  const previous = sample();
+  delete previous.sandboxie.boxSettingsSource;
+  const old = evaluateSandboxieFeasibility(previous);
+  assert.equal(old.verdict, "INCONCLUSIVE");
+  assert.equal(old.boxLocalSettingsVerified, false);
+  assert.ok(old.risks.includes("BOX_LOCAL_SETTINGS_NOT_VERIFIED"));
+
+  const failedEnumeration = sample();
+  failedEnumeration.sandboxie.boxSettingsSource = "UNKNOWN";
+  const unknown = evaluateSandboxieFeasibility(failedEnumeration);
+  assert.equal(unknown.verdict, "INCONCLUSIVE");
+  assert.ok(unknown.risks.includes("BOX_LOCAL_SETTINGS_NOT_VERIFIED"));
+});
+
+test("rejects a forged local-settings result when box tools, service or box are unavailable", () => {
+  for (const alter of [
+    r => r.sandboxie.toolsPresent = false,
+    r => r.sandboxie.toolSignaturesValid = false,
+    r => r.sandboxie.serviceRunning = false,
+    r => r.sandboxie.boxConfigured = "UNKNOWN"
+  ]) {
+    const r = sample();
+    alter(r);
+    assert.throws(() => evaluateSandboxieFeasibility(r), TypeError);
+  }
+  const r = sample();
+  r.sandboxie.boxSettingsSource = "GLOBAL_SETTINGS_INHERITED";
+  assert.throws(() => evaluateSandboxieFeasibility(r), TypeError);
+});
+
+
+test("process and operator-account evidence are distinct from session persistence and final acceptance", () => {
+  const processOnly = sample();
+  processOnly.stage = "INSPECT";
+  for (const key of ["licensedForUse", "nativeWorldPlayable", "sandboxWorldPlayable",
+    "distinctAccounts", "independentInput", "accountCrossingObserved",
+    "reopenAndRebootPersistent", "multiplayerJoined"]) {
+    processOnly.operator[key] = "UNKNOWN";
+  }
+  processOnly.operator.observedMinutes = 0;
+  processOnly.operator.evidenceReference = null;
+  const early = evaluateSandboxieFeasibility(processOnly);
+  assert.equal(early.processFeasibility, "TWO_WINDOW_CANDIDATES_OBSERVED");
+  assert.equal(early.accountFeasibility, "INCONCLUSIVE");
+  assert.equal(early.productAcceptance, "NOT_EVALUATED");
+
+  const accountOnly = sample();
+  accountOnly.operator.reopenAndRebootPersistent = "UNKNOWN";
+  const reported = evaluateSandboxieFeasibility(accountOnly);
+  assert.equal(reported.accountFeasibility, "OPERATOR_REPORTED_PLAYABLE");
+  assert.equal(reported.verdict, "INCONCLUSIVE");
+  assert.equal(reported.productAcceptance, "NOT_EVALUATED");
+
+  const failedPersistence = sample();
+  failedPersistence.operator.reopenAndRebootPersistent = "NO";
+  const failure = evaluateSandboxieFeasibility(failedPersistence);
+  assert.equal(failure.accountFeasibility, "OPERATOR_REPORTED_PLAYABLE");
+  assert.equal(failure.verdict, "OPERATOR_REPORTED_FAILURE");
+});
+
+test("source-side collector must distinguish missing box keys from failed queries", () => {
+  // Protect the Windows implementation contract even when PowerShell cannot
+  // execute in the current ChatGPT/GitHub-only development context.
+  const source = readFileSync(new URL("./windows/collect-sandboxie-feasibility.ps1", import.meta.url), "utf8");
+  assert.ok(source.includes("'BOX_SECTION_ENUMERATED'"));
+  assert.ok(source.includes("'query ' + $BoxName + ' *'"));
+  assert.ok(source.includes("if ($null -ne $rawNames)"));
+  assert.ok(source.includes("if ($names -contains 'AutoDelete')"));
+  assert.ok(source.includes("if ($names -contains 'AutoRemove')"));
+  assert.ok(source.includes("else { 'n' }"));
+  assert.ok(!source.includes("Read-BoxSetting 'GlobalSettings' 'AutoDelete'"));
+  assert.ok(!source.includes("Read-BoxSetting 'GlobalSettings' 'AutoRemove'"));
 });

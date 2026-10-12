@@ -184,6 +184,28 @@ requireFact(nativeEvidenceCollector.includes("ReopenAndRebootPersistent") &&
   nativeEvidenceEvaluator.includes("SESSION_PERSISTENCE_NOT_OBSERVED") &&
   nativeEvidenceEvaluator.includes('operator.multiplayerJoined === "YES"'),
   "Native two-account evidence may not ignore persistence or multiplayer");
+requireFact(nativeEvidenceEvaluator.includes("processFeasibility") &&
+  nativeEvidenceEvaluator.includes("accountFeasibility") &&
+  nativeEvidenceEvaluator.includes('productAcceptance: "NOT_EVALUATED"'),
+  "Native process/account observations must stay distinct from final four-client acceptance");
+
+const sandboxCollector = read("tooling/acceptance/windows/collect-sandboxie-feasibility.ps1");
+const sandboxEvaluator = read("tooling/acceptance/evaluate-sandboxie-feasibility.mjs");
+requireFact(sandboxCollector.includes("'query ' + $BoxName + ' *'") &&
+  sandboxCollector.includes("'BOX_SECTION_ENUMERATED'") &&
+  sandboxCollector.includes("if ($null -ne $rawNames)") &&
+  sandboxCollector.includes("if ($names -contains 'AutoDelete')") &&
+  sandboxCollector.includes("if ($names -contains 'AutoRemove')") &&
+  !sandboxCollector.includes("Read-BoxSetting 'GlobalSettings' 'AutoDelete'") &&
+  !sandboxCollector.includes("Read-BoxSetting 'GlobalSettings' 'AutoRemove'") &&
+  sandboxEvaluator.includes("BOX_LOCAL_SETTINGS_NOT_VERIFIED") &&
+  sandboxEvaluator.includes('boxSettingsSource === "BOX_SECTION_ENUMERATED"'),
+  "Sandboxie lifecycle settings must derive only from a successful box-local enumeration");
+requireFact(sandboxEvaluator.includes("processFeasibility") &&
+  sandboxEvaluator.includes("accountFeasibility") &&
+  sandboxEvaluator.includes('productAcceptance: "NOT_EVALUATED"'),
+  "Sandboxie candidate/account evidence must not masquerade as four-account acceptance");
+
 // The current UI cannot be shipped as the old VMware installer while
 // still bundling a Guest Agent and account-bearing installed identity.
 const bundleBuilder = read("apps/desktop/scripts/prepare-package-binaries.mjs");

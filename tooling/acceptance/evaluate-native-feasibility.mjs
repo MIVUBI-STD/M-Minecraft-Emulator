@@ -99,24 +99,36 @@ export function evaluateNativeFeasibility(report) {
     risks.push("OPERATOR_REFERENCE_MISSING");
   }
 
-  const explicitFailure = report.stage === "TWO_CLIENT" &&
+  // Three evidence levels, not three separate runtimes or lifecycle managers.
+  // A candidate HWND/PID never certifies game identity; account evidence is
+  // strictly operator-attributed. Four-client acceptance is outside this report.
+  const processFeasibility = readyDesktop && machine.interactiveSession &&
+    machine.candidateProcesses.length >= 2 && visible >= 2
+    ? "TWO_WINDOW_CANDIDATES_OBSERVED" : "INCONCLUSIVE";
+  const accountFailure = report.stage === "TWO_CLIENT" &&
     (operator.distinctAccounts === "NO" ||
      operator.bothWorldsPlayable === "NO" ||
      operator.independentInput === "NO" ||
-     operator.accountCrossingObserved === "YES" ||
-     operator.multiplayerJoined === "NO" ||
-     persistence === "NO");
-  const observedPlayable = report.stage === "TWO_CLIENT" &&
-    readyDesktop && machine.interactiveSession &&
-    machine.candidateProcesses.length >= 2 && visible >= 2 &&
+     operator.accountCrossingObserved === "YES");
+  const accountFeasibility = accountFailure ? "OPERATOR_REPORTED_FAILURE" :
+    report.stage === "TWO_CLIENT" &&
+    processFeasibility === "TWO_WINDOW_CANDIDATES_OBSERVED" &&
     operator.distinctAccounts === "YES" &&
     operator.bothWorldsPlayable === "YES" &&
     operator.independentInput === "YES" &&
     operator.accountCrossingObserved === "NO" &&
-    operator.multiplayerJoined === "YES" &&
-    persistence === "YES" &&
     operator.observedMinutes >= 10 &&
-    operator.evidenceReference !== null;
+    operator.evidenceReference !== null
+      ? "OPERATOR_REPORTED_PLAYABLE" : "INCONCLUSIVE";
+
+  // Preserve the pre-existing verdict for completed TWO_CLIENT observations;
+  // multiplayer/reboot are final acceptance criteria, not prerequisites for
+  // studying account feasibility.
+  const explicitFailure = accountFailure ||
+    (report.stage === "TWO_CLIENT" &&
+      (operator.multiplayerJoined === "NO" || persistence === "NO"));
+  const observedPlayable = accountFeasibility === "OPERATOR_REPORTED_PLAYABLE" &&
+    operator.multiplayerJoined === "YES" && persistence === "YES";
 
   return {
     schema: 1,
@@ -126,6 +138,9 @@ export function evaluateNativeFeasibility(report) {
       observedPlayable ? "OPERATOR_REPORTED_TWO_CLIENTS" : "INCONCLUSIVE",
     candidateProcessCount: machine.candidateProcesses.length,
     candidateWindowCount: visible,
+    processFeasibility,
+    accountFeasibility,
+    productAcceptance: "NOT_EVALUATED",
     licensedAccountsVerified: false,
     automatedGameplayProof: false,
     noVmFeasibilityProven: false,

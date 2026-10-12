@@ -37,6 +37,7 @@ Upstream references:
 - https://sandboxie-plus.github.io/sandboxie-docs/Content/SbieIniCommandLine/
 - https://sandboxie-plus.github.io/sandboxie-docs/Content/StartCommandLine/
 - https://sandboxie-plus.github.io/sandboxie-docs/Content/SandboxieIni/
+- https://sandboxie-plus.github.io/sandboxie-docs/Content/SandboxRemoval.html
 - https://github.com/sandboxie-plus/Sandboxie/blob/master/Sandboxie/install/SbieSettings.ini
 - https://github.com/sandboxie-plus/sandboxie-docs/blob/main/docs/PlusContent/supporter-certificate.md
 - https://edusupport.minecraft.net/hc/en-us/articles/13106858087956-Windows-Installation-Guide
@@ -56,9 +57,11 @@ Before running the two-game test, an authorized operator:
 2. Creates a **test-only**, ordinary, persistent box using Sandboxie Plus
    SandMan GUI named Mivubi2 (or another 1–32-character alphanumeric name
    starting with a letter).
-3. Uses the GUI to explicitly disable **Auto Delete** and **Auto Remove**
-   for that box and verifies other inherited policy. No automatic cleanup,
-   deletion, reset, shared Microsoft login, or profile copying is permitted.
+3. Reviews **Auto Delete** and **Auto Remove** in the selected box.
+   SandMan defaults both to OFF when absent from a successfully read box
+   section; an explicit y is unsafe for account persistence. Do not
+   enable automatic cleanup, deletion, reset, shared Microsoft login,
+   or profile copying. A default of OFF is not proof against manual deletion.
 4. Starts one official Minecraft Education Windows Desktop game natively,
    then requests the official game from within that selected Sandboxie box
    via the Sandboxie UI. Merely starting explorer.exe in a box is **not**
@@ -79,6 +82,14 @@ broker restrictions or Sandboxie driver protections.
 The collector checks only signed, installed Start.exe / SbieIni.exe,
 Sandboxie service state, enabled-box/AutoDelete/AutoRemove settings,
 selected box PID membership and Windows candidate process windows.
+It first queries the enabled box and enumerates its explicit box-local
+setting keys using SbieIni.exe query BOX *. If that enumeration succeeds,
+a missing AutoDelete/AutoRemove key means default OFF. An explicit key is
+queried directly. A failed/ambiguous enumeration or invalid value remains
+UNKNOWN, never OFF. GlobalSettings is deliberately not used for those
+SandMan lifecycle controls. New reports record boxSettingsSource as
+BOX_SECTION_ENUMERATED or UNKNOWN; legacy reports lacking provenance remain
+readable but cannot be reported compatible.
 It never records full process paths, CLI arguments, box filesystem paths,
 world names, account identities, cookies or tokens. All probes fail
 closed to UNKNOWN when unavailable. An unsigned/custom source build
@@ -113,10 +124,18 @@ Pure Node fixture tests only:
 - OPERATOR_REPORTED_FAILURE: operator observed failed sign-in, loss of
   persistence, cross-account reuse, failed world, or missing entitlement.
 - OPERATOR_REPORTED_COMPATIBLE: candidate Windows PID/window
-  inventory and exact *operator claims* meet the bounded two-client
-  criterion, but **not** automated Minecraft or account proof.
+  inventory, verified box-local settings evidence and exact *operator
+  claims* meet the bounded two-client criterion, but **not**
+  automated Minecraft or account proof.
 - INCONCLUSIVE: absent or incomplete evidence, including unknown storage
   settings, unsigned tools, service failure, or unverified PID membership.
+
+The evaluator additionally distinguishes processFeasibility
+(TWO_WINDOW_CANDIDATES_OBSERVED or INCONCLUSIVE) from accountFeasibility
+(operator-reported, failure or inconclusive). Neither is a product
+acceptance gate: productAcceptance remains NOT_EVALUATED for four clients.
+An unknown reboot/persistence result does not erase genuine intermediate
+account observations; it still prevents the final compatible verdict.
 
 A valid Authenticode signature proves binary-signature integrity only,
 **not** the current license/certificate, game compatibility or account

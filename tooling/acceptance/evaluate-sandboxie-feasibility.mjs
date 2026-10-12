@@ -14,12 +14,16 @@ export function evaluateSandboxieFeasibility(report) {
     invalid("Unrecognized Sandboxie feasibility report.");
   }
   const box = report.sandboxie;
+  // Old schema-1 reports do not identify where box-local settings came from.
+  // They stay readable but cannot prove persistent configuration.
+  const boxSettingsSource = box?.boxSettingsSource ?? "UNKNOWN";
   const machine = report.machine;
   const operator = report.operator;
   if (!box || !machine || !operator ||
       !["toolsPresent", "toolSignaturesValid", "serviceRunning"].every(
         k => typeof box[k] === "boolean") ||
       !["YES", "NO", "UNKNOWN"].includes(box.boxConfigured) ||
+      !["BOX_SECTION_ENUMERATED", "UNKNOWN"].includes(boxSettingsSource) ||
       !["ON", "OFF", "UNKNOWN"].includes(box.autoDelete) ||
       !["ON", "OFF", "UNKNOWN"].includes(box.autoRemove) ||
       !["OBSERVED", "UNKNOWN"].includes(box.membershipStatus) ||
@@ -35,6 +39,11 @@ export function evaluateSandboxieFeasibility(report) {
       (!box.toolsPresent || !box.toolSignaturesValid ||
        !box.serviceRunning || box.boxConfigured !== "YES")) {
     invalid("Sandbox membership cannot be observed with an unavailable provider.");
+  }
+  if (boxSettingsSource === "BOX_SECTION_ENUMERATED" &&
+      (!box.toolsPresent || !box.toolSignaturesValid ||
+       !box.serviceRunning || box.boxConfigured !== "YES")) {
+    invalid("Box-local settings cannot be verified without an enabled box and trusted tools.");
   }
   const seenPids = new Set();
   const seenHandles = new Set();
@@ -87,6 +96,9 @@ export function evaluateSandboxieFeasibility(report) {
   if (!box.serviceRunning || box.boxConfigured !== "YES") {
     risks.push("SANDBOX_NOT_READY");
   }
+  if (boxSettingsSource !== "BOX_SECTION_ENUMERATED") {
+    risks.push("BOX_LOCAL_SETTINGS_NOT_VERIFIED");
+  }
   if (box.autoDelete !== "OFF") risks.push("AUTODELETE_NOT_PROVEN_OFF");
   if (box.autoRemove !== "OFF") risks.push("AUTOREMOVE_NOT_PROVEN_OFF");
   if (box.membershipStatus !== "OBSERVED") risks.push("BOX_MEMBERSHIP_UNKNOWN");
@@ -96,6 +108,31 @@ export function evaluateSandboxieFeasibility(report) {
   if (operator.licensedForUse !== "YES") risks.push("LICENSE_NOT_ATTESTED");
   if (operator.multiplayerJoined !== "YES") risks.push("MULTIPLAYER_NOT_CONFIRMED");
   if (operator.reopenAndRebootPersistent !== "YES") risks.push("SESSION_PERSISTENCE_NOT_CONFIRMED");
+
+  // Separate early process/interactive-account observations from the final
+  // persistence condition. All account assertions remain operator-attributed.
+  const processFeasibility = machine.interactiveSession &&
+    box.membershipStatus === "OBSERVED" &&
+    nativeVisible >= 1 && sandboxVisible >= 1
+    ? "TWO_WINDOW_CANDIDATES_OBSERVED" : "INCONCLUSIVE";
+  const accountFailure = report.stage === "TWO_CLIENT" &&
+    (operator.nativeWorldPlayable === "NO" ||
+     operator.sandboxWorldPlayable === "NO" ||
+     operator.distinctAccounts === "NO" ||
+     operator.independentInput === "NO" ||
+     operator.accountCrossingObserved === "YES");
+  const accountFeasibility = accountFailure ? "OPERATOR_REPORTED_FAILURE" :
+    report.stage === "TWO_CLIENT" &&
+    processFeasibility === "TWO_WINDOW_CANDIDATES_OBSERVED" &&
+    operator.licensedForUse === "YES" &&
+    operator.nativeWorldPlayable === "YES" &&
+    operator.sandboxWorldPlayable === "YES" &&
+    operator.distinctAccounts === "YES" &&
+    operator.independentInput === "YES" &&
+    operator.accountCrossingObserved === "NO" &&
+    operator.observedMinutes >= 10 &&
+    operator.evidenceReference !== null
+      ? "OPERATOR_REPORTED_PLAYABLE" : "INCONCLUSIVE";
 
   const configBlocked = box.autoDelete === "ON" || box.autoRemove === "ON" ||
     box.boxConfigured === "NO";
@@ -108,6 +145,7 @@ export function evaluateSandboxieFeasibility(report) {
      operator.accountCrossingObserved === "YES" ||
      operator.reopenAndRebootPersistent === "NO");
   const observedCandidate = report.stage === "TWO_CLIENT" &&
+    boxSettingsSource === "BOX_SECTION_ENUMERATED" &&
     box.toolsPresent && box.toolSignaturesValid && box.serviceRunning &&
     box.boxConfigured === "YES" && box.autoDelete === "OFF" &&
     box.autoRemove === "OFF" && box.membershipStatus === "OBSERVED" &&
@@ -132,6 +170,10 @@ export function evaluateSandboxieFeasibility(report) {
     nativeVisibleCandidates: nativeVisible,
     isolatedVisibleCandidates: sandboxVisible,
     sandboxProcessMembershipObserved: box.membershipStatus === "OBSERVED",
+    boxLocalSettingsVerified: boxSettingsSource === "BOX_SECTION_ENUMERATED",
+    processFeasibility,
+    accountFeasibility,
+    productAcceptance: "NOT_EVALUATED",
     automatedAccountProof: false,
     automatedGameProof: false,
     productionFourClientReady: false,
