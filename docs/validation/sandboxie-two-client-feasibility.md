@@ -70,12 +70,18 @@ the existing official Windows launcher. For Client 02:
 2. Select the **installed** Minecraft Education Windows Desktop EXE in Minecraft Instance Manager.
    Do not select the downloaded installer.
 3. Acknowledge Sandboxie licensing and click **Launch isolated Client 02**.
-   The Rust backend checks game/box preconditions and sends one Sandboxie
-   launch request; this is not yet proof of a second game process.
-4. Run the existing **read-only inspector** below to observe whether the
-   candidate Minecraft process is truly in the selected box. Independently
-   verify two different licensed Microsoft Education logins, world/input,
-   multiplayer and persistence. Mark unknown evidence UNKNOWN.
+   The backend reuses the canonical Windows collector, requires a persistent
+   enabled box with AutoDelete/AutoRemove OFF and verifiable
+   OpenCredentials OFF (box-local or inherited), then requests launch.
+   A nonzero Start.exe exit code is reported as an error; a launcher that
+   never exits before the deadline is UNKNOWN, not gameplay success.
+4. Click **Inspect Windows + Sandboxie** to see candidates with a visible
+   window classified as native or inside MinecraftClient02, plus the
+   credential-host-access setting. The same inspection also saves a
+   bounded JSON report under the reports path above. A PID/window candidate
+   is not Microsoft account proof.
+5. Independently verify two different licensed Microsoft Education logins,
+   world/input, multiplayer and persistence. Mark missing evidence UNKNOWN.
 
 A launch or PID count does not override a manual game observation; a failed
 launch is diagnosed without altering account/VM data. Sandboxie Plus requires
@@ -93,14 +99,15 @@ Before running the two-game test, an authorized operator:
    Its own documentation requires a Business Certificate for business or
    educational environments; App Compartment options require an eligible
    Supporter Certificate. Do not assume access is licensed.
-2. Creates a **test-only**, ordinary, persistent box using Sandboxie Plus
-   SandMan GUI named MinecraftClient02 (or another 1–32-character alphanumeric name
-   starting with a letter).
-3. Reviews **Auto Delete** and **Auto Remove** in the selected box.
-   SandMan defaults both to OFF when absent from a successfully read box
-   section; an explicit y is unsafe for account persistence. Do not
-   enable automatic cleanup, deletion, reset, shared Microsoft login,
-   or profile copying. A default of OFF is not proof against manual deletion.
+2. Creates a **test-only**, ordinary, persistent box named **exactly
+   MinecraftClient02** using Sandboxie Plus SandMan. The active backend and
+   collector use this single fixed name; other box names are not supported.
+3. Reviews **Auto Delete**, **Auto Remove** and **Open System Protected
+   Storage / OpenCredentials** in the selected box. AutoDelete/AutoRemove
+   must be OFF. The collector resolves OpenCredentials in the box and
+   inherited GlobalSettings: ON or unreadable/UNKNOWN prevents launching.
+   This does not independently establish WAM/SSO session isolation.
+   Do not enable profile copying, credential sharing or automatic cleanup.
 4. Starts one official Minecraft Education Windows Desktop game natively,
    then requests the official game from within that selected Sandboxie box
    through the **Minecraft Instance Manager Client 02** launch action using the same signed,
@@ -119,9 +126,11 @@ broker restrictions or Sandboxie driver protections.
 
     powershell.exe -NoProfile -File tooling/acceptance/windows/collect-sandboxie-feasibility.ps1 -Stage INSPECT -BoxName MinecraftClient02
 
-The collector checks only signed, installed Start.exe / SbieIni.exe,
+The collector checks signed installed Start.exe / SbieIni.exe,
 Sandboxie service state, enabled-box/AutoDelete/AutoRemove settings,
-selected box PID membership and Windows candidate process windows.
+OpenCredentials host-store access, selected box PID membership and
+Windows candidate process windows. Its source is embedded in the development
+Tauri backend so the inspector and launcher preflight reuse the same rules.
 It first queries the enabled box and enumerates its explicit box-local
 setting keys using SbieIni.exe query BOX *. If that enumeration succeeds,
 a missing AutoDelete/AutoRemove key means default OFF. An explicit key is
@@ -129,9 +138,14 @@ queried directly. A failed/ambiguous enumeration or invalid value remains
 UNKNOWN, never OFF. GlobalSettings is deliberately not used for those
 SandMan lifecycle controls. New reports record boxSettingsSource as
 BOX_SECTION_ENUMERATED or UNKNOWN; legacy reports lacking provenance remain
-readable but cannot be reported compatible.
+readable but cannot be reported compatible. Old records that omit
+credentialHostAccess likewise stay INCONCLUSIVE until new host evidence
+is collected.
 It never records full process paths, CLI arguments, box filesystem paths,
-world names, account identities, cookies or tokens. All probes fail
+world names, account identities, cookies or tokens. Its OpenCredentials
+field is a Sandboxie configuration observation, not proof that Microsoft's
+WAM helper processes are contained. Inspecting may create a new bounded
+JSON evidence file in the temporary reports directory. All probes fail
 closed to UNKNOWN when unavailable. An unsigned/custom source build
 is NOT automatically invoked; it requires separate review.
 

@@ -13,8 +13,10 @@ lifecycle: ACTIVE
 
 The approved *new product outcome* is four Minecraft Education Windows
 sessions with four independent accounts, **without VM guests if feasible**.
-The first engineering work is a bounded, non-destructive
-[native two-client feasibility experiment](./native-multi-instance-feasibility.md).
+The current engineering experiment is one native Client 01 plus one
+Minecraft Education Desktop launch requested inside a persistent
+[Sandboxie Client 02](./sandboxie-two-client-feasibility.md).
+Native-only simultaneous login is not the active implementation route.
 The evaluator distinguishes process candidates from manually reported
 two-account gameplay. Its *final two-client verdict* still requires observed
 multiplayer and account persistence after reopening and reboot; no two-client
@@ -24,14 +26,14 @@ multi-instance works or supersede any passed legacy VM package G0 record.
 Existing VMware G1–G4 remain unexecuted and unrelated to native viability.
 The former VMware NSIS bundle is blocked from shipping while the native
 feasibility desktop is mounted; no native distribution migration is proven.
-A separate [Sandboxie Plus read-only feasibility pilot](./sandboxie-two-client-feasibility.md)
-is available **only as a fallback**, without modifying old VM data or
-claiming that Microsoft authentication is compatible.
+The active Client 02 launch is explicitly user-requested. Its shared
+Sandboxie collector remains a read-only *inspection of host configuration*,
+records bounded evidence to disk, and cannot verify Microsoft sign-in.
 
 | Question | Authoritative reference |
 | --- | --- |
-| Can one official Minecraft Desktop installation sustain two independent native game accounts? | [Native two-client feasibility](./native-multi-instance-feasibility.md) — observational pilot; not VM gate PASS |
-| If native fails, can one licensed Sandboxie Plus box preserve an independent Minecraft account? | [Sandboxie two-client feasibility](./sandboxie-two-client-feasibility.md) — alternate pilot only, no runtime cutover |
+| Can one native Minecraft and one sandboxed Windows Minecraft run independently? | [Sandboxie Client 02 feasibility](./sandboxie-two-client-feasibility.md) — single active experiment, not game-proof |
+| What was the earlier native-only experiment? | [Native two-client feasibility](./native-multi-instance-feasibility.md) — historical evidence route; not active architecture |
 | What are the only product-test progress gates and their exit criteria? | [Acceptance G0–G4](./acceptance.md) — one canonical five-gate campaign |
 | What comprises the first source/package integrity gate? | [G0 Source & Package Readiness](./pre-local-test-readiness.md) — four mandatory checks within G0 |
 | Can one Windows VMware guest boot, install/sign in and play Minecraft Education responsively? | [Client Feasibility Gate](./client-feasibility.md) — before Base cloning |

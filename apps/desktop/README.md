@@ -1,9 +1,13 @@
 # Minecraft Instance Manager — Experimental Desktop
 
 The active Windows developer pilot is **Minecraft Instance Manager**. The single mounted
-`NativeFeasibilityApp.svelte` provides official Client 01 launch, one Client 02
-Sandboxie box (`MinecraftClient02`) launch request, and explicit candidate-only
-process inspection through `src/app/bridge/nativeFeasibilityApi.ts`.
+`NativeFeasibilityApp.svelte` provides Client 01 launch, one Client 02
+Sandboxie (`MinecraftClient02`) launch request with checked launcher exit,
+and a typed read-only inspection of native/boxed process candidates and
+OpenCredentials through `src/app/bridge/nativeFeasibilityApi.ts`.
+The canonical Windows Sandboxie collector owns box settings and membership
+evidence (and writes a bounded temporary JSON report); it is embedded into
+the development backend rather than duplicated in a second inspector.
 The game executable is not copied and logins are manual. Two independent
 Minecraft Education account sessions are not yet verified. The former
 `M-Bedrock Virtual Clients` installed product identifier and VMware runtime

@@ -1,3 +1,49 @@
+## Current work — Client 02 Runtime Correctness (2026-10-12)
+
+**Work:** emulator/client02-runtime-correctness
+**State:** SOURCE_PATCHED / TARGET_WINDOWS_AND_GAMEPLAY_NOT_EXECUTED.
+**Selected engine:** Sandboxie Plus `MinecraftClient02`, native Client 01
+and one Windows Desktop Client 02 only; no extra provider or account daemon.
+
+### Corrected first causal owners
+
+- The existing `collect-sandboxie-feasibility.ps1` is the sole source of
+  box configuration, credential host-access, and observed PID membership.
+  It evaluates `OpenCredentials` from the box or inherited GlobalSettings,
+  recording OFF/ON/UNKNOWN without reading saved login data. Reports include
+  native versus selected-box visible window candidate counts.
+- The evaluator rejects a positive two-client compatibility result when
+  `OpenCredentials` is ON/UNKNOWN or absent from old evidence. OFF does not
+  prove Microsoft WAM/SSO isolation. A login helper crossing sandbox
+  boundaries remains an unverified risk.
+- One Rust Client 02 inspector embeds the canonical read-only collector.
+  The launcher performs the same preflight, fails closed for unsafe/unknown
+  credentials or destructive lifecycle settings, checks the direct
+  Sandboxie `Start.exe` exit code with a bounded wait, and never presents
+  a launch request as Minecraft gameplay evidence.
+- One typed Tauri bridge and active Svelte surface now expose actual
+  process-membership candidates, credential configuration, and raw backend
+  error messages. Concurrent actions are guarded, partial inspector
+  failures are visible and stale snapshots cleared.
+- Focused Rust, TypeScript and evaluator regressions were added to existing
+  test owners. No CI, second engine, speculative state database, 4-client UI,
+  sandbox creation/deletion, VMware mutation or account automation.
+
+### Proof ceiling / next action
+
+Pure JS evaluator scenarios can be executed in an isolated V8 environment
+to validate mapping for OPEN/OFF/UNKNOWN and historical evidence; this is
+not Node's test runner. Cargo, Svelte, Vitest and PowerShell cannot be
+assumed passing without an actual execution trace. Sandboxie client process
+creation, signed game publisher, WAM isolation, two licensed logins, world
+rendering, multiplayer and restart persistence remain **NOT_EXECUTED**.
+
+**Next:** Execute pinned source checks when toolchains are available, then
+observe an actual Client 02 Minecraft process in the selected Windows box
+before attempting two separate licensed logins. Keep the current engine.
+
+---
+
 ## Current work — fixed Windows Client 02 Sandboxie experiment (2026-10-12)
 
 **Work:** emulator/sandboxie-client02
