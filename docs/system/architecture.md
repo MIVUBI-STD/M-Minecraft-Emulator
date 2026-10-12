@@ -211,10 +211,21 @@ verified Minecraft Education game, working Microsoft session, or a successful
 Windows focus until the action executes on a real host. Windows can refuse
 foreground activation; no focus-stealing workaround is used.
 
-**After proven membership and game responsiveness — optional window layout:**
-Consider side-by-side arrangement using fresh Client 01/02 HWND identities;
-do not expose archived VMware layout controls, treat outside-box candidates
-as proven native Minecraft, or embed/re-render game frames.
+**Current — bounded positioning without invented Client 01 ownership:**
+An explicit Place Left or Place Right request positions only the verified
+Client 02 window within half of its current monitor's work area. Focus and
+Place reuse one fresh PID/FILETIME/HWND/Sandboxie verification path. The
+position operation requests no activation or Z-order change and is submitted
+asynchronously because a Minecraft window may have a blocked input queue.
+It refuses minimized/maximized windows rather than silently changing game
+display mode. Windows can enforce game-defined minimum sizes; request
+acceptance is not proof of the final rectangle or rendered responsiveness.
+
+**After verified native process attribution — optional two-window layout:**
+A complete automatic side-by-side feature would first need independent
+proof of Client 01's native identity, not merely absence from the selected
+box. Until then, Client 01 is not moved by the manager. Archived VMware
+window layout controls remain disconnected; no game frames are re-rendered.
 
 **Only after stable 2-account measured operation:** evaluate extending
 the **same Sandboxie isolation model** to four separately licensed clients;
