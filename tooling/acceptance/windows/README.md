@@ -1,4 +1,17 @@
-# Virtual Clients Windows Acceptance Campaign
+# Windows Acceptance Tooling
+
+**Selected active experiment:** [Client 01 native + Client 02 Sandboxie Plus](../../../docs/validation/sandboxie-two-client-feasibility.md).
+Use `collect-sandboxie-feasibility.ps1 -Stage INSPECT -BoxName MinecraftClient02`
+for an explicitly requested observation; the desktop uses its read-only
+`-SummaryOnly` option. PID/window counts cannot prove licensed login,
+Minecraft rendering or multiplayer.
+
+## Historical VMware-only G0–G4 campaign (paused)
+
+The stages and procedures below document the retained Windows-guest
+acceptance implementation. They are **not** the active startup/installation
+workflow and do not authorize changing account-bearing guests. The old NSIS
+release is deliberately blocked. Do not create another test gate scheme.
 
 This campaign is evidence collection, not simulation. A stage stays `NOT_RUN` until its target-machine action has actually been performed. **The only five product-test progress gates are G0–G4 in [Acceptance](../../../docs/validation/acceptance.md)**; the existing stage IDs and recorder schema stay unchanged. Stage records are supporting evidence, not twelve independent release milestones.
 
@@ -19,7 +32,7 @@ This campaign is evidence collection, not simulation. A stage stays `NOT_RUN` un
 | RECOVERY | G4 | Prove stop/start, suspend/resume, reset and host reboot behavior | operator + collector |
 | SOAK | G4 (supporting) | Record long-run stability and repeated lifecycle cycles | operator + collector |
 
-## Single Windows desktop route
+## Historical Windows guest route (not currently selected)
 
 The product target is **one Windows-native Minecraft Education desktop client plus three isolated Windows guest clients**. The installed production code remains VMware; the approved App Sandbox GPU-PV direction is limited to a disposable pilot until G1 proof. Do not run Android, BlueStacks or second-native-instance probes. Start with a disposable scratch Windows guest, before production Base preparation. Confirm **VM opens → Minecraft Education installs and signs in → a world is playable and responsive**.
 

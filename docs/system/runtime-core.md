@@ -7,7 +7,15 @@ authority: CANONICAL
 lifecycle: ACTIVE
 ---
 
-# Virtual Clients Runtime Core
+# Virtual Clients Runtime Core — paused VMware implementation
+
+> **Historical implementation authority only.** This file describes the
+> preserved VMware/Guest Agent runtime in `engine/runtime-core/`.
+> Its VM lifecycle mutation entrypoints are paused while the selected
+> [Minecraft Instance Manager architecture](./architecture.md) uses
+> native Client 01 plus Sandboxie Plus Client 02. Do not reuse old VM
+> resource limits as native Minecraft performance policy.
+> See [Legacy Retirement](./legacy-retirement.md).
 
 ## Product boundary
 

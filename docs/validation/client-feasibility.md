@@ -9,6 +9,13 @@ lifecycle: ACTIVE
 
 # Minecraft Education Windows desktop — one disposable guest feasibility
 
+> **Historical VMware-only procedure.** This document describes the preserved
+> guest-VM implementation and its G0–G4 evidence campaign, **not** the active
+> Minecraft Instance Manager + Sandboxie Plus Client 02 workflow. Do not
+> provision, start, delete or reset a VM as part of the current pilot.
+> Active procedure: [Sandboxie two-client feasibility](./sandboxie-two-client-feasibility.md).
+> Its signed-in gameplay and resource measurements are still unverified.
+
 ## One selected Windows desktop architecture
 
 This is the mandatory G1 feasibility boundary for **one Native Windows Minecraft Education client plus three isolated Windows guests**. VMware Workstation remains the *currently implemented production provider*. The approved *future direction* is App Sandbox GPU-PV, which has an explicitly separate disposable pilot and must not inherit VMware-only acceptance assumptions. **Prove one scratch Windows guest on the selected provider** opens, installs Minecraft Education, accepts a licensed login and plays responsively before creating any account-bearing production guests. The [four-account product contract](../product/four-concurrent-accounts.md) is the sole scope authority.
