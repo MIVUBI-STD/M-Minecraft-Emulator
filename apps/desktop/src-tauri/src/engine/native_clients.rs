@@ -172,7 +172,8 @@ pub fn open_native_minecraft() -> io::Result<()> {
 }
 
 
-// Client 02 only. The sandbox is created and licensed outside MIVUBI.
+// Client 02 only. The sandbox is provisioned and licensed outside the manager.
+const CLIENT_02_BOX_NAME: &str = "MinecraftClient02";
 // This is a bounded launch REQUEST, not an independent-account verdict.
 fn validate_education_path(path: &str) -> io::Result<()> {
     let p = std::path::Path::new(path);
@@ -215,10 +216,11 @@ pub fn request_sandbox_client_02(executable: String, licensed: bool) -> io::Resu
             "Selected Minecraft Education EXE was not found"));
     }
     let escaped = executable.replace('\'', "''");
+    let box_name = CLIENT_02_BOX_NAME;
     let script = format!(r#"
 $ErrorActionPreference = 'Stop'
 $game = '{escaped}'
-$box = 'Mivubi2'
+$box = '{box_name}'
 if ([Diagnostics.Process]::GetCurrentProcess().SessionId -eq 0) {{
     throw 'Interactive Windows user session required'
 }}
@@ -248,7 +250,7 @@ $install = @((Join-Path $env:ProgramFiles 'Sandboxie-Plus'),
                  (Test-Path -LiteralPath (Join-Path $_ 'Start.exe') -PathType Leaf) -and
                  (Test-Path -LiteralPath (Join-Path $_ 'SbieIni.exe') -PathType Leaf)
              }} | Select-Object -First 1
-if (-not $install) {{ throw 'Install Sandboxie Plus and create Mivubi2 first' }}
+if (-not $install) {{ throw "Install Sandboxie Plus and create $box first" }}
 $start = Join-Path $install 'Start.exe'
 $ini = Join-Path $install 'SbieIni.exe'
 if ((Get-AuthenticodeSignature -LiteralPath $start).Status -ne 'Valid' -or
@@ -260,7 +262,7 @@ if ((Get-Service SbieSvc -ErrorAction Stop).Status -ne 'Running') {{
 }}
 $enabled = @(& $ini query $box Enabled 2>$null)
 if ($LASTEXITCODE -ne 0 -or $enabled.Count -ne 1 -or $enabled[0].Trim() -ne 'y') {{
-    throw 'Persistent box Mivubi2 must exist and be enabled'
+    throw "Persistent box $box must exist and be enabled"
 }}
 $names = @(& $ini query $box '*' 2>$null)
 if ($LASTEXITCODE -ne 0 -or $names.Count -lt 1 -or
@@ -277,7 +279,7 @@ foreach ($key in @('AutoDelete','AutoRemove')) {{
 }}
 # Sandboxie's GUI Start.exe may return before a child actually launches.
 # Never interpret this request as process membership, login or gameplay.
-Start-Process -FilePath $start -ArgumentList @('/box:Mivubi2', ('"' + $game + '"')) -ErrorAction Stop | Out-Null
+Start-Process -FilePath $start -ArgumentList @(('/box:' + $box), ('"' + $game + '"')) -ErrorAction Stop | Out-Null
 "#);
     virtual_clients_core::bounded_command_output(
         Path::new("powershell.exe"),

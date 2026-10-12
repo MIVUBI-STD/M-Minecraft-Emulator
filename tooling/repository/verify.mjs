@@ -225,7 +225,9 @@ const nativeDesktop = read("apps/desktop/src-tauri/src/engine/native_clients.rs"
 const isolatedScreen = read("apps/desktop/src/NativeFeasibilityApp.svelte");
 const isolatedBridge = read("apps/desktop/src/app/bridge/nativeFeasibilityApi.ts");
 requireFact(nativeDesktop.includes("pub fn request_sandbox_client_02(") &&
-  nativeDesktop.includes("$box = 'Mivubi2'") &&
+  nativeDesktop.includes('const CLIENT_02_BOX_NAME: &str = "MinecraftClient02";') &&
+  nativeDesktop.includes("$box = '{box_name}'") &&
+  nativeDesktop.includes("('/box:' + $box)") &&
   nativeDesktop.includes("AutoDelete") &&
   nativeDesktop.includes("AutoRemove") &&
   nativeDesktop.includes("Get-AuthenticodeSignature") &&
@@ -235,7 +237,7 @@ requireFact(nativeDesktop.includes("pub fn request_sandbox_client_02(") &&
     "commands::native_clients::desktop_request_sandbox_client_02,") &&
   isolatedScreen.includes("nativeFeasibility.requestSandboxClient02(") &&
   isolatedBridge.includes('"desktop_request_sandbox_client_02"'),
-  "One non-destructive Mivubi2 Client 02 launch must be registered end to end");
+  "One non-destructive MinecraftClient02 launch must be registered end to end");
 const desktopFacade = read("apps/desktop/src/app/bridge/virtualClientsApi.ts");
 const desktopBootstrap = read("apps/desktop/src-tauri/src/app_bootstrap.rs");
 requireFact(read("apps/desktop/src-tauri/src/commands/native_clients.rs").includes("fn desktop_open_native_minecraft(") &&

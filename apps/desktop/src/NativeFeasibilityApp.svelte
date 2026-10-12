@@ -37,7 +37,7 @@
     observation = undefined;
     try {
       await nativeFeasibility.requestSandboxClient02(isolatedExecutable, licenseAccepted);
-      isolationNotice = "Launch requested in Mivubi2. Independently confirm Sandboxie PID ownership, two game windows and separate Microsoft Education logins.";
+      isolationNotice = "Launch requested in MinecraftClient02. Independently confirm Sandboxie PID ownership, two game windows and separate Microsoft Education logins.";
     } catch (error) {
       isolationError = errorMessage(error);
     } finally {
@@ -47,7 +47,7 @@
 
   const slots = [
     { title: "Client 01", description: "Official Minecraft Education desktop launch" },
-    { title: "Client 02", description: "Mivubi2 · Sandboxie Windows isolation" },
+    { title: "Client 02", description: "MinecraftClient02 · Sandboxie Windows isolation" },
   ] as const;
 
   $: processCandidates = observation?.candidates.length ?? null;
@@ -95,7 +95,7 @@
   <aside class="rail">
     <div class="brand">
       <div class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></div>
-      <div><strong>MIVUBI Launcher</strong><span>Native-first pilot</span></div>
+      <div><strong>Minecraft Instance Manager</strong><span>Native-first pilot</span></div>
     </div>
     <div class="pilot-sidebar">
       <strong>Development mode</strong>
@@ -112,7 +112,7 @@
       <section class="pilot-intro">
         <span class="eyebrow">ACTIVE DEVELOPMENT ROUTE</span>
         <h2>Two independent Minecraft Education accounts — feasibility pilot</h2>
-        <p>Current focus: one normal Windows Minecraft Education game plus one Mivubi2 sandboxed game, using two different licensed accounts. Four concurrent clients remain a future goal, not an active implementation.</p>
+        <p>Current focus: one normal Windows Minecraft Education game plus one MinecraftClient02 sandboxed game, using two different licensed accounts. Four concurrent clients remain a future goal, not an active implementation.</p>
         <div class="pilot-actions">
           <button class="pilot-primary" disabled={opening || inspecting} on:click={launchOfficialMinecraft}>
             {opening ? "Requesting launch…" : "Request official Minecraft launch"}
@@ -128,15 +128,15 @@
 
       <section class="pilot-section" aria-label="Sandboxie Client 02">
         <span class="eyebrow">CLIENT 02 · WINDOWS ISOLATION</span>
-        <h3>Launch Minecraft Education in Mivubi2</h3>
-        <p>Use one pre-existing, persistent Sandboxie Plus box named Mivubi2. Disable AutoDelete and AutoRemove. Select the installed Minecraft Education EXE, not the downloaded installer.</p>
+        <h3>Launch Minecraft Education in MinecraftClient02</h3>
+        <p>Use one pre-existing, persistent Sandboxie Plus box named MinecraftClient02. Disable AutoDelete and AutoRemove. Select the installed Minecraft Education EXE, not the downloaded installer.</p>
         <div class="pilot-actions">
           <button class="pilot-secondary" disabled={isolationBusy} on:click={chooseClient02Executable}>
             Select installed Education EXE
           </button>
         </div>
         {#if isolatedExecutable}<p class="pilot-caution">Executable selected for this session; identity and signature will be checked.</p>{/if}
-        <label class="pilot-caution"><input type="checkbox" bind:checked={licenseAccepted} /> I confirm Sandboxie Plus is licensed for this use and Mivubi2 is persistent.</label>
+        <label class="pilot-caution"><input type="checkbox" bind:checked={licenseAccepted} /> I confirm Sandboxie Plus is licensed for this use and MinecraftClient02 is persistent.</label>
         <div class="pilot-actions">
           <button class="pilot-primary" disabled={isolationBusy || !isolatedExecutable || !licenseAccepted} on:click={launchClient02}>
             {isolationBusy ? "Processing…" : "Launch isolated Client 02"}
@@ -182,7 +182,7 @@
         <span class="eyebrow">NEXT EVIDENCE GATE</span>
         <h3>Two signed-in games before a four-account launcher</h3>
         <p>Inspect is read-only and records no email addresses, passwords, Microsoft tokens, world names, process command lines or executable paths. Actual login, game rendering, input and persistence still require independently reviewed observations inside Minecraft.</p>
-        <p>The only second-client experiment uses the licensed, preconfigured Mivubi2 box. It never installs or deletes a sandbox, modifies VMs, copies worlds or handles Microsoft sign-in.</p>
+        <p>The only second-client experiment uses the licensed, preconfigured MinecraftClient02 box. It never installs or deletes a sandbox, modifies VMs, copies worlds or handles Microsoft sign-in.</p>
       </section>
     </div>
   </main>

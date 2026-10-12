@@ -79,7 +79,9 @@ describe("Native candidate IPC evidence", () => {
     expect(bootstrap).toContain("commands::native_clients::desktop_request_sandbox_client_02,");
     expect(commands).toContain("fn desktop_request_sandbox_client_02(");
     expect(engine).toContain("pub fn request_sandbox_client_02(");
-    expect(engine).toContain("$box = 'Mivubi2'");
+    expect(engine).toContain('const CLIENT_02_BOX_NAME: &str = "MinecraftClient02";');
+    expect(engine).toContain("$box = '{box_name}'");
+    expect(engine).toContain("('/box:' + $box)");
     expect(engine).toContain("AutoDelete");
     expect(engine).toContain("AutoRemove");
     expect(engine).toContain("Get-AuthenticodeSignature");
