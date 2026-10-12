@@ -27,7 +27,8 @@ param(
   [string]$EvidenceReference = '',
   [string]$OutputDirectory = '',
   [switch]$SummaryOnly,
-  [switch]$ImageProof
+  [switch]$ImageProof,
+  [uint32]$BoxedImageProofPid = 0
 )
 
 $ErrorActionPreference = 'Stop'
@@ -39,6 +40,10 @@ if ($SummaryOnly -and $Stage -ne 'INSPECT') {
 }
 if ($ImageProof -and (-not $SummaryOnly -or $Stage -ne 'INSPECT')) {
   throw 'ImageProof is supported only for explicit read-only SummaryOnly inspection.'
+}
+if ($BoxedImageProofPid -ne 0 -and
+    (-not $SummaryOnly -or $Stage -ne 'INSPECT' -or $ImageProof)) {
+  throw 'BoxedImageProofPid is available only for a targeted read-only inspection.'
 }
 $observations = @($LicensedForUse, $NativeWorldPlayable, $SandboxWorldPlayable,
   $DistinctAccounts, $IndependentInput, $AccountCrossingObserved,
@@ -390,9 +395,10 @@ public static class MivubiReadOnlySbieEnumeration {
 }
 
 $session = [System.Diagnostics.Process]::GetCurrentProcess().SessionId
-# This cold, explicit Refresh path may inspect image signatures, but only
-# for visible candidates outside the selected box. Cache by path for this
-# single invocation; never persist private paths or use this as login proof.
+# Explicit Refresh inspects signed outside-box image candidates. A targeted
+# Focus/Place request may check ONE boxed PID, without inspecting other
+# game images. Cache by path for this invocation only; never persist file
+# paths, account data, world data or imply authenticated gameplay.
 $educationImageProof = @{}
 function Get-EducationImageCandidate {
   param([object]$ProcessObject)
@@ -447,6 +453,33 @@ $gameCandidates = @(
     $imageEvidence = 'UNKNOWN'
     if ($ImageProof -and $inBox -eq $false -and $null -ne $handle) {
       $imageEvidence = Get-EducationImageCandidate $_
+    } elseif ($BoxedImageProofPid -ne 0 -and
+        [uint32]$_.Id -eq $BoxedImageProofPid -and
+        $inBox -eq $true -and $null -ne $handle -and
+        $null -ne $createdFileTime) {
+      # Trust only the targeted, observed boxed process. Its PID can be
+      # recycled while Authenticode is being read: open it again and
+      # compare creation FILETIME and executable path after verification.
+      # This is signed-file evidence, not cryptographic attestation of
+      # the mapped running image, Microsoft account or world.
+      $beforePath = $null
+      try { $beforePath = [string]$_.Path } catch { }
+      if (-not [string]::IsNullOrWhiteSpace($beforePath)) {
+        $imageEvidence = Get-EducationImageCandidate $_
+        if ($imageEvidence -eq 'SIGNED_EDUCATION_IMAGE_CANDIDATE') {
+          try {
+            $after = Get-Process -Id $_.Id -ErrorAction Stop
+            $afterTime = $after.StartTime.ToFileTimeUtc().ToString(
+              [System.Globalization.CultureInfo]::InvariantCulture)
+            $afterPath = [string]$after.Path
+            if ($afterTime -ne $createdFileTime -or
+                -not [string]::Equals($beforePath, $afterPath,
+                  [System.StringComparison]::OrdinalIgnoreCase)) {
+              $imageEvidence = 'UNKNOWN'
+            }
+          } catch { $imageEvidence = 'UNKNOWN' }
+        }
+      }
     }
     [ordered]@{
       pid = [int]$_.Id

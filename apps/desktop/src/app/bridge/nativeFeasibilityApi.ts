@@ -185,10 +185,12 @@ export function parseIsolatedClientObservation(value: unknown): IsolatedClientOb
     }
     if (candidate.inSelectedBox === true) boxed++;
     if (candidate.imageEvidence === "SIGNED_EDUCATION_IMAGE_CANDIDATE") {
-      if (candidate.inSelectedBox !== false || candidate.windowHandle === null) {
-        throw new TypeError("Signed Education image cannot be boxed or windowless.");
+      if (candidate.windowHandle === null ||
+          (candidate.inSelectedBox !== true && candidate.inSelectedBox !== false) ||
+          (candidate.inSelectedBox === true && candidate.createdFileTime === null)) {
+        throw new TypeError("Signed Education image requires a visible attributed process.");
       }
-      officialOutside++;
+      if (candidate.inSelectedBox === false) officialOutside++;
     } else if (candidate.imageEvidence !== "UNKNOWN") {
       throw new TypeError("Unrecognized executable image evidence.");
     }

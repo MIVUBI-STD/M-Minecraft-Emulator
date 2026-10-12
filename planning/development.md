@@ -1,10 +1,44 @@
 # Current Development Handoff
 
 **Branch:** `Local` only. **Product:** Minecraft Instance Manager.
-**Current work:** `emulator/native-window-ownership-hardening` (source-only; runtime tests postponed).
+**Current work:** `emulator/boxed-education-image-attribution` (source-only; runtime tests postponed).
 **Engineering state:** source prototype / **Windows build and two-account gameplay NOT_EXECUTED**.
 
-## Latest source-only batch — PID/window ownership hardening
+## Latest source-only batch — boxed executable identity before window actions
+
+- Confirmed a concrete gap: Focus/Place only required a name-matched,
+  sandboxed process. A non-Education process named Minecraft.Windows
+  could otherwise be treated as a game window.
+- Reused the one canonical, read-only PowerShell collector's existing
+  Authenticode/ProductName/Microsoft-signer logic. Added a selected PID
+  mode `-BoxedImageProofPid` for Focus/Place only. No separate runtime
+  image-verifier service, account access, persistent cache or polling.
+- The collector checks only a boxed PID with known start time and visible
+  window, and reopens it afterward to compare process FILETIME and
+  executable path; inconclusive evidence stays UNKNOWN. The backend's
+  pure admission helper requires fresh signed Education file evidence
+  for the exact PID/FILETIME/HWND, disregarding the caller's
+  imageEvidence. It rechecks process handle and Win32 window as before.
+- The existing `imageEvidence` enum allows boxed signed candidates,
+  while `officialImageOutsideSelectedBoxCount` still counts outside
+  only; no schema increment. Manual outside-box `-ImageProof` vendor
+  DLL checks remain separate; Launch continues using fast inventory
+  and its existing signed executable preflight.
+- Updated Rust/TypeScript contract regressions, one old test expecting
+  boxed signed to fail, UI copy, documentation and implementation map.
+- **Proof:** remote exact-source and external Windows API documentation
+  only; regressions are authored, NOT_EXECUTED. Local Windows,
+  PowerShell, Rust, Node, Tauri, Minecraft and performance tests remain
+  postponed. No claim of sandboxed account or game playability.
+- **Unresolved:** this proves a signed file candidate, not that the
+  mapped running image is immutable; process/path/file races or
+  publisher metadata inconsistencies can still cause UNKNOWN.
+  Signature verification overhead and compatibility on a real
+  Windows machine are unmeasured.
+- **Next:** bounded audit of signed-file path/provenance and executable
+  replacement races without adding a parallel identity store.
+
+## Previous source-only batch — PID/window ownership hardening
 
 - Cross-checked Microsoft Win32 GetAncestor GA_ROOT, GetWindow GW_OWNER,
   GetWindowThreadProcessId, SetWindowPos and SetForegroundWindow contracts.

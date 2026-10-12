@@ -308,13 +308,16 @@ fn parse_sandboxie_observation(raw: &str) -> io::Result<SandboxieClientObservati
         match candidate.image_evidence.as_str() {
             "UNKNOWN" => (),
             "SIGNED_EDUCATION_IMAGE_CANDIDATE" => {
-                if candidate.in_selected_box != Some(false)
-                    || candidate.window_handle.is_none()
+                if candidate.window_handle.is_none()
+                    || !matches!(candidate.in_selected_box, Some(true) | Some(false))
+                    || (candidate.in_selected_box == Some(true)
+                        && candidate.created_file_time.is_none())
                 {
                     return Err(invalid_evidence(
-                        "signed Education image requires a visible outside-box candidate"));
+                        "signed Education image requires a visible attributed process and boxed creation time"));
                 }
-                official_outside += 1;
+                // This original counter remains OUTSIDE-only.
+                if candidate.in_selected_box == Some(false) { official_outside += 1; }
             }
             _ => return Err(invalid_evidence("unrecognized executable image evidence")),
         }
@@ -375,6 +378,7 @@ fn admit_client_02_launch_snapshot(observation: &SandboxieClientObservation) -> 
 #[cfg(windows)]
 fn inspect_sandbox_client_02_mode(
     image_proof: bool,
+    boxed_image_pid: Option<u32>,
 ) -> io::Result<SandboxieClientObservation> {
     use std::{path::Path, time::Duration};
     const INSPECT: &str = include_str!(concat!(
@@ -383,6 +387,9 @@ fn inspect_sandbox_client_02_mode(
     ));
     let script = if image_proof {
         ["& {\n", INSPECT, "\n} -SummaryOnly -ImageProof"].concat()
+    } else if let Some(pid) = boxed_image_pid.filter(|pid| *pid != 0) {
+        // A decimal u32 is the only interpolated value, not executable path.
+        ["& {\n", INSPECT, "\n} -SummaryOnly -BoxedImageProofPid ", &pid.to_string()].concat()
     } else {
         ["& {\n", INSPECT, "\n} -SummaryOnly"].concat()
     };
@@ -396,12 +403,12 @@ fn inspect_sandbox_client_02_mode(
 
 #[cfg(windows)]
 pub fn inspect_sandbox_client_02() -> io::Result<SandboxieClientObservation> {
-    inspect_sandbox_client_02_mode(true)
+    inspect_sandbox_client_02_mode(true, None)
 }
 
 #[cfg(windows)]
 fn inspect_sandbox_client_02_fast() -> io::Result<SandboxieClientObservation> {
-    inspect_sandbox_client_02_mode(false)
+    inspect_sandbox_client_02_mode(false, None)
 }
 
 #[cfg(not(windows))]
@@ -435,10 +442,18 @@ fn verify_fresh_focus_target(
         window_text.strip_prefix("0x").ok_or_else(invalid)?, 16
     ).map_err(|_| invalid())?;
     if created == 0 || hwnd == 0 ||
-        !fresh.process_candidates.iter().any(|candidate| candidate == target)
+        !fresh.process_candidates.iter().any(|candidate| {
+            candidate.pid == target.pid
+                && candidate.created_file_time == target.created_file_time
+                && candidate.window_handle == target.window_handle
+                && candidate.in_selected_box == Some(true)
+                && candidate.image_evidence == "SIGNED_EDUCATION_IMAGE_CANDIDATE"
+        })
     {
+        // The caller's imageEvidence is untrusted. The backend must obtain
+        // a new signed-file check for this exact PID/time/window.
         return Err(io::Error::new(io::ErrorKind::NotFound,
-            "Client 02 process or window changed since Refresh; inspect again"));
+            "Client 02 identity, window or Microsoft-signed Education image could not be verified; Refresh first"));
     }
     Ok((created, hwnd))
 }
@@ -527,7 +542,9 @@ fn with_verified_client_02_window(
         io::Error::new(io::ErrorKind::WouldBlock,
             "Another Client 02 operation is in progress")
     })?;
-    let fresh = inspect_sandbox_client_02_fast()?;
+    // A targeted, read-only signed-file probe is run only for this boxed
+    // PID. The manual outside-box ImageProof remains a different mode.
+    let fresh = inspect_sandbox_client_02_mode(false, Some(target.pid))?;
     let (expected_time, hwnd_number) = verify_fresh_focus_target(&target, &fresh)?;
     let process = unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, target.pid) };
     if process.is_null() {
@@ -881,8 +898,15 @@ mod tests {
             "isolatedVisibleCandidates":1,
             "interpretation":"CONFIG_AND_PROCESS_CANDIDATES_ONLY_NO_AUTHENTICATION_PROOF"
         });
-        let fresh = parse_sandboxie_observation(&report.to_string()).unwrap();
+        let mut fresh = parse_sandboxie_observation(&report.to_string()).unwrap();
         let target = fresh.process_candidates[0].clone();
+        // The UI sends a name-matched UNKNOWN candidate. It cannot grant
+        // itself image authority; an unsigned fresh snapshot is rejected.
+        assert!(super::verify_fresh_focus_target(&target, &fresh).is_err());
+        fresh.process_candidates[0].image_evidence =
+            "SIGNED_EDUCATION_IMAGE_CANDIDATE".into();
+        // The fresh backend proof is for the exact same PID/time/HWND;
+        // caller-supplied imageEvidence remains ignored.
         assert_eq!(super::verify_fresh_focus_target(&target, &fresh).unwrap().0,
             133400000000000001);
         let mut changed = target.clone();
@@ -1006,9 +1030,13 @@ mod tests {
         assert!(parse_sandboxie_observation(&other.to_string()).is_ok());
         other["directPidQuery"] = serde_json::json!("UNAVAILABLE");
         assert!(parse_sandboxie_observation(&other.to_string()).is_err());
-        let mut wrong = base.clone();
-        wrong["processCandidates"][1]["imageEvidence"] = serde_json::json!("SIGNED_EDUCATION_IMAGE_CANDIDATE");
-        assert!(parse_sandboxie_observation(&wrong.to_string()).is_err());
+        let mut boxed_signed = base.clone();
+        boxed_signed["processCandidates"][1]["imageEvidence"] =
+            serde_json::json!("SIGNED_EDUCATION_IMAGE_CANDIDATE");
+        // Signed boxed images do not alter the outside-only counter.
+        assert!(parse_sandboxie_observation(&boxed_signed.to_string()).is_ok());
+        boxed_signed["processCandidates"][1]["createdFileTime"] = serde_json::Value::Null;
+        assert!(parse_sandboxie_observation(&boxed_signed.to_string()).is_err());
         let mut wrong = base.clone();
         wrong["processCandidates"][0]["imageEvidence"] = serde_json::json!("AUTHENTICATED_NATIVE");
         assert!(parse_sandboxie_observation(&wrong.to_string()).is_err());

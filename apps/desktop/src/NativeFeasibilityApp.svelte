@@ -248,7 +248,7 @@
                 Place Right
               </button>
             </div>
-            <p class="pilot-caution">Focus and placement require one verified process/window candidate, not a dialog or owned popup. Place Left/Right uses the current monitor's work area, never moves Client 01, and refuses minimized/maximized or changed windows. Restore and Refresh if necessary.</p>
+            <p class="pilot-caution">Focus and placement require one observed boxed game-window candidate, not an owned popup. Before acting, the backend checks that PID's Microsoft-signed Education executable metadata and rechecks the live process/window; UNKNOWN or unsigned files are refused. This does not verify login or gameplay. Place Left/Right never moves Client 01; restore and Refresh if necessary.</p>
             {#if isolatedWindows !== null && !focusTarget}
               <p class="pilot-caution">Focus and placement require exactly one boxed window with a known process start time. Refresh or select the game window manually.</p>
             {/if}

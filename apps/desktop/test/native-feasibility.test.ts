@@ -142,15 +142,21 @@ describe("Native candidate IPC evidence", () => {
     expect(active).not.toContain("nativeFeasibility.inspectCandidates()");
     expect(engine).toContain('["& {\\n", INSPECT, "\\n} -SummaryOnly"].concat()');
     expect(engine).toContain('["& {\\n", INSPECT, "\\n} -SummaryOnly -ImageProof"].concat()');
-    expect(engine).toContain("inspect_sandbox_client_02_mode(true)");
-    expect(engine).toContain("inspect_sandbox_client_02_mode(false)");
-    expect(engine).toContain("let fresh = inspect_sandbox_client_02_fast()?;");
+    expect(engine).toContain("inspect_sandbox_client_02_mode(true, None)");
+    expect(engine).toContain("inspect_sandbox_client_02_mode(false, None)");
+    expect(engine).toContain("let fresh = inspect_sandbox_client_02_mode(false, Some(target.pid))?;");
+    expect(engine).toContain('candidate.image_evidence == "SIGNED_EDUCATION_IMAGE_CANDIDATE"');
+    expect(engine).toContain('candidate.created_file_time == target.created_file_time');
+    expect(active).toContain("UNKNOWN or unsigned files are refused");
     expect(engine).toContain("let observation = inspect_sandbox_client_02_fast()?;");
     expect(engine).toContain("admit_client_02_launch_snapshot(&observation)?;");
     expect(engine).toContain('if observation.membership_status != "OBSERVED"');
     expect(engine).toContain("fn client_02_launch_requires_observed_empty_box()");
     expect(active).toContain('observation.membershipStatus !== "OBSERVED"');
     const sandboxList = readFileSync(new URL("../../../tooling/acceptance/windows/collect-sandboxie-feasibility.ps1", import.meta.url), "utf8");
+    expect(sandboxList).toContain("$BoxedImageProofPid = 0");
+    expect(sandboxList).toContain("Get-Process -Id $_.Id -ErrorAction Stop");
+    expect(sandboxList).toContain("Get-AuthenticodeSignature -LiteralPath $image");
     expect(sandboxList).toContain("$count -ge 0 -and $count -le 256");
     expect(sandboxList).toContain("if ($gameCandidates.Count -gt 16)");
     expect(active).toContain('typeof reason === "string"');
@@ -202,6 +208,15 @@ describe("Native candidate IPC evidence", () => {
       interpretation: "CONFIG_AND_PROCESS_CANDIDATES_ONLY_NO_AUTHENTICATION_PROOF",
     };
     expect(parseIsolatedClientObservation(valid)).toEqual(valid);
+    const signedBoxed = {
+      ...valid, processCandidates: [
+        valid.processCandidates[0],
+        { ...valid.processCandidates[1], imageEvidence: "SIGNED_EDUCATION_IMAGE_CANDIDATE" },
+      ],
+    };
+    expect(parseIsolatedClientObservation(signedBoxed)).toEqual(signedBoxed);
+    // The outside-only counter must not change when a boxed PID is signed.
+    expect(signedBoxed.officialImageOutsideSelectedBoxCount).toBe(1);
     expect(parseIsolatedClientObservation({
       ...valid, signedImageOtherBoxCount: 1, signedImageUnknownBoxCount: 0,
     }).directPidQuery).toBe("QUERIED");
@@ -225,7 +240,8 @@ describe("Native candidate IPC evidence", () => {
       { ...valid, officialImageOutsideSelectedBoxCount: 0 },
       { ...valid, processCandidates: [
         valid.processCandidates[0],
-        { ...valid.processCandidates[1], imageEvidence: "SIGNED_EDUCATION_IMAGE_CANDIDATE" },
+        { ...valid.processCandidates[1], createdFileTime: null,
+          imageEvidence: "SIGNED_EDUCATION_IMAGE_CANDIDATE" },
       ] },
       { ...valid, processCandidates: [
         { ...valid.processCandidates[0], imageEvidence: "NATIVE_AUTHENTICATED" },

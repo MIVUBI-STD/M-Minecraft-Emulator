@@ -135,13 +135,29 @@ launch is diagnosed without altering account/VM data.
 
 The pilot offers a manual **Focus Client 02** button only when a single
 boxed, visible Minecraft-name process candidate has a known creation FILETIME.
-The Rust owner re-inspects Sandboxie membership on every Focus and compares
-PID, creation FILETIME and HWND with the selected snapshot. The Windows call
-then verifies the process creation time, HWND's owning PID, and that it is
-a visible, unowned root window (not an owned dialog/popup) before requesting
-foreground activation. The HWND is converted to a native pointer width
-without truncation and validated again after restoring a minimized window. This does not establish official Education
-identity, an authenticated account or playable gameplay. If the process
+The Rust owner re-inspects Sandboxie membership on every Focus, then
+requests an **on-demand Authenticode verification of only the selected boxed
+PID** through the existing short-lived read-only PowerShell collector
+(`-SummaryOnly -BoxedImageProofPid <PID>`). The collector requires
+the selected boxed process to have a visible window and known creation
+FILETIME, checks the executable ProductName and valid Microsoft Corporation
+signature, and reopens the process after verification to compare its
+creation time and executable path. If inaccessible, changed, unsigned or
+unrecognized, image evidence remains UNKNOWN; no Focus/Place occurs.
+The Rust backend compares the fresh, signed boxed candidate's PID,
+creation FILETIME and HWND with the previous UI observation and still
+checks the open process handle and window ownership immediately before
+acting. Only source-level behavior is described; execution remains unproven.
+The Windows call then verifies the process creation time, HWND's owning
+PID, and that it is a visible, unowned root window (not an owned
+dialog/popup) before requesting foreground activation. The HWND is converted
+to a native pointer width without truncation and validated again after
+restoring a minimized window. This supplies only evidence for the signed
+executable file currently reported for the PID, not immutable attestation
+of its mapped running image. File paths are not returned in IPC or stored
+in reports. A changed
+or reparse-linked file remains a potential filesystem race. It does not
+establish authenticated accounts or playable gameplay. If the process
 changed, Refresh first; if Windows rejects foreground activation, click the
 game window or use Alt+Tab. No keyboard simulation, hidden polling,
 automatic process start, VM route or sandbox data mutation is used.
@@ -158,6 +174,37 @@ size/position or protection against every HWND race. Windows may adjust the
 final size to Minecraft's constraints; the accepted request does not
 certify rendering. Sandboxie Plus requires
 a Business Certificate for business/educational use as described upstream.
+
+## Boxed executable attribution (source-only)
+
+- **Manual Refresh:** `-ImageProof` still checks visible outside-box
+  Microsoft-signed Education file candidates and can invoke the manual
+  vendor-DLL per-PID box lookup. It does not mark Client 01 truly native.
+- **On-demand Focus/Place:** `-BoxedImageProofPid` verifies only one
+  observed Client 02 PID, without invoking the manual outside-box DLL
+  `QueryProcess` route. A prior UI `imageEvidence` value is never
+  accepted as authorizing a window action.
+- **Launch:** unchanged; box membership and persistent settings are
+  preflight prerequisites, but executable path and signer checks remain
+  in the existing launch request. No signed PID observation authorizes
+  additional processes or proves successful launch.
+- **Evidence:** an executable's valid Authenticode status, Microsoft
+  publisher and Education product metadata are a *signed-file candidate*,
+  not Microsoft sign-in, gameplay, graphics, multiplayer or a guarantee
+  that a mapped running image cannot change. Signature checks happen on
+  the file path obtained from the process and must fail closed if the
+  path or process identity is unavailable or changes. No credentials,
+  token material, window titles or private world data are read.
+- **Source/proof boundary:** no schema version changes: the existing
+  `imageEvidence` label now permits signed candidates either outside
+  the selected box or inside its verified membership. The existing
+  `officialImageOutsideSelectedBoxCount` still counts *outside only*.
+  Windows, PowerShell, Rust, frontend, Minecraft and performance checks
+  have not been executed at this commit.
+
+References:
+- https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.security/get-authenticodesignature
+- https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-queryfullprocessimagenamew
 
 ## Prerequisites, manually managed
 
