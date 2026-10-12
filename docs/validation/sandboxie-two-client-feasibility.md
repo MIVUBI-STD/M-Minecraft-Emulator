@@ -162,14 +162,20 @@ candidate process windows. The historical JSON field
 `credentialHostAccess` must be interpreted as a configuration/bypass
 indicator, not a proof that host credentials are inaccessible. Its source is embedded in the development
 Tauri backend so the inspector and launcher preflight reuse the same rules.
-The current desktop summary is IPC schema 3 and includes a bounded
+The current desktop summary is IPC schema 4 and includes a bounded
 list of Minecraft-name process candidates with PID, optional Windows
-creation FILETIME string, HWND and observed sandbox membership. The
-list is internally reconciled against visible/boxed counters, including
-processes that have not created a window. A process without accessible
-start time remains a name-matched candidate only. The persisted full
-JSON report remains schema 1 with its earlier process field shapes
-for the existing evaluator.
+creation FILETIME string, HWND, observed sandbox membership and image
+evidence. The list is internally reconciled against visible/boxed counters,
+including processes without a window. A process without accessible start
+time remains a name-matched candidate only. Explicit desktop Refresh
+uses SummaryOnly -ImageProof: only visible candidates outside the
+selected box are checked for valid Microsoft Corporation Authenticode
+and Minecraft Education product metadata, using an invocation-local cache
+without sending paths to the UI. Launch/Focus/Place omit -ImageProof to
+avoid repeated signer checks. **A signed Education image outside
+MinecraftClient02 is not proof of an unsandboxed/native process: it
+may run in another box.** The persisted full JSON report remains schema 1
+with earlier process field shapes for the existing evaluator.
 The Rust backend serializes manager-initiated launch attempts and suppresses
 rapid ambiguous retries; it does not control independent launches made
 outside the manager. An UNKNOWN /listpids result remains UNKNOWN, not an
