@@ -1,5 +1,28 @@
 use serde::{Deserialize, Serialize};
-use std::{collections::HashSet, io};
+use std::{
+    collections::HashSet,
+    io,
+    sync::{Mutex, MutexGuard},
+    time::{Duration, Instant},
+};
+
+// One backend admission boundary for explicitly requested Client 02 launches.
+// This protects in-process callers without a worker, daemon or persisted state.
+const CLIENT_02_LAUNCH_RETRY_GAP: Duration = Duration::from_secs(30);
+static CLIENT_02_LAUNCH: Mutex<Option<Instant>> = Mutex::new(None);
+
+fn acquire_client_02_launch() -> io::Result<MutexGuard<'static, Option<Instant>>> {
+    let guard = CLIENT_02_LAUNCH.try_lock().map_err(|_| {
+        io::Error::new(io::ErrorKind::WouldBlock,
+            "A Client 02 launch is already in progress")
+    })?;
+    if guard.as_ref().is_some_and(|last| last.elapsed() < CLIENT_02_LAUNCH_RETRY_GAP) {
+        return Err(io::Error::new(io::ErrorKind::AlreadyExists,
+            "Client 02 was recently requested; inspect before retrying after 30 seconds"));
+    }
+    Ok(guard)
+}
+
 
 // Desktop-native observation only. PIDs and window handles are candidates,
 // not verified Minecraft, Microsoft account, rendering or gameplay evidence.
@@ -293,6 +316,9 @@ pub fn request_sandbox_client_02(executable: String, licensed: bool) -> io::Resu
         return Err(io::Error::new(io::ErrorKind::NotFound,
             "Selected Minecraft Education EXE was not found"));
     }
+    // UI buttons are not an IPC concurrency guarantee. Hold the backend
+    // guard across preflight and launch to prevent overlapping requests.
+    let mut launch_guard = acquire_client_02_launch()?;
     let observation = inspect_sandbox_client_02()?;
     if !observation.interactive_session
         || observation.box_configured != "YES"
@@ -402,6 +428,9 @@ if ($launcher.ExitCode -ne 0) {{
     throw "Sandboxie Start.exe rejected the launch request (exit code $($launcher.ExitCode))"
 }}
 "#);
+    // Even a timed-out launch command might have spawned Minecraft already.
+    // Reserve a brief retry gap before the potentially ambiguous side effect.
+    *launch_guard = Some(Instant::now());
     virtual_clients_core::bounded_command_output(
         Path::new("powershell.exe"),
         ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", script.as_str()],
@@ -417,7 +446,7 @@ pub fn request_sandbox_client_02(_executable: String, _licensed: bool) -> io::Re
 
 #[cfg(test)]
 mod tests {
-    use super::{parse_native_observation, parse_sandboxie_observation, validate_education_path};
+    use super::{acquire_client_02_launch, parse_native_observation, parse_sandboxie_observation, validate_education_path};
     use serde_json::json;
 
     fn fixture() -> serde_json::Value {
@@ -430,6 +459,15 @@ mod tests {
                 {"pid": 456, "windowHandle": null}
             ]
         })
+    }
+
+    #[test]
+    fn backend_rejects_overlapping_client_02_launches() {
+        let first = acquire_client_02_launch().expect("first request admitted");
+        let second = acquire_client_02_launch().err().expect("concurrent request refused");
+        assert_eq!(second.kind(), std::io::ErrorKind::WouldBlock);
+        drop(first);
+        assert!(acquire_client_02_launch().is_ok());
     }
 
     #[test]
