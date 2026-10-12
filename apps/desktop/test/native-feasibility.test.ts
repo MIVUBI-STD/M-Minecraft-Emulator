@@ -84,7 +84,9 @@ describe("Native candidate IPC evidence", () => {
     expect(engine).toContain("WaitForExit(8000)");
     expect(engine).toContain("$launcher.ExitCode");
     expect(engine).toContain("-WorkingDirectory $gameFolder");
-    expect(engine).toContain("observation.isolated_visible_candidates > 0");
+    expect(engine).toContain("observation.isolated_candidate_processes > 0");
+    expect(engine).toContain("let mut launch_guard = acquire_client_02_launch()?;");
+    expect(engine).toContain("*launch_guard = Some(Instant::now());");
     expect(engine).toContain("GetEnvironmentVariable('ProgramW6432')");
     expect(engine).toContain('observation.credential_host_access != "OFF"');
     expect(bridge).toContain('"desktop_inspect_sandbox_client_02"');
@@ -93,7 +95,7 @@ describe("Native candidate IPC evidence", () => {
     expect(active).toContain("observation = await nativeFeasibility.inspectIsolatedClient02()");
     expect(active).not.toContain("nativeFeasibility.inspectCandidates()");
     expect(engine).toContain('["& {\\n", INSPECT, "\\n} -SummaryOnly"].concat()');
-    expect(active).toContain('typeof error === "string"');
+    expect(active).toContain('typeof reason === "string"');
     expect(commands).toContain("fn desktop_request_sandbox_client_02(");
     expect(engine).toContain("pub fn request_sandbox_client_02(");
     expect(engine).toContain('const CLIENT_02_BOX_NAME: &str = "MinecraftClient02";');
@@ -123,13 +125,13 @@ describe("Native candidate IPC evidence", () => {
 
   it("accepts only non-authoritative isolated process and box observations", () => {
     const valid = {
-      schema: 1, boxName: "MinecraftClient02", stage: "INSPECT",
+      schema: 2, boxName: "MinecraftClient02", stage: "INSPECT",
       boxConfigured: "YES", boxSettingsSource: "BOX_SECTION_ENUMERATED",
       autoDelete: "OFF", autoRemove: "OFF", credentialHostAccess: "OFF",
       membershipStatus: "OBSERVED", interactiveSession: true,
       processEvidenceClass: "NAME_MATCH_CANDIDATE_ONLY",
-      candidateProcessCount: 2, nativeVisibleCandidates: 1,
-      isolatedVisibleCandidates: 1,
+      candidateProcessCount: 2, isolatedCandidateProcesses: 1,
+      nativeVisibleCandidates: 1, isolatedVisibleCandidates: 1,
       interpretation: "CONFIG_AND_PROCESS_CANDIDATES_ONLY_NO_AUTHENTICATION_PROOF",
     };
     expect(parseIsolatedClientObservation(valid)).toEqual(valid);
@@ -139,6 +141,9 @@ describe("Native candidate IPC evidence", () => {
       { ...valid, boxSettingsSource: "UNKNOWN" },
       { ...valid, credentialHostAccess: "GAMEPLAY_VERIFIED" },
       { ...valid, candidateProcessCount: 1 },
+      { ...valid, isolatedCandidateProcesses: 0 },
+      { ...valid, isolatedCandidateProcesses: 3 },
+      { ...valid, schema: 1 },
       { ...valid, nativeVisibleCandidates: 17 },
       { ...valid, membershipStatus: "UNKNOWN" },
       { ...valid, accountEmail: "forbidden@example.com" },
@@ -146,7 +151,7 @@ describe("Native candidate IPC evidence", () => {
     for (const item of invalid) expect(() => parseIsolatedClientObservation(item)).toThrow(TypeError);
     expect(parseIsolatedClientObservation({
       ...valid, membershipStatus: "UNKNOWN",
-      nativeVisibleCandidates: 0, isolatedVisibleCandidates: 0,
+      nativeVisibleCandidates: 0, isolatedVisibleCandidates: 0, isolatedCandidateProcesses: 0,
     }).membershipStatus).toBe("UNKNOWN");
   });
 
