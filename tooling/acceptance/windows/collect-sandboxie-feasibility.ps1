@@ -65,6 +65,9 @@ function Invoke-BoundedReadOnlyTool {
       try { $process.Kill() } catch { }
       return $null
     }
+    # Start.exe and descendants may inherit the stdout pipe after the helper exits.
+    # A successful WaitForExit alone does not imply the read reached EOF.
+    if (-not $reading.Wait(1000)) { return $null }
     $result = $reading.GetAwaiter().GetResult()
     if ($process.ExitCode -ne 0 -or $result.Length -gt 4096) { return $null }
     return $result.Trim()
