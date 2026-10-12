@@ -6,6 +6,25 @@ const appRoot = resolve(import.meta.dirname, "..");
 const repoRoot = resolve(appRoot, "..", "..");
 const backendRoot = resolve(repoRoot, "engine", "runtime-core");
 const manifest = resolve(backendRoot, "Cargo.toml");
+
+// The native-first pilot is not the existing VMware release product. The
+// current bundle still contains VMware guest scripts and a Guest Agent and
+// reuses the old installed identity/data directory. Refuse packaging BEFORE
+// building sidecars, staging guest binaries or touching installer resources.
+// Unblocking requires an explicit migration/release review in source, not an
+// operator environment variable or a temporary CLI bypass.
+const activeDesktopSource = readFileSync(resolve(appRoot, "src", "main.ts"), "utf8");
+const publicCommandSource = readFileSync(resolve(backendRoot, "src", "command.rs"), "utf8");
+if (activeDesktopSource.includes("NativeFeasibilityApp") ||
+    publicCommandSource.includes('"mode": "NATIVE_FEASIBILITY"')) {
+  throw new Error(
+    "PACKAGE_BLOCKED_NATIVE_FEASIBILITY: the current Tauri UI is a native-only " +
+    "experimental pilot, but this installer still embeds VMware Guest Agent " +
+    "and legacy VM resources under the existing product identity. Do not " +
+    "build or install this legacy package until an explicitly reviewed " +
+    "native package and account-data preservation migration are implemented."
+  );
+}
 // A direct packaging command must not silently resolve uncommitted desktop
 // dependencies. The canonical G0 source route enforces the same prerequisite.
 if (!existsSync(resolve(appRoot, "src-tauri", "Cargo.lock"))) {

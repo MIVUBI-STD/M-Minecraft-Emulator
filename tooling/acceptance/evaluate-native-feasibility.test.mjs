@@ -28,7 +28,8 @@ const sample = () => ({
     bothWorldsPlayable: "YES",
     independentInput: "YES",
     accountCrossingObserved: "NO",
-    multiplayerJoined: "UNKNOWN",
+    multiplayerJoined: "YES",
+    reopenAndRebootPersistent: "YES",
     observedMinutes: 10,
     evidenceReference: "local-two-client-001"
   }
@@ -40,7 +41,8 @@ test("operator reported playability never becomes automated gameplay or account 
   assert.equal(r.licensedAccountsVerified, false);
   assert.equal(r.automatedGameplayProof, false);
   assert.equal(r.noVmFeasibilityProven, false);
-  assert.ok(r.risks.includes("MULTIPLAYER_NOT_OBSERVED"));
+  assert.ok(!r.risks.includes("MULTIPLAYER_NOT_OBSERVED"));
+  assert.ok(!r.risks.includes("SESSION_PERSISTENCE_NOT_OBSERVED"));
 });
 
 test("launch requests do not prove independent processes or playable game", () => {
@@ -50,6 +52,7 @@ test("launch requests do not prove independent processes or playable game", () =
   r.machine.candidateProcesses = [];
   for (const key of ["distinctAccounts", "bothWorldsPlayable", "independentInput",
     "accountCrossingObserved", "multiplayerJoined"]) r.operator[key] = "UNKNOWN";
+  r.operator.reopenAndRebootPersistent = "UNKNOWN";
   r.operator.observedMinutes = 0;
   r.operator.evidenceReference = null;
   assert.equal(evaluateNativeFeasibility(r).verdict, "INCONCLUSIVE");
@@ -82,7 +85,9 @@ test("explicit operator game failures stay failures", () => {
     r => r.operator.distinctAccounts = "NO",
     r => r.operator.bothWorldsPlayable = "NO",
     r => r.operator.independentInput = "NO",
-    r => r.operator.accountCrossingObserved = "YES"
+    r => r.operator.accountCrossingObserved = "YES",
+    r => r.operator.multiplayerJoined = "NO",
+    r => r.operator.reopenAndRebootPersistent = "NO"
   ]) {
     const r = sample(); alter(r);
     assert.equal(evaluateNativeFeasibility(r).verdict, "OPERATOR_REPORTED_FAILURE");
@@ -94,7 +99,9 @@ test("ten observed minutes, clear account evidence and reference are required", 
     r => r.operator.observedMinutes = 9,
     r => r.operator.evidenceReference = null,
     r => r.operator.distinctAccounts = "UNKNOWN",
-    r => r.operator.accountCrossingObserved = "UNKNOWN"
+    r => r.operator.accountCrossingObserved = "UNKNOWN",
+    r => r.operator.multiplayerJoined = "UNKNOWN",
+    r => r.operator.reopenAndRebootPersistent = "UNKNOWN"
   ]) {
     const r = sample(); alter(r);
     assert.equal(evaluateNativeFeasibility(r).verdict, "INCONCLUSIVE");
@@ -135,4 +142,58 @@ test("unknown gameplay stays inconclusive and extra processes are only candidate
   const result = evaluateNativeFeasibility(s);
   assert.equal(result.candidateProcessCount, 3);
   assert.equal(result.candidateWindowCount, 2);
+});
+
+test("previous schema-1 reports without reboot evidence stay readable but inconclusive", () => {
+  const report = sample();
+  delete report.operator.reopenAndRebootPersistent;
+  const result = evaluateNativeFeasibility(report);
+  assert.equal(result.verdict, "INCONCLUSIVE");
+  assert.ok(result.risks.includes("SESSION_PERSISTENCE_NOT_OBSERVED"));
+  assert.equal(result.noVmFeasibilityProven, false);
+});
+
+test("persistent sessions without multiplayer proof cannot be promoted to reported compatibility", () => {
+  const report = sample();
+  report.operator.multiplayerJoined = "UNKNOWN";
+  const result = evaluateNativeFeasibility(report);
+  assert.equal(result.verdict, "INCONCLUSIVE");
+  assert.ok(result.risks.includes("MULTIPLAYER_NOT_OBSERVED"));
+});
+
+test("numeric PID/HWND identities must be unique and bounded, not just string-distinct", () => {
+  for (const mutation of [
+    r => r.machine.candidateProcesses[1].windowHandle = "0x0101",
+    r => r.machine.candidateProcesses[1].windowHandle = "0x00000101",
+    r => r.machine.candidateProcesses[1].windowHandle = "0x000",
+    r => r.machine.candidateProcesses[0].windowHandle = "0x10000000000000000",
+    r => r.machine.candidateProcesses[0].pid = 0x100000000,
+    r => r.machine.candidateProcesses[0].pid = 1.5,
+    r => r.machine.candidateProcesses[0].pid = -1,
+  ]) {
+    const report = sample();
+    mutation(report);
+    assert.throws(() => evaluateNativeFeasibility(report), TypeError);
+  }
+});
+
+test("baseline rejects persistence claims and explicit multiplayer/persistence failures", () => {
+  const baseline = sample();
+  baseline.stage = "BASELINE";
+  for (const key of ["distinctAccounts", "bothWorldsPlayable", "independentInput",
+    "accountCrossingObserved", "multiplayerJoined"]) baseline.operator[key] = "UNKNOWN";
+  baseline.operator.observedMinutes = 0;
+  baseline.operator.evidenceReference = null;
+  baseline.operator.reopenAndRebootPersistent = "YES";
+  assert.throws(() => evaluateNativeFeasibility(baseline), TypeError);
+
+  const report = sample();
+  report.operator.reopenAndRebootPersistent = "NO";
+  assert.equal(evaluateNativeFeasibility(report).verdict, "OPERATOR_REPORTED_FAILURE");
+  assert.ok(evaluateNativeFeasibility(report).risks.includes("SESSION_PERSISTENCE_FAILED"));
+
+  const multiplayer = sample();
+  multiplayer.operator.multiplayerJoined = "NO";
+  assert.equal(evaluateNativeFeasibility(multiplayer).verdict, "OPERATOR_REPORTED_FAILURE");
+  assert.ok(evaluateNativeFeasibility(multiplayer).risks.includes("MULTIPLAYER_FAILED"));
 });

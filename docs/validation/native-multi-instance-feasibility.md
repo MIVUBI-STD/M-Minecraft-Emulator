@@ -90,7 +90,7 @@ Do not record identifiable account names or world titles.
 Then run the observation separately, only with flags that were actually
 observed (replace YES/NO with UNKNOWN wherever not verified):
 
-    powershell.exe -NoProfile -File tooling/acceptance/windows/collect-native-feasibility.ps1 -Stage TWO_CLIENT -DistinctAccounts YES -BothWorldsPlayable YES -IndependentInput YES -AccountCrossingObserved NO -MultiplayerJoined UNKNOWN -ObservedMinutes 10 -EvidenceReference two-client-local-001
+    powershell.exe -NoProfile -File tooling/acceptance/windows/collect-native-feasibility.ps1 -Stage TWO_CLIENT -DistinctAccounts YES -BothWorldsPlayable YES -IndependentInput YES -AccountCrossingObserved NO -MultiplayerJoined YES -ReopenAndRebootPersistent YES -ObservedMinutes 10 -EvidenceReference two-client-local-001
 
 By default the report is saved as a fresh JSON under
 %TEMP%\MIVUBI-Native-Feasibility. This file is machine-observed process
@@ -110,7 +110,13 @@ The evaluator produces one of:
 - INCONCLUSIVE: missing or insufficient evidence;
 - OPERATOR_REPORTED_FAILURE: explicitly observed problem;
 - OPERATOR_REPORTED_TWO_CLIENTS: two distinct process and visible-window
-  candidates plus the required operator statements.
+  candidates plus the required operator statements, including observed
+  multiplayer success and retained independent sessions after reopening
+  and a host reboot. Reports without either are INCONCLUSIVE.
+
+Old schema-1 reports that lack reopen/reboot evidence remain readable,
+but cannot be positively classified. Duplicate numeric HWNDs (even with
+different hexadecimal spelling) and impossible Windows PIDs are rejected.
 
 It never returns PASS or claims automated account verification. A human
 must review the true game/window evidence and any sign-in or multiplayer
@@ -126,6 +132,10 @@ this pilot alone.
 
 ## Proof status
 
-At authoring: REMOTE_GITHUB source only. Windows collector, two signed-in
+At authoring: REMOTE_GITHUB source only. The pilot release pipeline is
+also intentionally blocked while it still carries VMware Guest Agent
+resources in the old installed product identity. Use only source/build
+verification, not the historical NSIS package, until a separate native
+release contract and account-data preservation plan have been approved. Windows collector, two signed-in
 game clients, four-account concurrency and persistence are NOT_EXECUTED.
 Earlier VM installer/source G0 proof applies solely to its tested SHA.

@@ -20,7 +20,7 @@ Before mutation, establish repository, branch `Local`, HEAD SHA, first semantic 
 - `PACKAGE_EXECUTION` — actual NSIS build, installed payload integrity, install/repair/uninstall test.
 - `TARGET_WINDOWS` — actual host and VMware/Windows guest session observations.
 - `MINECRAFT_RUNTIME` — actual Education login, graphics and multiplayer.
-- `FOUR_CLIENT_ACCEPTANCE` — one Native and three Virtual clients meet the acceptance matrix simultaneously.
+- `FOUR_CLIENT_ACCEPTANCE` — four independently licensed playable Minecraft Education clients meet the accepted target simultaneously, whether native or isolated; previous one-Native/three-VM evidence is historical only.
 
 A static test **authored** is not a test **executed**. A VM process is not game-ready, signed-in, or network-ready proof. Multiple SHAs cannot be combined as exact-head acceptance.
 

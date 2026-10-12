@@ -22,7 +22,7 @@ SOURCE_EXECUTION → actually run Node, Svelte, Rust and Tauri checks
 PACKAGE_EXECUTION → actual Windows installer construction/inspection
 TARGET_WINDOWS → VMware, guest identity, interactive Windows session
 MINECRAFT_RUNTIME → live Education sign-in, gameplay, peer-to-peer network
-FOUR_CLIENT_ACCEPTANCE → Native plus three Virtuals concurrently accepted
+FOUR_CLIENT_ACCEPTANCE → four distinct licensed playable Minecraft Education sessions accepted concurrently on the chosen proven approach; VM guests are not required by the new target
 ```
 
 Never promote one rung into another. Absence of runtime or source execution evidence is `NOT_EXECUTED`, not PASS.

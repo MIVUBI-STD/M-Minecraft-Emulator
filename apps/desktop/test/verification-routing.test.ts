@@ -34,6 +34,20 @@ describe("Emulator source verification routing", () => {
     expect(app.scripts["build:app"]).toContain(" -- --locked");
   });
 
+  it("prevents shipping the native pilot inside the existing VMware NSIS bundle", () => {
+    const entry = readFileSync(new URL("../src/main.ts", import.meta.url), "utf8");
+    const packageBuilder = readFileSync(new URL("../scripts/prepare-package-binaries.mjs", import.meta.url), "utf8");
+    const policy = readFileSync(new URL("../../../engine/distribution/package-contract.json", import.meta.url), "utf8");
+    expect(entry).toContain("NativeFeasibilityApp");
+    expect(packageBuilder).toContain("PACKAGE_BLOCKED_NATIVE_FEASIBILITY");
+    expect(packageBuilder).toContain('activeDesktopSource.includes("NativeFeasibilityApp")');
+    expect(packageBuilder).toContain("publicCommandSource.includes");
+    expect(packageBuilder.indexOf("PACKAGE_BLOCKED_NATIVE_FEASIBILITY"))
+      .toBeLessThan(packageBuilder.indexOf("const binaries ="));
+    expect(policy).toContain("guest/windows/virtual-guest-agent.exe");
+    expect(app.scripts["build:app"]).toContain("npm run prepare:package-binaries");
+  });
+
   it("routes the optional Windows entrypoint through source checks", () => {
     expect(router).toContain("& npm @NpmArguments");
     expect(router).toMatch(/"check"\s*\{ Invoke-RepositoryNpm -NpmArguments @\("run", "verify:source"\) \}/);

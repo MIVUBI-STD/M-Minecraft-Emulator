@@ -15,6 +15,8 @@ param(
   [string]$AccountCrossingObserved = 'UNKNOWN',
   [ValidateSet('YES', 'NO', 'UNKNOWN')]
   [string]$MultiplayerJoined = 'UNKNOWN',
+  [ValidateSet('YES', 'NO', 'UNKNOWN')]
+  [string]$ReopenAndRebootPersistent = 'UNKNOWN',
   [ValidateRange(0, 1440)]
   [int]$ObservedMinutes = 0,
   [ValidatePattern('^(?:$|[A-Za-z0-9_.-]{1,80})$')]
@@ -28,7 +30,7 @@ if ($env:OS -ne 'Windows_NT') {
 }
 
 $observations = @($DistinctAccounts, $BothWorldsPlayable, $IndependentInput,
-  $AccountCrossingObserved, $MultiplayerJoined)
+  $AccountCrossingObserved, $MultiplayerJoined, $ReopenAndRebootPersistent)
 if ($Stage -eq 'BASELINE' -and (
   @($observations | Where-Object { $_ -ne 'UNKNOWN' }).Count -gt 0 -or
   $ObservedMinutes -ne 0 -or $EvidenceReference
@@ -147,6 +149,7 @@ $report = [ordered]@{
     independentInput = $IndependentInput
     accountCrossingObserved = $AccountCrossingObserved
     multiplayerJoined = $MultiplayerJoined
+    reopenAndRebootPersistent = $ReopenAndRebootPersistent
     observedMinutes = $ObservedMinutes
     evidenceReference = $reference
   }

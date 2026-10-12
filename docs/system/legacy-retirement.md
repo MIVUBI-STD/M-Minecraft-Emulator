@@ -46,7 +46,8 @@ tokens, profile copies or private worlds are stored in Git.
 | engine/guest/windows/, Base preparation and Guest Agent | LEGACY BUILD-ONLY; installed guest binaries not modified |
 | tooling/acceptance/windows/collect-client-feasibility.ps1 and old VM G0–G4 scripts | HISTORICAL EVIDENCE ROUTE; not an active campaign |
 | experiments/gpu-pv-migration-design.md | RESEARCH ARCHIVE, no production provider migration |
-| engine/distribution/ and existing NSIS resources | COMPATIBILITY PRESERVED; no active production release authorized |
+| engine/distribution/ and existing NSIS resources | COMPATIBILITY PRESERVED; old release assets still embed VM Guest Agent and scripts |
+| apps/desktop/scripts/prepare-package-binaries.mjs | PACKAGE BLOCKED while NativeFeasibilityApp is mounted; fails before building/staging old guest binaries |
 
 The pause list at command.rs blocks actions, stage-update, register-base,
 open-base-finalization, provision, reprovision, verify-identities, start,
@@ -71,6 +72,13 @@ explicitly invoked. The active desktop makes no such startup calls.
 - Installed identifier com.mivubi.mbedrock.virtualclients, release naming,
   signing/update contracts, guest protocol IDs and compatibility paths.
 - Old test evidence, exact-SHA G0 proof, Git history and migration notes.
+
+The canonical npm build:app flow is deliberately blocked with
+PACKAGE_BLOCKED_NATIVE_FEASIBILITY as long as the native-only pilot is
+mounted or runtime product-status declares NATIVE_FEASIBILITY. This is not
+a missing-dependency failure or a completed native installer. A direct
+unsupported invocation that bypasses package preparation is not
+an authorized release workflow.
 
 The pilot desktop cannot stop existing running VMs. If needed, an
 authorized user must use the vendor's existing console to perform a

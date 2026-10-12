@@ -36,7 +36,8 @@ export function evaluateNativeFeasibility(report) {
   const handles = new Set();
   let visible = 0;
   for (const p of machine.candidateProcesses) {
-    if (!p || !Number.isSafeInteger(p.pid) || p.pid < 1 || pids.has(p.pid) ||
+    if (!p || !Number.isSafeInteger(p.pid) || p.pid < 1 ||
+        p.pid > 0xffffffff || pids.has(p.pid) ||
         (p.workingSetMb !== null &&
           (typeof p.workingSetMb !== "number" ||
            !Number.isFinite(p.workingSetMb) || p.workingSetMb < 0))) {
@@ -45,19 +46,25 @@ export function evaluateNativeFeasibility(report) {
     pids.add(p.pid);
     if (p.windowHandle !== null) {
       if (typeof p.windowHandle !== "string" ||
-          !/^0x[0-9a-f]+$/i.test(p.windowHandle) ||
-          /^0x0+$/i.test(p.windowHandle) ||
-          handles.has(p.windowHandle.toLowerCase())) {
-        invalid("Invalid or duplicate visible window candidate.");
+          !/^0x[0-9a-f]{1,16}$/i.test(p.windowHandle)) {
+        invalid("Invalid visible window candidate.");
       }
-      handles.add(p.windowHandle.toLowerCase());
+      const key = BigInt(p.windowHandle);
+      if (key === 0n || handles.has(key)) {
+        invalid("Zero or duplicate visible window candidate.");
+      }
+      handles.add(key);
       visible++;
     }
   }
 
+  // Schema-1 reports captured before persistence was introduced remain
+  // readable, but can no longer reach a positive compatibility verdict.
+  const persistence = operator.reopenAndRebootPersistent ?? "UNKNOWN";
   const flags = ["distinctAccounts", "bothWorldsPlayable", "independentInput",
     "accountCrossingObserved", "multiplayerJoined"];
   if (!flags.every(k => ["YES", "NO", "UNKNOWN"].includes(operator[k])) ||
+      !["YES", "NO", "UNKNOWN"].includes(persistence) ||
       !Number.isInteger(operator.observedMinutes) ||
       operator.observedMinutes < 0 || operator.observedMinutes > 1440 ||
       (operator.evidenceReference !== null &&
@@ -67,6 +74,7 @@ export function evaluateNativeFeasibility(report) {
   }
   if ((report.stage === "BASELINE" &&
         (flags.some(k => operator[k] !== "UNKNOWN") ||
+         persistence !== "UNKNOWN" ||
          operator.observedMinutes !== 0 || operator.evidenceReference !== null)) ||
       (report.stage === "TWO_CLIENT" && machine.launchRequests !== 0)) {
     invalid("Launch requests and gameplay evidence must be separate.");
@@ -79,8 +87,13 @@ export function evaluateNativeFeasibility(report) {
   if (!machine.interactiveSession) risks.push("NON_INTERACTIVE_SESSION");
   if (machine.candidateProcesses.length < 2) risks.push("TWO_PROCESSES_NOT_OBSERVED");
   if (visible < 2) risks.push("TWO_WINDOWS_NOT_OBSERVED");
-  if (report.stage === "TWO_CLIENT" && operator.multiplayerJoined === "UNKNOWN") {
-    risks.push("MULTIPLAYER_NOT_OBSERVED");
+  if (report.stage === "TWO_CLIENT" && operator.multiplayerJoined !== "YES") {
+    risks.push(operator.multiplayerJoined === "NO"
+      ? "MULTIPLAYER_FAILED" : "MULTIPLAYER_NOT_OBSERVED");
+  }
+  if (report.stage === "TWO_CLIENT" && persistence !== "YES") {
+    risks.push(persistence === "NO"
+      ? "SESSION_PERSISTENCE_FAILED" : "SESSION_PERSISTENCE_NOT_OBSERVED");
   }
   if (report.stage === "TWO_CLIENT" && operator.evidenceReference === null) {
     risks.push("OPERATOR_REFERENCE_MISSING");
@@ -90,7 +103,9 @@ export function evaluateNativeFeasibility(report) {
     (operator.distinctAccounts === "NO" ||
      operator.bothWorldsPlayable === "NO" ||
      operator.independentInput === "NO" ||
-     operator.accountCrossingObserved === "YES");
+     operator.accountCrossingObserved === "YES" ||
+     operator.multiplayerJoined === "NO" ||
+     persistence === "NO");
   const observedPlayable = report.stage === "TWO_CLIENT" &&
     readyDesktop && machine.interactiveSession &&
     machine.candidateProcesses.length >= 2 && visible >= 2 &&
@@ -98,6 +113,8 @@ export function evaluateNativeFeasibility(report) {
     operator.bothWorldsPlayable === "YES" &&
     operator.independentInput === "YES" &&
     operator.accountCrossingObserved === "NO" &&
+    operator.multiplayerJoined === "YES" &&
+    persistence === "YES" &&
     operator.observedMinutes >= 10 &&
     operator.evidenceReference !== null;
 

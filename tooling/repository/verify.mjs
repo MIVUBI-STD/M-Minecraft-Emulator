@@ -176,6 +176,22 @@ for (const command of ["test:native-feasibility", "test:sandboxie-feasibility"])
   requireFact(rootPackage.scripts["verify:source"].includes("npm run " + command),
     "Native-first source checks omit " + command);
 }
+const nativeEvidenceCollector = read("tooling/acceptance/windows/collect-native-feasibility.ps1");
+const nativeEvidenceEvaluator = read("tooling/acceptance/evaluate-native-feasibility.mjs");
+requireFact(nativeEvidenceCollector.includes("ReopenAndRebootPersistent") &&
+  nativeEvidenceCollector.includes("reopenAndRebootPersistent") &&
+  nativeEvidenceEvaluator.includes("reopenAndRebootPersistent") &&
+  nativeEvidenceEvaluator.includes("SESSION_PERSISTENCE_NOT_OBSERVED") &&
+  nativeEvidenceEvaluator.includes('operator.multiplayerJoined === "YES"'),
+  "Native two-account evidence may not ignore persistence or multiplayer");
+// The current UI cannot be shipped as the old VMware installer while
+// still bundling a Guest Agent and account-bearing installed identity.
+const bundleBuilder = read("apps/desktop/scripts/prepare-package-binaries.mjs");
+requireFact(bundleBuilder.includes("PACKAGE_BLOCKED_NATIVE_FEASIBILITY") &&
+  bundleBuilder.includes('activeDesktopSource.includes("NativeFeasibilityApp")') &&
+  bundleBuilder.includes('publicCommandSource.includes') &&
+  bundleBuilder.indexOf("PACKAGE_BLOCKED_NATIVE_FEASIBILITY") < bundleBuilder.indexOf("const binaries ="),
+  "Native-feasibility desktop must be blocked from old VMware NSIS packaging");
 const nativeDesktop = read("apps/desktop/src-tauri/src/engine/native_clients.rs");
 const desktopFacade = read("apps/desktop/src/app/bridge/virtualClientsApi.ts");
 const desktopBootstrap = read("apps/desktop/src-tauri/src/app_bootstrap.rs");

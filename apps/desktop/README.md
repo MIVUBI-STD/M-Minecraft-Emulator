@@ -39,11 +39,19 @@ engine/runtime-core/
 
 There is no localhost HTTP bridge, injected browser-global API, or second VM state authority.
 
-Window arrangement is desktop-native presentation behavior. VM lifecycle eligibility stays in the backend. Its Windows discovery enumerates **visible, ownerless top-level HWNDs**, checks owning PIDs and constrained Minecraft Education/VMware window titles, and refuses duplicate or ambiguous client/window mappings. Placement rechecks HWND ownership/title and rejects a failed Win32 `MoveWindow` result instead of reporting success. VMware tabs are not assumed to be independent windows; grid/focus/columns geometry and the public layout response remain unchanged.
+**Legacy window arrangement (unmounted):** Window arrangement was desktop-native presentation behavior. VM lifecycle eligibility stays in the backend. Its Windows discovery enumerates **visible, ownerless top-level HWNDs**, checks owning PIDs and constrained Minecraft Education/VMware window titles, and refuses duplicate or ambiguous client/window mappings. Placement rechecks HWND ownership/title and rejects a failed Win32 `MoveWindow` result instead of reporting success. VMware tabs are not assumed to be independent windows; grid/focus/columns geometry and the public layout response remain unchanged.
 
 ## Packaging
 
-The Tauri NSIS package includes the support CLI as the only host sidecar. Guest Agent is a guest payload and is packaged beside the guest preparation scripts under `guest/windows/`. `scripts/prepare-package-binaries.mjs` builds both binaries, stages the CLI as a target-specific sidecar, and stages Guest Agent as a package resource. Normal dev/check/test does not depend on package binary staging.
+**Native-first pilot guard:** npm run build:app is intentionally blocked
+with PACKAGE_BLOCKED_NATIVE_FEASIBILITY. The former NSIS contract still
+embeds VMware scripts and Guest Agent under the old application identity.
+The guard prevents staging old guest binaries as a new native product.
+No new, smaller installer has been built or verified. Desktop source
+checks and experimental dev mode are separate from packaging.
+A future package migration must preserve existing account-bearing data.
+
+The legacy Tauri NSIS package includes the support CLI as the only host sidecar. Guest Agent is a guest payload and is packaged beside the guest preparation scripts under `guest/windows/`. `scripts/prepare-package-binaries.mjs` builds both binaries, stages the CLI as a target-specific sidecar, and stages Guest Agent as a package resource. Normal dev/check/test does not depend on package binary staging.
 
 ## Commands
 
@@ -52,13 +60,13 @@ npm ci
 npm run dev:app
 npm run typecheck
 npm run verify:source
-npm run build:app
+npm run build:app  # intentionally blocked during native feasibility
 ```
 
 
-## First-run orchestration
+## Legacy first-run orchestration (unmounted)
 
-`DoctorReport.nextSetupAction` remains the sole setup decision owner. The desktop maps that machine action to one of four presentation owners:
+The previous VMware manager used `DoctorReport.nextSetupAction` as the sole setup decision owner. Its old desktop mapped that machine action to one of four presentation owners:
 
 ```text
 APP      → safe operation can run directly

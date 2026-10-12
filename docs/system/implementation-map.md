@@ -33,7 +33,7 @@ This is a **navigation guide**, not a second registry or copy of implementation 
 | RAM/CPU resource pressure and start admission | `engine/runtime-core/src/resources.rs`, `policy.rs` | `runtime.rs`, `capacity.rs` |
 | State schema, durable profile and recovery | `engine/runtime-core/src/schema.rs`, `persistence.rs` | `journal.rs`, `runtime.rs` |
 | Update policy, signed-asset manifest, installer integrity | `engine/runtime-core/src/update.rs`, `engine/distribution/` | Tauri package configurations, package smoke |
-| Open host-native Windows desktop Minecraft without claiming gameplay/login proof | `apps/desktop/src-tauri/src/engine/native_clients.rs`, Tauri adapter | `apps/desktop/src/app/bridge/virtualClientsApi.ts` |
+| Open host-native Windows Minecraft / inspect candidate HWNDs without claiming account or gameplay proof | `apps/desktop/src-tauri/src/engine/native_clients.rs`, native Tauri adapter | Active `apps/desktop/src/app/bridge/nativeFeasibilityApi.ts`; legacy `virtualClientsApi.ts` unmounted |
 | Product desktop navigation / visual state | `apps/desktop/src/App.svelte`, `src/app/surfaces/` | `src/contracts.ts`, `src/view-model.ts` |
 | Typed frontend/backend IPC and contract validation | `apps/desktop/src/app/bridge/` | `apps/desktop/src-tauri/src/commands/` |
 | Desktop-native window layout, DPI and overlay | `apps/desktop/src-tauri/src/engine/` | `src-tauri/src/commands/window_arrangement.rs` |

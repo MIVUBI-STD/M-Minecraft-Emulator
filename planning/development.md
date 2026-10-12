@@ -1,3 +1,55 @@
+## Current work — tighten two-account evidence and block legacy packaging (2026-10-12)
+
+**Work:** emulator/native-multi-instance-readiness
+**State:** SOURCE_REFINEMENT_AUTHORED / WINDOWS_GAMEPLAY_NOT_EXECUTED.
+**Outcome:** one official Minecraft Education Desktop installation,
+four concurrent independently licensed clients, minimal storage, no
+Windows guest VM if native/application isolation proves viable.
+
+### Bounded source changes
+
+- Native two-client report collector now carries
+  reopenAndRebootPersistent=YES|NO|UNKNOWN without recording account
+  identifiers, tokens, private worlds or personal profile locations.
+- Canonical native evidence evaluator validates Windows PID limits and
+  numeric HWND uniqueness (including differently padded hex values).
+  A reported two-client compatibility observation now requires both
+  operator-reported multiplayer success and retained separate sessions
+  after game reopen and host reboot. UNKNOWN stays INCONCLUSIVE,
+  explicit NO is OPERATOR_REPORTED_FAILURE. Earlier schema-1 reports
+  missing persistence remain readable but cannot yield positive status.
+- Pure evaluator regression fixtures cover the new evidence states,
+  previous-report compatibility, invalid PID and numeric aliasing.
+- The canonical package builder now refuses to package the native-first
+  pilot under old VMware NSIS identity/guest payload contract. Guard
+  triggers PACKAGE_BLOCKED_NATIVE_FEASIBILITY before building or
+  staging the Guest Agent. No new installer has been built. Any direct
+  command bypassing the canonical builder is not an authorized release.
+- Source verifier and frontend routing tests pin the guard. The old
+  Guest Agent, VMware providers, installed identity, account-bearing
+  runtime folders and guest disk/snapshots remain unchanged. No new
+  CI, toolchain, second provider or account handler.
+- Documentation and architecture navigation distinguish active native
+  frontend, inactive legacy VMware implementation and release hold.
+
+### Verification ceiling
+
+Exact GitHub source/static validation and pure-JS evaluator test
+execution through ChatGPT V8 can verify logic independently from
+Windows. Do not convert it into full Node/Vitest, PowerShell,
+Rust/Tauri/Svelte, NSIS, target PC or Minecraft acceptance PASS.
+Two signed-in Education sessions, multiplayer, account persistence
+and four concurrently playable clients remain NOT_EXECUTED.
+Historic G0 PASS is solely at 509ce10f0fd5129e4da2990614651fb57241b256
+and is not applicable to this changed revision.
+
+**Next:** continue only source-reproducible work in ChatGPT/GitHub
+until genuine native runtime evidence becomes available. Do not request
+a localtest now, ship the old VMware installer, revive Guest Agent
+or remove existing account-bearing data.
+
+---
+
 ## Current work — native game-window observation readiness (2026-10-12)
 
 **Work:** emulator/native-multi-instance-feasibility
