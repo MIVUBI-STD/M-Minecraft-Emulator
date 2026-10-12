@@ -330,17 +330,23 @@ fn parse_sandboxie_observation(raw: &str) -> io::Result<SandboxieClientObservati
     Ok(report)
 }
 
+// The same collector owns both paths. Explicit UI Refresh checks candidate
+// executable provenance; Focus/Place/Launch inspect only the process/box
+// evidence they need, without repeated Authenticode verification.
 #[cfg(windows)]
-pub fn inspect_sandbox_client_02() -> io::Result<SandboxieClientObservation> {
+fn inspect_sandbox_client_02_mode(
+    image_proof: bool,
+) -> io::Result<SandboxieClientObservation> {
     use std::{path::Path, time::Duration};
     const INSPECT: &str = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
         "/../../../tooling/acceptance/windows/collect-sandboxie-feasibility.ps1"
     ));
-    // Wrap the canonical diagnostic collector in a PowerShell script block
-    // so its explicit -SummaryOnly switch can be bound without changing
-    // the full, persisted CLI evidence route. No report written for UI refresh.
-    let script = ["& {\n", INSPECT, "\n} -SummaryOnly"].concat();
+    let script = if image_proof {
+        ["& {\n", INSPECT, "\n} -SummaryOnly -ImageProof"].concat()
+    } else {
+        ["& {\n", INSPECT, "\n} -SummaryOnly"].concat()
+    };
     let output = virtual_clients_core::bounded_command_output(
         Path::new("powershell.exe"),
         ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", script.as_str()],
@@ -349,8 +355,23 @@ pub fn inspect_sandbox_client_02() -> io::Result<SandboxieClientObservation> {
     parse_sandboxie_observation(&output)
 }
 
+#[cfg(windows)]
+pub fn inspect_sandbox_client_02() -> io::Result<SandboxieClientObservation> {
+    inspect_sandbox_client_02_mode(true)
+}
+
+#[cfg(windows)]
+fn inspect_sandbox_client_02_fast() -> io::Result<SandboxieClientObservation> {
+    inspect_sandbox_client_02_mode(false)
+}
+
 #[cfg(not(windows))]
 pub fn inspect_sandbox_client_02() -> io::Result<SandboxieClientObservation> {
+    Err(io::Error::new(io::ErrorKind::Unsupported, "Windows is required"))
+}
+
+#[cfg(not(windows))]
+fn inspect_sandbox_client_02_fast() -> io::Result<SandboxieClientObservation> {
     Err(io::Error::new(io::ErrorKind::Unsupported, "Windows is required"))
 }
 
@@ -443,7 +464,7 @@ fn with_verified_client_02_window(
         io::Error::new(io::ErrorKind::WouldBlock,
             "Another Client 02 operation is in progress")
     })?;
-    let fresh = inspect_sandbox_client_02()?;
+    let fresh = inspect_sandbox_client_02_fast()?;
     let (expected_time, hwnd_number) = verify_fresh_focus_target(&target, &fresh)?;
     let process = unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, target.pid) };
     if process.is_null() {
@@ -625,7 +646,7 @@ pub fn request_sandbox_client_02(executable: String, licensed: bool) -> io::Resu
     // UI buttons are not an IPC concurrency guarantee. Hold the backend
     // guard across preflight and launch to prevent overlapping requests.
     let mut launch_guard = acquire_client_02_launch()?;
-    let observation = inspect_sandbox_client_02()?;
+    let observation = inspect_sandbox_client_02_fast()?;
     if !observation.interactive_session
         || observation.box_configured != "YES"
         || observation.box_settings_source != "BOX_SECTION_ENUMERATED"
