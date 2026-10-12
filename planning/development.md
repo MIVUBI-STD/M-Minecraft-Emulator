@@ -1,7 +1,7 @@
 # Current Development Handoff
 
 **Branch:** `Local` only. **Product:** Minecraft Instance Manager.
-**Current work:** `emulator/client02-process-identity`.
+**Current work:** `emulator/client02-identity-checked-focus`.
 **Engineering state:** source prototype / **Windows build and two-account gameplay NOT_EXECUTED**.
 
 ## One selected outcome and engine
@@ -50,6 +50,13 @@ part of the active implementation.
   no background process or new vendor-DLL binding is introduced.
   Collector stdout wait is bounded after helper exit; the launch
   helper handle is disposed without terminating game or box.
+- Client 02 now has one explicit Focus action: Rust obtains a fresh
+  Sandboxie summary, matches PID/creation FILETIME/HWND/box membership,
+  then rechecks process creation time and HWND owner through Win32
+  before requesting foreground activation. A missing creation time,
+  recycled PID, changed window or ambiguous box membership blocks Focus.
+  Windows may deny foreground activation; no input injection, service
+  or legacy VMware window arrangement is enabled.
 - One fixed persistent box `MinecraftClient02`, with checks for
   `AutoDelete`, `AutoRemove` and known credential configuration. No
   automatic sandbox creation/deletion, VM mutation or account management.
@@ -91,10 +98,11 @@ PowerShell or a two-game proof. Do not promote old evidence to new HEAD.
 TypeScript and collector regression checks only. Node, Rust, PowerShell and
 Windows/Minecraft executions on current HEAD remain **NOT_EXECUTED**.
 
-**Next bounded engineering action:** connect only necessary user actions
-such as Focus/Arrange to a fresh identity-checked HWND, verifying both PID
-and creation FILETIME before any window manipulation. Do not treat an old
-snapshot as current; Sandboxie DLL FFI remains deferred pending ABI review.
+**Next bounded engineering action:** evaluate a minimal identity-checked
+side-by-side Arrange path only after the Focus source and runtime behavior
+are understood. Current static proof does not establish Windows foreground
+permissions, real Minecraft identity or sandbox compatibility. Do not use
+an old snapshot for any window mutation or revive VMware layout IPC.
 
 ## Historical provenance (not active task state)
 
