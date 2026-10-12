@@ -136,6 +136,13 @@ describe("Native candidate IPC evidence", () => {
     expect(engine).toContain("inspect_sandbox_client_02_mode(false)");
     expect(engine).toContain("let fresh = inspect_sandbox_client_02_fast()?;");
     expect(engine).toContain("let observation = inspect_sandbox_client_02_fast()?;");
+    expect(engine).toContain("admit_client_02_launch_snapshot(&observation)?;");
+    expect(engine).toContain('if observation.membership_status != "OBSERVED"');
+    expect(engine).toContain("fn client_02_launch_requires_observed_empty_box()");
+    expect(active).toContain('observation.membershipStatus !== "OBSERVED"');
+    const sandboxList = readFileSync(new URL("../../../tooling/acceptance/windows/collect-sandboxie-feasibility.ps1", import.meta.url), "utf8");
+    expect(sandboxList).toContain("$count -ge 0 -and $count -le 256");
+    expect(sandboxList).toContain("if ($gameCandidates.Count -gt 16)");
     expect(active).toContain('typeof reason === "string"');
     expect(commands).toContain("fn desktop_request_sandbox_client_02(");
     expect(engine).toContain("pub fn request_sandbox_client_02(");

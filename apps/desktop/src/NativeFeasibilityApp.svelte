@@ -44,7 +44,7 @@
     : observation.credentialHostAccess !== "OFF"
     ? "Review OpenCredentials and protected-storage options in Sandboxie Plus. This is not Microsoft account isolation proof."
     : observation.membershipStatus !== "OBSERVED"
-    ? "Sandbox process membership is unknown. The manager cannot establish whether a Minecraft process is already inside the box."
+    ? "Sandboxie process membership is unknown. Check Sandboxie Plus and its service, then Refresh. Client 02 launch is blocked until the process list can be verified."
     : observation.isolatedCandidateProcesses > 0
     ? "A Client 02 process candidate exists. Use Focus if its window identity is available; do not request another launch."
     : "The inspected box settings meet the launch preflight checks. Select the official Desktop EXE and confirm licensing; authentication remains unverified.";
@@ -286,10 +286,11 @@
           I confirm Sandboxie Plus is licensed for this use, and MinecraftClient02 is a persistent box.
         </label>
         <div class="pilot-actions">
-          <button class="pilot-primary" disabled={busy || !licenseConfirmed || !selectedExecutable} on:click={launchIsolated}>
+          <button class="pilot-primary" disabled={busy || !licenseConfirmed || !selectedExecutable || (observation !== undefined && observation.membershipStatus !== "OBSERVED")} on:click={launchIsolated}>
             Launch Client 02
           </button>
         </div>
+        <p class="pilot-caution">Launch performs a fresh backend inspection. Unreadable Sandboxie process membership blocks launch rather than assuming the box is empty. A previous Refresh cannot waive this check.</p>
       </section>
 
       <section class="pilot-section pilot-boundary">

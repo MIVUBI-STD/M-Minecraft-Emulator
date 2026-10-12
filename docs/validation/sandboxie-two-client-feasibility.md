@@ -29,6 +29,9 @@ Sandboxie Plus provides:
 - Start.exe /box:BOX /listpids to enumerate PIDs reported inside a box.
   Start.exe is a GUI subsystem program; redirected stdout may not work
   on every configuration. No result means UNKNOWN, not zero processes.
+  The count includes all sandbox processes, not just game candidates:
+  the collector accepts up to 256 listed PIDs with a 4096-character
+  output limit, while the Minecraft candidate list remains limited to 16.
 
 These calls remain **read-only** in the collector. The active desktop adds
 one separate, explicitly requested launch action via the official
@@ -76,7 +79,11 @@ the existing official Windows launcher. For Client 02:
 3. Acknowledge Sandboxie licensing and click **Launch isolated Client 02**.
    The backend reuses the canonical Windows collector, requires a persistent
    enabled box with AutoDelete/AutoRemove OFF and verifiable
-   OpenCredentials OFF (box-local or inherited), then requests launch.
+   OpenCredentials OFF (box-local or inherited), and a **fresh OBSERVED
+   process list with no Minecraft-name process candidate** before requesting
+   launch. If /listpids is unreadable, the request fails closed rather than
+   assuming an empty box. This does not prevent all out-of-band process
+   creation between inspection and launch.
    A nonzero Start.exe exit code is reported as an error; a launcher that
    never exits before the deadline is UNKNOWN, not gameplay success.
 4. Click **Refresh both clients**. One collector reports candidates

@@ -345,6 +345,30 @@ fn parse_sandboxie_observation(raw: &str) -> io::Result<SandboxieClientObservati
     Ok(report)
 }
 
+// Explicit launch admission uses the one canonical, freshly observed box
+// snapshot. UNKNOWN membership never means an empty sandbox.
+fn admit_client_02_launch_snapshot(observation: &SandboxieClientObservation) -> io::Result<()> {
+    if !observation.interactive_session
+        || observation.box_configured != "YES"
+        || observation.box_settings_source != "BOX_SECTION_ENUMERATED"
+        || observation.auto_delete != "OFF"
+        || observation.auto_remove != "OFF"
+        || observation.credential_host_access != "OFF"
+    {
+        return Err(io::Error::new(io::ErrorKind::PermissionDenied,
+            "Client 02 preflight blocked: verify interactive Windows, persistent Sandboxie box and credential-bypass settings"));
+    }
+    if observation.membership_status != "OBSERVED" {
+        return Err(io::Error::new(io::ErrorKind::WouldBlock,
+            "Client 02 launch blocked: Sandboxie process membership is UNKNOWN; inspect Start.exe /listpids and Refresh before retrying"));
+    }
+    if observation.isolated_candidate_processes > 0 {
+        return Err(io::Error::new(io::ErrorKind::AlreadyExists,
+            "Client 02 already contains a Minecraft process candidate, possibly without a window; inspect before retrying"));
+    }
+    Ok(())
+}
+
 // The same collector owns both paths. Explicit UI Refresh checks candidate
 // executable provenance; Focus/Place/Launch inspect only the process/box
 // evidence they need, without repeated Authenticode verification.
@@ -662,26 +686,8 @@ pub fn request_sandbox_client_02(executable: String, licensed: bool) -> io::Resu
     // guard across preflight and launch to prevent overlapping requests.
     let mut launch_guard = acquire_client_02_launch()?;
     let observation = inspect_sandbox_client_02_fast()?;
-    if !observation.interactive_session
-        || observation.box_configured != "YES"
-        || observation.box_settings_source != "BOX_SECTION_ENUMERATED"
-        || observation.auto_delete != "OFF"
-        || observation.auto_remove != "OFF"
-        || observation.credential_host_access != "OFF"
-    {
-        return Err(io::Error::new(io::ErrorKind::PermissionDenied,
-            "Sandboxie Client 02 preflight blocked: box must be enabled, persistent and OpenCredentials must be verifiably OFF (including inherited global settings)"));
-    }
-    // A Minecraft-name process can still be starting without any HWND.
-    // Refuse duplicates when membership is observed; never infer gameplay.
-    // Unknown membership remains explicitly unknown: some Sandboxie GUI
-    // versions provide no stdout from /listpids.
-    if observation.membership_status == "OBSERVED"
-        && observation.isolated_candidate_processes > 0
-    {
-        return Err(io::Error::new(io::ErrorKind::AlreadyExists,
-            "Client 02 already contains a Minecraft process candidate, possibly without a window; inspect before retrying"));
-    }
+    // A fresh backend inspection is authoritative regardless of UI state.
+    admit_client_02_launch_snapshot(&observation)?;
     let escaped = executable.replace('\'', "''");
     let box_name = CLIENT_02_BOX_NAME;
     let script = format!(r#"
@@ -876,6 +882,38 @@ mod tests {
         assert_eq!(second.kind(), std::io::ErrorKind::WouldBlock);
         drop(first);
         assert!(acquire_client_02_launch().is_ok());
+    }
+
+    #[test]
+    fn client_02_launch_requires_observed_empty_box() {
+        let empty = serde_json::json!({
+            "schema":6, "boxName":"MinecraftClient02", "stage":"INSPECT",
+            "boxConfigured":"YES", "boxSettingsSource":"BOX_SECTION_ENUMERATED",
+            "autoDelete":"OFF", "autoRemove":"OFF", "credentialHostAccess":"OFF",
+            "membershipStatus":"OBSERVED", "interactiveSession":true,
+            "processEvidenceClass":"NAME_MATCH_CANDIDATE_ONLY",
+            "candidateProcessCount":0, "processCandidates":[],
+            "officialImageOutsideSelectedBoxCount":0,
+            "directPidQuery":"NOT_REQUESTED", "signedImageOtherBoxCount":0,
+            "signedImageUnknownBoxCount":0, "isolatedCandidateProcesses":0,
+            "nativeVisibleCandidates":0, "isolatedVisibleCandidates":0,
+            "interpretation":"CONFIG_AND_PROCESS_CANDIDATES_ONLY_NO_AUTHENTICATION_PROOF"
+        });
+        let observed = parse_sandboxie_observation(&empty.to_string()).unwrap();
+        assert!(super::admit_client_02_launch_snapshot(&observed).is_ok());
+        let mut unknown = empty.clone();
+        unknown["membershipStatus"] = serde_json::json!("UNKNOWN");
+        let unknown = parse_sandboxie_observation(&unknown.to_string()).unwrap();
+        assert_eq!(super::admit_client_02_launch_snapshot(&unknown)
+            .unwrap_err().kind(), std::io::ErrorKind::WouldBlock);
+        let mut occupied = observed.clone();
+        occupied.isolated_candidate_processes = 1;
+        assert_eq!(super::admit_client_02_launch_snapshot(&occupied)
+            .unwrap_err().kind(), std::io::ErrorKind::AlreadyExists);
+        let mut unsafe_box = observed.clone();
+        unsafe_box.credential_host_access = "UNKNOWN".into();
+        assert_eq!(super::admit_client_02_launch_snapshot(&unsafe_box)
+            .unwrap_err().kind(), std::io::ErrorKind::PermissionDenied);
     }
 
     #[test]

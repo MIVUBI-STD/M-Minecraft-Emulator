@@ -1,10 +1,31 @@
 # Current Development Handoff
 
 **Branch:** `Local` only. **Product:** Minecraft Instance Manager.
-**Current work:** `emulator/operator-guidance-source-crosscheck` (source-only; runtime tests postponed).
+**Current work:** `emulator/sandboxie-process-discovery-safety` (source-only; runtime tests postponed).
 **Engineering state:** source prototype / **Windows build and two-account gameplay NOT_EXECUTED**.
 
-## Latest source-only batch — external research and operator guidance
+## Latest source-only batch — Sandboxie process discovery and launch admission
+
+- Corrected a source-proven duplicate-launch risk: Client 02 now refuses
+  launching when Sandboxie membership is UNKNOWN. Only a fresh OBSERVED
+  inventory with no Minecraft-name process candidate passes backend preflight.
+- Corrected the mistaken shared 16-PID limit. Sandboxie /listpids counts all
+  box processes, including helpers. The collector now accepts up to 256 PIDs
+  with strict format/count/unique/32-bit PID/output-size bounds, while game
+  candidates remain capped at 16.
+- Updated user-facing guidance and guarded the launch button following an
+  explicit UNKNOWN Refresh. The backend still rechecks on each launch.
+- No new daemon, IPC schema or report schema; manual-only SbieDll proof and
+  paused VMware remain untouched.
+- **Proof:** exact-GitHub source review and authored Rust/TypeScript
+  regressions; no executed Node/Rust/PowerShell/Windows/Minecraft tests.
+- **Unresolved:** GUI Start.exe redirected stdout may still be unavailable;
+  unknown membership is a safety block, not a reason to claim an empty box.
+  There is no atomic reservation against out-of-band sandbox launches.
+- **Next:** targeted identity/window attribution review only, preserving
+  all license/credential and runtime acceptance boundaries.
+
+## Previous source-only batch — external research and operator guidance
 
 - Compared Zebrunner MCloud, MCloud agent/Redroid, DeviceFarmer STF, Minecraft Education documentation, Sandboxie API/security docs, Microsoft Win32 and PowerToys FancyZones. [Research and decisions](../experiments/mcloud-windows-crosscheck.md) are non-authoritative and do not introduce a new provider.
 - Updated the active desktop's presentation-only setup guidance from the existing observation: session, persistent box settings, process membership and a concrete next action. Low-level Sandboxie fields are available on demand under diagnostics; backend preflight remains authoritative.

@@ -215,11 +215,17 @@ $boxedPids = @()
 if ($trustedTools -and $serviceRunning -and $boxConfigured -eq 'YES') {
   $raw = Invoke-BoundedReadOnlyTool $startExe ('/box:' + $BoxName + ' /listpids')
   if ($null -ne $raw -and $raw -match '^[0-9\s]+$') {
-    $lines = @($raw -split '\r?\n' | Where-Object { $_ -match '^\d+$' })
-    if ($lines.Count -ge 1) {
+    # /listpids counts ALL processes in a box, including helpers; the
+    # independent Minecraft candidate limit below is still 16.
+    # Keep enumeration bounded at 256 PIDs plus the existing 4096-char
+    # output limit, with strict count, numeric and uniqueness checks.
+    $lines = @($raw -split '\r?\n' |
+      ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' })
+    if ($lines.Count -ge 1 -and
+        @($lines | Where-Object { $_ -notmatch '^\d+$' }).Count -eq 0) {
       $count = 0
       if ([int]::TryParse($lines[0], [ref]$count) -and
-          $count -ge 0 -and $count -le 16 -and
+          $count -ge 0 -and $count -le 256 -and
           ($lines.Count - 1) -eq $count) {
         $parsed = @()
         foreach ($line in @($lines | Select-Object -Skip 1)) {
