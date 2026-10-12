@@ -795,7 +795,7 @@ mod tests {
     #[test]
     fn focus_requires_exact_fresh_box_process_and_window_identity() {
         let report = serde_json::json!({
-            "schema":3, "boxName":"MinecraftClient02", "stage":"INSPECT",
+            "schema":4, "boxName":"MinecraftClient02", "stage":"INSPECT",
             "boxConfigured":"YES", "boxSettingsSource":"BOX_SECTION_ENUMERATED",
             "autoDelete":"OFF", "autoRemove":"OFF", "credentialHostAccess":"OFF",
             "membershipStatus":"OBSERVED", "interactiveSession":true,
@@ -803,8 +803,9 @@ mod tests {
             "candidateProcessCount":1,
             "processCandidates":[{
                 "pid":202, "createdFileTime":"133400000000000001",
-                "windowHandle":"0x200", "inSelectedBox":true
+                "windowHandle":"0x200", "inSelectedBox":true, "imageEvidence":"UNKNOWN"
             }],
+            "officialImageOutsideSelectedBoxCount":0,
             "isolatedCandidateProcesses":1, "nativeVisibleCandidates":0,
             "isolatedVisibleCandidates":1,
             "interpretation":"CONFIG_AND_PROCESS_CANDIDATES_ONLY_NO_AUTHENTICATION_PROOF"
@@ -842,16 +843,17 @@ mod tests {
     #[test]
     fn sandboxie_summary_rejects_fabricated_membership_and_credentials() {
         let base = serde_json::json!({
-            "schema":3, "boxName":"MinecraftClient02", "stage":"INSPECT",
+            "schema":4, "boxName":"MinecraftClient02", "stage":"INSPECT",
             "boxConfigured":"YES", "boxSettingsSource":"BOX_SECTION_ENUMERATED",
             "autoDelete":"OFF", "autoRemove":"OFF", "credentialHostAccess":"OFF",
             "membershipStatus":"OBSERVED", "interactiveSession":true,
             "processEvidenceClass":"NAME_MATCH_CANDIDATE_ONLY",
             "candidateProcessCount":2,
             "processCandidates":[
-                {"pid":101, "createdFileTime":"133400000000000000", "windowHandle":"0x100", "inSelectedBox":false},
-                {"pid":202, "createdFileTime":"133400000000000001", "windowHandle":"0x200", "inSelectedBox":true}
+                {"pid":101, "createdFileTime":"133400000000000000", "windowHandle":"0x100", "inSelectedBox":false, "imageEvidence":"SIGNED_EDUCATION_IMAGE_CANDIDATE"},
+                {"pid":202, "createdFileTime":"133400000000000001", "windowHandle":"0x200", "inSelectedBox":true, "imageEvidence":"UNKNOWN"}
             ],
+            "officialImageOutsideSelectedBoxCount":1,
             "isolatedCandidateProcesses":1,
             "nativeVisibleCandidates":1, "isolatedVisibleCandidates":1,
             "interpretation":"CONFIG_AND_PROCESS_CANDIDATES_ONLY_NO_AUTHENTICATION_PROOF"
@@ -880,6 +882,15 @@ mod tests {
         assert!(parse_sandboxie_observation(&wrong.to_string()).is_err());
         let mut wrong = base.clone();
         wrong["processCandidates"][1]["inSelectedBox"] = serde_json::json!(false);
+        assert!(parse_sandboxie_observation(&wrong.to_string()).is_err());
+        let mut wrong = base.clone();
+        wrong["officialImageOutsideSelectedBoxCount"] = serde_json::json!(0);
+        assert!(parse_sandboxie_observation(&wrong.to_string()).is_err());
+        let mut wrong = base.clone();
+        wrong["processCandidates"][1]["imageEvidence"] = serde_json::json!("SIGNED_EDUCATION_IMAGE_CANDIDATE");
+        assert!(parse_sandboxie_observation(&wrong.to_string()).is_err());
+        let mut wrong = base.clone();
+        wrong["processCandidates"][0]["imageEvidence"] = serde_json::json!("AUTHENTICATED_NATIVE");
         assert!(parse_sandboxie_observation(&wrong.to_string()).is_err());
         let mut missing_time = base.clone();
         missing_time["processCandidates"][1]["createdFileTime"] = serde_json::Value::Null;
