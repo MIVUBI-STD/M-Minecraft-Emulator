@@ -261,7 +261,7 @@ function Get-EducationImageCandidate {
         [string]$signature.SignerCertificate.Subject
       } else { '' }
       if ($signature.Status -eq 'Valid' -and
-          $publisher -match '(?i)(^|,\\s*)O=Microsoft Corporation(,|$)') {
+          $publisher -match '(?i)(^|,\s*)O=Microsoft Corporation(,|$)') {
         $result = 'SIGNED_EDUCATION_IMAGE_CANDIDATE'
       }
     }
