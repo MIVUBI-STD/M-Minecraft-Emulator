@@ -289,7 +289,7 @@ if ($trustedTools -and $serviceRunning -and $boxConfigured -eq 'YES') {
   $second = Read-BoxPidList (Invoke-BoundedReadOnlyTool $startExe ('/box:' + $BoxName + ' /listpids'))
   if ($null -ne $first -and $null -ne $second -and
       $first.Pids.Count -eq $second.Pids.Count -and
-      (@(Compare-Object $first.Pids $second.Pids).Count -eq 0)) {
+      (($first.Pids -join ',') -ceq ($second.Pids -join ','))) {
     $boxedPids = @($second.Pids)
     $membershipStatus = 'OBSERVED'
   }
