@@ -201,11 +201,20 @@ owner with bounded Win32 reads; retain the collector as the canonical
 deep diagnostic. No new daemon or second provider. Refuse unsafe ownership
 assumptions.
 
-**After proven membership and game responsiveness — useful MEmu-like UX:**
-Connect the existing window geometry owner to proven Client 01/02 HWNDs
-for focus and side-by-side layouts. This is OS-native window arrangement,
-not streaming or image capture. Do not revive legacy VMware window labels
-or public mutation routes by accident.
+**Current — explicit Client 02 Focus (source implementation):**
+The active UI now exposes a Focus action for a single boxed, visible
+Minecraft-name candidate with known process creation FILETIME. The Rust
+owner obtains a fresh Sandboxie summary, compares PID/FILETIME/HWND/box
+membership, and checks creation time plus current window ownership using
+Win32 before attempting foreground activation. This does not claim a
+verified Minecraft Education game, working Microsoft session, or a successful
+Windows focus until the action executes on a real host. Windows can refuse
+foreground activation; no focus-stealing workaround is used.
+
+**After proven membership and game responsiveness — optional window layout:**
+Consider side-by-side arrangement using fresh Client 01/02 HWND identities;
+do not expose archived VMware layout controls, treat outside-box candidates
+as proven native Minecraft, or embed/re-render game frames.
 
 **Only after stable 2-account measured operation:** evaluate extending
 the **same Sandboxie isolation model** to four separately licensed clients;
