@@ -9,7 +9,7 @@ describe("Active native-first startup boundary", () => {
     expect(entry).toContain('import NativeFeasibilityApp from "./NativeFeasibilityApp.svelte"');
     expect(entry).toContain("mount(NativeFeasibilityApp, { target });");
     expect(active).toContain("nativeFeasibility.openOfficialMinecraft()");
-    expect(active).toContain("nativeFeasibility.inspectCandidates()");
+    expect(active).toContain("nativeFeasibility.inspectIsolatedClient02()");
     expect(active).not.toContain("backend.");
     expect(active).not.toContain("onMount(");
     expect(active).not.toContain("checkUpdateOnce");
