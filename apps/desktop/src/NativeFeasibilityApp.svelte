@@ -23,6 +23,32 @@
     candidate.windowHandle !== null);
   $: focusTarget = focusCandidates.length === 1 ? focusCandidates[0] : null;
 
+  // Presentation-only guidance from the existing observation. The backend
+  // remains the sole launch authority and always performs a fresh preflight.
+  $: boxPrepared = observation?.interactiveSession === true &&
+    observation?.boxConfigured === "YES" &&
+    observation?.boxSettingsSource === "BOX_SECTION_ENUMERATED" &&
+    observation?.autoDelete === "OFF" &&
+    observation?.autoRemove === "OFF" &&
+    observation?.credentialHostAccess === "OFF";
+  $: nextAction = !observation
+    ? "Choose Refresh to inspect the Windows session and Sandboxie configuration."
+    : !observation.interactiveSession
+    ? "Open the manager in an interactive Windows desktop session."
+    : observation.boxConfigured !== "YES"
+    ? "Create and enable the persistent MinecraftClient02 box in Sandboxie Plus."
+    : observation.boxSettingsSource !== "BOX_SECTION_ENUMERATED"
+    ? "Box settings could not be read reliably. Inspect Sandboxie Plus before launching."
+    : observation.autoDelete !== "OFF" || observation.autoRemove !== "OFF"
+    ? "Disable AutoDelete and AutoRemove so Client 02 does not lose its sandbox data."
+    : observation.credentialHostAccess !== "OFF"
+    ? "Review OpenCredentials and protected-storage options in Sandboxie Plus. This is not Microsoft account isolation proof."
+    : observation.membershipStatus !== "OBSERVED"
+    ? "Sandbox process membership is unknown. The manager cannot establish whether a Minecraft process is already inside the box."
+    : observation.isolatedCandidateProcesses > 0
+    ? "A Client 02 process candidate exists. Use Focus if its window identity is available; do not request another launch."
+    : "The inspected box settings meet the launch preflight checks. Select the official Desktop EXE and confirm licensing; authentication remains unverified.";
+
   function errorMessage(reason: unknown): string {
     if (typeof reason === "string" && reason.trim()) return reason.trim();
     if (reason instanceof Error) return reason.message;
@@ -166,6 +192,31 @@
         <p class="pilot-caution">Refresh is a single explicit Sandboxie/Windows inspection. It does not poll in the background or save a diagnostic report.</p>
       </section>
 
+      <section class="pilot-section pilot-readiness" aria-label="Setup guidance">
+        <span class="eyebrow">SETUP GUIDANCE</span>
+        <h3>What needs attention?</h3>
+        <p>These are configuration observations, not a Minecraft readiness or sign-in verdict. Launch always rechecks the current Windows state.</p>
+        <ul class="pilot-readiness-list">
+          <li>
+            <strong>Windows desktop</strong>
+            <span>{!observation ? "Not inspected" : observation.interactiveSession ? "Interactive session observed" : "Interactive session unavailable"}</span>
+          </li>
+          <li>
+            <strong>Persistent Sandboxie box</strong>
+            <span>{!observation ? "Not inspected" : boxPrepared ? "Configuration checks passed" : "Configuration incomplete or unknown"}</span>
+          </li>
+          <li>
+            <strong>Client 02 process inventory</strong>
+            <span>{!observation ? "Not inspected" : observation.membershipStatus !== "OBSERVED" ? "Unknown — not an empty-box result" : observation.isolatedCandidateProcesses > 0 ? `${observation.isolatedCandidateProcesses} candidate(s) inside box` : "No candidate observed at inspection time"}</span>
+          </li>
+          <li>
+            <strong>Account sign-in and gameplay</strong>
+            <span>Not verified by this manager</span>
+          </li>
+        </ul>
+        <p class="pilot-next-action" role="status"><strong>Next step:</strong> {nextAction}</p>
+      </section>
+
       <section class="pilot-section" aria-label="Client status">
         <span class="eyebrow">WINDOWS PROCESS CANDIDATES</span>
         <div class="pilot-grid">
@@ -205,17 +256,16 @@
         </div>
         {#if observation}
           <p class="pilot-caution">
-            Sandboxie box: {observation.boxConfigured}.
-            PID membership: {observation.membershipStatus}.
-            WinCred bypass configuration: {observation.credentialHostAccess}.
-            AutoDelete: {observation.autoDelete}.
-            AutoRemove: {observation.autoRemove}.
+            An outside-box process is not necessarily Client 01; another sandbox or Minecraft edition may own it. Neither process counts nor OpenCredentials OFF establish independent Microsoft accounts.
           </p>
-          <p class="pilot-caution">
-            A process outside MinecraftClient02 is not necessarily host-native; it may belong to another sandbox or Minecraft edition. OpenCredentials OFF may still read host credentials. Process/window counts cannot prove identity, separate Microsoft sign-ins, game rendering or multiplayer.
-          </p>
+          <details class="pilot-diagnostics">
+            <summary>Advanced Sandboxie diagnostics</summary>
+            <p>Box configured: {observation.boxConfigured} · Settings source: {observation.boxSettingsSource} · PID membership: {observation.membershipStatus}.</p>
+            <p>Known credential bypass settings: {observation.credentialHostAccess} · AutoDelete: {observation.autoDelete} · AutoRemove: {observation.autoRemove}.</p>
+            <p>This is a bounded, on-demand observation. It never reads Microsoft credentials, account tokens or Minecraft worlds.</p>
+          </details>
         {:else}
-          <p class="pilot-caution">No current inspection. Click Refresh both clients to inspect process membership.</p>
+          <p class="pilot-caution">No current inspection. Click Refresh both clients before interpreting the client status.</p>
         {/if}
       </section>
 
@@ -279,5 +329,16 @@
   .pilot-slot p { color:#a0acbb; font-size:12px; }
   .pilot-slot span { color:#7f8c9a; font-size:11px; }
   .pilot-boundary h3 { margin:12px 0; }
-  @media(max-width:740px) { .pilot-grid,.pilot-counts { grid-template-columns:1fr; } .pilot-main { padding:16px; } }
+  .pilot-readiness h3 { margin:12px 0; }
+  .pilot-readiness > p { color:#a0acbb; line-height:1.65; }
+  .pilot-readiness-list { margin:18px 0; padding:0; display:grid; gap:8px; list-style:none; }
+  .pilot-readiness-list li { display:flex; align-items:baseline; justify-content:space-between; gap:10px; background:#191e28; border-radius:8px; padding:12px 14px; }
+  .pilot-readiness-list strong { font-size:13px; font-weight:700; }
+  .pilot-readiness-list span { color:#b6c2d3; font-size:12px; text-align:right; }
+  .pilot-next-action { background:#202837; border-left:3px solid #949eff; border-radius:6px; padding:12px 14px; font-size:13px; }
+  .pilot-diagnostics { padding:12px 14px; border:1px solid rgba(255,255,255,.12); border-radius:8px; margin-top:14px; font-size:12px; color:#a0acbb; }
+  .pilot-diagnostics summary { cursor:pointer; color:#d9e1ed; font-weight:650; }
+  .pilot-diagnostics summary:focus-visible { outline:2px solid white; outline-offset:3px; }
+  .pilot-diagnostics p { line-height:1.6; margin:10px 0 0; }
+  @media(max-width:740px) { .pilot-grid,.pilot-counts { grid-template-columns:1fr; } .pilot-main { padding:16px; } .pilot-readiness-list li { flex-direction:column; gap:4px; } .pilot-readiness-list span { text-align:left; } }
 </style>

@@ -1,8 +1,16 @@
 # Current Development Handoff
 
 **Branch:** `Local` only. **Product:** Minecraft Instance Manager.
-**Current work:** `emulator/direct-pid-box-attribution`.
+**Current work:** `emulator/operator-guidance-source-crosscheck` (source-only; runtime tests postponed).
 **Engineering state:** source prototype / **Windows build and two-account gameplay NOT_EXECUTED**.
+
+## Latest source-only batch — external research and operator guidance
+
+- Compared Zebrunner MCloud, MCloud agent/Redroid, DeviceFarmer STF, Minecraft Education documentation, Sandboxie API/security docs, Microsoft Win32 and PowerToys FancyZones. [Research and decisions](../experiments/mcloud-windows-crosscheck.md) are non-authoritative and do not introduce a new provider.
+- Updated the active desktop's presentation-only setup guidance from the existing observation: session, persistent box settings, process membership and a concrete next action. Low-level Sandboxie fields are available on demand under diagnostics; backend preflight remains authoritative.
+- Preserved explicit launch, no polling/recording, no account/token access, no automatic edits to Sandboxie settings, and legacy VMware freeze.
+- **Proof:** GitHub exact-source review only. Source tests, Windows build, local test, licensed sign-ins, worlds, networking and four-client acceptance are **NOT_EXECUTED**; operator postponed testing.
+- **Next:** source-only examination of remaining UI/identity and installation blockers in the existing owner; do not scale to three boxed clients or claim Microsoft SSO isolation without actual evidence.
 
 ## One selected outcome and engine
 
