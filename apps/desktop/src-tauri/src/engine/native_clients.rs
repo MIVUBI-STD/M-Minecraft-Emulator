@@ -229,6 +229,9 @@ pub struct SandboxieClientObservation {
     pub candidate_process_count: u32,
     pub process_candidates: Vec<ProcessIdentityCandidate>,
     pub official_image_outside_selected_box_count: u32,
+    pub active_box_coverage: String,
+    pub signed_image_other_active_box_count: u32,
+    pub signed_image_no_active_box_match_count: u32,
     pub isolated_candidate_processes: u32,
     pub native_visible_candidates: u32,
     pub isolated_visible_candidates: u32,
@@ -239,7 +242,7 @@ fn parse_sandboxie_observation(raw: &str) -> io::Result<SandboxieClientObservati
     let report: SandboxieClientObservation = serde_json::from_str(raw)
         .map_err(|_| invalid_evidence("invalid Sandboxie collector summary"))?;
     let one_of = |value: &str, allowed: &[&str]| allowed.contains(&value);
-    if report.schema != 4
+    if report.schema != 5
         || report.box_name != CLIENT_02_BOX_NAME
         || report.stage != "INSPECT"
         || report.process_evidence_class != "NAME_MATCH_CANDIDATE_ONLY"
@@ -256,6 +259,22 @@ fn parse_sandboxie_observation(raw: &str) -> io::Result<SandboxieClientObservati
         || report.candidate_process_count > 16
         || report.process_candidates.len() != report.candidate_process_count as usize
         || report.official_image_outside_selected_box_count > report.candidate_process_count
+        || !one_of(&report.active_box_coverage, &["NOT_REQUESTED", "UNKNOWN", "OBSERVED"])
+        || report.signed_image_other_active_box_count > report.official_image_outside_selected_box_count
+        || report.signed_image_no_active_box_match_count > report.official_image_outside_selected_box_count
+        || (report.active_box_coverage == "OBSERVED" && (
+            report.membership_status != "OBSERVED"
+            || report.official_image_outside_selected_box_count == 0
+            || report.signed_image_other_active_box_count
+                .saturating_add(report.signed_image_no_active_box_match_count)
+                != report.official_image_outside_selected_box_count))
+        || (report.active_box_coverage != "OBSERVED" && (
+            report.signed_image_other_active_box_count != 0
+            || report.signed_image_no_active_box_match_count != 0))
+        || (report.active_box_coverage == "NOT_REQUESTED"
+            && report.official_image_outside_selected_box_count != 0)
+        || (report.active_box_coverage == "UNKNOWN"
+            && report.official_image_outside_selected_box_count == 0)
         || report.isolated_candidate_processes > report.candidate_process_count
         || report.isolated_visible_candidates > report.isolated_candidate_processes
         || report.native_visible_candidates.saturating_add(report.isolated_visible_candidates)
@@ -816,7 +835,7 @@ mod tests {
     #[test]
     fn focus_requires_exact_fresh_box_process_and_window_identity() {
         let report = serde_json::json!({
-            "schema":4, "boxName":"MinecraftClient02", "stage":"INSPECT",
+            "schema":5, "boxName":"MinecraftClient02", "stage":"INSPECT",
             "boxConfigured":"YES", "boxSettingsSource":"BOX_SECTION_ENUMERATED",
             "autoDelete":"OFF", "autoRemove":"OFF", "credentialHostAccess":"OFF",
             "membershipStatus":"OBSERVED", "interactiveSession":true,
@@ -827,6 +846,8 @@ mod tests {
                 "windowHandle":"0x200", "inSelectedBox":true, "imageEvidence":"UNKNOWN"
             }],
             "officialImageOutsideSelectedBoxCount":0,
+            "activeBoxCoverage":"NOT_REQUESTED",
+            "signedImageOtherActiveBoxCount":0, "signedImageNoActiveBoxMatchCount":0,
             "isolatedCandidateProcesses":1, "nativeVisibleCandidates":0,
             "isolatedVisibleCandidates":1,
             "interpretation":"CONFIG_AND_PROCESS_CANDIDATES_ONLY_NO_AUTHENTICATION_PROOF"
@@ -864,7 +885,7 @@ mod tests {
     #[test]
     fn sandboxie_summary_rejects_fabricated_membership_and_credentials() {
         let base = serde_json::json!({
-            "schema":4, "boxName":"MinecraftClient02", "stage":"INSPECT",
+            "schema":5, "boxName":"MinecraftClient02", "stage":"INSPECT",
             "boxConfigured":"YES", "boxSettingsSource":"BOX_SECTION_ENUMERATED",
             "autoDelete":"OFF", "autoRemove":"OFF", "credentialHostAccess":"OFF",
             "membershipStatus":"OBSERVED", "interactiveSession":true,
@@ -875,6 +896,8 @@ mod tests {
                 {"pid":202, "createdFileTime":"133400000000000001", "windowHandle":"0x200", "inSelectedBox":true, "imageEvidence":"UNKNOWN"}
             ],
             "officialImageOutsideSelectedBoxCount":1,
+            "activeBoxCoverage":"OBSERVED",
+            "signedImageOtherActiveBoxCount":0, "signedImageNoActiveBoxMatchCount":1,
             "isolatedCandidateProcesses":1,
             "nativeVisibleCandidates":1, "isolatedVisibleCandidates":1,
             "interpretation":"CONFIG_AND_PROCESS_CANDIDATES_ONLY_NO_AUTHENTICATION_PROOF"
@@ -907,6 +930,16 @@ mod tests {
         let mut wrong = base.clone();
         wrong["officialImageOutsideSelectedBoxCount"] = serde_json::json!(0);
         assert!(parse_sandboxie_observation(&wrong.to_string()).is_err());
+        let mut wrong = base.clone();
+        wrong["signedImageOtherActiveBoxCount"] = serde_json::json!(2);
+        assert!(parse_sandboxie_observation(&wrong.to_string()).is_err());
+        let mut wrong = base.clone();
+        wrong["activeBoxCoverage"] = serde_json::json!("UNKNOWN");
+        assert!(parse_sandboxie_observation(&wrong.to_string()).is_err());
+        let mut unknown = base.clone();
+        unknown["activeBoxCoverage"] = serde_json::json!("UNKNOWN");
+        unknown["signedImageNoActiveBoxMatchCount"] = serde_json::json!(0);
+        assert!(parse_sandboxie_observation(&unknown.to_string()).is_ok());
         let mut wrong = base.clone();
         wrong["processCandidates"][1]["imageEvidence"] = serde_json::json!("SIGNED_EDUCATION_IMAGE_CANDIDATE");
         assert!(parse_sandboxie_observation(&wrong.to_string()).is_err());
