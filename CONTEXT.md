@@ -4,9 +4,9 @@ Verified product direction: 2026-10-12. This file contains **stable product and 
 
 ## Product and target
 
-**Approved product outcome (2026-10-12):** Four concurrently playable Minecraft Education Windows desktop game windows with four different legitimately licensed accounts on one PC. **New engineering direction:** feasibility-first native multi-process with one official Desktop installation; if unsupported, test application isolation before considering guest VMs. No process/account-isolation method is proven yet. Do not modify game binaries, bypass sign-in, or promise supported native multi-instance.
+**Approved product outcome (2026-10-12):** Four concurrently playable Minecraft Education Windows Desktop clients using four distinct, properly licensed accounts on one PC. **Single selected engineering route:** official Windows Desktop installation; Client 01 native and Client 02 through a persistent licensed Sandboxie Plus box named `MinecraftClient02`. This is a two-client feasibility pilot, not four-client support. Independent Microsoft login, rendering, multiplayer and resource savings remain unproven. Do not modify game binaries, bypass sign-in or copy tokens/profiles.
 
-**Current active desktop is the native-launch feasibility pilot.** The old VMware manager, Guest Agent and App Sandbox power controls remain source-only legacy routes: old UI unmounted, Tauri handlers unregistered, public Rust VM mutations blocked. No guest-data migration or playable four-client cutover has occurred. Preserve all existing disks, snapshots and guest accounts. The single deprecation register is docs/system/legacy-retirement.md. Current evidence owners: docs/validation/native-multi-instance-feasibility.md and planning/development.md.
+**Current active desktop is the native-and-Sandboxie two-client feasibility pilot.** The old VMware manager, Guest Agent and App Sandbox power controls remain source-only legacy routes: old UI unmounted, Tauri handlers unregistered, public Rust VM mutations blocked. No guest-data migration or playable four-client cutover has occurred. Preserve all existing disks, snapshots and guest accounts. The single deprecation register is docs/system/legacy-retirement.md. Current proof procedure: docs/validation/sandboxie-two-client-feasibility.md. Current task/status handoff: planning/development.md. The previous native-only experiment remains a historical reference.
 
 The legacy implementation path is:
 
@@ -51,7 +51,7 @@ One implemented behavior has one owner and one source of truth. The Rust runtime
 ## Stable runtime contracts
 
 - Tauri 2 + Svelte 5 desktop, thin Tauri commands, Rust canonical runtime-core.
-- VMware Workstation on Windows is the still-active legacy provider; VMware Fusion provider exists on macOS. App Sandbox GPU-PV has only a guarded one-disposable-guest CLI pilot, not a production Provider implementation. Windows NSIS desktop package remains the declared distribution target.
+- VMware Workstation/Fusion and App Sandbox GPU-PV remain **inactive legacy implementation and guarded research sources**, not active client launch providers. The old VMware-oriented NSIS package is intentionally **blocked**, and no separate native distribution is approved.
 - Native Minecraft Education version is the version authority; Base and guest version/lineage must match before unsafe lifecycle actions.
 - Base lifecycle: REGISTERED → FINALIZING → FINALIZED. Clone/provision requires a stopped finalized Base.
 - Normal stop/start/suspend/restart must not replace a Virtual's account-bearing guest disk. Reprovision is explicitly destructive.

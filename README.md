@@ -1,6 +1,6 @@
 # M-Minecraft-Emulator
 
-**Product goal:** four concurrent, independently playable Minecraft Education **Windows desktop** sessions with four separately licensed accounts on one Windows PC. The **preferred new direction** is a launcher using one official Desktop installation, native processes and application isolation **only if real tests prove account/session compatibility**. The previous VMware implementation remains as **inactive legacy source**: VM mutation commands are paused and its UI is unmounted. All existing account-bearing guest data is preserved. No claim of multi-instance gameplay success is made.
+**Product goal:** four concurrent, independently playable Minecraft Education **Windows desktop** sessions with four separately licensed accounts on one Windows PC. The **single active engineering route** is **Minecraft Instance Manager**: native Client 01 and isolated Client 02 in the persistent Sandboxie Plus box `MinecraftClient02`. Four accounts remain the long-term goal; independent login and gameplay are not yet proven. The previous VMware implementation remains as **inactive legacy source**: VM mutation commands are paused and its UI is unmounted. All existing account-bearing guest data is preserved. No claim of multi-instance gameplay success is made.
 
 ## Branch authority
 
@@ -34,7 +34,7 @@ native launcher is active; there is no approved native release installer yet. Le
 | --- | --- | --- |
 | Develop, refactor, repair, or improve repository | [AGENTS.md](AGENTS.md) → [.agents development procedure](.agents/skills/emulator-development/SKILL.md) | Existing source owner in `apps/` or `engine/` |
 | Examine VM behavior or diagnose setup | [Implementation Map](docs/system/implementation-map.md) → [Runtime Core](docs/system/runtime-core.md) | `engine/runtime-core/`, observed provider/guest evidence |
-| Prepare the active native 2-account local feasibility test | [Native Feasibility](docs/validation/native-multi-instance-feasibility.md) | Pinned source checks and `npm run dev`; no approved installer, game acceptance unproven |
+| Follow the selected Windows two-account experiment | [Sandboxie Client 02](docs/validation/sandboxie-two-client-feasibility.md) | Pinned source checks and `npm run dev`; no approved installer, login/gameplay unproven |
 | Review the legacy VMware NSIS release integrity gate | [Historical G0](docs/validation/pre-local-test-readiness.md) | Old NSIS packaging intentionally blocked for native pilot |
 | Prove one Windows VMware guest can boot, install/login and play Education responsively before scaling | [Client Feasibility](docs/validation/client-feasibility.md) | Scratch VM; diagnostics separate from manual game observation |
 | Verify Windows/VMware/Minecraft usability | [Validation](docs/validation/README.md) | Real machine and game observations; `tooling/acceptance/` collects bounded evidence |

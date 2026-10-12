@@ -29,6 +29,19 @@ Name source for the **responsibility**, not the parent monorepo, developer nickn
 
 Avoid top-level `virtual-clients/` now that Virtual Clients is the sole application domain; no nested monorepo-style product root is needed.
 
+## Active developer-pilot names
+
+| Canonical name | Meaning |
+| --- | --- |
+| **Minecraft Instance Manager** | Current Windows developer UI/window title |
+| **Client 01 — Native** | Official host-Windows Minecraft Education Desktop |
+| **Client 02 — Isolated** | Official Minecraft Education Desktop requested inside Sandboxie |
+| `MinecraftClient02` | Exactly one persistent Sandboxie Plus box used in the experiment |
+| `%LOCALAPPDATA%\\MinecraftInstanceManager\\NativePilot` | Experimental manager lock/state directory, not the legacy VM data root |
+| `%TEMP%\\MinecraftInstanceManager\\SandboxieFeasibility` | Optional explicit diagnostic report location; UI `-SummaryOnly` does not write a report |
+
+The old installed product name and identifier below are **compatibility boundaries**, not names to propagate into the new UI. Never rename existing Sandboxie boxes, VM snapshots, accounts or installed package identities as a cosmetic cleanup.
+
 ## Stable compatibility names
 
 `M-Bedrock Virtual Clients` is the **existing installed product identity**, not a source folder identity. Its Tauri application identifier, NSIS asset names, `M-Bedrock/VirtualClients` data path, Guest Agent/CLI binary names, stored snapshot names, wire protocol versions and signed-release tag prefix must remain intact until a separately authorized migration with compatibility proof.

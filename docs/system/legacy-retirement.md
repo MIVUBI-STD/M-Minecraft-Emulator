@@ -7,11 +7,9 @@ authority: CANONICAL
 lifecycle: ACTIVE
 ---
 
-# Native-first cutover and inactive legacy inventory
+# Selected Windows isolation pilot and inactive legacy inventory
 
-**Decision 2026-10-12:** Prefer one official Minecraft Education Desktop
-installation supporting four separately licensed, simultaneously playable
-accounts, with application isolation only if necessary. This outcome is
+**Decision 2026-10-12:** Use one official Minecraft Education Desktop installation and one selected **native + Sandboxie Plus** two-client experiment before extending to the four-account target. This outcome is
 **UNPROVEN**. The current desktop pilot does not claim four working clients.
 
 This document is the **single deprecation register**. Executable command
@@ -19,17 +17,17 @@ authority is engine/runtime-core/src/command.rs; desktop entry is
 apps/desktop/src/main.ts; Tauri command registration is
 apps/desktop/src-tauri/src/app_bootstrap.rs. Retired code is not removed.
 
-## ACTIVE: minimum launcher feasibility
+## ACTIVE: one native + one Sandboxie Plus developer pilot
 
 | Source | State / responsibility |
 | --- | --- |
-| apps/desktop/src/NativeFeasibilityApp.svelte | ACTIVE PILOT; official native launch and explicit read-only candidate observation |
-| apps/desktop/src-tauri/src/engine/native_clients.rs | ACTIVE LIMITED; registered official Windows Start app and bounded same-session PID/HWND inspection, no authentication automation |
-| apps/desktop/src/app/bridge/nativeFeasibilityApi.ts | ACTIVE typed read-only IPC with strict candidate schema and no legacy VM backend |
+| apps/desktop/src/NativeFeasibilityApp.svelte | ACTIVE PILOT; official native launch, one isolated Client 02 request and one explicit combined candidate observation |
+| apps/desktop/src-tauri/src/engine/native_clients.rs | ACTIVE LIMITED; native Windows launch, fixed Sandboxie Client 02 launch/preflight and bounded read-only observation; no authentication automation |
+| apps/desktop/src/app/bridge/nativeFeasibilityApi.ts | ACTIVE typed IPC for explicit official launch requests and strict read-only process/box candidate schema; no legacy VM backend |
 | tooling/acceptance/windows/collect-native-feasibility.ps1 | ACTIVE EXPERIMENT; read-only unless explicit launch request |
 | tooling/acceptance/evaluate-native-feasibility.mjs | ACTIVE EXPERIMENT; evidence, not proof of gameplay |
-| tooling/acceptance/windows/collect-sandboxie-feasibility.ps1 | FALLBACK ONLY; optional read-only third-party inspection |
-| tooling/acceptance/evaluate-sandboxie-feasibility.mjs | FALLBACK ONLY; does not establish account independence |
+| tooling/acceptance/windows/collect-sandboxie-feasibility.ps1 | ACTIVE; canonical on-demand Sandboxie box/credential-setting/PID collector, `-SummaryOnly` for UI; full explicit CLI produces evidence file |
+| tooling/acceptance/evaluate-sandboxie-feasibility.mjs | ACTIVE evidence interpreter; operator reports never become automated Microsoft-account proof |
 
 Two-account Windows behavior, persistent authentication, multiplayer and
 four-client performance are all NOT_EXECUTED. No credentials, account

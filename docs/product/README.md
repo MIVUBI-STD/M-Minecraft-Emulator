@@ -9,8 +9,12 @@ lifecycle: ACTIVE
 
 # Product and User Setup
 
-Start with the [Single Windows Desktop Four-Account Product Goal](./four-concurrent-accounts.md): one native Minecraft Education desktop client plus three VMware Windows desktop guests, with four distinct accounts simultaneously active.
+**Current product target:** four separately licensed, concurrently playable Minecraft Education **Windows Desktop** clients on one PC. The only selected engineering approach is **Client 01 native + Client 02 isolated through Sandboxie Plus** (`MinecraftClient02`) until two real game sessions are demonstrated.
 
-Read [One Windows Guest Feasibility](../validation/client-feasibility.md) before [Base Image Setup](./base-image.md). Boot, game installation/login, rendering and responsive gameplay must be observed before cloning three guests.
+- [Four-account product contract](./four-concurrent-accounts.md) — goal, limits and preserved historical implementation.
+- [Lightweight Windows architecture](../system/architecture.md) — source ownership, one Sandboxie engine and resource-efficiency strategy.
+- [Active two-client procedure](../validation/sandboxie-two-client-feasibility.md) — official Desktop executable, sandbox evidence and manual licensed login.
 
-Machine-readable lifecycle, setup decisions and ready-state authority are implemented in `../../engine/runtime-core/`, not this document. For actual acceptance, use [Validation](../validation/README.md).
+**Legacy-only setup:** [Base Image Setup](./base-image.md) and [One Guest Feasibility](../validation/client-feasibility.md) describe the paused VMware approach. Do not treat their guest provisioning instructions as part of the active pilot.
+
+The actual lifecycle authority resides in the relevant Rust/Tauri source, not these documents. Read [Validation](../validation/README.md) for the distinct proof levels.

@@ -9,7 +9,7 @@ lifecycle: ACTIVE
 
 # Validation and Evidence
 
-## Current native-first feasibility investigation (2026-10-12)
+## Selected native + Sandboxie two-client experiment (2026-10-12)
 
 The approved *new product outcome* is four Minecraft Education Windows
 sessions with four independent accounts, **without VM guests if feasible**.
@@ -28,7 +28,7 @@ The former VMware NSIS bundle is blocked from shipping while the native
 feasibility desktop is mounted; no native distribution migration is proven.
 The active Client 02 launch is explicitly user-requested. Its shared
 Sandboxie collector remains a read-only *inspection of host configuration*,
-records bounded evidence to disk, and cannot verify Microsoft sign-in.
+returns **no-write SummaryOnly** evidence to the desktop; a separately invoked full CLI collector writes a bounded JSON report. Neither can verify Microsoft sign-in.
 
 | Question | Authoritative reference |
 | --- | --- |
@@ -46,8 +46,8 @@ The existing Rust tests, Vitest, static checks, and Windows stage recorder provi
 
 ## Historical VMware evidence hierarchy (inactive for the native pilot)
 
-The sequence below documents the preserved VMware implementation. Native
-feasibility first checks two independently playable accounts without VMs;
+The sequence below documents the preserved VMware implementation. The
+current Sandboxie pilot first checks two independently playable Windows clients without VMs;
 it does **not** require guest cloning or an NSIS package.
 
 ```text

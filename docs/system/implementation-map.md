@@ -17,9 +17,9 @@ This is a **navigation guide**, not a second registry or copy of implementation 
 | --- | --- | --- |
 | Native PID/HWND candidates without accounts, tokens or VM | `apps/desktop/src-tauri/src/engine/native_clients.rs`, `apps/desktop/src/app/bridge/nativeFeasibilityApi.ts` | [Native feasibility](../validation/native-multi-instance-feasibility.md); candidate-only |
 | Active desktop and blocked legacy VM routing | `apps/desktop/src/main.ts`, `apps/desktop/src/NativeFeasibilityApp.svelte`, `engine/runtime-core/src/command.rs` | [Legacy Retirement](./legacy-retirement.md); old Tauri handlers not registered |
-| Prove two Minecraft Education Desktop sessions can run natively without VMs | `tooling/acceptance/windows/collect-native-feasibility.ps1`, `tooling/acceptance/evaluate-native-feasibility.mjs` | [Native feasibility](../validation/native-multi-instance-feasibility.md); test-only, no production launch adapter |
+| Prove two Minecraft Education Desktop sessions can run natively without VMs | `tooling/acceptance/windows/collect-native-feasibility.ps1`, `tooling/acceptance/evaluate-native-feasibility.mjs` | [Native feasibility](../validation/native-multi-instance-feasibility.md); historical alternative, not selected launch architecture |
 | Request Client 02 launch in one persistent MinecraftClient02 Windows Sandboxie box | `apps/desktop/src-tauri/src/engine/native_clients.rs` → Tauri native command | [Sandboxie Client 02 experiment](../validation/sandboxie-two-client-feasibility.md); explicit, non-destructive launch request only |
-| Inspect current Client 02 box membership, credentials and persistent settings, without touching accounts | `tooling/acceptance/windows/collect-sandboxie-feasibility.ps1`, `tooling/acceptance/evaluate-sandboxie-feasibility.mjs` | [Sandboxie feasibility](../validation/sandboxie-two-client-feasibility.md); active Windows isolation proof, not a fallback |
+| Inspect current Client 02 box membership, credentials and persistent settings, without touching accounts | `tooling/acceptance/windows/collect-sandboxie-feasibility.ps1`, `tooling/acceptance/evaluate-sandboxie-feasibility.mjs` | [Sandboxie feasibility](../validation/sandboxie-two-client-feasibility.md); active collector/evaluator, candidate observations are not proof of login |
 | Resource-efficient native/isolated management, no VM or new daemon | `apps/desktop/src-tauri/src/engine/native_clients.rs` and [Architecture](./architecture.md) | `apps/desktop/src/NativeFeasibilityApp.svelte`; one on-demand no-write SummaryOnly observation for both clients, no governor |
 | Prove one disposable Windows guest can boot, sign in and render Minecraft Education on VMware or App Sandbox GPU-PV, with provider-specific graphics evidence | `tooling/acceptance/windows/collect-client-feasibility.ps1`, `tooling/acceptance/evaluate-client-feasibility.mjs` | [Client Feasibility](../validation/client-feasibility.md); no production VM mutation |
 | VM status, start/stop/suspend/restart/reprovision and rollback | `engine/runtime-core/src/runtime.rs` | `lifecycle_admission.rs`, provider implementation |
@@ -46,9 +46,12 @@ This is a **navigation guide**, not a second registry or copy of implementation 
 ## Domain boundaries
 
 ```text
-UI intent → typed desktop bridge → thin Tauri command
-→ Rust runtime policy → VMware provider / bounded Guest Agent
-→ observed facts → Rust status contract → desktop projection
+ACTIVE: Svelte UI → typed bridge → thin Tauri command
+→ native_clients.rs → official Windows launcher / Sandboxie Plus
+→ bounded process + Sandboxie observation → candidate-only UI
+
+PAUSED: Rust VM runtime → VMware provider / bounded Guest Agent
+→ old VM status schema and desktop surfaces (unmounted)
 ```
 
 UI never decides or stores whether the Base, guest or signed-in session is ready. The runtime does not own Windows window layout presentation. Documentation never replaces either.
