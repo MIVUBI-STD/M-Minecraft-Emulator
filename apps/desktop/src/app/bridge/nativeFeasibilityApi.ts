@@ -103,6 +103,23 @@ export interface IsolatedClientObservation {
   interpretation: "CONFIG_AND_PROCESS_CANDIDATES_ONLY_NO_AUTHENTICATION_PROOF";
 }
 
+// Pure presentation projections of the single inspected IPC snapshot.
+// These never authorize a launch: the backend repeats the full preflight.
+export function isSandboxieBoxPrepared(observation: IsolatedClientObservation | undefined): boolean {
+  return observation?.interactiveSession === true &&
+    observation.boxConfigured === "YES" &&
+    observation.boxSettingsSource === "BOX_SECTION_ENUMERATED" &&
+    observation.autoDelete === "OFF" &&
+    observation.autoRemove === "OFF" &&
+    observation.credentialHostAccess === "OFF";
+}
+
+export function canRequestClient02(observation: IsolatedClientObservation | undefined): boolean {
+  return isSandboxieBoxPrepared(observation) &&
+    observation?.membershipStatus === "OBSERVED" &&
+    observation.isolatedCandidateProcesses === 0;
+}
+
 export function parseIsolatedClientObservation(value: unknown): IsolatedClientObservation {
   const keys = [
     "schema", "boxName", "stage", "boxConfigured", "boxSettingsSource",
