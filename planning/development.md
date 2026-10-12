@@ -1,7 +1,7 @@
 # Current Development Handoff
 
 **Branch:** `Local` only. **Product:** Minecraft Instance Manager.
-**Current work:** `emulator/client02-identity-checked-focus`.
+**Current work:** `emulator/client02-identity-checked-placement`.
 **Engineering state:** source prototype / **Windows build and two-account gameplay NOT_EXECUTED**.
 
 ## One selected outcome and engine
@@ -57,6 +57,13 @@ part of the active implementation.
   recycled PID, changed window or ambiguous box membership blocks Focus.
   Windows may deny foreground activation; no input injection, service
   or legacy VMware window arrangement is enabled.
+- Client 02 has explicit Place Left / Place Right controls for the current
+  monitor's Windows work area. They reuse the exact same fresh PID/creation
+  FILETIME/HWND/Sandboxie identity guard as Focus, and do not move a process
+  merely because it is outside the selected Sandboxie box. A minimized or
+  maximized game window must be manually restored first. Placement requests
+  are asynchronous to avoid blocking on Minecraft's input queue, preserve
+  focus/z-order, and do not prove final rendered geometry.
 - One fixed persistent box `MinecraftClient02`, with checks for
   `AutoDelete`, `AutoRemove` and known credential configuration. No
   automatic sandbox creation/deletion, VM mutation or account management.
@@ -98,11 +105,12 @@ PowerShell or a two-game proof. Do not promote old evidence to new HEAD.
 TypeScript and collector regression checks only. Node, Rust, PowerShell and
 Windows/Minecraft executions on current HEAD remain **NOT_EXECUTED**.
 
-**Next bounded engineering action:** evaluate a minimal identity-checked
-side-by-side Arrange path only after the Focus source and runtime behavior
-are understood. Current static proof does not establish Windows foreground
-permissions, real Minecraft identity or sandbox compatibility. Do not use
-an old snapshot for any window mutation or revive VMware layout IPC.
+**Next bounded engineering action:** investigate real startup/foreground
+and window placement compatibility on Windows before expanding multi-window
+layout. User-selected left/right positioning is implemented only for
+Client 02; the manager intentionally does not move an outside-box process
+as Client 01 without stronger process identity and attribution. Source
+review does not prove real Minecraft window size or focus permissions.
 
 ## Historical provenance (not active task state)
 
