@@ -32,6 +32,7 @@ returns **no-write SummaryOnly** evidence to the desktop; a separately invoked f
 
 | Question | Authoritative reference |
 | --- | --- |
+| How do I prepare and execute the current Windows local test safely? | [Native + Sandboxie local test](./native-pilot-localtest.md) — exact-HEAD build, manual two-client steps, failure handling and evidence limits |
 | Can one native Minecraft and one sandboxed Windows Minecraft run independently? | [Sandboxie Client 02 feasibility](./sandboxie-two-client-feasibility.md) — single active experiment, not game-proof |
 | What is the current REA-aligned repository audit and prioritized closure plan? | [REA-aligned source audit, 13 Oct 2026](./rea-source-audit-2026-10-13.md) — read-only source evidence, conditional risks and pending real artifact/runtime proof |
 | What was the earlier native-only experiment? | [Native two-client feasibility](./native-multi-instance-feasibility.md) — historical evidence route; not active architecture |
