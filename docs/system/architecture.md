@@ -302,6 +302,12 @@ catalogue of static checker passes.
 
 ## Technical reference sources
 
+- Sandboxie per-PID API prototype and zero/nonzero return contract:
+  https://github.com/sandboxie-plus/sandboxie-docs/blob/main/docs/Content/SBIEDLLAPI.md
+- Pinned upstream implementation at `43b629be6c17628e6298befccfec279774895ba5`:
+  [QueryProcess DLL entrypoint](https://github.com/sandboxie-plus/Sandboxie/blob/43b629be6c17628e6298befccfec279774895ba5/Sandboxie/core/dll/sbieapi.c#L525-L632),
+  [driver PID lookup and INVALID_CID](https://github.com/sandboxie-plus/Sandboxie/blob/43b629be6c17628e6298befccfec279774895ba5/Sandboxie/core/drv/process_api.c#L208-L259),
+  [DLL attach and initialization](https://github.com/sandboxie-plus/Sandboxie/blob/43b629be6c17628e6298befccfec279774895ba5/Sandboxie/core/dll/dllmain.c#L162-L246).
 - Sandboxie start and listpids:
   https://sandboxie-plus.github.io/sandboxie-docs/Content/StartCommandLine/
 - Sandboxie credential isolation:
