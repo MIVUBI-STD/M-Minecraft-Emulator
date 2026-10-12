@@ -17,6 +17,7 @@ export function evaluateSandboxieFeasibility(report) {
   // Old schema-1 reports do not identify where box-local settings came from.
   // They stay readable but cannot prove persistent configuration.
   const boxSettingsSource = box?.boxSettingsSource ?? "UNKNOWN";
+  const credentialHostAccess = box?.credentialHostAccess ?? "UNKNOWN";
   const machine = report.machine;
   const operator = report.operator;
   if (!box || !machine || !operator ||
@@ -26,6 +27,7 @@ export function evaluateSandboxieFeasibility(report) {
       !["BOX_SECTION_ENUMERATED", "UNKNOWN"].includes(boxSettingsSource) ||
       !["ON", "OFF", "UNKNOWN"].includes(box.autoDelete) ||
       !["ON", "OFF", "UNKNOWN"].includes(box.autoRemove) ||
+       !["ON", "OFF", "UNKNOWN"].includes(credentialHostAccess) ||
       !["OBSERVED", "UNKNOWN"].includes(box.membershipStatus) ||
       typeof machine.interactiveSession !== "boolean" ||
       machine.processEvidenceClass !== "NAME_MATCH_CANDIDATE_ONLY" ||
@@ -101,6 +103,8 @@ export function evaluateSandboxieFeasibility(report) {
   }
   if (box.autoDelete !== "OFF") risks.push("AUTODELETE_NOT_PROVEN_OFF");
   if (box.autoRemove !== "OFF") risks.push("AUTOREMOVE_NOT_PROVEN_OFF");
+  if (credentialHostAccess !== "OFF") risks.push(
+    credentialHostAccess === "ON" ? "HOST_CREDENTIAL_STORE_OPEN" : "HOST_CREDENTIAL_ISOLATION_UNKNOWN");
   if (box.membershipStatus !== "OBSERVED") risks.push("BOX_MEMBERSHIP_UNKNOWN");
   if (!machine.interactiveSession) risks.push("NON_INTERACTIVE_SESSION");
   if (sandboxVisible < 1) risks.push("SANDBOXED_GAME_WINDOW_NOT_OBSERVED");
@@ -135,6 +139,7 @@ export function evaluateSandboxieFeasibility(report) {
       ? "OPERATOR_REPORTED_PLAYABLE" : "INCONCLUSIVE";
 
   const configBlocked = box.autoDelete === "ON" || box.autoRemove === "ON" ||
+    credentialHostAccess === "ON" ||
     box.boxConfigured === "NO";
   const operatorFailed = report.stage === "TWO_CLIENT" &&
     (operator.licensedForUse === "NO" ||
@@ -149,6 +154,7 @@ export function evaluateSandboxieFeasibility(report) {
     boxSettingsSource === "BOX_SECTION_ENUMERATED" &&
     box.toolsPresent && box.toolSignaturesValid && box.serviceRunning &&
     box.boxConfigured === "YES" && box.autoDelete === "OFF" &&
+    credentialHostAccess === "OFF" &&
     box.autoRemove === "OFF" && box.membershipStatus === "OBSERVED" &&
     machine.interactiveSession && sandboxVisible >= 1 && nativeVisible >= 1 &&
     operator.licensedForUse === "YES" &&
@@ -173,6 +179,7 @@ export function evaluateSandboxieFeasibility(report) {
     isolatedVisibleCandidates: sandboxVisible,
     sandboxProcessMembershipObserved: box.membershipStatus === "OBSERVED",
     boxLocalSettingsVerified: boxSettingsSource === "BOX_SECTION_ENUMERATED",
+    credentialHostAccess,
     processFeasibility,
     accountFeasibility,
     productAcceptance: "NOT_EVALUATED",

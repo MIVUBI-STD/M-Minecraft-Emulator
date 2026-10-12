@@ -17,6 +17,7 @@ const sample = () => ({
     boxSettingsSource: "BOX_SECTION_ENUMERATED",
     autoDelete: "OFF",
     autoRemove: "OFF",
+    credentialHostAccess: "OFF",
     membershipStatus: "OBSERVED"
   },
   machine: {
@@ -70,6 +71,7 @@ test("automatic deletion or removal blocks even when operator claims success", (
   for (const change of [
     r => r.sandboxie.autoDelete = "ON",
     r => r.sandboxie.autoRemove = "ON",
+    r => r.sandboxie.credentialHostAccess = "ON",
     r => r.sandboxie.boxConfigured = "NO"
   ]) {
     const r = sample();
@@ -86,7 +88,7 @@ test("automatic deletion or removal blocks even when operator claims success", (
 });
 
 test("unknown persistence settings never pass as disabled", () => {
-  for (const key of ["autoDelete", "autoRemove"]) {
+  for (const key of ["autoDelete", "autoRemove", "credentialHostAccess"]) {
     const r = sample();
     r.sandboxie[key] = "UNKNOWN";
     const result = evaluateSandboxieFeasibility(r);
@@ -260,6 +262,14 @@ test("process and operator-account evidence are distinct from session persistenc
   assert.equal(failure.verdict, "OPERATOR_REPORTED_FAILURE");
 });
 
+test("older reports without credential isolation evidence stay inconclusive", () => {
+  const old = sample();
+  delete old.sandboxie.credentialHostAccess;
+  const observed = evaluateSandboxieFeasibility(old);
+  assert.equal(observed.verdict, "INCONCLUSIVE");
+  assert.ok(observed.risks.includes("HOST_CREDENTIAL_ISOLATION_UNKNOWN"));
+});
+
 test("source-side collector must distinguish missing box keys from failed queries", () => {
   // Protect the Windows implementation contract even when PowerShell cannot
   // execute in the current ChatGPT/GitHub-only development context.
@@ -272,4 +282,6 @@ test("source-side collector must distinguish missing box keys from failed querie
   assert.ok(source.includes("else { 'n' }"));
   assert.ok(!source.includes("Read-BoxSetting 'GlobalSettings' 'AutoDelete'"));
   assert.ok(!source.includes("Read-BoxSetting 'GlobalSettings' 'AutoRemove'"));
+  assert.ok(source.includes("Read-BoxSetting 'GlobalSettings' 'OpenCredentials'"));
+  assert.ok(source.includes("credentialHostAccess = $credentialHostAccess"));
 });
