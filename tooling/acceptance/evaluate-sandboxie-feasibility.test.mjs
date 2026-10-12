@@ -284,8 +284,14 @@ test("source-side collector must distinguish missing box keys from failed querie
   assert.ok(!source.includes("Read-BoxSetting 'GlobalSettings' 'AutoRemove'"));
   assert.ok(source.includes("Read-BoxSetting 'GlobalSettings' 'OpenCredentials'"));
   assert.ok(source.includes("credentialHostAccess = $credentialHostAccess"));
-  assert.ok(source.includes("$templatesRaw = Invoke-BoundedReadOnlyTool"));
-  assert.ok(source.includes("OpenProtectedStorage"));
+  assert.ok(source.includes("foreach ($section in @($BoxName, 'GlobalSettings'))"));
+  assert.ok(source.includes("$rawTemplates = Invoke-BoundedReadOnlyTool"));
+  assert.ok(source.includes("$sectionNames -contains 'OpenProtectedStorage'"));
+  assert.ok(source.includes("if ($null -eq $rawTemplates) { $credentialValue = $null; break }"));
+  assert.equal(
+    source.split("$rawGlobal = Invoke-BoundedReadOnlyTool $iniExe 'query GlobalSettings *'").length - 1,
+    1
+  );
   assert.equal(source.split("credentialHostAccess = $credentialHostAccess").length - 1, 2);
   assert.ok(source.includes("[switch]$SummaryOnly"));
   assert.ok(source.includes("if (-not $SummaryOnly)"));
