@@ -172,6 +172,77 @@ pub fn open_native_minecraft() -> io::Result<()> {
 }
 
 
+
+// The canonical Windows evidence collector is embedded into this development
+// pilot. One implementation owns Sandboxie box/membership/config observations;
+// its data never proves Microsoft account isolation or a playable Minecraft.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct SandboxieClientObservation {
+    pub schema: u32,
+    pub box_name: String,
+    pub stage: String,
+    pub box_configured: String,
+    pub box_settings_source: String,
+    pub auto_delete: String,
+    pub auto_remove: String,
+    pub credential_host_access: String,
+    pub membership_status: String,
+    pub interactive_session: bool,
+    pub process_evidence_class: String,
+    pub candidate_process_count: u32,
+    pub native_visible_candidates: u32,
+    pub isolated_visible_candidates: u32,
+    pub interpretation: String,
+}
+
+fn parse_sandboxie_observation(raw: &str) -> io::Result<SandboxieClientObservation> {
+    let report: SandboxieClientObservation = serde_json::from_str(raw)
+        .map_err(|_| invalid_evidence("invalid Sandboxie collector summary"))?;
+    let one_of = |value: &str, allowed: &[&str]| allowed.contains(&value);
+    if report.schema != 1
+        || report.box_name != CLIENT_02_BOX_NAME
+        || report.stage != "INSPECT"
+        || report.process_evidence_class != "NAME_MATCH_CANDIDATE_ONLY"
+        || report.interpretation != "CONFIG_AND_PROCESS_CANDIDATES_ONLY_NO_AUTHENTICATION_PROOF"
+        || !one_of(&report.box_configured, &["YES", "NO", "UNKNOWN"])
+        || !one_of(&report.box_settings_source, &["BOX_SECTION_ENUMERATED", "UNKNOWN"])
+        || !one_of(&report.auto_delete, &["ON", "OFF", "UNKNOWN"])
+        || !one_of(&report.auto_remove, &["ON", "OFF", "UNKNOWN"])
+        || !one_of(&report.credential_host_access, &["ON", "OFF", "UNKNOWN"])
+        || !one_of(&report.membership_status, &["OBSERVED", "UNKNOWN"])
+        || report.candidate_process_count > 16
+        || report.native_visible_candidates + report.isolated_visible_candidates
+            > report.candidate_process_count
+        || (report.membership_status == "UNKNOWN"
+            && (report.native_visible_candidates != 0
+                || report.isolated_visible_candidates != 0))
+    {
+        return Err(invalid_evidence("untrusted or contradictory Sandboxie process observation"));
+    }
+    Ok(report)
+}
+
+#[cfg(windows)]
+pub fn inspect_sandbox_client_02() -> io::Result<SandboxieClientObservation> {
+    use std::{path::Path, time::Duration};
+    const INSPECT: &str = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../tooling/acceptance/windows/collect-sandboxie-feasibility.ps1"
+    ));
+    let output = virtual_clients_core::bounded_command_output(
+        Path::new("powershell.exe"),
+        ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", INSPECT],
+        Duration::from_secs(30),
+    )?;
+    parse_sandboxie_observation(&output)
+}
+
+#[cfg(not(windows))]
+pub fn inspect_sandbox_client_02() -> io::Result<SandboxieClientObservation> {
+    Err(io::Error::new(io::ErrorKind::Unsupported, "Windows is required"))
+}
+
 // Client 02 only. The sandbox is provisioned and licensed outside the manager.
 const CLIENT_02_BOX_NAME: &str = "MinecraftClient02";
 // This is a bounded launch REQUEST, not an independent-account verdict.
@@ -214,6 +285,17 @@ pub fn request_sandbox_client_02(executable: String, licensed: bool) -> io::Resu
     if !Path::new(&executable).is_file() {
         return Err(io::Error::new(io::ErrorKind::NotFound,
             "Selected Minecraft Education EXE was not found"));
+    }
+    let observation = inspect_sandbox_client_02()?;
+    if !observation.interactive_session
+        || observation.box_configured != "YES"
+        || observation.box_settings_source != "BOX_SECTION_ENUMERATED"
+        || observation.auto_delete != "OFF"
+        || observation.auto_remove != "OFF"
+        || observation.credential_host_access != "OFF"
+    {
+        return Err(io::Error::new(io::ErrorKind::PermissionDenied,
+            "Sandboxie Client 02 preflight blocked: box must be enabled, persistent and OpenCredentials must be verifiably OFF (including inherited global settings)"));
     }
     let escaped = executable.replace('\'', "''");
     let box_name = CLIENT_02_BOX_NAME;
@@ -279,7 +361,13 @@ foreach ($key in @('AutoDelete','AutoRemove')) {{
 }}
 # Sandboxie's GUI Start.exe may return before a child actually launches.
 # Never interpret this request as process membership, login or gameplay.
-Start-Process -FilePath $start -ArgumentList @(('/box:' + $box), ('"' + $game + '"')) -ErrorAction Stop | Out-Null
+$launcher = Start-Process -FilePath $start -ArgumentList @(('/box:' + $box), ('"' + $game + '"')) -PassThru -ErrorAction Stop
+if (-not $launcher.WaitForExit(8000)) {{
+    throw 'Sandboxie Start.exe did not confirm the launch request within 8 seconds; game state remains UNKNOWN'
+}}
+if ($launcher.ExitCode -ne 0) {{
+    throw "Sandboxie Start.exe rejected the launch request (exit code $($launcher.ExitCode))"
+}}
 "#);
     virtual_clients_core::bounded_command_output(
         Path::new("powershell.exe"),
@@ -296,7 +384,7 @@ pub fn request_sandbox_client_02(_executable: String, _licensed: bool) -> io::Re
 
 #[cfg(test)]
 mod tests {
-    use super::{parse_native_observation, validate_education_path};
+    use super::{parse_native_observation, parse_sandboxie_observation, validate_education_path};
     use serde_json::json;
 
     fn fixture() -> serde_json::Value {
@@ -309,6 +397,30 @@ mod tests {
                 {"pid": 456, "windowHandle": null}
             ]
         })
+    }
+
+    #[test]
+    fn sandboxie_summary_rejects_fabricated_membership_and_credentials() {
+        let base = serde_json::json!({
+            "schema":1, "boxName":"MinecraftClient02", "stage":"INSPECT",
+            "boxConfigured":"YES", "boxSettingsSource":"BOX_SECTION_ENUMERATED",
+            "autoDelete":"OFF", "autoRemove":"OFF", "credentialHostAccess":"OFF",
+            "membershipStatus":"OBSERVED", "interactiveSession":true,
+            "processEvidenceClass":"NAME_MATCH_CANDIDATE_ONLY",
+            "candidateProcessCount":2, "nativeVisibleCandidates":1,
+            "isolatedVisibleCandidates":1,
+            "interpretation":"CONFIG_AND_PROCESS_CANDIDATES_ONLY_NO_AUTHENTICATION_PROOF"
+        });
+        assert!(parse_sandboxie_observation(&base.to_string()).is_ok());
+        let mut wrong = base.clone();
+        wrong["boxName"] = serde_json::json!("AnotherBox");
+        assert!(parse_sandboxie_observation(&wrong.to_string()).is_err());
+        let mut wrong = base.clone();
+        wrong["membershipStatus"] = serde_json::json!("UNKNOWN");
+        assert!(parse_sandboxie_observation(&wrong.to_string()).is_err());
+        let mut wrong = base.clone();
+        wrong["credentialHostAccess"] = serde_json::json!("VERIFIED_GAMEPLAY");
+        assert!(parse_sandboxie_observation(&wrong.to_string()).is_err());
     }
 
     #[test]
