@@ -1,7 +1,7 @@
 # Current Development Handoff
 
 **Branch:** `Local` only. **Product:** Minecraft Instance Manager.
-**Current work:** `emulator/native-image-provenance`.
+**Current work:** `emulator/cross-box-attribution`.
 **Engineering state:** source prototype / **Windows build and two-account gameplay NOT_EXECUTED**.
 
 ## One selected outcome and engine
@@ -41,7 +41,7 @@ part of the active implementation.
   including explicit local/global protected-storage template selections.
 - Backend launch admission serializes Client 02 preflight and requests without
   relying on UI buttons; a brief retry gap guards ambiguous requests.
-- The SummaryOnly IPC schema is now 4: one bounded candidate list carries
+- The SummaryOnly IPC schema is now 5: one bounded candidate list carries
   PID, optional creation FILETIME, HWND and observed box membership, with
   Rust/TypeScript validation of counts, uniqueness and attribution.
   Creation FILETIME is a decimal string so JavaScript cannot lose precision.
@@ -51,9 +51,16 @@ part of the active implementation.
   processes outside the selected box. It sends only a candidate classification
   and count, not paths, account data or passwords. This does not prove native
   Windows ownership because other Sandboxie boxes may exist.
+  On manual -ImageProof only, if signed candidates exist outside Client 02,
+  SbieIni query /boxes * enumerates up to six enabled active boxes available
+  to this user and Start.exe /box:... /listpids inspects the others.
+  The summary distinguishes matches in another active box from candidates
+  without a match among enumerated boxes. Failed/incomplete enumeration stays
+  UNKNOWN; absence is never treated as proof of a native client. These
+  snapshots are not atomic, and inactive/other-user boxes are not covered.
   Launch preflight and Focus/Place use the same collector without the
-  expensive -ImageProof switch; a per-Refresh in-memory path cache avoids
-  repeated signature checks for the same executable.
+  expensive -ImageProof switch or cross-box enumeration; a per-Refresh
+  in-memory path cache avoids repeated signer checks for one executable.
   Persisted CLI evidence remains schema 1. The collector runs only on demand;
   no background process or new vendor-DLL binding is introduced.
   Collector stdout wait is bounded after helper exit; the launch
@@ -113,13 +120,12 @@ PowerShell or a two-game proof. Do not promote old evidence to new HEAD.
 TypeScript and collector regression checks only. Node, Rust, PowerShell and
 Windows/Minecraft executions on current HEAD remain **NOT_EXECUTED**.
 
-**Next bounded engineering action:** determine whether an official, bounded
-per-process Sandboxie attribution mechanism can distinguish a genuinely
-unsandboxed Client 01 from all configured boxes, without adding another
-resident process or duplicating the existing Rust owner. A Microsoft-signed
-Education image outside only MinecraftClient02 remains candidate evidence,
-not an accepted native instance. Runtime/build/latency evidence is still
-NOT_EXECUTED; do not build automatic two-client layout from this count.
+**Next bounded engineering action:** examine the exact vendor SbieApi_QueryProcess
+ABI and supported per-PID behavior if further native attribution is worth
+the integration risk. Current cross-box read-only enumeration is a bounded
+candidate refinement, not exhaustive/atomic proof that Client 01 is native.
+Do not expose automatic Client 01 Focus/Arrange on this evidence; Node/Rust/
+PowerShell/Windows/gameplay execution and latency measurements remain NOT_EXECUTED.
 
 ## Historical provenance (not active task state)
 
