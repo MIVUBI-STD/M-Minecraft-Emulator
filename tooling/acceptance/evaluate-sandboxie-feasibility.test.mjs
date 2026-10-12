@@ -297,8 +297,11 @@ test("source-side collector must distinguish missing box keys from failed querie
   assert.ok(source.includes("if (-not $reading.Wait(1000)) { return $null }"));
   assert.ok(source.includes("$process.StandardOutput.Dispose()"));
   assert.ok(source.includes("schema = 1")); // durable full CLI report
-  assert.ok(source.includes("schema = 2")); // on-demand desktop summary only
+  assert.ok(source.includes("schema = 3")); // on-demand desktop summary only
   assert.ok(source.includes("isolatedCandidateProcesses = @($gameCandidates | Where-Object {"));
+  assert.ok(source.includes("createdFileTime = $createdFileTime"));
+  assert.ok(source.includes("processCandidates = @($gameCandidates)"));
+  assert.ok(source.includes("candidateProcesses = @($gameCandidates | ForEach-Object {"));
   assert.ok(source.includes("if (-not $SummaryOnly)"));
   assert.ok(source.includes("if ($null -ne $path) { $summary['reportPath'] = $path }"));
   assert.equal(source.split("$boxConfigured = if ($enabled").length - 1, 1);
