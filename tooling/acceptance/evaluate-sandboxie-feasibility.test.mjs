@@ -310,6 +310,9 @@ test("source-side collector must distinguish missing box keys from failed querie
   assert.ok(source.includes("createdFileTime = $createdFileTime"));
   assert.ok(source.includes("imageEvidence = $imageEvidence"));
   assert.ok(source.includes("officialImageOutsideSelectedBoxCount = $signedOutside.Count"));
+  assert.ok(source.includes("$signedOutside = @($gameCandidates | Where-Object {"));
+  assert.ok(source.includes("$_.imageEvidence -eq 'SIGNED_EDUCATION_IMAGE_CANDIDATE' -and"));
+  assert.ok(source.includes("$_.inSelectedBox -eq $false"));
   assert.ok(source.includes("$educationImageProof = @{}"));
   assert.ok(source.includes("Get-AuthenticodeSignature -LiteralPath $image"));
   assert.ok(!source.includes("query /boxes *")); // replaced by per-PID API
