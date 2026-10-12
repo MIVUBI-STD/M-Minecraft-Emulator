@@ -364,33 +364,75 @@ fn verify_fresh_focus_target(
     Ok((created, hwnd))
 }
 
+// Compute a single client slot inside a monitor's usable work area. This
+// deliberately does not infer, move or claim ownership of Client 01.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum Client02PlacementSide {
+    Left,
+    Right,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct Client02PlacementRect {
+    x: i32,
+    y: i32,
+    width: i32,
+    height: i32,
+}
+
+fn client_02_half_slot(
+    left: i32, top: i32, right: i32, bottom: i32, side: Client02PlacementSide,
+) -> io::Result<Client02PlacementRect> {
+    let width = right.checked_sub(left)
+        .ok_or_else(|| invalid_evidence("invalid monitor work-area width"))?;
+    let height = bottom.checked_sub(top)
+        .ok_or_else(|| invalid_evidence("invalid monitor work-area height"))?;
+    if width < 2 || height < 1 {
+        return Err(invalid_evidence("monitor work area is too small for window placement"));
+    }
+    let left_width = width / 2;
+    let (x, slot_width) = match side {
+        Client02PlacementSide::Left => (left, left_width),
+        Client02PlacementSide::Right => (
+            left.checked_add(left_width)
+                .ok_or_else(|| invalid_evidence("monitor placement overflow"))?,
+            width - left_width,
+        ),
+    };
+    Ok(Client02PlacementRect { x, y: top, width: slot_width, height })
+}
+
+// One ownership boundary for both Focus and Place. Keep the process handle
+// alive across the entire Win32 action to prevent PID reuse. Recheck the
+// observed box membership and HWND owner immediately before calling the OS.
 #[cfg(windows)]
-pub fn focus_observed_client_02(target: ProcessIdentityCandidate) -> io::Result<()> {
+fn with_verified_client_02_window(
+    target: ProcessIdentityCandidate,
+    action: impl FnOnce(windows_sys::Win32::Foundation::HWND) -> io::Result<()>,
+) -> io::Result<()> {
     use windows_sys::Win32::{
         Foundation::{CloseHandle, FILETIME},
         System::Threading::{GetProcessTimes, OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION},
         UI::WindowsAndMessaging::{
-            GetAncestor, GetWindowThreadProcessId, IsIconic, IsWindow, IsWindowVisible,
-            SetForegroundWindow, ShowWindow, GA_ROOT, SW_RESTORE,
+            GetAncestor, GetWindowThreadProcessId, IsWindow, IsWindowVisible, GA_ROOT,
         },
     };
-    // The same guard protects launches and focus actions from one manager.
-    // Focus is not subject to the launch retry cooldown.
+    // An explicit operation never bypasses an in-progress launch or another
+    // window mutation in the same manager.
     let _guard = CLIENT_02_LAUNCH.try_lock().map_err(|_| {
-        io::Error::new(io::ErrorKind::WouldBlock, "Client 02 launch is in progress")
+        io::Error::new(io::ErrorKind::WouldBlock,
+            "Another Client 02 operation is in progress")
     })?;
     let fresh = inspect_sandbox_client_02()?;
     let (expected_time, hwnd_number) = verify_fresh_focus_target(&target, &fresh)?;
-
     let process = unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, target.pid) };
     if process.is_null() {
         return Err(io::Error::new(io::ErrorKind::PermissionDenied,
-            "Cannot inspect Client 02 process identity; focus refused"));
+            "Cannot inspect Client 02 process identity; action refused"));
     }
 
-    // Keep the process handle open across window verification and focus.
-    // Windows cannot reuse that process ID while the handle remains open.
-    let result = (|| -> io::Result<()> {
+    let outcome = (|| -> io::Result<()> {
         let empty = || FILETIME { dwLowDateTime: 0, dwHighDateTime: 0 };
         let mut created = empty();
         let mut exited = empty();
@@ -420,25 +462,102 @@ pub fn focus_observed_client_02(target: ProcessIdentityCandidate) -> io::Result<
             return Err(io::Error::new(io::ErrorKind::NotFound,
                 "Client 02 window no longer belongs to the observed process; Refresh first"));
         }
+        action(hwnd)
+    })();
+    unsafe { CloseHandle(process); }
+    outcome
+}
+
+#[cfg(windows)]
+pub fn focus_observed_client_02(target: ProcessIdentityCandidate) -> io::Result<()> {
+    use windows_sys::Win32::UI::WindowsAndMessaging::{
+        IsIconic, SetForegroundWindow, ShowWindow, SW_RESTORE,
+    };
+    with_verified_client_02_window(target, |hwnd| {
         if unsafe { IsIconic(hwnd) } != 0 {
             unsafe { ShowWindow(hwnd, SW_RESTORE); }
         }
-        // Foreground activation is restricted by Windows; never use input
-        // injection or focus-stealing workarounds to force this operation.
         if unsafe { SetForegroundWindow(hwnd) } == 0 {
             return Err(io::Error::new(io::ErrorKind::PermissionDenied,
                 "Windows refused to focus Client 02; select its window or use Alt+Tab"));
         }
         Ok(())
-    })();
-    unsafe { CloseHandle(process); }
-    result
+    })
 }
 
 #[cfg(not(windows))]
 pub fn focus_observed_client_02(_target: ProcessIdentityCandidate) -> io::Result<()> {
     Err(io::Error::new(io::ErrorKind::Unsupported,
         "Focusing Client 02 requires Windows"))
+}
+
+#[cfg(windows)]
+pub fn place_observed_client_02(
+    target: ProcessIdentityCandidate,
+    side: Client02PlacementSide,
+) -> io::Result<()> {
+    use windows_sys::Win32::{
+        Graphics::Gdi::{
+            GetMonitorInfoW, MonitorFromWindow, MONITORINFO, MONITOR_DEFAULTTONEAREST,
+        },
+        UI::WindowsAndMessaging::{
+            GetWindowThreadProcessId, IsIconic, IsZoomed, SetWindowPos,
+            SWP_ASYNCWINDOWPOS, SWP_NOACTIVATE, SWP_NOOWNERZORDER, SWP_NOZORDER,
+        },
+    };
+    let process_id = target.pid;
+    with_verified_client_02_window(target, |hwnd| {
+        // Never silently change Minecraft's maximized/fullscreen or minimized
+        // state. The operator can restore the window explicitly first.
+        if unsafe { IsIconic(hwnd) } != 0 || unsafe { IsZoomed(hwnd) } != 0 {
+            return Err(io::Error::new(io::ErrorKind::InvalidInput,
+                "Restore Client 02 to a normal window before arranging"));
+        }
+        let monitor = unsafe { MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST) };
+        if monitor.is_null() {
+            return Err(io::Error::new(io::ErrorKind::NotFound,
+                "Cannot locate the monitor containing Client 02"));
+        }
+        let mut info = MONITORINFO::default();
+        info.cbSize = std::mem::size_of::<MONITORINFO>() as u32;
+        if unsafe { GetMonitorInfoW(monitor, &mut info) } == 0 {
+            return Err(io::Error::last_os_error());
+        }
+        let work = info.rcWork;
+        let slot = client_02_half_slot(
+            work.left, work.top, work.right, work.bottom, side,
+        )?;
+        // A HWND may be replaced while monitor geometry is queried. Recheck
+        // ownership immediately before the only window mutation.
+        let mut owner = 0_u32;
+        if unsafe { GetWindowThreadProcessId(hwnd, &mut owner) } == 0
+            || owner != process_id
+        {
+            return Err(io::Error::new(io::ErrorKind::NotFound,
+                "Client 02 window ownership changed before placement"));
+        }
+        // Async placement avoids waiting indefinitely on a game window's
+        // input queue. Success means the request was accepted, not that the
+        // game rendered or the final geometry is already confirmed.
+        let flags = SWP_ASYNCWINDOWPOS | SWP_NOACTIVATE
+            | SWP_NOZORDER | SWP_NOOWNERZORDER;
+        if unsafe { SetWindowPos(
+            hwnd, std::ptr::null_mut(), slot.x, slot.y,
+            slot.width, slot.height, flags,
+        ) } == 0 {
+            return Err(io::Error::last_os_error());
+        }
+        Ok(())
+    })
+}
+
+#[cfg(not(windows))]
+pub fn place_observed_client_02(
+    _target: ProcessIdentityCandidate,
+    _side: Client02PlacementSide,
+) -> io::Result<()> {
+    Err(io::Error::new(io::ErrorKind::Unsupported,
+        "Arranging Client 02 requires Windows"))
 }
 
 // Client 02 only. The sandbox is provisioned and licensed outside the manager.
@@ -634,6 +753,24 @@ mod tests {
                 {"pid": 456, "windowHandle": null}
             ]
         })
+    }
+
+    #[test]
+    fn placement_slot_keeps_all_pieces_inside_monitor_work_area() {
+        use super::{client_02_half_slot, Client02PlacementSide};
+        let left = client_02_half_slot(-1280, 40, 641, 1120, Client02PlacementSide::Left).unwrap();
+        let right = client_02_half_slot(-1280, 40, 641, 1120, Client02PlacementSide::Right).unwrap();
+        assert_eq!(left.x, -1280);
+        assert_eq!(left.y, 40);
+        assert_eq!(left.width, 960);
+        assert_eq!(right.x, -320);
+        assert_eq!(right.width, 961);
+        assert_eq!(left.height, 1080);
+        assert_eq!(right.x + right.width, 641);
+        assert!(client_02_half_slot(30, 0, 31, 800, Client02PlacementSide::Left).is_err());
+        assert!(client_02_half_slot(10, 40, 10, 400, Client02PlacementSide::Right).is_err());
+        assert!(client_02_half_slot(i32::MIN, 0, i32::MAX, 800,
+            Client02PlacementSide::Right).is_err());
     }
 
     #[test]
