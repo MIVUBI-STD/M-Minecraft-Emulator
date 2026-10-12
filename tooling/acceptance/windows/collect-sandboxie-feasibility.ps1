@@ -25,12 +25,16 @@ param(
   [int]$ObservedMinutes = 0,
   [ValidatePattern('^(?:$|[A-Za-z0-9_.-]{1,80})$')]
   [string]$EvidenceReference = '',
-  [string]$OutputDirectory = ''
+  [string]$OutputDirectory = '',
+  [switch]$SummaryOnly
 )
 
 $ErrorActionPreference = 'Stop'
 if ($env:OS -ne 'Windows_NT') {
   throw 'Sandboxie feasibility requires a Windows host.'
+}
+if ($SummaryOnly -and $Stage -ne 'INSPECT') {
+  throw 'SummaryOnly is available for read-only INSPECT observations only.'
 }
 $observations = @($LicensedForUse, $NativeWorldPlayable, $SandboxWorldPlayable,
   $DistinctAccounts, $IndependentInput, $AccountCrossingObserved,
@@ -152,133 +156,7 @@ if ($boxSettingsSource -eq 'BOX_SECTION_ENUMERATED') {
       $globalNames = @($rawGlobal -split '\r?\n' |
         ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' })
       $valid = $globalNames.Count -le 128 -and
-        @($globalNames | Where-Object { $_ -cnotmatch '^[A-Za-z_][A-Za-z0-9_.:-]{0,79}
-$boxConfigured = if ($enabled -eq 'y') { 'YES' } elseif ($enabled -eq 'n') { 'NO' } else { 'UNKNOWN' }
-
-$membershipStatus = 'UNKNOWN'
-$boxedPids = @()
-if ($trustedTools -and $serviceRunning -and $boxConfigured -eq 'YES') {
-  $raw = Invoke-BoundedReadOnlyTool $startExe ('/box:' + $BoxName + ' /listpids')
-  if ($null -ne $raw -and $raw -match '^[0-9\s]+$') {
-    $lines = @($raw -split '\r?\n' | Where-Object { $_ -match '^\d+$' })
-    if ($lines.Count -ge 1) {
-      $count = 0
-      if ([int]::TryParse($lines[0], [ref]$count) -and
-          $count -ge 0 -and $count -le 16 -and
-          ($lines.Count - 1) -eq $count) {
-        $parsed = @()
-        foreach ($line in @($lines | Select-Object -Skip 1)) {
-          $number = 0
-          if (-not [int]::TryParse($line, [ref]$number) -or $number -le 0) {
-            $parsed = @()
-            break
-          }
-          $parsed += $number
-        }
-        if ($parsed.Count -eq $count -and
-            @($parsed | Select-Object -Unique).Count -eq $count) {
-          $boxedPids = @($parsed)
-          $membershipStatus = 'OBSERVED'
-        }
-      }
-    }
-  }
-}
-
-$session = [System.Diagnostics.Process]::GetCurrentProcess().SessionId
-$gameCandidates = @(
-  Get-Process -ErrorAction SilentlyContinue |
-  Where-Object {
-    $_.SessionId -eq $session -and
-    $_.ProcessName -match '^(Minecraft\.Windows|Minecraft.*Education.*|Education.*Minecraft.*)$'
-  } |
-  Sort-Object Id |
-  ForEach-Object {
-    $handle = if ($_.MainWindowHandle -ne [IntPtr]::Zero) {
-      '0x' + $_.MainWindowHandle.ToInt64().ToString('x')
-    } else { $null }
-    [ordered]@{
-      pid = [int]$_.Id
-      windowHandle = $handle
-      inSelectedBox = $(if ($membershipStatus -eq 'OBSERVED') {
-        [bool]($boxedPids -contains [int]$_.Id)
-      } else { $null })
-    }
-  }
-)
-if ($gameCandidates.Count -gt 16) {
-  throw 'Too many name-matched process candidates; inspect directly.'
-}
-
-if ([string]::IsNullOrWhiteSpace($OutputDirectory)) {
-  $OutputDirectory = Join-Path $env:TEMP 'MinecraftInstanceManager\SandboxieFeasibility'
-}
-New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null
-$report = [ordered]@{
-  schema = 1
-  scope = 'SANDBOXIE_TWO_CLIENT_FEASIBILITY'
-  stage = $Stage
-  evidenceOrigin = 'WINDOWS_HOST'
-  automaticVerdict = 'NOT_PROVIDED'
-  capturedUtc = (Get-Date).ToUniversalTime().ToString('o')
-  sandboxie = [ordered]@{
-    toolsPresent = [bool]$installed
-    toolSignaturesValid = [bool]$trustedTools
-    serviceRunning = [bool]$serviceRunning
-    boxConfigured = $boxConfigured
-    boxSettingsSource = $boxSettingsSource
-    autoDelete = (& $toFlag $delete)
-    autoRemove = (& $toFlag $remove)
-    credentialHostAccess = $credentialHostAccess
-    membershipStatus = $membershipStatus
-  }
-  machine = [ordered]@{
-    interactiveSession = ($session -ne 0)
-    processEvidenceClass = 'NAME_MATCH_CANDIDATE_ONLY'
-    candidateProcesses = @($gameCandidates)
-  }
-  operator = [ordered]@{
-    attribution = 'OPERATOR_DECLARED_NOT_MACHINE_VERIFIED'
-    licensedForUse = $LicensedForUse
-    nativeWorldPlayable = $NativeWorldPlayable
-    sandboxWorldPlayable = $SandboxWorldPlayable
-    distinctAccounts = $DistinctAccounts
-    independentInput = $IndependentInput
-    accountCrossingObserved = $AccountCrossingObserved
-    reopenAndRebootPersistent = $ReopenAndRebootPersistent
-    multiplayerJoined = $MultiplayerJoined
-    observedMinutes = $ObservedMinutes
-    evidenceReference = $(if ($EvidenceReference) { $EvidenceReference } else { $null })
-  }
-}
-$name = 'sandboxie-feasibility-' + (Get-Date -Format 'yyyyMMdd-HHmmss') +
-  '-' + [guid]::NewGuid().ToString('N').Substring(0, 8) + '.json'
-$path = Join-Path $OutputDirectory $name
-[System.IO.File]::WriteAllText($path, (ConvertTo-Json -InputObject $report -Depth 8),
-  [System.Text.UTF8Encoding]::new($false))
-[pscustomobject]@{
-  reportPath = $path
-  schema = 1
-  boxName = $BoxName
-  stage = $Stage
-  boxConfigured = $boxConfigured
-  boxSettingsSource = $boxSettingsSource
-  autoDelete = (& $toFlag $delete)
-  autoRemove = (& $toFlag $remove)
-  credentialHostAccess = $credentialHostAccess
-  membershipStatus = $membershipStatus
-  interactiveSession = ($session -ne 0)
-  processEvidenceClass = 'NAME_MATCH_CANDIDATE_ONLY'
-  candidateProcessCount = $gameCandidates.Count
-  nativeVisibleCandidates = @($gameCandidates | Where-Object {
-    $null -ne $_.windowHandle -and $_.inSelectedBox -eq $false
-  }).Count
-  isolatedVisibleCandidates = @($gameCandidates | Where-Object {
-    $null -ne $_.windowHandle -and $_.inSelectedBox -eq $true
-  }).Count
-  interpretation = 'CONFIG_AND_PROCESS_CANDIDATES_ONLY_NO_AUTHENTICATION_PROOF'
-} | ConvertTo-Json -Compress
- }).Count -eq 0 -and
+        @($globalNames | Where-Object { $_ -cnotmatch '^[A-Za-z_][A-Za-z0-9_.:-]{0,79}$' }).Count -eq 0 -and
         @($globalNames | Select-Object -Unique).Count -eq $globalNames.Count
       if ($valid) {
         $credentialValue = if ($globalNames -contains 'OpenCredentials') {
@@ -347,10 +225,13 @@ if ($gameCandidates.Count -gt 16) {
   throw 'Too many name-matched process candidates; inspect directly.'
 }
 
-if ([string]::IsNullOrWhiteSpace($OutputDirectory)) {
-  $OutputDirectory = Join-Path $env:TEMP 'MinecraftInstanceManager\SandboxieFeasibility'
+# UI quick-refresh uses SummaryOnly and does not write any evidence file.
+if (-not $SummaryOnly) {
+  if ([string]::IsNullOrWhiteSpace($OutputDirectory)) {
+    $OutputDirectory = Join-Path $env:TEMP 'MinecraftInstanceManager\SandboxieFeasibility'
+  }
+  New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null
 }
-New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null
 $report = [ordered]@{
   schema = 1
   scope = 'SANDBOXIE_TWO_CLIENT_FEASIBILITY'
@@ -387,15 +268,34 @@ $report = [ordered]@{
     evidenceReference = $(if ($EvidenceReference) { $EvidenceReference } else { $null })
   }
 }
-$name = 'sandboxie-feasibility-' + (Get-Date -Format 'yyyyMMdd-HHmmss') +
-  '-' + [guid]::NewGuid().ToString('N').Substring(0, 8) + '.json'
-$path = Join-Path $OutputDirectory $name
-[System.IO.File]::WriteAllText($path, (ConvertTo-Json -InputObject $report -Depth 8),
-  [System.Text.UTF8Encoding]::new($false))
-[pscustomobject]@{
-  reportPath = $path
+$path = $null
+if (-not $SummaryOnly) {
+  $name = 'sandboxie-feasibility-' + (Get-Date -Format 'yyyyMMdd-HHmmss') +
+    '-' + [guid]::NewGuid().ToString('N').Substring(0, 8) + '.json'
+  $path = Join-Path $OutputDirectory $name
+  [System.IO.File]::WriteAllText($path, (ConvertTo-Json -InputObject $report -Depth 8),
+    [System.Text.UTF8Encoding]::new($false))
+}
+$summary = [ordered]@{
+  schema = 1
   boxName = $BoxName
   stage = $Stage
+  boxConfigured = $boxConfigured
+  boxSettingsSource = $boxSettingsSource
+  autoDelete = (& $toFlag $delete)
+  autoRemove = (& $toFlag $remove)
+  credentialHostAccess = $credentialHostAccess
+  membershipStatus = $membershipStatus
+  interactiveSession = ($session -ne 0)
+  processEvidenceClass = 'NAME_MATCH_CANDIDATE_ONLY'
   candidateProcessCount = $gameCandidates.Count
+  nativeVisibleCandidates = @($gameCandidates | Where-Object {
+    $null -ne $_.windowHandle -and $_.inSelectedBox -eq $false
+  }).Count
+  isolatedVisibleCandidates = @($gameCandidates | Where-Object {
+    $null -ne $_.windowHandle -and $_.inSelectedBox -eq $true
+  }).Count
   interpretation = 'CONFIG_AND_PROCESS_CANDIDATES_ONLY_NO_AUTHENTICATION_PROOF'
-} | ConvertTo-Json -Compress
+}
+if ($null -ne $path) { $summary['reportPath'] = $path }
+[pscustomobject]$summary | ConvertTo-Json -Compress
