@@ -312,6 +312,69 @@ if ($gameCandidates.Count -gt 16) {
   throw 'Too many name-matched process candidates; inspect directly.'
 }
 
+# Only full manual ImageProof inspects all enabled/active boxes for this user.
+# The inventory is bounded and may become UNKNOWN; an unmatched PID cannot
+# be declared native because disabled/other-user boxes are not included.
+$activeBoxCoverage = 'NOT_REQUESTED'
+$signedOtherActiveBoxCount = 0
+$signedNoActiveBoxMatchCount = 0
+$signedOutside = @($gameCandidates | Where-Object {
+  $_.imageEvidence -eq 'SIGNED_EDUCATION_IMAGE_CANDIDATE'
+})
+if ($ImageProof -and $signedOutside.Count -gt 0) {
+  $activeBoxCoverage = 'UNKNOWN'
+  if ($trustedTools -and $serviceRunning -and $membershipStatus -eq 'OBSERVED') {
+    $rawBoxes = Invoke-BoundedReadOnlyTool $iniExe 'query /boxes *'
+    if ($null -ne $rawBoxes) {
+      $boxes = @($rawBoxes -split '\r?\n' | ForEach-Object { $_.Trim() } |
+        Where-Object { $_ -ne '' })
+      $valid = $boxes.Count -ge 1 -and $boxes.Count -le 6 -and
+        @($boxes | Select-Object -Unique).Count -eq $boxes.Count -and
+        @($boxes | Where-Object { $_ -cnotmatch '^[A-Za-z][A-Za-z0-9_]{0,31}$' }).Count -eq 0 -and
+        ($boxes -contains $BoxName)
+      if ($valid) {
+        $other = @{}
+        $complete = $true
+        foreach ($box in $boxes) {
+          if ($box -eq $BoxName) { continue }
+          $rawPids = Invoke-BoundedReadOnlyTool $startExe ('/box:' + $box + ' /listpids')
+          if ($null -eq $rawPids -or $rawPids -notmatch '^[0-9\s]+$') {
+            $complete = $false; break
+          }
+          $lines = @($rawPids -split '\r?\n' | Where-Object { $_ -match '^\d+$' })
+          $count = 0
+          if ($lines.Count -lt 1 -or -not [int]::TryParse($lines[0], [ref]$count) -or
+              $count -lt 0 -or $count -gt 256 -or ($lines.Count - 1) -ne $count) {
+            $complete = $false; break
+          }
+          $seen = @{}
+          foreach ($line in @($lines | Select-Object -Skip 1)) {
+            $id = 0
+            if (-not [int]::TryParse($line, [ref]$id) -or $id -le 0 -or
+                $seen.ContainsKey([string]$id) -or $other.ContainsKey([string]$id) -or
+                $boxedPids -contains $id) {
+              $complete = $false; break
+            }
+            $seen[[string]$id] = $true
+          }
+          if (-not $complete) { break }
+          foreach ($id in $seen.Keys) { $other[$id] = $true }
+        }
+        if ($complete) {
+          $activeBoxCoverage = 'OBSERVED'
+          foreach ($candidate in $signedOutside) {
+            if ($other.ContainsKey([string]$candidate.pid)) {
+              $signedOtherActiveBoxCount++
+            } else {
+              $signedNoActiveBoxMatchCount++
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
 # UI quick-refresh uses SummaryOnly and does not write any evidence file.
 if (-not $SummaryOnly) {
   if ([string]::IsNullOrWhiteSpace($OutputDirectory)) {
@@ -375,7 +438,7 @@ if (-not $SummaryOnly) {
 $summary = [ordered]@{
   # Desktop summary schema evolves independently of the persisted
   # schema-1 CLI report consumed by the existing evidence evaluator.
-  schema = 4
+  schema = 5
   boxName = $BoxName
   stage = $Stage
   boxConfigured = $boxConfigured
@@ -388,9 +451,10 @@ $summary = [ordered]@{
   processEvidenceClass = 'NAME_MATCH_CANDIDATE_ONLY'
   candidateProcessCount = $gameCandidates.Count
   processCandidates = @($gameCandidates)
-  officialImageOutsideSelectedBoxCount = @($gameCandidates | Where-Object {
-    $_.imageEvidence -eq 'SIGNED_EDUCATION_IMAGE_CANDIDATE'
-  }).Count
+  officialImageOutsideSelectedBoxCount = $signedOutside.Count
+  activeBoxCoverage = $activeBoxCoverage
+  signedImageOtherActiveBoxCount = $signedOtherActiveBoxCount
+  signedImageNoActiveBoxMatchCount = $signedNoActiveBoxMatchCount
   # Include Minecraft-name processes that have not created an HWND yet.
   # UNKNOWN Sandboxie membership is never treated as an empty box.
   isolatedCandidateProcesses = @($gameCandidates | Where-Object {
