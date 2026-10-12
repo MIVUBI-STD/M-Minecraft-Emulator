@@ -80,7 +80,7 @@ export interface ProcessIdentityCandidate {
 }
 
 export interface IsolatedClientObservation {
-  schema: 4;
+  schema: 5;
   boxName: "MinecraftClient02";
   stage: "INSPECT";
   boxConfigured: "YES" | "NO" | "UNKNOWN";
@@ -94,6 +94,9 @@ export interface IsolatedClientObservation {
   candidateProcessCount: number;
   processCandidates: ProcessIdentityCandidate[];
   officialImageOutsideSelectedBoxCount: number;
+  activeBoxCoverage: "NOT_REQUESTED" | "UNKNOWN" | "OBSERVED";
+  signedImageOtherActiveBoxCount: number;
+  signedImageNoActiveBoxMatchCount: number;
   isolatedCandidateProcesses: number;
   nativeVisibleCandidates: number;
   isolatedVisibleCandidates: number;
@@ -105,14 +108,15 @@ export function parseIsolatedClientObservation(value: unknown): IsolatedClientOb
     "schema", "boxName", "stage", "boxConfigured", "boxSettingsSource",
     "autoDelete", "autoRemove", "credentialHostAccess", "membershipStatus",
     "interactiveSession", "processEvidenceClass", "candidateProcessCount",
-    "processCandidates", "officialImageOutsideSelectedBoxCount", "isolatedCandidateProcesses", "nativeVisibleCandidates", "isolatedVisibleCandidates", "interpretation",
+    "processCandidates", "officialImageOutsideSelectedBoxCount", "activeBoxCoverage",
+    "signedImageOtherActiveBoxCount", "signedImageNoActiveBoxMatchCount", "isolatedCandidateProcesses", "nativeVisibleCandidates", "isolatedVisibleCandidates", "interpretation",
   ];
   const flag = (v: unknown): v is "ON" | "OFF" | "UNKNOWN" =>
     v === "ON" || v === "OFF" || v === "UNKNOWN";
   const bounded = (v: unknown): v is number =>
     typeof v === "number" && Number.isSafeInteger(v) && v >= 0 && v <= 16;
   if (!isRecord(value) || !hasOnly(value, keys) ||
-    value.schema !== 4 || value.boxName !== "MinecraftClient02" ||
+    value.schema !== 5 || value.boxName !== "MinecraftClient02" ||
     value.stage !== "INSPECT" ||
     !["YES", "NO", "UNKNOWN"].includes(value.boxConfigured as string) ||
     !["BOX_SECTION_ENUMERATED", "UNKNOWN"].includes(value.boxSettingsSource as string) ||
@@ -130,6 +134,20 @@ export function parseIsolatedClientObservation(value: unknown): IsolatedClientOb
     value.processCandidates.length !== value.candidateProcessCount ||
     !bounded(value.officialImageOutsideSelectedBoxCount) ||
     (value.officialImageOutsideSelectedBoxCount as number) > (value.candidateProcessCount as number) ||
+    !["NOT_REQUESTED", "UNKNOWN", "OBSERVED"].includes(value.activeBoxCoverage as string) ||
+    !bounded(value.signedImageOtherActiveBoxCount) ||
+    !bounded(value.signedImageNoActiveBoxMatchCount) ||
+    (value.signedImageOtherActiveBoxCount as number) > (value.officialImageOutsideSelectedBoxCount as number) ||
+    (value.signedImageNoActiveBoxMatchCount as number) > (value.officialImageOutsideSelectedBoxCount as number) ||
+    (value.activeBoxCoverage === "OBSERVED" && (
+      value.membershipStatus !== "OBSERVED" ||
+      value.officialImageOutsideSelectedBoxCount === 0 ||
+      (value.signedImageOtherActiveBoxCount as number) +
+        (value.signedImageNoActiveBoxMatchCount as number) !== value.officialImageOutsideSelectedBoxCount)) ||
+    (value.activeBoxCoverage !== "OBSERVED" && (
+      value.signedImageOtherActiveBoxCount !== 0 || value.signedImageNoActiveBoxMatchCount !== 0)) ||
+    (value.activeBoxCoverage === "NOT_REQUESTED" && value.officialImageOutsideSelectedBoxCount !== 0) ||
+    (value.activeBoxCoverage === "UNKNOWN" && value.officialImageOutsideSelectedBoxCount === 0) ||
     !bounded(value.isolatedCandidateProcesses) ||
     (value.isolatedCandidateProcesses as number) > (value.candidateProcessCount as number) ||
     !bounded(value.nativeVisibleCandidates) ||
