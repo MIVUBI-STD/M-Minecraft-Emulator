@@ -417,7 +417,8 @@ public static class MivubiReadOnlySbieProcessQuery {
           int len = Array.IndexOf(boxName, '\0');
           if (len < 1 || len > 32) continue;
           string box = new string(boxName, 0, len);
-          if (box.IndexOfAny(new char[] { '\\', '/', ':', '\r', '\n' }) >= 0)
+          if (!System.Text.RegularExpressions.Regex.IsMatch(
+                box, @"^[A-Za-z][A-Za-z0-9_]{0,31}$"))
             continue;
           if (!String.Equals(box, selectedBox, StringComparison.OrdinalIgnoreCase))
             results[i] = "OTHER_BOX";
