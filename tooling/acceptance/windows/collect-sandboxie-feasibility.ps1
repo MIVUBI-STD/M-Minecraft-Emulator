@@ -306,7 +306,9 @@ if (-not $SummaryOnly) {
     [System.Text.UTF8Encoding]::new($false))
 }
 $summary = [ordered]@{
-  schema = 1
+  # Desktop summary schema evolves independently of the persisted
+  # schema-1 CLI report consumed by the existing evidence evaluator.
+  schema = 2
   boxName = $BoxName
   stage = $Stage
   boxConfigured = $boxConfigured
@@ -318,6 +320,11 @@ $summary = [ordered]@{
   interactiveSession = ($session -ne 0)
   processEvidenceClass = 'NAME_MATCH_CANDIDATE_ONLY'
   candidateProcessCount = $gameCandidates.Count
+  # Include Minecraft-name processes that have not created an HWND yet.
+  # UNKNOWN Sandboxie membership is never treated as an empty box.
+  isolatedCandidateProcesses = @($gameCandidates | Where-Object {
+    $_.inSelectedBox -eq $true
+  }).Count
   nativeVisibleCandidates = @($gameCandidates | Where-Object {
     $null -ne $_.windowHandle -and $_.inSelectedBox -eq $false
   }).Count
