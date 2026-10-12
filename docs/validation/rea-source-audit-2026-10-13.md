@@ -1,3 +1,12 @@
+---
+id: document.validation.rea-source-audit-2026-10-13
+class: DOCUMENT
+domain: validation
+role: AUDIT
+authority: WORKING
+lifecycle: ACTIVE
+---
+
 # REA-aligned Full Audit — M-Minecraft-Emulator
 
 - **Date:** 2026-10-13 (Asia/Jakarta)
