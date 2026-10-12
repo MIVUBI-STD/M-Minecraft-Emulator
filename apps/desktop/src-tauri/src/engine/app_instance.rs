@@ -30,7 +30,7 @@ pub fn acquire() -> Result<DesktopInstanceLease, String> {
     let path = instance_path()?;
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)
-            .map_err(|error| format!("Could not prepare Virtual Clients instance state: {error}"))?;
+            .map_err(|error| format!("Could not prepare Instance Manager instance state: {error}"))?;
     }
 
     let marker = current_process_marker()?;
@@ -47,7 +47,7 @@ pub fn acquire() -> Result<DesktopInstanceLease, String> {
             Err(error) if error.kind() == ErrorKind::AlreadyExists => {
                 if instance_owner_is_alive(&path)? {
                     return Err(
-                        "M-Bedrock Virtual Clients is already running. Use the existing window instead of opening a second manager."
+                        "Minecraft Instance Manager is already running. Use the existing window instead of opening a second manager."
                             .into(),
                     );
                 }
@@ -63,25 +63,25 @@ pub fn acquire() -> Result<DesktopInstanceLease, String> {
                     Err(rename_error) => {
                         if instance_owner_is_alive(&path)? {
                             return Err(
-                                "M-Bedrock Virtual Clients is already running. Use the existing window instead of opening a second manager."
+                                "Minecraft Instance Manager is already running. Use the existing window instead of opening a second manager."
                                     .into(),
                             );
                         }
                         return Err(format!(
-                            "Could not retire stale Virtual Clients instance state: {rename_error}"
+                            "Could not retire stale Instance Manager instance state: {rename_error}"
                         ));
                     }
                 }
             }
             Err(error) => {
                 return Err(format!(
-                    "Could not acquire Virtual Clients instance authority: {error}"
+                    "Could not acquire Instance Manager instance authority: {error}"
                 ))
             }
         }
     }
 
-    Err("Could not acquire Virtual Clients instance authority after repeated concurrent changes. Close other Virtual Clients windows and try again.".into())
+    Err("Could not acquire Instance Manager instance authority after repeated concurrent changes. Close other Instance Manager windows and try again.".into())
     }
 }
 
@@ -92,7 +92,7 @@ fn acquire_exclusive_windows(path: &Path, marker: &InstanceMarker) -> Result<fs:
             if metadata.file_type().is_symlink() || is_reparse_point(&metadata)
                 || !metadata.file_type().is_file()
                 || metadata.len() > MAX_INSTANCE_MARKER_BYTES {
-                return Err("Virtual Clients refused an unsafe desktop instance marker.".into());
+                return Err("Instance Manager refused an unsafe desktop instance marker.".into());
             }
         }
         Err(error) if error.kind() == ErrorKind::NotFound => {}
@@ -152,7 +152,7 @@ fn current_process_marker() -> Result<InstanceMarker, String> {
     let process_start_time = system
         .process(pid)
         .map(|process| process.start_time())
-        .ok_or_else(|| "Could not inspect the Virtual Clients process for single-instance coordination.".to_string())?;
+        .ok_or_else(|| "Could not inspect the Instance Manager process for single-instance coordination.".to_string())?;
     Ok(InstanceMarker {
         process_id,
         process_start_time,
@@ -176,18 +176,18 @@ fn read_instance_marker(path: &Path) -> Result<Option<InstanceMarker>, String> {
     let metadata = match fs::symlink_metadata(path) {
         Ok(metadata) => metadata,
         Err(error) if error.kind() == ErrorKind::NotFound => return Ok(None),
-        Err(error) => return Err(format!("Could not inspect Virtual Clients instance state: {error}")),
+        Err(error) => return Err(format!("Could not inspect Instance Manager instance state: {error}")),
     };
     if metadata.file_type().is_symlink() || is_reparse_point(&metadata) || !metadata.file_type().is_file() {
-        return Err("Virtual Clients refused unsafe desktop instance state.".into());
+        return Err("Instance Manager refused unsafe desktop instance state.".into());
     }
     if metadata.len() > MAX_INSTANCE_MARKER_BYTES {
         return Err(format!(
-            "Virtual Clients instance state exceeds the {MAX_INSTANCE_MARKER_BYTES} byte limit."
+            "Instance Manager instance state exceeds the {MAX_INSTANCE_MARKER_BYTES} byte limit."
         ));
     }
     let text = fs::read_to_string(path)
-        .map_err(|error| format!("Could not read Virtual Clients instance state: {error}"))?;
+        .map_err(|error| format!("Could not read Instance Manager instance state: {error}"))?;
     let marker = match serde_json::from_str::<InstanceMarker>(&text) {
         Ok(marker) => marker,
         Err(_) => return Ok(None),
@@ -211,8 +211,8 @@ fn instance_path() -> Result<PathBuf, String> {
         .or_else(|| std::env::var_os("APPDATA").map(PathBuf::from))
         .ok_or_else(|| "Application data directory is unavailable.".to_string())?;
     Ok(base
-        .join("MIVUBI")
-        .join("MinecraftEmulatorNativePilot")
+        .join("MinecraftInstanceManager")
+        .join("NativePilot")
         .join("desktop-instance.json"))
 }
 
@@ -257,7 +257,7 @@ mod tests {
 
     #[test]
     fn stale_quarantine_is_unique_per_attempt() {
-        let path = Path::new("C:/Temp/M-Bedrock/VirtualClients/desktop-instance.json");
+        let path = Path::new("C:/Temp/MinecraftInstanceManager/NativePilot/desktop-instance.json");
         assert_ne!(
             stale_instance_path(path, 42, 0),
             stale_instance_path(path, 42, 1)

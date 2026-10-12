@@ -119,7 +119,7 @@ $candidates = @(
 )
 if ($candidates.Count -gt 16) { throw 'Too many name-matched processes; inspect interactively.' }
 if ([string]::IsNullOrWhiteSpace($OutputDirectory)) {
-  $OutputDirectory = Join-Path $env:TEMP 'MIVUBI-Native-Feasibility'
+  $OutputDirectory = Join-Path $env:TEMP 'MinecraftInstanceManager\NativeFeasibility'
 }
 New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null
 $reference = if ($EvidenceReference) { $EvidenceReference } else { $null }

@@ -3,7 +3,7 @@ param(
   [ValidateSet('INSPECT', 'TWO_CLIENT')]
   [string]$Stage = 'INSPECT',
   [ValidatePattern('^[A-Za-z][A-Za-z0-9]{0,31}$')]
-  [string]$BoxName = 'Mivubi2',
+  [string]$BoxName = 'MinecraftClient02',
   [string]$InstallDirectory = '',
   [ValidateSet('YES', 'NO', 'UNKNOWN')]
   [string]$LicensedForUse = 'UNKNOWN',
@@ -199,7 +199,7 @@ if ($gameCandidates.Count -gt 16) {
 }
 
 if ([string]::IsNullOrWhiteSpace($OutputDirectory)) {
-  $OutputDirectory = Join-Path $env:TEMP 'MIVUBI-Sandboxie-Feasibility'
+  $OutputDirectory = Join-Path $env:TEMP 'MinecraftInstanceManager\SandboxieFeasibility'
 }
 New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null
 $report = [ordered]@{

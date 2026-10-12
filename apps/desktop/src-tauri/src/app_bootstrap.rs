@@ -27,13 +27,13 @@ pub fn run() {
             commands::native_clients::desktop_request_sandbox_client_02,
         ])
         .run(tauri::generate_context!())
-        .expect("failed to run M-Bedrock Virtual Clients desktop runtime");
+        .expect("failed to run Minecraft Instance Manager desktop runtime");
     crate::engine::screen_overlay::shutdown();
 }
 
 fn show_startup_error(message: &str) {
     let _ = MessageDialog::new()
-        .set_title("M-Bedrock Virtual Clients")
+        .set_title("Minecraft Instance Manager")
         .set_description(message)
         .set_level(MessageLevel::Info)
         .set_buttons(MessageButtons::Ok)
