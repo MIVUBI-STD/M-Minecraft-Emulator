@@ -89,7 +89,18 @@ the existing official Windows launcher. For Client 02:
    world/input, multiplayer and persistence. Mark missing evidence UNKNOWN.
 
 A launch or PID count does not override a manual game observation; a failed
-launch is diagnosed without altering account/VM data. Sandboxie Plus requires
+launch is diagnosed without altering account/VM data.
+
+The pilot offers a manual **Focus Client 02** button only when a single
+boxed, visible Minecraft-name process candidate has a known creation FILETIME.
+The Rust owner re-inspects Sandboxie membership on every Focus and compares
+PID, creation FILETIME and HWND with the selected snapshot. The Windows call
+then verifies the process creation time and current HWND owner before
+requesting foreground activation. This does not establish official Education
+identity, an authenticated account or playable gameplay. If the process
+changed, Refresh first; if Windows rejects foreground activation, click the
+game window or use Alt+Tab. No keyboard simulation, hidden polling,
+automatic process start, VM route or sandbox data mutation is used. Sandboxie Plus requires
 a Business Certificate for business/educational use as described upstream.
 
 ## Prerequisites, manually managed
