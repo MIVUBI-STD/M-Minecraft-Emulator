@@ -62,7 +62,7 @@ separate launcher process should be built.
 - **Addressability:** `Client 01` denotes the host-native launch path;
   `Client 02` denotes Sandboxie box `MinecraftClient02`. The on-demand
   candidate inventory now carries PID, optional Windows creation FILETIME,
-  HWND and observed box membership (desktop schema 4). PID alone is reusable;
+  HWND and observed box membership (desktop schema 5). PID alone is reusable;
   missing creation time remains unknown. A process outside the selected box
   is not automatically proven host-native. Explicit Refresh can additionally
   identify a Microsoft-signed Education executable candidate from file
@@ -112,9 +112,14 @@ be inferred from PID or Minecraft FPS alone.
    The canonical PowerShell collector is a **manual diagnostic cold path**.
    The active desktop invokes it only when requested: explicit UI Refresh
    uses SummaryOnly + ImageProof to validate candidate executable metadata;
-   Launch, Focus and Place use plain SummaryOnly without Authenticode work.
-   Per-invocation image lookups are cached by path but no paths are reported,
-   and no persistent image cache or background polling is introduced.
+   When a signed Education image is found outside Client 02, manual Refresh
+   also performs bounded read-only enumeration of at most six enabled active
+   boxes visible to this Windows account. Matches inside another box are
+   separated from no-match-in-enumerated-boxes; incomplete enumeration stays
+   UNKNOWN. This is not an atomic or exhaustive proof of native identity.
+   Launch, Focus and Place use plain SummaryOnly without Authenticode or
+   cross-box enumeration. Per-invocation image lookups are cached by path,
+   but no paths are reported; no persistent cache or polling is introduced.
 3. **Hot path = bounded, native observation, only if needed and proven.**
    After two-game acceptance, the existing Rust owner may replace repeated
    PowerShell launches with Windows process/window APIs and Sandboxie's
