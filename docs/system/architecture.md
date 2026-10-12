@@ -62,10 +62,12 @@ separate launcher process should be built.
 - **Addressability:** `Client 01` denotes the host-native launch path;
   `Client 02` denotes Sandboxie box `MinecraftClient02`. The on-demand
   candidate inventory now carries PID, optional Windows creation FILETIME,
-  HWND and observed box membership (desktop schema 3). PID alone is reusable;
+  HWND and observed box membership (desktop schema 4). PID alone is reusable;
   missing creation time remains unknown. A process outside the selected box
-  is not automatically proven host-native, and name-matched candidates do
-  not establish Education edition, login or gameplay.
+  is not automatically proven host-native. Explicit Refresh can additionally
+  identify a Microsoft-signed Education executable candidate from file
+  signature and ProductName, but another Sandboxie box can still own it.
+  None of these observations establish account login or gameplay.
 - **Explicit operations:** `Launch`, `Inspect`, and later `Focus/Arrange`
   act on one selected instance. No timer silently starts or restarts a game.
 - **Observed states:** `UNKNOWN → REQUESTED → PROCESS_CANDIDATE →
@@ -108,8 +110,11 @@ be inferred from PID or Minecraft FPS alone.
    `Start.exe /listpids` are checked on launch/explicit inspection or
    later evidenced configuration change, not on every UI render.
    The canonical PowerShell collector is a **manual diagnostic cold path**.
-   The active desktop invokes it once on explicit Refresh or Client 02
-   preflight in SummaryOnly mode, never once per second.
+   The active desktop invokes it only when requested: explicit UI Refresh
+   uses SummaryOnly + ImageProof to validate candidate executable metadata;
+   Launch, Focus and Place use plain SummaryOnly without Authenticode work.
+   Per-invocation image lookups are cached by path but no paths are reported,
+   and no persistent image cache or background polling is introduced.
 3. **Hot path = bounded, native observation, only if needed and proven.**
    After two-game acceptance, the existing Rust owner may replace repeated
    PowerShell launches with Windows process/window APIs and Sandboxie's
