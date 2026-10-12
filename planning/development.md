@@ -1,3 +1,44 @@
+## Current work — implement lightweight instance inspection (2026-10-12)
+
+**Work:** emulator/lightweight-client-inspection
+**State:** SOURCE_PATCHED / WINDOWS_EXECUTION_NOT_VERIFIED.
+
+The one approved route remains Minecraft Education Windows Desktop with
+Client 01 native and Client 02 in persistent Sandboxie Plus
+`MinecraftClient02`. No Android emulator, guest Windows VM, new daemon,
+background polling, disk-cache cleaner, forced game CPU policy or
+additional instances.
+
+### Actual source changes
+
+- Repaired canonical Sandboxie PowerShell collector corruption: its
+  OpenCredentials global-policy regex had been cut and a PID/report
+  section duplicated, preventing a valid inspection.
+- Added `-SummaryOnly` to the same collector: GUI inspection and launch
+  preflight no longer write an evidence file. The manual CLI collector
+  preserves full JSON evidence output when explicitly requested.
+- Simplified the active Svelte pilot to one explicit Refresh that derives
+  **both** native and isolated window candidates from the canonical
+  Sandboxie PID membership observation, instead of launching two
+  concurrent PowerShell probes. Error messages remain visible.
+- No VMware/account-bearing data, sandbox lifecycle policy, package
+  identity, installation files or credential tokens were modified.
+
+### Proof ceiling
+
+Source changes and regression contracts are recorded on branch Local;
+Windows PowerShell parse/execution, Rust/Tauri build, Svelte/Vitest build,
+two Education logins, game rendering, network and measured CPU/RAM remain
+**NOT_EXECUTED**. A process candidate is not a signed-in playable game.
+The manager is designed for low overhead but no resource benchmark has
+yet established an ADB-sized footprint.
+
+**Next:** verify exact-head source checks, then observe real two-account
+Minecraft Education gameplay on the same Windows host before more
+resource-management features.
+
+---
+
 ## Current design decision — ADB-like lightweight management (2026-10-12)
 
 **Work:** emulator/lightweight-windows-isolation-architecture

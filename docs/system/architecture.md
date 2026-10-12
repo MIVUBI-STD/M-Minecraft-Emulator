@@ -103,8 +103,9 @@ be inferred from PID or Minecraft FPS alone.
    installation, Sandboxie service, `SbieIni` box/global settings and
    `Start.exe /listpids` are checked on launch/explicit inspection or
    later evidenced configuration change, not on every UI render.
-   The current 400-line PowerShell collector is intentionally a **manual
-   diagnostic cold path**; never call it once per second.
+   The canonical PowerShell collector is a **manual diagnostic cold path**.
+   The active desktop invokes it once on explicit Refresh or Client 02
+   preflight in SummaryOnly mode, never once per second.
 3. **Hot path = bounded, native observation, only if needed and proven.**
    After two-game acceptance, the existing Rust owner may replace repeated
    PowerShell launches with Windows process/window APIs and Sandboxie's
@@ -130,9 +131,10 @@ be inferred from PID or Minecraft FPS alone.
    framebuffer into WebView2 or capture video to make a fake 2×2 screen.
 7. **No unbounded diagnostics.** Raw accounts, command lines, window
    titles, OAuth tokens and world files stay out of reports. The current
-   collector writes a bounded JSON file per explicit inspection in
-   `%TEMP%\MinecraftInstanceManager\SandboxieFeasibility`; this is an
-   acknowledged disk-I/O cost, not suitable for continuous monitoring.
+   UI uses `-SummaryOnly`, a **single no-write observation for both clients**.
+   The explicitly invoked full CLI collector continues to save an opt-in
+   JSON report in `%TEMP%\MinecraftInstanceManager\SandboxieFeasibility`.
+   Neither mode should run continuously.
    Never auto-delete existing user reports or sandbox state to save space.
 8. **No hidden worker farm.** Launch helpers execute briefly and exit.
    Do not start per-client manager processes, Python services, telemetry
@@ -180,11 +182,13 @@ sources and sample duration, not invented performance numbers.
 
 ## The one implementation sequence (dependency-ordered)
 
-**Current — correctness and proof:** Keep the existing collector, fixed
-Client 02 command, explicit click-to-inspect, signer/credential checks,
-and meaningful error reporting. First run pinned Rust/Svelte/Node source
-build/tests; next verify the Sandboxie box PID and actual two-account
-Minecraft gameplay. **Do not make performance claims before this.**
+**Current — correctness and proof:** The canonical collector's
+broken/duplicated source has been repaired. The active UI uses one
+explicit `SummaryOnly` inspection for both clients; launch preflight
+uses the same no-write path. No periodic polling or new daemon exists.
+First run pinned Rust/Svelte/Node source checks; then verify sandbox PID
+and real two-account gameplay. **No performance benefit is claimed
+without Windows resource measurements.**
 
 **After two-client gameplay proof — low-overhead operating mode:**
 Benchmark A–F above. If explicit inspections are measurably too slow,

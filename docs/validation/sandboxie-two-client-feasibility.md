@@ -79,11 +79,11 @@ the existing official Windows launcher. For Client 02:
    OpenCredentials OFF (box-local or inherited), then requests launch.
    A nonzero Start.exe exit code is reported as an error; a launcher that
    never exits before the deadline is UNKNOWN, not gameplay success.
-4. Click **Inspect Windows + Sandboxie** to see candidates with a visible
-   window classified as native or inside MinecraftClient02, plus the
-   credential-host-access setting. The same inspection also saves a
-   bounded JSON report under the reports path above. A PID/window candidate
-   is not Microsoft account proof.
+4. Click **Refresh both clients**. One collector reports candidate
+   windows classified as native versus in MinecraftClient02, plus the
+   credential-host-access configuration. The desktop uses
+   `-SummaryOnly`, which does not write an evidence file. A PID/window
+   candidate is not Microsoft account proof.
 5. Independently verify two different licensed Microsoft Education logins,
    world/input, multiplayer and persistence. Mark missing evidence UNKNOWN.
 
@@ -148,9 +148,10 @@ is collected.
 It never records full process paths, CLI arguments, box filesystem paths,
 world names, account identities, cookies or tokens. Its OpenCredentials
 field is a Sandboxie configuration observation, not proof that Microsoft's
-WAM helper processes are contained. Inspecting may create a new bounded
-JSON evidence file in the temporary reports directory. All probes fail
-closed to UNKNOWN when unavailable. An unsigned/custom source build
+WAM helper processes are contained. The explicit CLI collector writes
+an evidence file by default. The desktop's `-SummaryOnly` inspection
+returns only a bounded response without writing an evidence file. All
+unreadable probes stay UNKNOWN, never an invented success. An unsigned/custom source build
 is NOT automatically invoked; it requires separate review.
 
 Optional manually selected install directory:
