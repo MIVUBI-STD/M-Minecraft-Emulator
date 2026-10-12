@@ -335,6 +335,112 @@ pub fn inspect_sandbox_client_02() -> io::Result<SandboxieClientObservation> {
     Err(io::Error::new(io::ErrorKind::Unsupported, "Windows is required"))
 }
 
+// Focus is a user-requested, non-destructive window operation. Never use a
+// previously observed PID/HWND as authority without fresh Sandboxie membership,
+// process creation time and window-owner checks.
+fn verify_fresh_focus_target(
+    target: &ProcessIdentityCandidate,
+    fresh: &SandboxieClientObservation,
+) -> io::Result<(u64, u64)> {
+    let invalid = || io::Error::new(io::ErrorKind::InvalidInput,
+        "Client 02 focus requires a visible boxed process with known identity; Refresh first");
+    if target.pid == 0 || target.in_selected_box != Some(true)
+        || !fresh.interactive_session || fresh.membership_status != "OBSERVED"
+    {
+        return Err(invalid());
+    }
+    let created = target.created_file_time.as_deref()
+        .ok_or_else(invalid)?.parse::<u64>().map_err(|_| invalid())?;
+    let window_text = target.window_handle.as_deref().ok_or_else(invalid)?;
+    let hwnd = u64::from_str_radix(
+        window_text.strip_prefix("0x").ok_or_else(invalid)?, 16
+    ).map_err(|_| invalid())?;
+    if created == 0 || hwnd == 0 ||
+        !fresh.process_candidates.iter().any(|candidate| candidate == target)
+    {
+        return Err(io::Error::new(io::ErrorKind::NotFound,
+            "Client 02 process or window changed since Refresh; inspect again"));
+    }
+    Ok((created, hwnd))
+}
+
+#[cfg(windows)]
+pub fn focus_observed_client_02(target: ProcessIdentityCandidate) -> io::Result<()> {
+    use windows_sys::Win32::{
+        Foundation::{CloseHandle, FILETIME},
+        System::Threading::{GetProcessTimes, OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION},
+        UI::WindowsAndMessaging::{
+            GetAncestor, GetWindowThreadProcessId, IsIconic, IsWindow, IsWindowVisible,
+            SetForegroundWindow, ShowWindow, GA_ROOT, SW_RESTORE,
+        },
+    };
+    // The same guard protects launches and focus actions from one manager.
+    // Focus is not subject to the launch retry cooldown.
+    let _guard = CLIENT_02_LAUNCH.try_lock().map_err(|_| {
+        io::Error::new(io::ErrorKind::WouldBlock, "Client 02 launch is in progress")
+    })?;
+    let fresh = inspect_sandbox_client_02()?;
+    let (expected_time, hwnd_number) = verify_fresh_focus_target(&target, &fresh)?;
+
+    let process = unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, target.pid) };
+    if process.is_null() {
+        return Err(io::Error::new(io::ErrorKind::PermissionDenied,
+            "Cannot inspect Client 02 process identity; focus refused"));
+    }
+
+    // Keep the process handle open across window verification and focus.
+    // Windows cannot reuse that process ID while the handle remains open.
+    let result = (|| -> io::Result<()> {
+        let empty = || FILETIME { dwLowDateTime: 0, dwHighDateTime: 0 };
+        let mut created = empty();
+        let mut exited = empty();
+        let mut kernel = empty();
+        let mut user = empty();
+        if unsafe { GetProcessTimes(process, &mut created, &mut exited,
+            &mut kernel, &mut user) } == 0
+        {
+            return Err(io::Error::new(io::ErrorKind::PermissionDenied,
+                "Cannot recheck Client 02 creation time"));
+        }
+        let actual_time = (u64::from(created.dwHighDateTime) << 32)
+            | u64::from(created.dwLowDateTime);
+        if actual_time != expected_time {
+            return Err(io::Error::new(io::ErrorKind::NotFound,
+                "Client 02 PID was reused or process identity changed; Refresh first"));
+        }
+
+        let hwnd = hwnd_number as usize as *mut core::ffi::c_void;
+        let mut window_pid = 0_u32;
+        if unsafe { IsWindow(hwnd) } == 0
+            || unsafe { IsWindowVisible(hwnd) } == 0
+            || unsafe { GetWindowThreadProcessId(hwnd, &mut window_pid) } == 0
+            || window_pid != target.pid
+            || unsafe { GetAncestor(hwnd, GA_ROOT) } != hwnd
+        {
+            return Err(io::Error::new(io::ErrorKind::NotFound,
+                "Client 02 window no longer belongs to the observed process; Refresh first"));
+        }
+        if unsafe { IsIconic(hwnd) } != 0 {
+            unsafe { ShowWindow(hwnd, SW_RESTORE); }
+        }
+        // Foreground activation is restricted by Windows; never use input
+        // injection or focus-stealing workarounds to force this operation.
+        if unsafe { SetForegroundWindow(hwnd) } == 0 {
+            return Err(io::Error::new(io::ErrorKind::PermissionDenied,
+                "Windows refused to focus Client 02; select its window or use Alt+Tab"));
+        }
+        Ok(())
+    })();
+    unsafe { CloseHandle(process); }
+    result
+}
+
+#[cfg(not(windows))]
+pub fn focus_observed_client_02(_target: ProcessIdentityCandidate) -> io::Result<()> {
+    Err(io::Error::new(io::ErrorKind::Unsupported,
+        "Focusing Client 02 requires Windows"))
+}
+
 // Client 02 only. The sandbox is provisioned and licensed outside the manager.
 const CLIENT_02_BOX_NAME: &str = "MinecraftClient02";
 // This is a bounded launch REQUEST, not an independent-account verdict.
@@ -528,6 +634,44 @@ mod tests {
                 {"pid": 456, "windowHandle": null}
             ]
         })
+    }
+
+    #[test]
+    fn focus_requires_exact_fresh_box_process_and_window_identity() {
+        let report = serde_json::json!({
+            "schema":3, "boxName":"MinecraftClient02", "stage":"INSPECT",
+            "boxConfigured":"YES", "boxSettingsSource":"BOX_SECTION_ENUMERATED",
+            "autoDelete":"OFF", "autoRemove":"OFF", "credentialHostAccess":"OFF",
+            "membershipStatus":"OBSERVED", "interactiveSession":true,
+            "processEvidenceClass":"NAME_MATCH_CANDIDATE_ONLY",
+            "candidateProcessCount":1,
+            "processCandidates":[{
+                "pid":202, "createdFileTime":"133400000000000001",
+                "windowHandle":"0x200", "inSelectedBox":true
+            }],
+            "isolatedCandidateProcesses":1, "nativeVisibleCandidates":0,
+            "isolatedVisibleCandidates":1,
+            "interpretation":"CONFIG_AND_PROCESS_CANDIDATES_ONLY_NO_AUTHENTICATION_PROOF"
+        });
+        let fresh = parse_sandboxie_observation(&report.to_string()).unwrap();
+        let target = fresh.process_candidates[0].clone();
+        assert_eq!(super::verify_fresh_focus_target(&target, &fresh).unwrap().0,
+            133400000000000001);
+        let mut changed = target.clone();
+        changed.created_file_time = Some("133400000000000002".into());
+        assert!(super::verify_fresh_focus_target(&changed, &fresh).is_err());
+        changed = target.clone();
+        changed.window_handle = Some("0x201".into());
+        assert!(super::verify_fresh_focus_target(&changed, &fresh).is_err());
+        changed = target.clone();
+        changed.in_selected_box = None;
+        assert!(super::verify_fresh_focus_target(&changed, &fresh).is_err());
+        changed = target.clone();
+        changed.created_file_time = None;
+        assert!(super::verify_fresh_focus_target(&changed, &fresh).is_err());
+        let mut unknown = fresh.clone();
+        unknown.membership_status = "UNKNOWN".into();
+        assert!(super::verify_fresh_focus_target(&target, &unknown).is_err());
     }
 
     #[test]
