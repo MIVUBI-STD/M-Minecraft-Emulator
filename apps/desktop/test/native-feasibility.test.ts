@@ -272,6 +272,23 @@ describe("Native candidate IPC evidence", () => {
     expect(parseIsolatedClientObservation(signedBoxed)).toEqual(signedBoxed);
     // The outside-only counter must not change when a boxed PID is signed.
     expect(signedBoxed.officialImageOutsideSelectedBoxCount).toBe(1);
+    // Targeted boxed executable proof must not be mistaken for an image
+    // observed outside the box. Its existing schema reports zero outside.
+    const onlyBoxedSigned = {
+      ...signedBoxed,
+      candidateProcessCount: 1,
+      processCandidates: [signedBoxed.processCandidates[1]],
+      officialImageOutsideSelectedBoxCount: 0,
+      directPidQuery: "NOT_REQUESTED",
+      signedImageOtherBoxCount: 0, signedImageUnknownBoxCount: 0,
+      isolatedCandidateProcesses: 1,
+      isolatedVisibleCandidates: 1, nativeVisibleCandidates: 0,
+    };
+    expect(parseIsolatedClientObservation(onlyBoxedSigned)).toEqual(onlyBoxedSigned);
+    const incorrectlyCounted = {
+      ...onlyBoxedSigned, officialImageOutsideSelectedBoxCount: 1,
+    };
+    expect(() => parseIsolatedClientObservation(incorrectlyCounted)).toThrow(TypeError);
     expect(parseIsolatedClientObservation({
       ...valid, signedImageOtherBoxCount: 1, signedImageUnknownBoxCount: 0,
     }).directPidQuery).toBe("QUERIED");
