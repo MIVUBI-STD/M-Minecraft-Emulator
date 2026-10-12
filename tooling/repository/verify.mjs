@@ -135,11 +135,11 @@ requireFact(activeSurface.includes("nativeFeasibility.openOfficialMinecraft()") 
   !activeSurface.includes("backend.snapshot()") &&
   !activeSurface.includes("backend.startClient(") &&
   !activeSurface.includes("backend.provision("),
-  "Native feasibility screen must use only official launch and read-only inspection");
+  "Active native/isolated pilot may not call legacy VM lifecycle commands");
 requireFact(activeTauri.includes("commands::native_clients::desktop_open_native_minecraft,") &&
   activeTauri.includes("commands::native_clients::desktop_inspect_native_candidates,") &&
   !/commands::virtual_clients::virtual_clients_|commands::setup_tools::setup_|commands::window_arrangement::window_/.test(activeTauri),
-  "Only native official launch/read-only inspection handlers may be registered");
+  "Legacy VM handlers must not be registered in the active Tauri pilot");
 const nativeBridge = read("apps/desktop/src/app/bridge/nativeFeasibilityApi.ts");
 const nativeOwner = read("apps/desktop/src-tauri/src/engine/native_clients.rs");
 const nativeAdapter = read("apps/desktop/src-tauri/src/commands/native_clients.rs");
@@ -236,7 +236,16 @@ requireFact(nativeDesktop.includes("pub fn request_sandbox_client_02(") &&
   read("apps/desktop/src-tauri/src/app_bootstrap.rs").includes(
     "commands::native_clients::desktop_request_sandbox_client_02,") &&
   isolatedScreen.includes("nativeFeasibility.requestSandboxClient02(") &&
-  isolatedBridge.includes('"desktop_request_sandbox_client_02"'),
+  isolatedScreen.includes("nativeFeasibility.inspectIsolatedClient02()") &&
+  isolatedScreen.includes("Promise.allSettled") &&
+  nativeDesktop.includes("include_str!(concat!(") &&
+  nativeDesktop.includes('observation.credential_host_access != "OFF"') &&
+  nativeDesktop.includes("WaitForExit(8000)") &&
+  nativeDesktop.includes("$launcher.ExitCode") &&
+  read("apps/desktop/src-tauri/src/app_bootstrap.rs").includes(
+    "commands::native_clients::desktop_inspect_sandbox_client_02,") &&
+  isolatedBridge.includes('"desktop_request_sandbox_client_02"') &&
+  isolatedBridge.includes('"desktop_inspect_sandbox_client_02"'),
   "One non-destructive MinecraftClient02 launch must be registered end to end");
 const sandboxBoxCollector = read("tooling/acceptance/windows/collect-sandboxie-feasibility.ps1");
 const desktopPilotLease = read("apps/desktop/src-tauri/src/engine/app_instance.rs");

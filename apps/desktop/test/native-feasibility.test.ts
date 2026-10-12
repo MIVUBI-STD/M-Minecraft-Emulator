@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
-import { parseNativeObservation } from "../src/app/bridge/nativeFeasibilityApi.js";
+import { parseNativeObservation, parseIsolatedClientObservation } from "../src/app/bridge/nativeFeasibilityApi.js";
 
 const fixture = () => ({
   schema: 1,
@@ -77,6 +77,17 @@ describe("Native candidate IPC evidence", () => {
     expect(bootstrap).toContain("commands::native_clients::desktop_inspect_native_candidates,");
     expect(bootstrap).toContain("commands::native_clients::desktop_select_education_exe,");
     expect(bootstrap).toContain("commands::native_clients::desktop_request_sandbox_client_02,");
+    expect(bootstrap).toContain("commands::native_clients::desktop_inspect_sandbox_client_02,");
+    expect(commands).toContain("fn desktop_inspect_sandbox_client_02(");
+    expect(engine).toContain("pub fn inspect_sandbox_client_02()");
+    expect(engine).toContain("include_str!(concat!(");
+    expect(engine).toContain("WaitForExit(8000)");
+    expect(engine).toContain("$launcher.ExitCode");
+    expect(engine).toContain('observation.credential_host_access != "OFF"');
+    expect(bridge).toContain('"desktop_inspect_sandbox_client_02"');
+    expect(active).toContain("nativeFeasibility.inspectIsolatedClient02()");
+    expect(active).toContain("Promise.allSettled");
+    expect(active).toContain('typeof error === "string"');
     expect(commands).toContain("fn desktop_request_sandbox_client_02(");
     expect(engine).toContain("pub fn request_sandbox_client_02(");
     expect(engine).toContain('const CLIENT_02_BOX_NAME: &str = "MinecraftClient02";');
@@ -100,6 +111,33 @@ describe("Native candidate IPC evidence", () => {
     expect(active).toContain("nativeFeasibility.inspectCandidates()");
     expect(active).toContain("nativeFeasibility.openOfficialMinecraft()");
     expect(active).not.toContain("backend.");
+  });
+
+  it("accepts only non-authoritative isolated process and box observations", () => {
+    const valid = {
+      schema: 1, boxName: "MinecraftClient02", stage: "INSPECT",
+      boxConfigured: "YES", boxSettingsSource: "BOX_SECTION_ENUMERATED",
+      autoDelete: "OFF", autoRemove: "OFF", credentialHostAccess: "OFF",
+      membershipStatus: "OBSERVED", interactiveSession: true,
+      processEvidenceClass: "NAME_MATCH_CANDIDATE_ONLY",
+      candidateProcessCount: 2, nativeVisibleCandidates: 1,
+      isolatedVisibleCandidates: 1,
+      interpretation: "CONFIG_AND_PROCESS_CANDIDATES_ONLY_NO_AUTHENTICATION_PROOF",
+    };
+    expect(parseIsolatedClientObservation(valid)).toEqual(valid);
+    const invalid = [
+      { ...valid, boxName: "AnotherBox" },
+      { ...valid, credentialHostAccess: "GAMEPLAY_VERIFIED" },
+      { ...valid, candidateProcessCount: 1 },
+      { ...valid, nativeVisibleCandidates: 17 },
+      { ...valid, membershipStatus: "UNKNOWN" },
+      { ...valid, accountEmail: "forbidden@example.com" },
+    ];
+    for (const item of invalid) expect(() => parseIsolatedClientObservation(item)).toThrow(TypeError);
+    expect(parseIsolatedClientObservation({
+      ...valid, membershipStatus: "UNKNOWN",
+      nativeVisibleCandidates: 0, isolatedVisibleCandidates: 0,
+    }).membershipStatus).toBe("UNKNOWN");
   });
 
   it("uses only generic live names without changing legacy installed identity", () => {

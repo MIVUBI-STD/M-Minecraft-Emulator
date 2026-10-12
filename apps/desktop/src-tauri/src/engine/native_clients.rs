@@ -212,7 +212,7 @@ fn parse_sandboxie_observation(raw: &str) -> io::Result<SandboxieClientObservati
         || !one_of(&report.credential_host_access, &["ON", "OFF", "UNKNOWN"])
         || !one_of(&report.membership_status, &["OBSERVED", "UNKNOWN"])
         || report.candidate_process_count > 16
-        || report.native_visible_candidates + report.isolated_visible_candidates
+        || report.native_visible_candidates.saturating_add(report.isolated_visible_candidates)
             > report.candidate_process_count
         || (report.membership_status == "UNKNOWN"
             && (report.native_visible_candidates != 0
