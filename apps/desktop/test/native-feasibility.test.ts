@@ -102,6 +102,24 @@ describe("Native candidate IPC evidence", () => {
     expect(active).not.toContain("backend.");
   });
 
+  it("uses only generic live names without changing legacy installed identity", () => {
+    const screen = readFileSync(new URL("../src/NativeFeasibilityApp.svelte", import.meta.url), "utf8");
+    const backend = readFileSync(new URL("../src-tauri/src/engine/native_clients.rs", import.meta.url), "utf8");
+    const pilotLease = readFileSync(new URL("../src-tauri/src/engine/app_instance.rs", import.meta.url), "utf8");
+    const sandboxCollector = readFileSync(new URL("../../../tooling/acceptance/windows/collect-sandboxie-feasibility.ps1", import.meta.url), "utf8");
+    const desktopConfig = JSON.parse(readFileSync(new URL("../src-tauri/tauri.conf.json", import.meta.url), "utf8"));
+    expect(screen).toContain("Minecraft Instance Manager");
+    expect(screen).toContain("MinecraftClient02");
+    expect(screen).not.toContain("MIVUBI");
+    expect(backend).toContain('const CLIENT_02_BOX_NAME: &str = "MinecraftClient02";');
+    expect(sandboxCollector).toContain("BoxName = 'MinecraftClient02'");
+    expect(pilotLease).toContain('.join("MinecraftInstanceManager")');
+    expect(pilotLease).toContain('.join("NativePilot")');
+    expect(desktopConfig.app.windows[0].title).toBe("Minecraft Instance Manager");
+    expect(desktopConfig.productName).toBe("M-Bedrock Virtual Clients");
+    expect(desktopConfig.identifier).toBe("com.mivubi.mbedrock.virtualclients");
+  });
+
   it("keeps the new inspection read-only and no implicit polling", () => {
     const engine = readFileSync(new URL("../src-tauri/src/engine/native_clients.rs", import.meta.url), "utf8");
     const section = engine.slice(

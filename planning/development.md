@@ -1,9 +1,22 @@
 ## Current work — fixed Windows Client 02 Sandboxie experiment (2026-10-12)
 
 **Work:** emulator/sandboxie-client02
-**State:** SOURCE_PATCHED / WINDOWS_GAMEPLAY_NOT_EXECUTED.
+**State:** SOURCE_PATCHED_AND_GENERIC_NAMING_ALIGNED / WINDOWS_GAMEPLAY_NOT_EXECUTED.
+
+**Current user-facing naming:** `Minecraft Instance Manager`; Client 01
+(Native), Client 02 (Isolated), one `MinecraftClient02` Sandboxie Plus box.
+This is presentation and developer-pilot naming, not a change to the
+legacy installed VMware product or historical repository organization.
+
+**State paths:** `%LOCALAPPDATA%\\MinecraftInstanceManager\\NativePilot`;
+`%TEMP%\\MinecraftInstanceManager\\SandboxieFeasibility` and
+`%TEMP%\\MinecraftInstanceManager\\NativeFeasibility`.
+Existing reports/instance markers under prior prototype names are left in
+place and are not imported or destroyed. An older sandbox named under the
+former convention is untouched. The new `MinecraftClient02` box must be
+configured separately, without copying Microsoft session data.
 **One selected direction:** Minecraft Education Windows Desktop, Client 01
-native plus Client 02 in a single persistent `Mivubi2` Sandboxie Plus box.
+native plus Client 02 in a single persistent `MinecraftClient02` Sandboxie Plus box.
 No Android, controllers, extra hypervisor/provider or four-client work.
 
 ### Implemented on Local
@@ -11,9 +24,9 @@ No Android, controllers, extra hypervisor/provider or four-client work.
 - Active desktop has one Client 02 launch path: Windows native file picker,
   manual Sandboxie licensing acknowledgement, thin Tauri command and
   backend Rust checks for official Desktop install, signed Education game
-  identity, signed Sandboxie tools, running service, enabled Mivubi2 and
+  identity, signed Sandboxie tools, running service, enabled MinecraftClient02 and
   AutoDelete/AutoRemove OFF.
-- The backend issues Sandboxie `Start.exe /box:Mivubi2` for the selected
+- The backend issues Sandboxie `Start.exe /box:MinecraftClient02` for the selected
   installed game executable, **not** `shell:AppsFolder` again. It does not
   copy EXE, clone world/token/profile data, mutate sandbox contents or
   register VMware handlers.
