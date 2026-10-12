@@ -297,9 +297,14 @@ test("source-side collector must distinguish missing box keys from failed querie
   assert.ok(source.includes("if (-not $reading.Wait(1000)) { return $null }"));
   assert.ok(source.includes("$process.StandardOutput.Dispose()"));
   assert.ok(source.includes("schema = 1")); // durable full CLI report
-  assert.ok(source.includes("schema = 3")); // on-demand desktop summary only
+  assert.ok(source.includes("schema = 4")); // on-demand desktop summary only
   assert.ok(source.includes("isolatedCandidateProcesses = @($gameCandidates | Where-Object {"));
   assert.ok(source.includes("createdFileTime = $createdFileTime"));
+  assert.ok(source.includes("imageEvidence = $imageEvidence"));
+  assert.ok(source.includes("officialImageOutsideSelectedBoxCount = @($gameCandidates | Where-Object {"));
+  assert.ok(source.includes("$educationImageProof = @{}"));
+  assert.ok(source.includes("Get-AuthenticodeSignature -LiteralPath $image"));
+  assert.ok(!source.includes("imagePath = $image"));
   assert.ok(source.includes("processCandidates = @($gameCandidates)"));
   assert.ok(source.includes("candidateProcesses = @($gameCandidates | ForEach-Object {"));
   assert.ok(source.includes("if (-not $SummaryOnly)"));
