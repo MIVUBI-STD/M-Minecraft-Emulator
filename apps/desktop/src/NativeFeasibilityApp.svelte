@@ -96,6 +96,23 @@
     }
   }
 
+  async function placeClient02(side: "LEFT" | "RIGHT") {
+    if (busy || !focusTarget) return;
+    const target: ProcessIdentityCandidate = focusTarget;
+    busy = true;
+    error = "";
+    notice = "";
+    try {
+      await nativeFeasibility.placeObservedClient02(target, side);
+      notice = `Windows accepted the Client 02 ${side === "LEFT" ? "left" : "right"} placement request. Client 01 was not moved.`;
+    } catch (reason) {
+      observation = undefined;
+      error = errorMessage(reason);
+    } finally {
+      busy = false;
+    }
+  }
+
   async function refreshInstances() {
     if (busy) return;
     busy = true;
@@ -165,9 +182,16 @@
               <button class="pilot-secondary" disabled={busy || !focusTarget} on:click={focusClient02}>
                 Focus Client 02
               </button>
+              <button class="pilot-secondary" disabled={busy || !focusTarget} on:click={() => placeClient02("LEFT")}>
+                Place Left
+              </button>
+              <button class="pilot-secondary" disabled={busy || !focusTarget} on:click={() => placeClient02("RIGHT")}>
+                Place Right
+              </button>
             </div>
+            <p class="pilot-caution">Place Left/Right uses the current monitor's available area. It only moves Client 02, does not change game accounts, and will refuse minimized or maximized windows. Restore the game window first if needed.</p>
             {#if isolatedWindows !== null && !focusTarget}
-              <p class="pilot-caution">Focus requires exactly one boxed window with a known process start time. Refresh or select the game window manually.</p>
+              <p class="pilot-caution">Focus and placement require exactly one boxed window with a known process start time. Refresh or select the game window manually.</p>
             {/if}
           </article>
         </div>
