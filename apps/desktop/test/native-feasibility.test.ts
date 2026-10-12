@@ -122,7 +122,7 @@ describe("Native candidate IPC evidence", () => {
     expect(active).toContain("Neither result proves an unsandboxed native process.");
     expect(bridge).toContain("officialImageOutsideSelectedBoxCount");
     expect(engine).toContain("official_image_outside_selected_box_count");
-    expect(active).toContain("Other Sandboxie boxes are not excluded");
+    expect(active).toContain("Direct Sandboxie PID lookup unavailable");
     expect(active).toContain("nativeFeasibility.focusObservedClient02(target)");
     expect(active).toContain("disabled={busy || !focusTarget}");
     expect(active).not.toContain("SetForegroundWindow");
