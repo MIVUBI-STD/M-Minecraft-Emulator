@@ -1,6 +1,6 @@
-## Codex next session — complete disposable G0 installation proof (2026-10-12)
+## Codex next session — G0 verified; disposable VMware G1 prerequisite (2026-10-12)
 
-**Work:** `emulator/codex-localtest-handoff`; **State: BLOCKED_ON_HOST_RESTART / G0_OBSERVED_INCOMPLETE**. This top section is the only current continuation; everything below the divider is history. Preserve all existing VM/account data and work on `Local` only.
+**Work:** `emulator/codex-localtest-handoff`; **State: G0_PASS / G1_NOT_EXECUTED**. This top section is the only current continuation; everything below the divider is history. Preserve all existing VM/account data and work on `Local` only.
 
 ### Observed local batch
 
@@ -10,7 +10,7 @@
 - Initial G0 at `5add416b32ac8d255b08ed72d65ed3b02f0ed190` failed 2/75 Vitest tests; subsequent runs stopped at newly observed errors. Supporting targeted regressions passed before their commits. These earlier runs do not count as final-SHA acceptance.
 - **Verified source/package SHA:** `509ce10f0fd5129e4da2990614651fb57241b256`. Final `DEV.cmd g0` exit **0**, clean committed Local at entry, no tracked content change and unchanged HEAD at completion.
 - At that SHA: repository contracts PASS; feasibility **15/15**; Svelte typecheck **0 errors, 1 existing accessibility warning**; Vitest **75/75**; frontend build PASS; desktop Rust check PASS and tests **10/10**; runtime all-targets check PASS, library **150/150**, Guest Agent **4/4**, CLI contract **2/2**, runtime integration **5/5**; pinned runtime format check PASS. Compiler warnings remain; no warning cleanup was attempted.
-- Unsigned Windows x64 NSIS construction **PASS**; fresh nonempty installer and staged host CLI/Guest Agent verified. Installed payload and installation lifecycle were not exercised.
+- Unsigned Windows x64 NSIS construction **PASS**; fresh nonempty installer and staged host CLI/Guest Agent verified. The disposable follow-up below completes installed-payload and lifecycle evidence for the same source/package SHA.
 - Installer: `apps/desktop/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/M-Bedrock Virtual Clients_0.1.0_x64-setup.exe` (local ignored artifact, not committed).
 - Installer SHA-256: `27417a28e66f4c82762bbbc89214144aa3443dc49c62567caea759db04b87482`.
 - Local source/build log: `D:/Work/AI Stuff/Minecraft-Emulator-Tools/g0-verified.log` (outside checkout, not committed). Isolated Node/npm tools are in the same external directory. No raw logs, secrets, guest data or installers were committed.
@@ -20,18 +20,24 @@
 
 ### Remaining proof and one next action
 
+After the operator's manual restart, continuation started at `f16c69a16a847ba9e2e9bd97c4637141ce37f216` (documentation only since the verified product SHA). Sandbox first refused startup: **"The Container Manager service or one of its dependencies is not running."** Actual inspection found `CmService`, `vmcompute`, `HvHost`, BFE and Windows Firewall running, but Host Network Service (`hns`) disabled/stopped. The operator-approved Sandbox setup continuation changed only `hns` from Disabled to Manual and started it through UAC; observed Running. No automatic restart or existing VM operation occurred.
+
+The prepared 4096-MiB Sandbox then booted into a fresh `C:\Users\WDAGUtilityAccount` profile. On 2026-10-12, its script verified the exact installer SHA-256 above and reused the package-smoke lifecycle checks. Reviewed `output/result.json`, `lifecycle.log`, `summary.txt` and executed script: all **16 required payload files**, package contract schema and installer ownership/preservation policy passed; install, same-version repair, uninstall, reinstall and final cleanup each returned **exit 0**. Repair restored the deliberately removed packaged README. The sentinel's content survived repair, uninstall and reinstall, and desktop executable removal/restoration checks passed. These are disposable sentinel checks, not a claim that real account/VM recovery or gameplay has been exercised. Raw logs and generated scripts remain outside Git at `D:/Work/AI Stuff/Minecraft-Emulator-Tools/g0-sandbox-509ce10/`; the automatic record's `reviewedGatePass: false` intentionally did not self-award the gate. This reviewed handoff awards G0 for **`509ce10f0fd5129e4da2990614651fb57241b256` only**. Source suites were not rerun on later documentation SHAs.
+
+Observed PC: Windows 11 Pro x64 build 26100, i7-14700F (20 cores/28 threads), 31.76 GiB RAM, RTX 3070 (8192 MiB reported by NVIDIA). Local x64 build and Sandbox installer compatibility are observed. VMware was not found in the inspected standard locations; VMware guest boot, graphics/input, independent licensed Education sign-in and world rendering remain unproven. No host installer, Minecraft sign-in, Base/Virtual mutation or real account-data operation was performed.
+
 | G0 subcheck / later gate | Actual status |
 | --- | --- |
 | Source integrity at verified SHA | PASS |
 | NSIS construction at verified SHA | PASS |
-| Installed payload completeness | NOT_EXECUTED |
-| Disposable install/repair/uninstall/reinstall preservation | NOT_EXECUTED |
-| Overall G0 | OBSERVED (incomplete), not PASS |
+| Installed payload completeness | PASS at verified SHA (16 required files and policy checks) |
+| Disposable install/repair/uninstall/reinstall preservation | PASS at verified SHA (five exit codes 0; sentinel content preserved) |
+| Overall G0 | PASS at `509ce10f0fd5129e4da2990614651fb57241b256` (unsigned package scope) |
 | G1 / G2 / G3 / G4 | NOT_EXECUTED |
 
-**Next:** the operator saves work and manually restarts Windows to finish approved Sandbox activation. After returning, verify availability and launch the prepared `D:/Work/AI Stuff/Minecraft-Emulator-Tools/g0-sandbox-509ce10/package-test.wsb`; review its actual output for installed payload and install -> same-version repair -> uninstall -> reinstall data preservation. Use `engine/distribution/package-contract.json` and the existing package-smoke workflow as reference. Keep evidence bound to the verified source/package SHA; rerun G0 if product source changes. Never restart the host automatically or run the installer lifecycle on the existing host/account profile.
+**Next:** resolve the G1 prerequisite by preparing VMware and one explicitly disposable, account-clean Windows guest on this PC, following `docs/validation/client-feasibility.md`; keep operator-controlled licensed Education sign-in and observed world/input checks inside that guest. Sandbox completed G0 isolation only and does not replace the production VMware provider. No installation of VMware or creation of an account-bearing guest is recorded or implied as already executed.
 
-Only after reviewed complete G0 may one explicitly disposable VMware guest enter G1. The operator controls licensed account sign-in; never clone/reset/reprovision existing Base or Virtual-01/02/03. Keep `main` untouched and CI manual-only. No application/VM/game launch or sign-in was executed in this batch.
+G0 is now reviewed complete for the verified SHA. The operator controls licensed account sign-in; never clone/reset/reprovision existing Base or Virtual-01/02/03. Keep `main` untouched and CI manual-only. Only the disposable Sandbox/installer was launched; no product application, Minecraft or production VM launch/sign-in was executed in this batch.
 
 ---
 ## Codex next session — one-pass G0 and localtest handoff (2026-10-12)
