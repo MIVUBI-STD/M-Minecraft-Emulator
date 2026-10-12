@@ -24,7 +24,7 @@ An operator does **not** need a local checkout to complete repository/source-ver
 
 ## Current operating mode
 
-The desktop now mounts only the native feasibility pilot. It can request an official Minecraft Education launch, but does not claim two or four working accounts. No VM refresh, guest setup or old updater runs on startup. Legacy VMware/App Sandbox mutation commands return UNSUPPORTED; the VM-oriented routes below remain documentation and read-only reference, not active workflows.
+The desktop now mounts only the native feasibility pilot. It can request the official Minecraft Education launch and show read-only candidate process/window counts, but does not claim two or four authenticated playable sessions. No VM refresh, guest setup or old updater runs on startup. Legacy VMware/App Sandbox mutation commands return UNSUPPORTED; the VM-oriented routes below remain documentation and read-only reference, not active workflows.
 
 ## Choose one work route
 

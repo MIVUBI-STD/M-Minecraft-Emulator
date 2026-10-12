@@ -31,6 +31,34 @@ Sources:
 - https://edusupport.minecraft.net/hc/en-us/articles/4404785703316-Location-of-World-Files
 - https://edusupport.minecraft.net/hc/en-us/articles/360061382672-Sign-Into-Minecraft-Education
 
+## Single-app preflight before the two-account experiment
+
+The new native-first desktop offers two explicit actions:
+
+1. **Request official Minecraft launch** makes a single launch request
+   through Windows' registered official Start app. Repeat only after
+   observing the first game; it may focus the same instance again.
+2. **Inspect Windows (read-only)** observes the current interactive
+   Windows session once, showing candidate process and visible-window
+   counts. This does not poll, enumerate email addresses, store world
+   data, inspect executable paths, or read account tokens.
+
+Requesting a launch invalidates the previous observation; inspect again
+after the game has opened. Counts are NAME_MATCH_CANDIDATE_ONLY, not
+evidence of a licensed account or Minecraft rendering.
+
+**Required verification order:** verify two distinct game windows;
+manually sign in to two separate licensed Education accounts; load two
+worlds and check input; try legitimate multiplayer; then check close,
+reopen, PC restart and account separation before promoting this
+architecture. The Windows evidence collector below is retained for
+operator-attributed observations.
+
+**STOP** if only one client opens, a second launch focuses the first
+game, accounts cross, or multiplayer/authentication fails. Do not
+copy or modify Minecraft EXEs, game state, Microsoft login broker,
+guest VM disks or installed account profiles to force another instance.
+
 ## Windows experiment
 
 Run from the repository root on a Windows desktop with Minecraft Education

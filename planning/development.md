@@ -1,3 +1,56 @@
+## Current work — native game-window observation readiness (2026-10-12)
+
+**Work:** emulator/native-multi-instance-feasibility
+**State:** NATIVE_INSPECTION_SOURCE_AUTHORED / WINDOWS_GAMEPLAY_NOT_EXECUTED.
+**Approved target:** one official Minecraft Education Desktop install,
+four independently licensed playable concurrent accounts on one PC,
+no full Windows VMs when a lighter route is genuinely compatible.
+
+### Batch implementation
+
+- Apps/desktop/src-tauri/src/engine/native_clients.rs now contains
+  a read-only same-interactive-session process/window candidate probe,
+  using only PID and HWND, with strict bounded Rust parsing.
+  No account info, credentials, Microsoft tokens, window titles,
+  command lines, executable paths or world data are read.
+- Native Tauri command desktop_inspect_native_candidates is registered
+  alongside the single official desktop launch request. All legacy
+  VM/Guest Agent/App Sandbox mutations remain unregistered at the
+  desktop and blocked by engine/runtime-core/src/command.rs.
+- New apps/desktop/src/app/bridge/nativeFeasibilityApi.ts is the
+  strictly typed active bridge; the archived virtualClientsApi.ts
+  is no longer imported by the mounted feasibility screen.
+- Mounted NativeFeasibilityApp.svelte exposes an explicit official
+  launch and a separate read-only inspection button. A new launch
+  invalidates an old observation. There is no automatic polling,
+  implied second process, account automation or persistent credentials.
+- Focused Rust/TypeScript regression cases enforce schema bounds,
+  duplicate PIDs/HWNDs, no extra private data, and inactive VM IPC.
+  The existing collector/evaluator remains canonical for attributed
+  manual game observations; docs/validation/native-multi-instance-feasibility.md
+  now describes the single-app two-client experiment order.
+- Windows runtime root, VMware/Base/VMDK/VHDX, Guest Agent,
+  old recovery, release/NSIS identity, main and CI are unchanged.
+
+### Proof and continuation
+
+At this milestone static GitHub source/tree checks can inspect the
+implementation and source-boundary contracts. Actual Rust/Tauri/Svelte
+compile, Windows PowerShell inspection, installer packaging,
+Minecraft Education process concurrency, distinct licensed login,
+Minecraft worlds/input, Microsoft SSO, multiplayer and persistence
+remain NOT_EXECUTED unless independent execution evidence is supplied.
+A candidate PID/window observation is NOT proof of playable accounts.
+Old historical installer G0 PASS applies only to
+509ce10f0fd5129e4da2990614651fb57241b256.
+
+**Next:** review a genuine native two-client Windows evidence report
+with manual game observation. If native truly cannot provide independent
+login sessions, evaluate the existing separately bounded Sandboxie
+pilot; do not implement another production provider or delete VM data.
+
+---
+
 ## Current work — native-first launcher, old VM routes paused (2026-10-12)
 
 **Work:** emulator/native-first-legacy-retirement

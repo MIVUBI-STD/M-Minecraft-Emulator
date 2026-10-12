@@ -8,7 +8,8 @@ describe("Active native-first startup boundary", () => {
     const bootstrap = readFileSync(new URL("../src-tauri/src/app_bootstrap.rs", import.meta.url), "utf8");
     expect(entry).toContain('import NativeFeasibilityApp from "./NativeFeasibilityApp.svelte"');
     expect(entry).toContain("mount(NativeFeasibilityApp, { target });");
-    expect(active).toContain("desktop.openNativeMinecraft()");
+    expect(active).toContain("nativeFeasibility.openOfficialMinecraft()");
+    expect(active).toContain("nativeFeasibility.inspectCandidates()");
     expect(active).not.toContain("backend.");
     expect(active).not.toContain("onMount(");
     expect(active).not.toContain("checkUpdateOnce");

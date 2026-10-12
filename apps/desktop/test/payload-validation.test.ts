@@ -213,7 +213,7 @@ describe("Frontend boundary wiring", () => {
     expect(core).toContain("legacy_operation_paused(command, args)");
   });
 
-  it("registers only the Windows desktop native launcher", () => {
+  it("registers only the two safe native desktop operations", () => {
     const facade = readFileSync(new URL("../src/app/bridge/virtualClientsApi.ts", import.meta.url), "utf8");
     const bootstrap = readFileSync(new URL("../src-tauri/src/app_bootstrap.rs", import.meta.url), "utf8");
     const commands = readFileSync(new URL("../src-tauri/src/commands/native_clients.rs", import.meta.url), "utf8");
@@ -221,6 +221,8 @@ describe("Frontend boundary wiring", () => {
     expect(facade).toContain('"desktop_open_native_minecraft"');
     expect(commands).toContain("fn desktop_open_native_minecraft(");
     expect(bootstrap).toContain("commands::native_clients::desktop_open_native_minecraft,");
+    expect(bootstrap).toContain("commands::native_clients::desktop_inspect_native_candidates,");
+    expect(bootstrap).not.toContain("commands::virtual_clients::virtual_clients_");
     for (const content of [facade, bootstrap, commands, desktopOwner]) {
       expect(content).not.toMatch(/BlueStacks|[aA]ndroid|[mM]ultiInstanceManager/);
     }

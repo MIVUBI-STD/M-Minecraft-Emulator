@@ -24,7 +24,9 @@ const required = [
   "docs/product/four-concurrent-accounts.md",
   "apps/desktop/src-tauri/src/engine/native_clients.rs",
   "apps/desktop/src-tauri/src/commands/native_clients.rs",
-  "apps/desktop/src/NativeFeasibilityApp.svelte", "docs/system/legacy-retirement.md",
+  "apps/desktop/src/NativeFeasibilityApp.svelte",
+  "apps/desktop/src/app/bridge/nativeFeasibilityApi.ts",
+  "docs/system/legacy-retirement.md",
   "tooling/acceptance/windows/collect-client-feasibility.ps1",
   "tooling/acceptance/evaluate-client-feasibility.mjs",
   "tooling/acceptance/evaluate-client-feasibility.test.mjs"
@@ -128,14 +130,34 @@ requireFact(activeEntry.includes('import NativeFeasibilityApp from "./NativeFeas
   activeEntry.includes("mount(NativeFeasibilityApp, { target });") &&
   !activeEntry.includes('import App from "./App.svelte";'),
   "Old VMware UI was mounted instead of the native-first pilot");
-requireFact(activeSurface.includes("desktop.openNativeMinecraft()") &&
+requireFact(activeSurface.includes("nativeFeasibility.openOfficialMinecraft()") &&
+  activeSurface.includes("nativeFeasibility.inspectCandidates()") &&
   !activeSurface.includes("backend.snapshot()") &&
   !activeSurface.includes("backend.startClient(") &&
   !activeSurface.includes("backend.provision("),
-  "Native feasibility screen must not call the legacy VM runtime");
+  "Native feasibility screen must use only official launch and read-only inspection");
 requireFact(activeTauri.includes("commands::native_clients::desktop_open_native_minecraft,") &&
+  activeTauri.includes("commands::native_clients::desktop_inspect_native_candidates,") &&
   !/commands::virtual_clients::virtual_clients_|commands::setup_tools::setup_|commands::window_arrangement::window_/.test(activeTauri),
-  "Deprecated VM/setup/VMware-layout handlers must not be registered");
+  "Only native official launch/read-only inspection handlers may be registered");
+const nativeBridge = read("apps/desktop/src/app/bridge/nativeFeasibilityApi.ts");
+const nativeOwner = read("apps/desktop/src-tauri/src/engine/native_clients.rs");
+const nativeAdapter = read("apps/desktop/src-tauri/src/commands/native_clients.rs");
+requireFact(nativeBridge.includes('"desktop_inspect_native_candidates"') &&
+  nativeBridge.includes("parseNativeObservation") &&
+  !nativeBridge.includes("virtual_clients_"),
+  "Native inspection needs a strict typed bridge without legacy backend access");
+requireFact(nativeOwner.includes("pub fn inspect_native_candidates()") &&
+  nativeOwner.includes("NAME_MATCH_CANDIDATE_ONLY") &&
+  nativeAdapter.includes("fn desktop_inspect_native_candidates("),
+  "Native inspection must be read-only and explicitly marked candidate-only");
+const inspectOwner = nativeOwner.slice(
+  nativeOwner.indexOf("pub fn inspect_native_candidates()"),
+  nativeOwner.indexOf("pub fn open_native_minecraft()")
+);
+requireFact(!/Start-Process|Get-Credential|Set-Item|Remove-Item/.test(inspectOwner),
+  "Native candidate inspection must not launch, mutate or read credentials");
+
 requireFact(rustCommandBoundary.includes("legacy_operation_paused(command, args)") &&
   rustCommandBoundary.includes('"product-status" =>') &&
   rustCommandBoundary.includes('io::ErrorKind::Unsupported') &&

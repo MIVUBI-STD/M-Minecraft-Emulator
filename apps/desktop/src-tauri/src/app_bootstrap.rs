@@ -22,6 +22,7 @@ pub fn run() {
         // Re-enabling a route requires an explicit product decision.
         .invoke_handler(tauri::generate_handler![
             commands::native_clients::desktop_open_native_minecraft,
+            commands::native_clients::desktop_inspect_native_candidates,
         ])
         .run(tauri::generate_context!())
         .expect("failed to run M-Bedrock Virtual Clients desktop runtime");

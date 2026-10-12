@@ -23,8 +23,9 @@ apps/desktop/src-tauri/src/app_bootstrap.rs. Retired code is not removed.
 
 | Source | State / responsibility |
 | --- | --- |
-| apps/desktop/src/NativeFeasibilityApp.svelte | ACTIVE PILOT; official native launch only |
-| apps/desktop/src-tauri/src/engine/native_clients.rs | ACTIVE LIMITED; registered official Windows Start app, no authentication automation |
+| apps/desktop/src/NativeFeasibilityApp.svelte | ACTIVE PILOT; official native launch and explicit read-only candidate observation |
+| apps/desktop/src-tauri/src/engine/native_clients.rs | ACTIVE LIMITED; registered official Windows Start app and bounded same-session PID/HWND inspection, no authentication automation |
+| apps/desktop/src/app/bridge/nativeFeasibilityApi.ts | ACTIVE typed read-only IPC with strict candidate schema and no legacy VM backend |
 | tooling/acceptance/windows/collect-native-feasibility.ps1 | ACTIVE EXPERIMENT; read-only unless explicit launch request |
 | tooling/acceptance/evaluate-native-feasibility.mjs | ACTIVE EXPERIMENT; evidence, not proof of gameplay |
 | tooling/acceptance/windows/collect-sandboxie-feasibility.ps1 | FALLBACK ONLY; optional read-only third-party inspection |
