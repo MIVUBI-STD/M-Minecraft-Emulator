@@ -7,6 +7,7 @@
 
   // One short-lived request at a time; zero timers or background observers.
   let busy = false;
+  let activeOperation = "";
   let selectedExecutable = "";
   let licenseConfirmed = false;
   let observation: IsolatedClientObservation | undefined;
@@ -31,6 +32,10 @@
     observation?.autoDelete === "OFF" &&
     observation?.autoRemove === "OFF" &&
     observation?.credentialHostAccess === "OFF";
+  // UI guidance only: Rust always repeats the actual launch preflight.
+  $: canLaunchIsolated = boxPrepared &&
+    observation?.membershipStatus === "OBSERVED" &&
+    observation?.isolatedCandidateProcesses === 0;
   $: nextAction = !observation
     ? "Choose Refresh to inspect the Windows session and Sandboxie configuration."
     : !observation.interactiveSession
@@ -66,20 +71,26 @@
   async function chooseExecutable() {
     if (busy) return;
     busy = true;
+    activeOperation = "Selecting the Minecraft Education executable…";
     error = "";
     try {
       const chosen = await nativeFeasibility.selectEducationExe();
-      if (chosen) selectedExecutable = chosen;
+      if (chosen && chosen !== selectedExecutable) {
+        selectedExecutable = chosen;
+        licenseConfirmed = false;
+      }
     } catch (reason) {
       error = errorMessage(reason);
     } finally {
       busy = false;
+      activeOperation = "";
     }
   }
 
   async function launchNative() {
     if (busy) return;
     busy = true;
+    activeOperation = "Requesting Client 01 launch…";
     invalidateObservation();
     try {
       await nativeFeasibility.openOfficialMinecraft();
@@ -88,12 +99,14 @@
       error = errorMessage(reason);
     } finally {
       busy = false;
+      activeOperation = "";
     }
   }
 
   async function launchIsolated() {
-    if (busy || !licenseConfirmed || !selectedExecutable) return;
+    if (busy || !licenseConfirmed || !selectedExecutable || !canLaunchIsolated) return;
     busy = true;
+    activeOperation = "Rechecking Sandboxie and requesting Client 02 launch…";
     invalidateObservation();
     try {
       await nativeFeasibility.requestSandboxClient02(selectedExecutable, licenseConfirmed);
@@ -102,6 +115,7 @@
       error = errorMessage(reason);
     } finally {
       busy = false;
+      activeOperation = "";
     }
   }
 
@@ -109,6 +123,7 @@
     if (busy || !focusTarget) return;
     const target: ProcessIdentityCandidate = focusTarget;
     busy = true;
+    activeOperation = "Verifying and focusing Client 02…";
     error = "";
     notice = "";
     try {
@@ -119,6 +134,7 @@
       error = errorMessage(reason);
     } finally {
       busy = false;
+      activeOperation = "";
     }
   }
 
@@ -126,6 +142,7 @@
     if (busy || !focusTarget) return;
     const target: ProcessIdentityCandidate = focusTarget;
     busy = true;
+    activeOperation = "Verifying and arranging Client 02…";
     error = "";
     notice = "";
     try {
@@ -136,12 +153,14 @@
       error = errorMessage(reason);
     } finally {
       busy = false;
+      activeOperation = "";
     }
   }
 
   async function refreshInstances() {
     if (busy) return;
     busy = true;
+    activeOperation = "Inspecting Windows and Sandboxie process membership…";
     error = "";
     observation = undefined;
     try {
@@ -153,6 +172,7 @@
       error = errorMessage(reason);
     } finally {
       busy = false;
+      activeOperation = "";
     }
   }
 </script>
@@ -184,9 +204,10 @@
             Launch Client 01
           </button>
           <button class="pilot-secondary" disabled={busy} on:click={refreshInstances}>
-            {busy ? "Operation running…" : "Refresh both clients"}
+            {busy ? "Checking…" : "Refresh both clients"}
           </button>
         </div>
+        {#if activeOperation}<p class="pilot-info" role="status">{activeOperation}</p>{/if}
         {#if notice}<p class="pilot-info" role="status">{notice}</p>{/if}
         {#if error}<p class="pilot-error" role="alert">{error}</p>{/if}
         <p class="pilot-caution">Refresh is a single explicit Sandboxie/Windows inspection. It does not poll in the background or save a diagnostic report.</p>
@@ -286,10 +307,13 @@
           I confirm Sandboxie Plus is licensed for this use, and MinecraftClient02 is a persistent box.
         </label>
         <div class="pilot-actions">
-          <button class="pilot-primary" disabled={busy || !licenseConfirmed || !selectedExecutable || (observation !== undefined && observation.membershipStatus !== "OBSERVED")} on:click={launchIsolated}>
+          <button class="pilot-primary" disabled={busy || !licenseConfirmed || !selectedExecutable || !canLaunchIsolated} on:click={launchIsolated}>
             Launch Client 02
           </button>
         </div>
+        {#if !canLaunchIsolated}
+          <p class="pilot-caution">Use Refresh to check setup first. Incomplete Sandboxie settings, an unknown process inventory, or an existing Client 02 candidate prevent another launch.</p>
+        {/if}
         <p class="pilot-caution">Launch performs a fresh backend inspection. Unreadable Sandboxie process membership blocks launch rather than assuming the box is empty. A previous Refresh cannot waive this check.</p>
       </section>
 
