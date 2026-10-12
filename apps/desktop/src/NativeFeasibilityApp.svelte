@@ -173,6 +173,9 @@
             <strong>Client 01 · Native</strong>
             <p>Minecraft Education Windows host</p>
             <span>{nativeWindows === null ? "Membership UNKNOWN" : nativeWindows > 0 ? `${nativeWindows} visible candidate(s) outside selected box — native unverified` : "No candidate outside selected box"}</span>
+            {#if membershipObserved}
+              <p class="pilot-caution">{observation?.officialImageOutsideSelectedBoxCount ?? 0} Microsoft-signed Education image candidate(s) outside the selected box. Other Sandboxie boxes are not excluded; native identity and account login remain unverified.</p>
+            {/if}
           </article>
           <article class="pilot-slot">
             <strong>Client 02 · Isolated</strong>
