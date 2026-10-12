@@ -62,7 +62,7 @@ separate launcher process should be built.
 - **Addressability:** `Client 01` denotes the host-native launch path;
   `Client 02` denotes Sandboxie box `MinecraftClient02`. The on-demand
   candidate inventory now carries PID, optional Windows creation FILETIME,
-  HWND and observed box membership (desktop schema 5). PID alone is reusable;
+  HWND and observed box membership (desktop schema 6). PID alone is reusable;
   missing creation time remains unknown. A process outside the selected box
   is not automatically proven host-native. Explicit Refresh can additionally
   identify a Microsoft-signed Education executable candidate from file
@@ -113,13 +113,18 @@ be inferred from PID or Minecraft FPS alone.
    The active desktop invokes it only when requested: explicit UI Refresh
    uses SummaryOnly + ImageProof to validate candidate executable metadata;
    When a signed Education image is found outside Client 02, manual Refresh
-   also performs bounded read-only enumeration of at most six enabled active
-   boxes visible to this Windows account. Matches inside another box are
-   separated from no-match-in-enumerated-boxes; incomplete enumeration stays
-   UNKNOWN. This is not an atomic or exhaustive proof of native identity.
-   Launch, Focus and Place use plain SummaryOnly without Authenticode or
-   cross-box enumeration. Per-invocation image lookups are cached by path,
-   but no paths are reported; no persistent cache or polling is introduced.
+   optionally loads the installed, same-signer Sandboxie SbieDll.dll into
+   the short-lived PowerShell child to query SbieApi_QueryProcess per PID.
+   A Windows process handle plus creation FILETIME checks before and after
+   the vendor call prevent attributing a reused PID. Only a successful
+   response naming another box is a positive OTHER_BOX; all lookup failures,
+   unregistered PIDs and unavailable DLL outcomes remain UNKNOWN.
+   This replaces the previous per-box CLI sweep. The DLL is NEVER loaded
+   into the resident Rust/Tauri process. Launch, Focus and Place use plain
+   SummaryOnly without Authenticode or SbieDll calls. No persistent
+   cache, new helper service or polling exists. Vendor DLL initialization
+   can terminate an inspection child in exceptional conditions; treat such
+   failures as failed Refresh, never process ownership evidence.
 3. **Hot path = bounded, native observation, only if needed and proven.**
    After two-game acceptance, the existing Rust owner may replace repeated
    PowerShell launches with Windows process/window APIs and Sandboxie's
