@@ -287,6 +287,6 @@ test("source-side collector must distinguish missing box keys from failed querie
   assert.ok(source.includes("[switch]$SummaryOnly"));
   assert.ok(source.includes("if (-not $SummaryOnly)"));
   assert.ok(source.includes("if ($null -ne $path) { $summary['reportPath'] = $path }"));
-  assert.equal((source.match(/\\$boxConfigured = if \\(\\$enabled/g) || []).length, 1);
-  assert.equal((source.match(/\\$membershipStatus = 'UNKNOWN'/g) || []).length, 1);
+  assert.equal(source.split("$boxConfigured = if ($enabled").length - 1, 1);
+  assert.equal(source.split("$membershipStatus = 'UNKNOWN'").length - 1, 1);
 });

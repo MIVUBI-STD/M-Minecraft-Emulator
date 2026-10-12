@@ -196,8 +196,8 @@ const sandboxCollector = read("tooling/acceptance/windows/collect-sandboxie-feas
 requireFact(sandboxCollector.includes("[switch]$SummaryOnly") &&
   sandboxCollector.includes("if (-not $SummaryOnly)") &&
   sandboxCollector.includes("if ($null -ne $path) { $summary['reportPath'] = $path }") &&
-  (sandboxCollector.match(/\\$boxConfigured = if \\(\\$enabled/g) || []).length === 1 &&
-  (sandboxCollector.match(/\\$membershipStatus = 'UNKNOWN'/g) || []).length === 1,
+  (sandboxCollector.split("$boxConfigured = if ($enabled").length - 1) === 1 &&
+  (sandboxCollector.split("$membershipStatus = 'UNKNOWN'").length - 1) === 1,
   "One valid Sandboxie evidence owner; desktop summary refresh writes no report");
 const nativeProcessPattern = "^(Minecraft\\.Windows|Minecraft.*Education.*|Education.*Minecraft.*)$";
 requireFact(nativeOwner.includes(nativeProcessPattern) &&
