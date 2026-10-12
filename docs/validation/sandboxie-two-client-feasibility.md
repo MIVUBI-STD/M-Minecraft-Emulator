@@ -29,9 +29,17 @@ Sandboxie Plus provides:
 - Start.exe /box:BOX /listpids to enumerate PIDs reported inside a box.
   Start.exe is a GUI subsystem program; redirected stdout may not work
   on every configuration. No result means UNKNOWN, not zero processes.
-  The count includes all sandbox processes, not just game candidates:
-  the collector accepts up to 256 listed PIDs with a 4096-character
-  output limit, while the Minecraft candidate list remains limited to 16.
+  The helper's redirected stdout is consumed while it runs, with bounded
+  memory and a total 5-second helper deadline, rather than waiting for exit
+  while the output pipe fills. The CLI's two separately parsed PID snapshots
+  must agree (including a genuinely empty box), or the collector tries
+  the existing signed read-only DLL fallback. All reported box PIDs must
+  also be present in the Windows process inventory; otherwise membership
+  is UNKNOWN. These observations are not atomic proof against concurrent
+  processes launching after inspection. The count includes all sandbox
+  processes, not just game candidates: the collector accepts up to 256
+  listed PIDs with a 4096-character output limit, while the Minecraft
+  candidate list remains limited to 16.
   When that CLI output is missing or invalid, the same short-lived collector
   may fall back to the verified installed `SbieDll.dll`
   `SbieApi_EnumProcessEx` read-only export. The fallback must confirm
@@ -250,9 +258,12 @@ This transport has not been exercised on a real Windows machine.
 - **Source/proof boundary:** no schema version changes: the existing
   `imageEvidence` label now permits signed candidates either outside
   the selected box or inside its verified membership. The existing
-  `officialImageOutsideSelectedBoxCount` still counts *outside only*.
-  Windows, PowerShell, Rust, frontend, Minecraft and performance checks
-  have not been executed at this commit.
+  `officialImageOutsideSelectedBoxCount` counts *outside only*: a signed,
+  targeted boxed process never increments it. The Rust consumer separately
+  reconciles this count with the signed candidates attributed outside the
+  selected box. This source-contract mismatch was corrected after the
+  initial REA-aligned audit. Windows, PowerShell, Rust, frontend, Minecraft
+  and performance checks have not been executed for these revisions.
 
 References:
 - https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.security/get-authenticodesignature
