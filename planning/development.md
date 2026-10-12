@@ -1,3 +1,73 @@
+## Current work — repair native pre-localtest architecture (2026-10-12)
+
+**Work:** emulator/native-prelocaltest-correctness
+**State:** SOURCE_PATCHED_AND_REVIEWED / NODE_RUST_WINDOWS_MINECRAFT_NOT_EXECUTED.
+**Scope:** Native-first feasibility only. No new provider, VM lifecycle owner,
+sign-in automation, guest migration, app identity change, installer or UI features.
+
+### Exact implemented repairs
+
+- Native desktop inspection, native Windows collector, and fallback Sandboxie
+  collector now consistently observe `Minecraft.Windows` alongside Education-
+  named candidates. This process name is shared with other Minecraft products,
+  so all counts remain `NAME_MATCH_CANDIDATE_ONLY`. A zero count is not an
+  automatic game-feasibility failure, and a positive count is not identity proof.
+- Native official Start-app launch now checks interactive Windows session,
+  32-bit-view Desktop version registry evidence, Store-package conflict and
+  unique registered launcher identity before requesting launch. It does not
+  force a second process or touch game accounts.
+- Sandboxie evaluator rejects PID outside Win32 range, aliasing hexadecimal
+  HWNDs and multiplayer `NO` in a claimed compatible run. Multiplayer
+  `UNKNOWN` preserves intermediate reported playability but not final
+  compatibility. Native evaluator remains unchanged.
+- Prototype desktop-instance marker now uses
+  `%LOCALAPPDATA%\\MIVUBI\\MinecraftEmulatorNativePilot`, separate from
+  legacy `%LOCALAPPDATA%\\M-Bedrock\\VirtualClients`. Existing account
+  VM disks, profiles, snapshots and data remain unmodified.
+- Legacy NSIS packaging still refuses release with an explicit constant guard
+  regardless of UI component renaming. Native local experimentation uses
+  pinned `npm run verify:source` and `npm run dev`, not VMware NSIS G0.
+- Existing regressions/source-verifier and current versus legacy documentation
+  were aligned. No new test state database, release pipeline, service,
+  Microsoft-account handler or provider was added.
+
+### Executed evidence and ceiling
+
+Exact GitHub revisions:
+- `57020dc49fffb234eb46ef8fb6453e5a468d4612` — runtime/collector fixes.
+- `d6ffd9bfce75449fab5c7c5acac3a7a5d7c59c70` — source regression changes.
+- `a3e13682890b1c3e5e12d5255da4936e61f2a878` — docs/source handoff.
+
+Eight evaluator scenarios were ACTUALLY executed in a ChatGPT V8 function
+sandbox against source from the current `Local` tree: native happy,
+native multiplayer UNKNOWN, native aliased HWND; Sandboxie happy,
+multiplayer UNKNOWN, multiplayer NO, aliased HWND and over-range PID:
+8/8 expected classifications. This is limited pure-JS evaluator evidence,
+**not** Node's `node --test`, Vitest, Rust, PowerShell, Windows package,
+Minecraft login/gameplay or four-account acceptance. Those remain
+**NOT_EXECUTED** on this code revision. The updated source tests are
+authored but have not been run in their native toolchains.
+
+### Still unresolved before claimed readiness
+
+1. Actually execute pinned Node/Svelte/Vitest, Cargo checks/tests and Rust
+   formatting; prove dev Tauri opens safely on Windows.
+2. Inspect genuine process/window origin and confirm which actual Education
+   executable/version is installed; Minecraft.Windows can also be Bedrock.
+3. Observe two independent licensed Education game instances with correct
+   account separation, rendered worlds, input, multiplayer and reboot state.
+4. Only after a native two-client GO, assess four concurrent accounts,
+   2x2 arrangement versus a true single-window composition, long-run
+   RAM/GPU pressure, networking and recovery. Neither is implemented/proven.
+5. The old VMware release installer remains BLOCKED. A separate reviewed,
+   data-preserving native distribution must precede an installable prototype.
+
+**Next:** STOP speculative architecture changes; run exact-SHA source checks
+when executable toolchains are available. Do not request guest-VM testing or
+assume source fixes establish account compatibility.
+
+---
+
 ## Current work — correct feasibility layers and Sandboxie defaults (2026-10-12)
 
 **Work:** emulator/feasibility-evidence-correction
