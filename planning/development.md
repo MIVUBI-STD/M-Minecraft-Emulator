@@ -1,7 +1,7 @@
 # Current Development Handoff
 
 **Branch:** `Local` only. **Product:** Minecraft Instance Manager.
-**Current work:** `emulator/client02-launch-admission-hardening`.
+**Current work:** `emulator/client02-process-identity`.
 **Engineering state:** source prototype / **Windows build and two-account gameplay NOT_EXECUTED**.
 
 ## One selected outcome and engine
@@ -41,9 +41,14 @@ part of the active implementation.
   including explicit local/global protected-storage template selections.
 - Backend launch admission serializes Client 02 preflight and requests without
   relying on UI buttons; a brief retry gap guards ambiguous requests.
-- The SummaryOnly IPC schema is now 2, reporting sandbox Minecraft-name
-  process counts even when HWND is absent. Persisted CLI evidence remains
-  schema 1. Collector stdout wait is bounded after helper exit; the launch
+- The SummaryOnly IPC schema is now 3: one bounded candidate list carries
+  PID, optional creation FILETIME, HWND and observed box membership, with
+  Rust/TypeScript validation of counts, uniqueness and attribution.
+  Creation FILETIME is a decimal string so JavaScript cannot lose precision.
+  An inaccessible start time stays null; a PID alone is never a stable identity.
+  Persisted CLI evidence remains schema 1. The collector runs only on demand;
+  no background process or new vendor-DLL binding is introduced.
+  Collector stdout wait is bounded after helper exit; the launch
   helper handle is disposed without terminating game or box.
 - One fixed persistent box `MinecraftClient02`, with checks for
   `AutoDelete`, `AutoRemove` and known credential configuration. No
@@ -86,10 +91,10 @@ PowerShell or a two-game proof. Do not promote old evidence to new HEAD.
 TypeScript and collector regression checks only. Node, Rust, PowerShell and
 Windows/Minecraft executions on current HEAD remain **NOT_EXECUTED**.
 
-**Next bounded engineering action:** investigate a trusted process identity
-adapter based on the documented Sandboxie API and Windows process creation
-time. Verify the exact vendor ABI/header and trust boundary before any DLL
-binding. No second daemon, credentials storage or lifecycle manager.
+**Next bounded engineering action:** connect only necessary user actions
+such as Focus/Arrange to a fresh identity-checked HWND, verifying both PID
+and creation FILETIME before any window manipulation. Do not treat an old
+snapshot as current; Sandboxie DLL FFI remains deferred pending ABI review.
 
 ## Historical provenance (not active task state)
 
