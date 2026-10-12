@@ -145,9 +145,14 @@ candidate process windows. The historical JSON field
 `credentialHostAccess` must be interpreted as a configuration/bypass
 indicator, not a proof that host credentials are inaccessible. Its source is embedded in the development
 Tauri backend so the inspector and launcher preflight reuse the same rules.
-The current desktop summary is IPC schema 2 and includes a count of
-Minecraft-name processes inside the box even before a window is visible.
-The persisted full JSON report remains schema 1 for the existing evaluator.
+The current desktop summary is IPC schema 3 and includes a bounded
+list of Minecraft-name process candidates with PID, optional Windows
+creation FILETIME string, HWND and observed sandbox membership. The
+list is internally reconciled against visible/boxed counters, including
+processes that have not created a window. A process without accessible
+start time remains a name-matched candidate only. The persisted full
+JSON report remains schema 1 with its earlier process field shapes
+for the existing evaluator.
 The Rust backend serializes manager-initiated launch attempts and suppresses
 rapid ambiguous retries; it does not control independent launches made
 outside the manager. An UNKNOWN /listpids result remains UNKNOWN, not an
