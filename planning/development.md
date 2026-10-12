@@ -1,3 +1,49 @@
+## Current work — native two-client launcher feasibility pilot (2026-10-12)
+
+**Work:** emulator/native-multi-instance-feasibility
+**State:** SOURCE_PILOT_AUTHORED / WINDOWS_GAMEPLAY_NOT_EXECUTED.
+**Approved outcome:** one Windows PC, four concurrent Minecraft Education
+Windows Desktop sessions and four distinct licensed accounts, simple launcher
+experience and minimum duplicate storage. Native process/real application
+isolation is preferred to virtual Windows guests *only if verified feasible*.
+The user's new intent supersedes previous design proposals, but DOES NOT
+make old VMware guest data disposable or the new provider production-ready.
+
+### This bounded implementation
+
+- New explicit Windows host collector:
+  tooling/acceptance/windows/collect-native-feasibility.ps1.
+  Read-only by default. Only an explicit -LaunchRequests with -ConfirmLaunch
+  can ask the already registered official Start app to open normally, at most
+  twice. It cannot automate sign-in, force additional processes, or change
+  the Minecraft install, account data, world files, VM/guest, or drivers.
+- New pure evidence evaluator plus regression fixtures:
+  tooling/acceptance/evaluate-native-feasibility.mjs and .test.mjs.
+  Candidate PID + visible HWND is never treated as a certified signed-in
+  game. Operator observations are preserved as attributed claims; missing
+  or contrary game evidence cannot be promoted to automatic PASS.
+- One canonical experiment procedure:
+  docs/validation/native-multi-instance-feasibility.md. Existing production
+  Rust VM provider/UI/wire schemas, packaging identity, runtime data,
+  manual CI, and old G0–G4 records are not changed.
+- Root npm adds test:native-feasibility and native-feasibility:review and
+  includes the new pure test in verify:source. No new dependencies.
+
+### Proof ceiling and next work
+
+Source/static review at exact Local head only unless explicitly executed.
+PowerShell on Windows, source Node tests on the target checkout, native
+process behavior, actual Microsoft Education login and multiplayer are
+NOT_EXECUTED; previous G0 success at SHA 509ce10f0fd5129e4da2990614651fb57241b256
+remains historical and cannot be transferred to this changed commit.
+**Next:** obtain one real two-client Windows host evidence report and review
+the game behavior; if native fails, assess a separate application sandbox
+experiment before writing a production launch adapter. Do NOT resume manual
+VMware onboarding, remove any VM/account files, change main, or enable
+automatic GitHub workflows.
+
+---
+
 ## Codex next session — simplify installation: design discussion requested (2026-10-12)
 
 **Work:** `emulator/simple-install-design`; **State: DESIGN_DISCUSSION_READY / MANUAL_VMWARE_SETUP_PAUSED**. User explicitly asks to reconsider the approach and bring the local reports into the repo for discussion. This is the only current continuation. Read this section only, stopping at the first `---`; later sections are evidence/history, not authorization to resume guest setup. Repository baseline: `Local` @ `4fa6cd456094db25352c13c16ed6d831e71bc094` before this documentation commit.

@@ -9,6 +9,16 @@ lifecycle: ACTIVE
 
 # Validation and Evidence
 
+## Current native-first feasibility investigation (2026-10-12)
+
+The approved *new product outcome* is four Minecraft Education Windows
+sessions with four independent accounts, **without VM guests if feasible**.
+The first engineering work is a bounded, non-destructive
+[native two-client feasibility experiment](./native-multi-instance-feasibility.md).
+This is an evidence collector and evaluator only; it does not imply native
+multi-instance works or supersede any passed legacy VM package G0 record.
+Existing VMware G1–G4 remain unexecuted and unrelated to native viability.
+
 | Question | Authoritative reference |
 | --- | --- |
 | What are the only product-test progress gates and their exit criteria? | [Acceptance G0–G4](./acceptance.md) — one canonical five-gate campaign |

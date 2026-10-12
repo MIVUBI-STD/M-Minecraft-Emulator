@@ -4,9 +4,9 @@ Verified product direction: 2026-10-11. This file contains **stable product and 
 
 ## Product and target
 
-**Approved product:** Four Windows desktop Minecraft Education game windows on one PC, each concurrently signed into a distinct licensed account, independently playable. **Approved future provider direction:** free/MIT App Sandbox v0.1.9 with GPU-PV and three isolated licensed Windows x64 guests on the Windows 11 host, subject to real GPU/OpenGL 4.4+, gameplay and licensing proof. This target is **not yet a working product**.
+**Approved product outcome (2026-10-12):** Four concurrently playable Minecraft Education Windows desktop game windows with four different legitimately licensed accounts on one PC. **New engineering direction:** feasibility-first native multi-process with one official Desktop installation; if unsupported, test application isolation before considering guest VMs. No process/account-isolation method is proven yet. Do not modify game binaries, bypass sign-in, or promise supported native multi-instance.
 
-**Current production source remains VMware Workstation.** It is a dedicated Windows multi-instance manager for Minecraft Education QA, not a game-engine emulator or general-purpose hypervisor. App Sandbox is still a bounded source/pilot migration; installed VMware VMs and account data must be preserved. The UI must not switch providers just because a read-only pilot responds.
+**Current implemented source remains VMware Workstation (legacy/frozen for new features).** Its virtual accounts, disks and guest-state must be preserved. App Sandbox GPU-PV remains a guarded experimental pilot only, not the chosen launcher implementation. No UI/provider cutover may occur until native feasibility evidence is independently reviewed. Current development experiment and proof owner: docs/validation/native-multi-instance-feasibility.md; planning/development.md.
 
 The legacy implementation path is:
 

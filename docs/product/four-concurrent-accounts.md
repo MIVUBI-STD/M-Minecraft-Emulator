@@ -9,7 +9,25 @@ lifecycle: ACTIVE
 
 # Four concurrent Minecraft Education Windows desktop clients
 
-## Single approved architecture
+## Approved product outcome — feasibility-first (2026-10-12)
+
+Four concurrent, independently playable **Minecraft Education Windows Desktop**
+sessions with four distinct legitimately licensed accounts on one Windows PC.
+Preferred implementation, **only if real game evidence permits**, is one
+official Desktop installation plus multiple native processes with independently
+isolated accounts and persistent user data. No Windows guests, ISO setup,
+VMware or App Sandbox in the target daily workflow if native succeeds.
+Avoid game EXE modification, injection, single-instance/authentication bypass,
+or collection of account secrets.
+
+**Implementation and proof status:** the production source below is still
+the older VMware-based manager. Native two-client feasibility is NOT_EXECUTED;
+one native install does NOT yet imply two playable authenticated sessions.
+Begin with [Native Feasibility](../validation/native-multi-instance-feasibility.md).
+If native fails, separately assess licensed application isolation; retain
+VM code and account disks as an unchanged fallback until a proven cutover.
+
+## Existing VMware implementation (legacy, not new product direction)
 
 One Windows PC runs **four separate Minecraft Education Windows desktop clients concurrently**, each with its own licensed Microsoft 365 Education account: **one native Windows client + three isolated Windows 10/11 VMware Workstation guests**. The game must install, sign in, render, accept input and remain responsive in each guest. No Android, BlueStacks, multi-mode launcher or account automation is in scope. Four active VM processes are not evidence of four playable game windows.
 
