@@ -1,111 +1,92 @@
 <script lang="ts">
   import {
     nativeFeasibility,
-    type NativeProcessObservation,
     type IsolatedClientObservation,
   } from "./app/bridge/nativeFeasibilityApi.js";
 
-  let opening = false;
-  let inspecting = false;
-  let launchMessage = "";
-  let inspectError = "";
-  let launchError = "";
-  let observation: NativeProcessObservation | undefined;
-  let isolatedObservation: IsolatedClientObservation | undefined;
-  let isolatedExecutable = "";
-  let licenseAccepted = false;
-  let isolationBusy = false;
-  let isolationNotice = "";
-  let isolationError = "";
+  // One short-lived request at a time; zero timers or background observers.
+  let busy = false;
+  let selectedExecutable = "";
+  let licenseConfirmed = false;
+  let observation: IsolatedClientObservation | undefined;
+  let notice = "";
+  let error = "";
 
-  async function chooseClient02Executable() {
-    if (isolationBusy || opening || inspecting) return;
-    isolationBusy = true;
-    isolationError = "";
+  $: membershipObserved = observation?.interactiveSession === true &&
+    observation?.membershipStatus === "OBSERVED";
+  $: nativeWindows = membershipObserved ? observation?.nativeVisibleCandidates : null;
+  $: isolatedWindows = membershipObserved ? observation?.isolatedVisibleCandidates : null;
+
+  function errorMessage(reason: unknown): string {
+    if (typeof reason === "string" && reason.trim()) return reason.trim();
+    if (reason instanceof Error) return reason.message;
+    if (reason !== null && typeof reason === "object" && "message" in reason &&
+        typeof reason.message === "string") return reason.message;
+    return "Windows operation failed without a usable diagnostic message.";
+  }
+
+  function invalidateObservation() {
+    observation = undefined;
+    error = "";
+    notice = "";
+  }
+
+  async function chooseExecutable() {
+    if (busy) return;
+    busy = true;
+    error = "";
     try {
-      const selected = await nativeFeasibility.selectEducationExe();
-      if (selected) isolatedExecutable = selected;
-    } catch (error) {
-      isolationError = errorMessage(error);
+      const chosen = await nativeFeasibility.selectEducationExe();
+      if (chosen) selectedExecutable = chosen;
+    } catch (reason) {
+      error = errorMessage(reason);
     } finally {
-      isolationBusy = false;
+      busy = false;
     }
   }
 
-  async function launchClient02() {
-    if (!isolatedExecutable || !licenseAccepted || isolationBusy || opening || inspecting) return;
-    isolationBusy = true;
-    isolationNotice = "";
-    isolationError = "";
-    observation = undefined;
-    isolatedObservation = undefined;
-    try {
-      await nativeFeasibility.requestSandboxClient02(isolatedExecutable, licenseAccepted);
-      isolationNotice = "Launch requested in MinecraftClient02. Independently confirm Sandboxie PID ownership, two game windows and separate Microsoft Education logins.";
-    } catch (error) {
-      isolationError = errorMessage(error);
-    } finally {
-      isolationBusy = false;
-    }
-  }
-
-  const slots = [
-    { title: "Client 01", description: "Official Minecraft Education desktop launch" },
-    { title: "Client 02", description: "MinecraftClient02 · Sandboxie Windows isolation" },
-  ] as const;
-
-  $: processCandidates = observation?.candidates.length ?? null;
-  $: visibleCandidates = observation
-    ? observation.candidates.filter((item) => item.windowHandle !== null).length
-    : null;
-
-  function errorMessage(error: unknown): string {
-    if (typeof error === "string" && error.trim()) return error.trim();
-    if (error instanceof Error) return error.message;
-    if (error !== null && typeof error === "object" && "message" in error &&
-        typeof error.message === "string") return error.message;
-    return "Windows observation is unavailable.";
-  }
-
-  async function inspectWindows() {
-    if (inspecting || opening || isolationBusy) return;
-    inspecting = true;
-    inspectError = "";
-    observation = undefined;
-    isolatedObservation = undefined;
-    try {
-      // Two independent observations. A failed sandbox probe must never
-      // erase a valid native observation or manufacture a zero membership.
-      const [nativeResult, isolatedResult] = await Promise.allSettled([
-        nativeFeasibility.inspectCandidates(),
-        nativeFeasibility.inspectIsolatedClient02(),
-      ]);
-      const failures: string[] = [];
-      if (nativeResult.status === "fulfilled") observation = nativeResult.value;
-      else failures.push("Native observation: " + errorMessage(nativeResult.reason));
-      if (isolatedResult.status === "fulfilled") isolatedObservation = isolatedResult.value;
-      else failures.push("Sandboxie observation: " + errorMessage(isolatedResult.reason));
-      inspectError = failures.join(" | ");
-    } finally {
-      inspecting = false;
-    }
-  }
-
-  async function launchOfficialMinecraft() {
-    if (opening || inspecting || isolationBusy) return;
-    opening = true;
-    launchMessage = "";
-    launchError = "";
-    // Old observations must never be reused as evidence after a launch.
-    observation = undefined;
-    isolatedObservation = undefined;
+  async function launchNative() {
+    if (busy) return;
+    busy = true;
+    invalidateObservation();
     try {
       await nativeFeasibility.openOfficialMinecraft();
-      launchMessage = "Windows received an official launch request. It may reopen the existing game instead of creating another process. Inspect windows after the game has appeared.";
-    } catch (error) {
-      launchError = errorMessage(error);
+      notice = "Client 01 launch requested. Use Refresh to observe the Windows process.";
+    } catch (reason) {
+      error = errorMessage(reason);
     } finally {
-      opening = false;
+      busy = false;
+    }
+  }
+
+  async function launchIsolated() {
+    if (busy || !licenseConfirmed || !selectedExecutable) return;
+    busy = true;
+    invalidateObservation();
+    try {
+      await nativeFeasibility.requestSandboxClient02(selectedExecutable, licenseConfirmed);
+      notice = "Client 02 launch requested in MinecraftClient02. Use Refresh to verify sandbox PID membership. Login and gameplay remain unverified.";
+    } catch (reason) {
+      error = errorMessage(reason);
+    } finally {
+      busy = false;
+    }
+  }
+
+  async function refreshInstances() {
+    if (busy) return;
+    busy = true;
+    error = "";
+    observation = undefined;
+    try {
+      // A single canonical Sandboxie collector call covers BOTH clients.
+      // SummaryOnly: no per-refresh evidence file or background process.
+      observation = await nativeFeasibility.inspectIsolatedClient02();
+      notice = "Process observations refreshed. No accounts or worlds were inspected.";
+    } catch (reason) {
+      error = errorMessage(reason);
+    } finally {
+      busy = false;
     }
   }
 </script>
@@ -114,116 +95,95 @@
   <aside class="rail">
     <div class="brand">
       <div class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></div>
-      <div><strong>Minecraft Instance Manager</strong><span>Native-first pilot</span></div>
+      <div><strong>Minecraft Instance Manager</strong><span>Lightweight Windows pilot</span></div>
     </div>
     <div class="pilot-sidebar">
-      <strong>Development mode</strong>
-      <p>Legacy VM controls are paused. Existing guest disks, worlds, and account data are preserved.</p>
+      <strong>Two clients · one controller</strong>
+      <p>Manual launch and inspection. No VM guest, frame capture, background polling or account automation.</p>
     </div>
   </aside>
 
   <main>
     <header class="topbar">
-      <h1>Minecraft Education · Multi-instance feasibility</h1>
-      <span class="pilot-label">NOT GAMEPLAY VERIFIED</span>
+      <h1>Minecraft Education · Two Windows clients</h1>
+      <span class="pilot-label">GAMEPLAY NOT VERIFIED</span>
     </header>
     <div class="pilot-main">
       <section class="pilot-intro">
-        <span class="eyebrow">ACTIVE DEVELOPMENT ROUTE</span>
-        <h2>Two independent Minecraft Education accounts — feasibility pilot</h2>
-        <p>Current focus: one normal Windows Minecraft Education game plus one MinecraftClient02 sandboxed game, using two different licensed accounts. Four concurrent clients remain a future goal, not an active implementation.</p>
+        <span class="eyebrow">ON-DEMAND CONTROL</span>
+        <h2>Run Windows Minecraft directly, with isolated Client 02</h2>
+        <p>Client 01 runs on the Windows host. Client 02 requests the same official Desktop game inside the persistent Sandboxie Plus box MinecraftClient02. The manager never captures game frames or creates virtual machines.</p>
         <div class="pilot-actions">
-          <button class="pilot-primary" disabled={opening || inspecting || isolationBusy} on:click={launchOfficialMinecraft}>
-            {opening ? "Requesting launch…" : "Request official Minecraft launch"}
+          <button class="pilot-primary" disabled={busy} on:click={launchNative}>
+            Launch Client 01
           </button>
-          <button class="pilot-secondary" disabled={opening || inspecting || isolationBusy} on:click={inspectWindows}>
-            {inspecting ? "Inspecting…" : "Inspect Windows + Sandboxie (read-only)"}
+          <button class="pilot-secondary" disabled={busy} on:click={refreshInstances}>
+            {busy ? "Operation running…" : "Refresh both clients"}
           </button>
         </div>
-        {#if launchMessage}<p class="pilot-info" role="status">{launchMessage}</p>{/if}
-        {#if launchError}<p class="pilot-error" role="alert">{launchError}</p>{/if}
-        {#if inspectError}<p class="pilot-error" role="alert">Inspection unavailable: {inspectError}</p>{/if}
+        {#if notice}<p class="pilot-info" role="status">{notice}</p>{/if}
+        {#if error}<p class="pilot-error" role="alert">{error}</p>{/if}
+        <p class="pilot-caution">Refresh is a single explicit Sandboxie/Windows inspection. It does not poll in the background or save a diagnostic report.</p>
       </section>
 
-      <section class="pilot-section" aria-label="Sandboxie Client 02">
-        <span class="eyebrow">CLIENT 02 · WINDOWS ISOLATION</span>
-        <h3>Launch Minecraft Education in MinecraftClient02</h3>
-        <p>Use one pre-existing, persistent Sandboxie Plus box named MinecraftClient02. Disable AutoDelete and AutoRemove. Select the installed Minecraft Education EXE, not the downloaded installer.</p>
+      <section class="pilot-section" aria-label="Client status">
+        <span class="eyebrow">WINDOWS PROCESS CANDIDATES</span>
+        <div class="pilot-grid">
+          <article class="pilot-slot">
+            <strong>Client 01 · Native</strong>
+            <p>Minecraft Education Windows host</p>
+            <span>{nativeWindows === null ? "Membership UNKNOWN" : nativeWindows > 0 ? `${nativeWindows} visible process candidate(s)` : "No visible candidate observed"}</span>
+          </article>
+          <article class="pilot-slot">
+            <strong>Client 02 · Isolated</strong>
+            <p>Sandboxie box MinecraftClient02</p>
+            <span>{isolatedWindows === null ? "Membership UNKNOWN" : isolatedWindows > 0 ? `${isolatedWindows} visible process candidate(s) in box` : "No visible candidate observed in box"}</span>
+          </article>
+        </div>
+        {#if observation}
+          <p class="pilot-caution">
+            Sandboxie box: {observation.boxConfigured}.
+            PID membership: {observation.membershipStatus}.
+            Host credential-store access: {observation.credentialHostAccess}.
+            AutoDelete: {observation.autoDelete}.
+            AutoRemove: {observation.autoRemove}.
+          </p>
+          <p class="pilot-caution">
+            Process names and visible windows are candidates only. Sandbox membership does not prove Minecraft Education identity, two Microsoft sign-ins, world rendering or multiplayer.
+          </p>
+        {:else}
+          <p class="pilot-caution">No current inspection. Click Refresh both clients to inspect process membership.</p>
+        {/if}
+      </section>
+
+      <section class="pilot-section" aria-label="Launch isolated Client 02">
+        <span class="eyebrow">CLIENT 02 · EXPLICIT ISOLATED LAUNCH</span>
+        <h3>Launch through Sandboxie Plus</h3>
+        <p>Create a clean, persistent box named MinecraftClient02 in Sandboxie Plus. Use its appropriate licence; keep AutoDelete, AutoRemove and OpenCredentials disabled. Select the installed Microsoft-signed Minecraft Education Desktop executable.</p>
         <div class="pilot-actions">
-          <button class="pilot-secondary" disabled={isolationBusy || opening || inspecting} on:click={chooseClient02Executable}>
+          <button class="pilot-secondary" disabled={busy} on:click={chooseExecutable}>
             Select installed Education EXE
           </button>
         </div>
-        {#if isolatedExecutable}<p class="pilot-caution">Executable selected for this session; identity and signature will be checked.</p>{/if}
-        <label class="pilot-caution"><input type="checkbox" bind:checked={licenseAccepted} /> I confirm Sandboxie Plus is licensed for this use and MinecraftClient02 is persistent.</label>
+        {#if selectedExecutable}
+          <p class="pilot-caution">Education EXE selected for this session. Backend will verify file metadata and signer before requesting launch.</p>
+        {/if}
+        <label class="pilot-caution">
+          <input type="checkbox" bind:checked={licenseConfirmed} />
+          I confirm Sandboxie Plus is licensed for this use, and MinecraftClient02 is a persistent box.
+        </label>
         <div class="pilot-actions">
-          <button class="pilot-primary" disabled={isolationBusy || opening || inspecting || !isolatedExecutable || !licenseAccepted} on:click={launchClient02}>
-            {isolationBusy ? "Processing…" : "Launch isolated Client 02"}
+          <button class="pilot-primary" disabled={busy || !licenseConfirmed || !selectedExecutable} on:click={launchIsolated}>
+            Launch Client 02
           </button>
-        </div>
-        {#if isolationNotice}<p class="pilot-info" role="status">{isolationNotice}</p>{/if}
-        {#if isolationError}<p class="pilot-error" role="alert">{isolationError}</p>{/if}
-      </section>
-      <section class="pilot-section" aria-label="Native process observations">
-        <span class="eyebrow">WINDOWS PROCESS OBSERVATION</span>
-        {#if observation}
-          <div class="pilot-counts" role="status">
-            <div><strong>{processCandidates}</strong><span>Name-matched process candidates</span></div>
-            <div><strong>{visibleCandidates}</strong><span>Candidates with visible windows</span></div>
-          </div>
-          <p class="pilot-caution">
-            {observation.interactiveSession
-              ? "Observed in the current interactive Windows session."
-              : "The observation did not originate from an interactive Windows desktop."}
-            {visibleCandidates !== null && visibleCandidates >= 2
-              ? " Two window candidates exist, but account isolation and playable worlds are still UNKNOWN."
-              : " Two independent game windows have NOT been established."}
-          </p>
-        {:else}
-          <p class="pilot-caution">No current inspection. Use Inspect Windows after the game opens. Counts are never treated as evidence of signed-in Minecraft accounts.</p>
-        {/if}
-      </section>
-
-      <section class="pilot-section" aria-label="Sandboxie Client 02 observation">
-        <span class="eyebrow">CLIENT 02 · OBSERVED SANDBOX MEMBERSHIP</span>
-        {#if isolatedObservation}
-          <div class="pilot-counts" role="status">
-            <div><strong>{isolatedObservation.nativeVisibleCandidates}</strong><span>Native window candidates</span></div>
-            <div><strong>{isolatedObservation.isolatedVisibleCandidates}</strong><span>Windows belonging to MinecraftClient02 (candidate only)</span></div>
-          </div>
-          <p class="pilot-caution">
-            Sandboxie box: {isolatedObservation.boxConfigured}.
-            PID membership: {isolatedObservation.membershipStatus}.
-            Host credential-store access: {isolatedObservation.credentialHostAccess}.
-            AutoDelete: {isolatedObservation.autoDelete}.
-            AutoRemove: {isolatedObservation.autoRemove}.
-          </p>
-          <p class="pilot-caution">
-            OpenCredentials OFF only establishes a Sandboxie configuration fact.
-            Microsoft account separation, Minecraft gameplay and WAM authentication are not automatically verified.
-          </p>
-        {:else}
-          <p class="pilot-caution">No verified Sandboxie observation. Inspect Windows + Sandboxie to see whether a separate Minecraft candidate actually belongs to the selected box.</p>
-        {/if}
-      </section>
-      <section class="pilot-section">
-        <span class="eyebrow">TWO-CLIENT FEASIBILITY TARGET</span>
-        <div class="pilot-grid">
-          {#each slots as slot, index}
-            <article class="pilot-slot">
-              <strong>{slot.title}</strong>
-              <p>{slot.description}</p>
-              <span>{index === 0 ? "Official launch only · gameplay unverified" : "Isolated launch available · game/login unverified"}</span>
-            </article>
-          {/each}
         </div>
       </section>
 
       <section class="pilot-section pilot-boundary">
-        <span class="eyebrow">NEXT EVIDENCE GATE</span>
-        <h3>Two signed-in games before a four-account launcher</h3>
-        <p>Inspect is read-only and records no email addresses, passwords, Microsoft tokens, world names, process command lines or executable paths. Actual login, game rendering, input and persistence still require independently reviewed observations inside Minecraft.</p>
-        <p>The only second-client experiment uses the licensed, preconfigured MinecraftClient02 box. It never installs or deletes a sandbox, modifies VMs, copies worlds or handles Microsoft sign-in.</p>
+        <span class="eyebrow">VALIDATION BOUNDARY</span>
+        <h3>Two independent licensed game accounts are not yet proven</h3>
+        <p>OpenCredentials OFF is only a sandbox setting. Microsoft WAM/ADAL helpers may behave differently. Independently verify login, input, world playability, multiplayer and persistence before declaring Client 02 compatible.</p>
+        <p>The former VMware runtime remains disabled and its account data untouched. The old VMware NSIS installer is blocked.</p>
       </section>
     </div>
   </main>
