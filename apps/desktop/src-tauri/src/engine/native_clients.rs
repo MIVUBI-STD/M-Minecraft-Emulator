@@ -322,9 +322,14 @@ if ($version -notmatch '^\d+(?:\.\d+){{1,4}}$' -or
     throw 'Requires one official Desktop edition, without Store edition'
 }}
 $product = [Diagnostics.FileVersionInfo]::GetVersionInfo($game).ProductName
+$signature = Get-AuthenticodeSignature -LiteralPath $game
+$publisher = if ($null -ne $signature.SignerCertificate) {{
+    [string]$signature.SignerCertificate.Subject
+}} else {{ '' }}
 if ($product -notmatch '(?i)(Minecraft.*Education|Education.*Minecraft)' -or
-    (Get-AuthenticodeSignature -LiteralPath $game).Status -ne 'Valid') {{
-    throw 'Selected executable must be a signed Minecraft Education Desktop build'
+    $signature.Status -ne 'Valid' -or
+    $publisher -notmatch '(?i)(^|,\s*)O=Microsoft Corporation(,|$)') {{
+    throw 'Selected executable must be a valid Microsoft Corporation-signed Minecraft Education Desktop build'
 }}
 $install = @((Join-Path $env:ProgramFiles 'Sandboxie-Plus'),
              (Join-Path $env:ProgramFiles 'Sandboxie')) |
