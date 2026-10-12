@@ -26,6 +26,16 @@ additional instances.
 
 ### Proof ceiling
 
+On source revision `b36e1c4eeaf279a32ddd5c11995fa6c0a596d59c`,
+**15/15 existing Sandboxie evaluator source test callbacks actually passed**
+when executed against the exact JS evaluator in the ChatGPT V8 isolate
+(using mocked readFileSync for the collector source). This is NOT the Node
+`node --test` runner. The current PowerShell collector also passed an
+isolated static delimiter/string-balance scan (0 unbalanced delimiters);
+that is NOT a PowerShell parser nor an actual Windows run. The JS
+repository checker was syntactically parsed in V8 after removing native
+module imports, but it was not executed against a local checkout.
+
 Source changes and regression contracts are recorded on branch Local;
 Windows PowerShell parse/execution, Rust/Tauri build, Svelte/Vitest build,
 two Education logins, game rendering, network and measured CPU/RAM remain
