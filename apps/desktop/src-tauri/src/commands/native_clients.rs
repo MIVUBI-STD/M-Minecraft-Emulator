@@ -15,3 +15,16 @@ pub async fn desktop_inspect_native_candidates() -> Result<native_clients::Nativ
         .map_err(|error| format!("Native inspection task failed: {error}"))?
         .map_err(|error| error.to_string())
 }
+
+#[tauri::command]
+pub async fn desktop_select_education_exe() -> Result<Option<String>, String> {
+    tauri::async_runtime::spawn_blocking(native_clients::select_education_exe)
+        .await.map_err(|e| format!("File dialog failed: {e}"))?
+        .map_err(|e| e.to_string())
+}
+#[tauri::command]
+pub async fn desktop_request_sandbox_client_02(executable: String, licensed: bool) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || native_clients::request_sandbox_client_02(executable, licensed))
+        .await.map_err(|e| format!("Isolated launch failed: {e}"))?
+        .map_err(|e| e.to_string())
+}

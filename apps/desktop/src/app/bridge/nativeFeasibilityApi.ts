@@ -73,6 +73,9 @@ export function parseNativeObservation(value: unknown): NativeProcessObservation
 export const nativeFeasibility = {
   // Only the official registered Start app is requested, never a copied EXE.
   openOfficialMinecraft: () => invokeRuntime<void>("desktop_open_native_minecraft"),
+  selectEducationExe: () => invokeRuntime<string | null>("desktop_select_education_exe"),
+  requestSandboxClient02: (executable: string, licensed: boolean) =>
+    invokeRuntime<void>("desktop_request_sandbox_client_02", { executable, licensed }),
   inspectCandidates: async (): Promise<NativeProcessObservation> =>
     parseNativeObservation(await invokeRuntime<unknown>("desktop_inspect_native_candidates")),
 };

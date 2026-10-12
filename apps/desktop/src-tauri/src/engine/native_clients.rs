@@ -171,6 +171,192 @@ pub fn open_native_minecraft() -> io::Result<()> {
     ))
 }
 
+
+// Client 02 only. The sandbox is created and licensed outside MIVUBI.
+// This is a bounded launch REQUEST, not an independent-account verdict.
+fn validate_education_path(path: &str) -> io::Result<()> {
+    let p = std::path::Path::new(path);
+    let valid = p.file_name().and_then(|s| s.to_str()).is_some_and(|name| {
+        matches!(name.to_ascii_lowercase().as_str(),
+            "minecraft.windows.exe" | "minecrafteducation.exe" |
+            "minecrafteducationedition.exe")
+    });
+    if path.is_empty() || path.len() > 1024 || path.chars().any(char::is_control)
+        || !p.is_absolute() || !valid {
+        return Err(io::Error::new(io::ErrorKind::InvalidInput,
+            "Select the installed Minecraft Education Windows EXE, not a shortcut or installer"));
+    }
+    Ok(())
+}
+
+#[cfg(windows)]
+pub fn select_education_exe() -> io::Result<Option<String>> {
+    Ok(rfd::FileDialog::new()
+        .set_title("Select Minecraft Education executable")
+        .add_filter("Windows executable", &["exe"])
+        .pick_file().map(|p| p.to_string_lossy().into_owned()))
+}
+
+#[cfg(not(windows))]
+pub fn select_education_exe() -> io::Result<Option<String>> {
+    Err(io::Error::new(io::ErrorKind::Unsupported, "Windows only"))
+}
+
+#[cfg(windows)]
+pub fn request_sandbox_client_02(executable: String, licensed: bool) -> io::Result<()> {
+    use std::{path::Path, time::Duration};
+    validate_education_path(&executable)?;
+    if !licensed {
+        return Err(io::Error::new(io::ErrorKind::PermissionDenied,
+            "Confirm licensing for Sandboxie Plus in this environment"));
+    }
+    if !Path::new(&executable).is_file() {
+        return Err(io::Error::new(io::ErrorKind::NotFound,
+            "Selected Minecraft Education EXE was not found"));
+    }
+    let escaped = executable.replace('\'', "''");
+    let script = format!(r#"
+$ErrorActionPreference = 'Stop'
+$game = '{escaped}'
+$box = 'Mivubi2'
+if ([Diagnostics.Process]::GetCurrentProcess().SessionId -eq 0) {{
+    throw 'Interactive Windows user session required'
+}}
+$reg = [Microsoft.Win32.RegistryKey]::OpenBaseKey(
+    [Microsoft.Win32.RegistryHive]::LocalMachine,
+    [Microsoft.Win32.RegistryView]::Registry32)
+$version = $null
+try {{
+    $k = $reg.OpenSubKey('SOFTWARE\Microsoft\Microsoft Studios\Minecraft Education Edition')
+    if ($null -ne $k) {{
+        try {{ $version = [string]$k.GetValue('Version','') }}
+        finally {{ $k.Dispose() }}
+    }}
+}} finally {{ $reg.Dispose() }}
+if ($version -notmatch '^\d+(?:\.\d+){{1,4}}
+    use super::parse_native_observation;
+    use serde_json::json;
+
+    fn fixture() -> serde_json::Value {
+        json!({
+            "schema": 1,
+            "evidenceClass": "NAME_MATCH_CANDIDATE_ONLY",
+            "interactiveSession": true,
+            "candidates": [
+                {"pid": 123, "windowHandle": "0xAA"},
+                {"pid": 456, "windowHandle": null}
+            ]
+        })
+    }
+
+    #[test]
+    fn accepts_only_non_authoritative_two_process_observation() {
+        let parsed = parse_native_observation(&fixture().to_string()).unwrap();
+        assert_eq!(parsed.candidates.len(), 2);
+        assert_eq!(parsed.candidates[0].pid, 123);
+        assert_eq!(parsed.candidates[1].window_handle, None);
+        assert_eq!(parsed.evidence_class, "NAME_MATCH_CANDIDATE_ONLY");
+    }
+
+    #[test]
+    fn rejects_duplicate_pids_handles_and_invalid_evidence_class() {
+        let mutations: Vec<Box<dyn Fn(&mut serde_json::Value)>> = vec![
+            Box::new(|r| r["candidates"][1]["pid"] = json!(123)),
+            Box::new(|r| r["candidates"][1]["windowHandle"] = json!("0xaa")),
+            Box::new(|r| r["candidates"][1]["windowHandle"] = json!("0x00aa")),
+            Box::new(|r| r["candidates"][0]["pid"] = json!(0)),
+            Box::new(|r| r["candidates"][0]["windowHandle"] = json!("0x0")),
+            Box::new(|r| r["evidenceClass"] = json!("GAMEPLAY_VERIFIED")),
+            Box::new(|r| r["schema"] = json!(2)),
+        ];
+        for mutate in mutations {
+            let mut report = fixture();
+            mutate(&mut report);
+            assert!(parse_native_observation(&report.to_string()).is_err());
+        }
+    }
+
+    #[test]
+    fn rejects_unbounded_and_extra_private_data() {
+        let mut report = fixture();
+        report["candidates"] = json!((1..=17).map(|pid| json!({
+            "pid": pid, "windowHandle": null
+        })).collect::<Vec<_>>());
+        assert!(parse_native_observation(&report.to_string()).is_err());
+
+        let mut report = fixture();
+        report["candidates"][0]["accountEmail"] = json!("private@example.com");
+        assert!(parse_native_observation(&report.to_string()).is_err());
+    }
+
+    #[test]
+    fn empty_observation_is_not_a_game_failure() {
+        let mut report = fixture();
+        report["candidates"] = json!([]);
+        let parsed = parse_native_observation(&report.to_string()).unwrap();
+        assert!(parsed.candidates.is_empty());
+        assert!(parsed.interactive_session);
+    }
+}
+ -or
+    @(Get-AppxPackage -Name 'Microsoft.MinecraftEducationEdition' -ErrorAction SilentlyContinue).Count -gt 0) {{
+    throw 'Requires one official Desktop edition, without Store edition'
+}}
+$product = [Diagnostics.FileVersionInfo]::GetVersionInfo($game).ProductName
+if ($product -notmatch '(?i)(Minecraft.*Education|Education.*Minecraft)' -or
+    (Get-AuthenticodeSignature -LiteralPath $game).Status -ne 'Valid') {{
+    throw 'Selected executable must be a signed Minecraft Education Desktop build'
+}}
+$install = @((Join-Path $env:ProgramFiles 'Sandboxie-Plus'),
+             (Join-Path $env:ProgramFiles 'Sandboxie')) |
+             Where-Object {{
+                 (Test-Path -LiteralPath (Join-Path $_ 'Start.exe') -PathType Leaf) -and
+                 (Test-Path -LiteralPath (Join-Path $_ 'SbieIni.exe') -PathType Leaf)
+             }} | Select-Object -First 1
+if (-not $install) {{ throw 'Install Sandboxie Plus and create Mivubi2 first' }}
+$start = Join-Path $install 'Start.exe'
+$ini = Join-Path $install 'SbieIni.exe'
+if ((Get-AuthenticodeSignature -LiteralPath $start).Status -ne 'Valid' -or
+    (Get-AuthenticodeSignature -LiteralPath $ini).Status -ne 'Valid') {{
+    throw 'Sandboxie tools must be signed and trusted'
+}}
+if ((Get-Service SbieSvc -ErrorAction Stop).Status -ne 'Running') {{
+    throw 'Sandboxie service not running'
+}}
+$enabled = @(& $ini query $box Enabled 2>$null)
+if ($LASTEXITCODE -ne 0 -or $enabled.Count -ne 1 -or $enabled[0].Trim() -ne 'y') {{
+    throw 'Persistent box Mivubi2 must exist and be enabled'
+}}
+$names = @(& $ini query $box '*' 2>$null)
+if ($LASTEXITCODE -ne 0 -or $names.Count -lt 1 -or
+    $names.Count -gt 128 -or $names -notcontains 'Enabled') {{
+    throw 'Could not verify persistent box settings'
+}}
+foreach ($key in @('AutoDelete','AutoRemove')) {{
+    if ($names -contains $key) {{
+        $value = @(& $ini query $box $key 2>$null)
+        if ($LASTEXITCODE -ne 0 -or $value.Count -ne 1 -or $value[0].Trim() -ne 'n') {{
+            throw 'AutoDelete and AutoRemove must remain OFF'
+        }}
+    }}
+}}
+# Sandboxie's GUI Start.exe may return before a child actually launches.
+# Never interpret this request as process membership, login or gameplay.
+Start-Process -FilePath $start -ArgumentList @('/box:Mivubi2', ('"' + $game + '"')) -ErrorAction Stop | Out-Null
+"#);
+    virtual_clients_core::bounded_command_output(
+        Path::new("powershell.exe"),
+        ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", script.as_str()],
+        Duration::from_secs(20),
+    )?;
+    Ok(())
+}
+
+#[cfg(not(windows))]
+pub fn request_sandbox_client_02(_executable: String, _licensed: bool) -> io::Result<()> {
+    Err(io::Error::new(io::ErrorKind::Unsupported, "Windows only"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::parse_native_observation;
