@@ -231,6 +231,8 @@ requireFact(nativeDesktop.includes("pub fn request_sandbox_client_02(") &&
   nativeDesktop.includes("AutoDelete") &&
   nativeDesktop.includes("AutoRemove") &&
   nativeDesktop.includes("Get-AuthenticodeSignature") &&
+  nativeDesktop.includes("O=Microsoft Corporation") &&
+  nativeDesktop.includes("$signature.Status -ne 'Valid'") &&
   !nativeDesktop.includes("delete_sandbox") &&
   !nativeDesktop.includes("/terminate_all") &&
   read("apps/desktop/src-tauri/src/app_bootstrap.rs").includes(

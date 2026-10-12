@@ -96,6 +96,8 @@ describe("Native candidate IPC evidence", () => {
     expect(engine).toContain("AutoDelete");
     expect(engine).toContain("AutoRemove");
     expect(engine).toContain("Get-AuthenticodeSignature");
+    expect(engine).toContain("O=Microsoft Corporation");
+    expect(engine).toContain("$signature.Status -ne 'Valid'");
     expect(engine).toContain("Start-Process -FilePath $start");
     expect(engine).not.toContain("delete_sandbox");
     expect(engine).not.toContain("/terminate_all");

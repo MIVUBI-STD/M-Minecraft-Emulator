@@ -68,7 +68,11 @@ the existing official Windows launcher. For Client 02:
 1. Prepare exactly one persistent `MinecraftClient02` box in the licensed Sandboxie
    Plus interface; keep AutoDelete/AutoRemove OFF.
 2. Select the **installed** Minecraft Education Windows Desktop EXE in Minecraft Instance Manager.
-   Do not select the downloaded installer.
+   Do not select the downloaded installer. The current pilot requires
+   valid Authenticode signing by **Microsoft Corporation**, together with
+   Education product metadata. If the real installed Education release
+   has a different verified signing organization, record its evidence and
+   review the trust rule in source rather than disabling the signature check.
 3. Acknowledge Sandboxie licensing and click **Launch isolated Client 02**.
    The backend reuses the canonical Windows collector, requires a persistent
    enabled box with AutoDelete/AutoRemove OFF and verifiable

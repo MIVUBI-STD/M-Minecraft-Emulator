@@ -16,6 +16,10 @@ and one Windows Desktop Client 02 only; no extra provider or account daemon.
   `OpenCredentials` is ON/UNKNOWN or absent from old evidence. OFF does not
   prove Microsoft WAM/SSO isolation. A login helper crossing sandbox
   boundaries remains an unverified risk.
+- The selected Education EXE must have valid Microsoft Corporation
+  Authenticode signing and Minecraft Education product metadata, rather
+  than accepting every file with any valid third-party certificate.
+  This may require source review for a future legitimate publisher change.
 - One Rust Client 02 inspector embeds the canonical read-only collector.
   The launcher performs the same preflight, fails closed for unsafe/unknown
   credentials or destructive lifecycle settings, checks the direct
@@ -31,9 +35,11 @@ and one Windows Desktop Client 02 only; no extra provider or account daemon.
 
 ### Proof ceiling / next action
 
-Pure JS evaluator scenarios can be executed in an isolated V8 environment
-to validate mapping for OPEN/OFF/UNKNOWN and historical evidence; this is
-not Node's test runner. Cargo, Svelte, Vitest and PowerShell cannot be
+All 15 existing Sandboxie evaluator regression cases were actually
+executed against the authored JS sources in an isolated V8 environment
+and passed (15/15). This is **not Node's `node --test` runner** or
+runtime proof. No PowerShell, Rust, Svelte or Minecraft process was
+executed on Windows. Cargo, Svelte, Vitest and PowerShell cannot be
 assumed passing without an actual execution trace. Sandboxie client process
 creation, signed game publisher, WAM isolation, two licensed logins, world
 rendering, multiplayer and restart persistence remain **NOT_EXECUTED**.
