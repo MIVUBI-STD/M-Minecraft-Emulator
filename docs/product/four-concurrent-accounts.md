@@ -13,20 +13,24 @@ lifecycle: ACTIVE
 
 Four concurrent, independently playable **Minecraft Education Windows Desktop**
 sessions with four distinct legitimately licensed accounts on one Windows PC.
-Preferred implementation, **only if real game evidence permits**, is one
-official Desktop installation plus multiple native processes with independently
-isolated accounts and persistent user data. No Windows guests, ISO setup,
-VMware or App Sandbox in the target daily workflow if native succeeds.
-Avoid game EXE modification, injection, single-instance/authentication bypass,
-or collection of account secrets.
+The **single selected lightweight architecture** is one native Minecraft
+Education Windows Desktop process plus Minecraft Client 02 launched using
+Sandboxie Plus box `MinecraftClient02`. Both must use distinct legitimately
+licensed accounts, preserved data and normal Windows keyboard/mouse/GPU.
+The future four-account outcome is not implemented; no Android, controller
+emulation, Windows VM, account copying or custom resident launcher service
+is part of the current development. See the canonical
+[Lightweight Windows Architecture](../system/architecture.md).
 
-**Implementation and proof status:** the VMware implementation below is still
-retained as legacy code, but its UI and public mutation commands are paused.
-Native two-client feasibility is NOT_EXECUTED;
-one native install does NOT yet imply two playable authenticated sessions.
-Begin with [Native Feasibility](../validation/native-multi-instance-feasibility.md).
-If native fails, separately assess licensed application isolation; retain
-VM code and account disks as an unchanged fallback until a proven cutover.
+**Implementation and proof status:** the active Tauri/Rust/Svelte route
+currently supports only explicit launch requests and read-only process/box
+candidate observations. Two playable independently authenticated Minecraft
+Education Windows clients and Windows source-build results remain
+**NOT_EXECUTED**. No resource benchmark has established an ADB-sized
+footprint; the manager's minimal-overhead design is a goal, not evidence.
+Legacy VMware source and saved accounts remain inactive and untouched.
+Avoid game EXE modification, injection, authentication bypass or storage of
+account secrets.
 
 ## Existing VMware implementation (legacy, not new product direction)
 

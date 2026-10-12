@@ -1,3 +1,32 @@
+## Current design decision — ADB-like lightweight management (2026-10-12)
+
+**Work:** emulator/lightweight-windows-isolation-architecture
+**State:** ARCHITECTURE_DOCUMENTED / RUNTIME_UNPROVEN.
+**Single approved engine:** Sandboxie Plus, Client 01 host native, Client 02
+persistent `MinecraftClient02` box. No alternate engine, Android, VM,
+new daemon, custom user-profile broker or four-client feature work.
+
+The canonical [Architecture](../docs/system/architecture.md) now sets a
+resource-aware design: one Rust coordinator plus thin Tauri/Svelte facade,
+manual/on-demand observations, no repeated PowerShell hot-loop, no display
+streaming, no forced CPU/VRAM caps, no background session automation, and
+a measured host/game baseline that distinguishes manager, Sandboxie and
+Minecraft costs. `engine/runtime-core/src/resources.rs` belongs to the
+paused VM runtime and is not reused as a native game's policy. Xbox/Microsoft
+login remains manually verified and Sandboxie process membership is not
+the same as a signed-in account.
+
+**Proof:** GitHub source/ownership review and official Windows/Sandboxie
+reference documentation support the **design decisions only**. No new
+Windows performance measurements or live two-account sign-in evidence.
+No resource optimizations or worker services were silently implemented.
+
+**Next:** verify two real Minecraft Education Windows clients with separate
+licensed accounts in the existing native + Sandboxie path; only then use the
+A–F benchmark to guide minimal changes within the same Rust owner.
+
+---
+
 ## Current work — Client 02 Runtime Correctness (2026-10-12)
 
 **Work:** emulator/client02-runtime-correctness
