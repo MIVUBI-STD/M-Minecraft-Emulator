@@ -285,8 +285,13 @@ describe("Native candidate IPC evidence", () => {
       isolatedVisibleCandidates: 1, nativeVisibleCandidates: 0,
     };
     expect(parseIsolatedClientObservation(onlyBoxedSigned)).toEqual(onlyBoxedSigned);
+    // Make counter metadata internally plausible, then verify that the
+    // per-PID reconciliation (not just metadata parsing) rejects the lie.
     const incorrectlyCounted = {
-      ...onlyBoxedSigned, officialImageOutsideSelectedBoxCount: 1,
+      ...onlyBoxedSigned,
+      officialImageOutsideSelectedBoxCount: 1,
+      directPidQuery: "UNAVAILABLE",
+      signedImageUnknownBoxCount: 1,
     };
     expect(() => parseIsolatedClientObservation(incorrectlyCounted)).toThrow(TypeError);
     expect(parseIsolatedClientObservation({
