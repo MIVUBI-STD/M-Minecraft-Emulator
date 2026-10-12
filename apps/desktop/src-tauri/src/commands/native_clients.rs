@@ -28,3 +28,11 @@ pub async fn desktop_request_sandbox_client_02(executable: String, licensed: boo
         .await.map_err(|e| format!("Isolated launch failed: {e}"))?
         .map_err(|e| e.to_string())
 }
+
+#[tauri::command]
+pub async fn desktop_inspect_sandbox_client_02() -> Result<native_clients::SandboxieClientObservation, String> {
+    tauri::async_runtime::spawn_blocking(native_clients::inspect_sandbox_client_02)
+        .await
+        .map_err(|error| format!("Sandboxie inspection task failed: {error}"))?
+        .map_err(|error| error.to_string())
+}

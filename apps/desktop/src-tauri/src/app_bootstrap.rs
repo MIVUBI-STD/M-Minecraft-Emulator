@@ -25,6 +25,7 @@ pub fn run() {
             commands::native_clients::desktop_inspect_native_candidates,
             commands::native_clients::desktop_select_education_exe,
             commands::native_clients::desktop_request_sandbox_client_02,
+            commands::native_clients::desktop_inspect_sandbox_client_02,
         ])
         .run(tauri::generate_context!())
         .expect("failed to run Minecraft Instance Manager desktop runtime");

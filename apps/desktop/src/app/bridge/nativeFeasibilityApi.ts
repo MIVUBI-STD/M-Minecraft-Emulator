@@ -70,12 +70,66 @@ export function parseNativeObservation(value: unknown): NativeProcessObservation
   };
 }
 
+export interface IsolatedClientObservation {
+  schema: 1;
+  boxName: "MinecraftClient02";
+  stage: "INSPECT";
+  boxConfigured: "YES" | "NO" | "UNKNOWN";
+  boxSettingsSource: "BOX_SECTION_ENUMERATED" | "UNKNOWN";
+  autoDelete: "ON" | "OFF" | "UNKNOWN";
+  autoRemove: "ON" | "OFF" | "UNKNOWN";
+  credentialHostAccess: "ON" | "OFF" | "UNKNOWN";
+  membershipStatus: "OBSERVED" | "UNKNOWN";
+  interactiveSession: boolean;
+  processEvidenceClass: "NAME_MATCH_CANDIDATE_ONLY";
+  candidateProcessCount: number;
+  nativeVisibleCandidates: number;
+  isolatedVisibleCandidates: number;
+  interpretation: "CONFIG_AND_PROCESS_CANDIDATES_ONLY_NO_AUTHENTICATION_PROOF";
+}
+
+export function parseIsolatedClientObservation(value: unknown): IsolatedClientObservation {
+  const keys = [
+    "schema", "boxName", "stage", "boxConfigured", "boxSettingsSource",
+    "autoDelete", "autoRemove", "credentialHostAccess", "membershipStatus",
+    "interactiveSession", "processEvidenceClass", "candidateProcessCount",
+    "nativeVisibleCandidates", "isolatedVisibleCandidates", "interpretation",
+  ];
+  const flag = (v: unknown): v is "ON" | "OFF" | "UNKNOWN" =>
+    v === "ON" || v === "OFF" || v === "UNKNOWN";
+  const bounded = (v: unknown): v is number =>
+    typeof v === "number" && Number.isSafeInteger(v) && v >= 0 && v <= 16;
+  if (!isRecord(value) || !hasOnly(value, keys) ||
+    value.schema !== 1 || value.boxName !== "MinecraftClient02" ||
+    value.stage !== "INSPECT" ||
+    !["YES", "NO", "UNKNOWN"].includes(value.boxConfigured as string) ||
+    !["BOX_SECTION_ENUMERATED", "UNKNOWN"].includes(value.boxSettingsSource as string) ||
+    !flag(value.autoDelete) || !flag(value.autoRemove) ||
+    !flag(value.credentialHostAccess) ||
+    !["OBSERVED", "UNKNOWN"].includes(value.membershipStatus as string) ||
+    typeof value.interactiveSession !== "boolean" ||
+    value.processEvidenceClass !== "NAME_MATCH_CANDIDATE_ONLY" ||
+    value.interpretation !== "CONFIG_AND_PROCESS_CANDIDATES_ONLY_NO_AUTHENTICATION_PROOF" ||
+    !bounded(value.candidateProcessCount) ||
+    !bounded(value.nativeVisibleCandidates) ||
+    !bounded(value.isolatedVisibleCandidates) ||
+    (value.nativeVisibleCandidates as number) + (value.isolatedVisibleCandidates as number) > (value.candidateProcessCount as number) ||
+    (value.membershipStatus === "UNKNOWN" &&
+      (value.nativeVisibleCandidates !== 0 || value.isolatedVisibleCandidates !== 0))
+  ) {
+    throw new TypeError("Untrusted isolated Minecraft process observation.");
+  }
+  return value as unknown as IsolatedClientObservation;
+}
+
 export const nativeFeasibility = {
   // Only the official registered Start app is requested, never a copied EXE.
   openOfficialMinecraft: () => invokeRuntime<void>("desktop_open_native_minecraft"),
   selectEducationExe: () => invokeRuntime<string | null>("desktop_select_education_exe"),
   requestSandboxClient02: (executable: string, licensed: boolean) =>
     invokeRuntime<void>("desktop_request_sandbox_client_02", { executable, licensed }),
+  inspectIsolatedClient02: async (): Promise<IsolatedClientObservation> =>
+    parseIsolatedClientObservation(await invokeRuntime<unknown>("desktop_inspect_sandbox_client_02")),
   inspectCandidates: async (): Promise<NativeProcessObservation> =>
     parseNativeObservation(await invokeRuntime<unknown>("desktop_inspect_native_candidates")),
 };
