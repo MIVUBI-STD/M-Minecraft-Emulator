@@ -144,40 +144,56 @@ if ($trustedTools -and $serviceRunning -and $enabled -eq 'y') {
     }
   }
 }
-# OpenCredentials may be set in the selected box or inherited from GlobalSettings.
-# UNKNOWN is never accepted as isolated. This does NOT prove WAM/SSO isolation.
+# This is a bounded inspection of EXPLICIT Sandboxie settings, not a
+# proof of effective WAM, WinCred read isolation or independent identities.
+# Global templates must be checked even if OpenCredentials is set locally:
+# a global OpenProtectedStorage template may bypass Sandboxie's WinCred hooks.
 $credentialValue = $null
 if ($boxSettingsSource -eq 'BOX_SECTION_ENUMERATED') {
-  if ($names -contains 'OpenCredentials') {
-    $credentialValue = Read-BoxSetting $BoxName 'OpenCredentials'
-  } else {
-    $rawGlobal = Invoke-BoundedReadOnlyTool $iniExe 'query GlobalSettings *'
-    if ($null -ne $rawGlobal) {
-      $globalNames = @($rawGlobal -split '\r?\n' |
-        ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' })
-      $valid = $globalNames.Count -le 128 -and
-        @($globalNames | Where-Object { $_ -cnotmatch '^[A-Za-z_][A-Za-z0-9_.:-]{0,79}$' }).Count -eq 0 -and
-        @($globalNames | Select-Object -Unique).Count -eq $globalNames.Count
-      if ($valid) {
-        $credentialValue = if ($globalNames -contains 'OpenCredentials') {
-          Read-BoxSetting 'GlobalSettings' 'OpenCredentials'
-        } else { 'n' }
+  $rawGlobal = Invoke-BoundedReadOnlyTool $iniExe 'query GlobalSettings *'
+  if ($null -ne $rawGlobal) {
+    $globalNames = @($rawGlobal -split '\r?\n' |
+      ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' })
+    $validGlobal = $globalNames.Count -le 128 -and
+      @($globalNames | Where-Object { $_ -cnotmatch '^[A-Za-z_][A-Za-z0-9_.:-]{0,79}$' }).Count -eq 0 -and
+      @($globalNames | Select-Object -Unique).Count -eq $globalNames.Count
+    if ($validGlobal) {
+      if ($names -contains 'OpenCredentials') {
+        $credentialValue = Read-BoxSetting $BoxName 'OpenCredentials'
+      } elseif ($globalNames -contains 'OpenCredentials') {
+        $credentialValue = Read-BoxSetting 'GlobalSettings' 'OpenCredentials'
+      } else {
+        $credentialValue = 'n'
+      }
+      foreach ($section in @($BoxName, 'GlobalSettings')) {
+        $sectionNames = if ($section -eq $BoxName) { $names } else { $globalNames }
+        if ($sectionNames -contains 'OpenProtectedStorage') {
+          $direct = Read-BoxSetting $section 'OpenProtectedStorage'
+          if ($null -eq $direct) { $credentialValue = $null; break }
+          if ($direct -eq 'y') { $credentialValue = 'y'; break }
+        }
+        if ($sectionNames -contains 'Template') {
+          $rawTemplates = Invoke-BoundedReadOnlyTool $iniExe ('query ' + $section + ' Template')
+          if ($null -eq $rawTemplates) { $credentialValue = $null; break }
+          $templates = @($rawTemplates -split '\r?\n' |
+            ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' })
+          if ($templates.Count -lt 1 -or $templates.Count -gt 128 -or
+              @($templates | Where-Object { $_ -cnotmatch '^[A-Za-z_][A-Za-z0-9_.:-]{0,79}$' }).Count -gt 0) {
+            $credentialValue = $null
+            break
+          }
+          if ($templates -contains 'OpenProtectedStorage') {
+            $credentialValue = 'y'
+            break
+          }
+        }
       }
     }
   }
 }
-# The selected box may bypass WinCred hooks using OpenProtectedStorage
-# even when OpenCredentials=n. Check only explicitly configured templates.
-if ($boxSettingsSource -eq 'BOX_SECTION_ENUMERATED' -and ($names -contains 'Template')) {
-  $templatesRaw = Invoke-BoundedReadOnlyTool $iniExe ('query ' + $BoxName + ' Template')
-  if ($null -eq $templatesRaw) {
-    $credentialValue = $null
-  } elseif (@($templatesRaw -split '\r?\n' |
-      ForEach-Object { $_.Trim() }) -contains 'OpenProtectedStorage') {
-    $credentialValue = 'y'
-  }
-}
-# OFF still permits host credential read-through and does NOT prove WAM isolation.
+# OFF only means the inspected explicit WinCred bypass settings were not
+# enabled. Sandboxie can still read native credentials; template expansion
+# and Microsoft WAM/SSO isolation are NOT established by this observation.
 $toFlag = { param($value) if ($value -eq 'y') { return 'ON' } if ($value -eq 'n') { return 'OFF' } return 'UNKNOWN' }
 $credentialHostAccess = (& $toFlag $credentialValue)
 $boxConfigured = if ($enabled -eq 'y') { 'YES' } elseif ($enabled -eq 'n') { 'NO' } else { 'UNKNOWN' }
