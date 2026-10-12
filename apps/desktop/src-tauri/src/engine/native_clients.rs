@@ -233,72 +233,7 @@ try {{
         finally {{ $k.Dispose() }}
     }}
 }} finally {{ $reg.Dispose() }}
-if ($version -notmatch '^\d+(?:\.\d+){{1,4}}
-    use super::parse_native_observation;
-    use serde_json::json;
-
-    fn fixture() -> serde_json::Value {
-        json!({
-            "schema": 1,
-            "evidenceClass": "NAME_MATCH_CANDIDATE_ONLY",
-            "interactiveSession": true,
-            "candidates": [
-                {"pid": 123, "windowHandle": "0xAA"},
-                {"pid": 456, "windowHandle": null}
-            ]
-        })
-    }
-
-    #[test]
-    fn accepts_only_non_authoritative_two_process_observation() {
-        let parsed = parse_native_observation(&fixture().to_string()).unwrap();
-        assert_eq!(parsed.candidates.len(), 2);
-        assert_eq!(parsed.candidates[0].pid, 123);
-        assert_eq!(parsed.candidates[1].window_handle, None);
-        assert_eq!(parsed.evidence_class, "NAME_MATCH_CANDIDATE_ONLY");
-    }
-
-    #[test]
-    fn rejects_duplicate_pids_handles_and_invalid_evidence_class() {
-        let mutations: Vec<Box<dyn Fn(&mut serde_json::Value)>> = vec![
-            Box::new(|r| r["candidates"][1]["pid"] = json!(123)),
-            Box::new(|r| r["candidates"][1]["windowHandle"] = json!("0xaa")),
-            Box::new(|r| r["candidates"][1]["windowHandle"] = json!("0x00aa")),
-            Box::new(|r| r["candidates"][0]["pid"] = json!(0)),
-            Box::new(|r| r["candidates"][0]["windowHandle"] = json!("0x0")),
-            Box::new(|r| r["evidenceClass"] = json!("GAMEPLAY_VERIFIED")),
-            Box::new(|r| r["schema"] = json!(2)),
-        ];
-        for mutate in mutations {
-            let mut report = fixture();
-            mutate(&mut report);
-            assert!(parse_native_observation(&report.to_string()).is_err());
-        }
-    }
-
-    #[test]
-    fn rejects_unbounded_and_extra_private_data() {
-        let mut report = fixture();
-        report["candidates"] = json!((1..=17).map(|pid| json!({
-            "pid": pid, "windowHandle": null
-        })).collect::<Vec<_>>());
-        assert!(parse_native_observation(&report.to_string()).is_err());
-
-        let mut report = fixture();
-        report["candidates"][0]["accountEmail"] = json!("private@example.com");
-        assert!(parse_native_observation(&report.to_string()).is_err());
-    }
-
-    #[test]
-    fn empty_observation_is_not_a_game_failure() {
-        let mut report = fixture();
-        report["candidates"] = json!([]);
-        let parsed = parse_native_observation(&report.to_string()).unwrap();
-        assert!(parsed.candidates.is_empty());
-        assert!(parsed.interactive_session);
-    }
-}
- -or
+if ($version -notmatch '^\d+(?:\.\d+){{1,4}}$' -or
     @(Get-AppxPackage -Name 'Microsoft.MinecraftEducationEdition' -ErrorAction SilentlyContinue).Count -gt 0) {{
     throw 'Requires one official Desktop edition, without Store edition'
 }}
@@ -359,7 +294,7 @@ pub fn request_sandbox_client_02(_executable: String, _licensed: bool) -> io::Re
 
 #[cfg(test)]
 mod tests {
-    use super::parse_native_observation;
+    use super::{parse_native_observation, validate_education_path};
     use serde_json::json;
 
     fn fixture() -> serde_json::Value {
@@ -412,6 +347,15 @@ mod tests {
         let mut report = fixture();
         report["candidates"][0]["accountEmail"] = json!("private@example.com");
         assert!(parse_native_observation(&report.to_string()).is_err());
+    }
+
+    #[test]
+    fn rejects_non_education_exe_and_unsafe_paths() {
+        for bad in ["", "notepad.exe", "C:/Tools/notepad.exe",
+                    "C:/Tools/Minecraft.Windows.cmd",
+                    "../Minecraft.Windows.exe", "C:/Minecraft.Windows.exe\nother"] {
+            assert!(validate_education_path(bad).is_err());
+        }
     }
 
     #[test]
