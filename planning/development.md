@@ -1,7 +1,7 @@
 # Current Development Handoff
 
 **Branch:** `Local` only. **Product:** Minecraft Instance Manager.
-**Current work:** `emulator/client02-identity-checked-placement`.
+**Current work:** `emulator/native-image-provenance`.
 **Engineering state:** source prototype / **Windows build and two-account gameplay NOT_EXECUTED**.
 
 ## One selected outcome and engine
@@ -41,11 +41,19 @@ part of the active implementation.
   including explicit local/global protected-storage template selections.
 - Backend launch admission serializes Client 02 preflight and requests without
   relying on UI buttons; a brief retry gap guards ambiguous requests.
-- The SummaryOnly IPC schema is now 3: one bounded candidate list carries
+- The SummaryOnly IPC schema is now 4: one bounded candidate list carries
   PID, optional creation FILETIME, HWND and observed box membership, with
   Rust/TypeScript validation of counts, uniqueness and attribution.
   Creation FILETIME is a decimal string so JavaScript cannot lose precision.
   An inaccessible start time stays null; a PID alone is never a stable identity.
+  On explicit Refresh only, the collector optionally verifies Microsoft
+  Authenticode status and Education ProductName for visible name-matched
+  processes outside the selected box. It sends only a candidate classification
+  and count, not paths, account data or passwords. This does not prove native
+  Windows ownership because other Sandboxie boxes may exist.
+  Launch preflight and Focus/Place use the same collector without the
+  expensive -ImageProof switch; a per-Refresh in-memory path cache avoids
+  repeated signature checks for the same executable.
   Persisted CLI evidence remains schema 1. The collector runs only on demand;
   no background process or new vendor-DLL binding is introduced.
   Collector stdout wait is bounded after helper exit; the launch
@@ -105,12 +113,13 @@ PowerShell or a two-game proof. Do not promote old evidence to new HEAD.
 TypeScript and collector regression checks only. Node, Rust, PowerShell and
 Windows/Minecraft executions on current HEAD remain **NOT_EXECUTED**.
 
-**Next bounded engineering action:** investigate real startup/foreground
-and window placement compatibility on Windows before expanding multi-window
-layout. User-selected left/right positioning is implemented only for
-Client 02; the manager intentionally does not move an outside-box process
-as Client 01 without stronger process identity and attribution. Source
-review does not prove real Minecraft window size or focus permissions.
+**Next bounded engineering action:** determine whether an official, bounded
+per-process Sandboxie attribution mechanism can distinguish a genuinely
+unsandboxed Client 01 from all configured boxes, without adding another
+resident process or duplicating the existing Rust owner. A Microsoft-signed
+Education image outside only MinecraftClient02 remains candidate evidence,
+not an accepted native instance. Runtime/build/latency evidence is still
+NOT_EXECUTED; do not build automatic two-client layout from this count.
 
 ## Historical provenance (not active task state)
 
