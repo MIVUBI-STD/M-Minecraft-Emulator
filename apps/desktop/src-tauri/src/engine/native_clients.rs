@@ -201,6 +201,17 @@ pub fn open_native_minecraft() -> io::Result<()> {
 // its data never proves Microsoft account isolation or a playable Minecraft.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ProcessIdentityCandidate {
+    pub pid: u32,
+    // Decimal FILETIME, carried as a string to preserve full precision in JS.
+    // None means start time was inaccessible; it is not a verified identity.
+    pub created_file_time: Option<String>,
+    pub window_handle: Option<String>,
+    pub in_selected_box: Option<bool>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct SandboxieClientObservation {
     pub schema: u32,
     pub box_name: String,
@@ -214,6 +225,7 @@ pub struct SandboxieClientObservation {
     pub interactive_session: bool,
     pub process_evidence_class: String,
     pub candidate_process_count: u32,
+    pub process_candidates: Vec<ProcessIdentityCandidate>,
     pub isolated_candidate_processes: u32,
     pub native_visible_candidates: u32,
     pub isolated_visible_candidates: u32,
@@ -224,7 +236,7 @@ fn parse_sandboxie_observation(raw: &str) -> io::Result<SandboxieClientObservati
     let report: SandboxieClientObservation = serde_json::from_str(raw)
         .map_err(|_| invalid_evidence("invalid Sandboxie collector summary"))?;
     let one_of = |value: &str, allowed: &[&str]| allowed.contains(&value);
-    if report.schema != 2
+    if report.schema != 3
         || report.box_name != CLIENT_02_BOX_NAME
         || report.stage != "INSPECT"
         || report.process_evidence_class != "NAME_MATCH_CANDIDATE_ONLY"
@@ -239,6 +251,7 @@ fn parse_sandboxie_observation(raw: &str) -> io::Result<SandboxieClientObservati
         || (report.box_settings_source == "BOX_SECTION_ENUMERATED" && report.box_configured != "YES")
         || (report.credential_host_access != "UNKNOWN" && report.box_settings_source != "BOX_SECTION_ENUMERATED")
         || report.candidate_process_count > 16
+        || report.process_candidates.len() != report.candidate_process_count as usize
         || report.isolated_candidate_processes > report.candidate_process_count
         || report.isolated_visible_candidates > report.isolated_candidate_processes
         || report.native_visible_candidates.saturating_add(report.isolated_visible_candidates)
@@ -249,6 +262,51 @@ fn parse_sandboxie_observation(raw: &str) -> io::Result<SandboxieClientObservati
                 || report.isolated_candidate_processes != 0))
     {
         return Err(invalid_evidence("untrusted or contradictory Sandboxie process observation"));
+    }
+    // Reconcile the identity list with the published candidate counts.
+    // No PID/HWND snapshot is proof of Education sign-in or active gameplay.
+    let mut pids = HashSet::new();
+    let mut windows = HashSet::new();
+    let mut boxed = 0_u32;
+    let mut boxed_visible = 0_u32;
+    let mut outside_visible = 0_u32;
+    for candidate in &report.process_candidates {
+        if candidate.pid == 0 || !pids.insert(candidate.pid) {
+            return Err(invalid_evidence("duplicate or zero process identity PID"));
+        }
+        if let Some(time) = &candidate.created_file_time {
+            let n = time.parse::<u64>()
+                .map_err(|_| invalid_evidence("invalid process FILETIME"))?;
+            if n == 0 || n.to_string() != *time {
+                return Err(invalid_evidence("noncanonical process FILETIME"));
+            }
+        }
+        if report.membership_status == "UNKNOWN" && candidate.in_selected_box.is_some() {
+            return Err(invalid_evidence("unknown Sandboxie membership cannot attribute a PID"));
+        }
+        if candidate.in_selected_box == Some(true) { boxed += 1; }
+        if let Some(hwnd) = &candidate.window_handle {
+            let raw = hwnd.as_bytes();
+            if !(3..=18).contains(&raw.len())
+                || !hwnd.starts_with("0x")
+                || !raw[2..].iter().all(u8::is_ascii_hexdigit)
+            {
+                return Err(invalid_evidence("invalid process identity HWND"));
+            }
+            let handle = u64::from_str_radix(&hwnd[2..], 16)
+                .map_err(|_| invalid_evidence("invalid process identity HWND"))?;
+            if handle == 0 || !windows.insert(handle) {
+                return Err(invalid_evidence("duplicate or zero process HWND"));
+            }
+            if candidate.in_selected_box == Some(true) { boxed_visible += 1; }
+            if candidate.in_selected_box == Some(false) { outside_visible += 1; }
+        }
+    }
+    if boxed != report.isolated_candidate_processes
+        || boxed_visible != report.isolated_visible_candidates
+        || outside_visible != report.native_visible_candidates
+    {
+        return Err(invalid_evidence("process candidate identities contradict counters"));
     }
     Ok(report)
 }
@@ -484,12 +542,17 @@ mod tests {
     #[test]
     fn sandboxie_summary_rejects_fabricated_membership_and_credentials() {
         let base = serde_json::json!({
-            "schema":2, "boxName":"MinecraftClient02", "stage":"INSPECT",
+            "schema":3, "boxName":"MinecraftClient02", "stage":"INSPECT",
             "boxConfigured":"YES", "boxSettingsSource":"BOX_SECTION_ENUMERATED",
             "autoDelete":"OFF", "autoRemove":"OFF", "credentialHostAccess":"OFF",
             "membershipStatus":"OBSERVED", "interactiveSession":true,
             "processEvidenceClass":"NAME_MATCH_CANDIDATE_ONLY",
-            "candidateProcessCount":2, "isolatedCandidateProcesses":1,
+            "candidateProcessCount":2,
+            "processCandidates":[
+                {"pid":101, "createdFileTime":"133400000000000000", "windowHandle":"0x100", "inSelectedBox":false},
+                {"pid":202, "createdFileTime":"133400000000000001", "windowHandle":"0x200", "inSelectedBox":true}
+            ],
+            "isolatedCandidateProcesses":1,
             "nativeVisibleCandidates":1, "isolatedVisibleCandidates":1,
             "interpretation":"CONFIG_AND_PROCESS_CANDIDATES_ONLY_NO_AUTHENTICATION_PROOF"
         });
@@ -509,6 +572,18 @@ mod tests {
         let mut wrong = base.clone();
         wrong["isolatedCandidateProcesses"] = serde_json::json!(3);
         assert!(parse_sandboxie_observation(&wrong.to_string()).is_err());
+        let mut wrong = base.clone();
+        wrong["processCandidates"][1]["createdFileTime"] = serde_json::json!("invalid");
+        assert!(parse_sandboxie_observation(&wrong.to_string()).is_err());
+        let mut wrong = base.clone();
+        wrong["processCandidates"][1]["pid"] = serde_json::json!(101);
+        assert!(parse_sandboxie_observation(&wrong.to_string()).is_err());
+        let mut wrong = base.clone();
+        wrong["processCandidates"][1]["inSelectedBox"] = serde_json::json!(false);
+        assert!(parse_sandboxie_observation(&wrong.to_string()).is_err());
+        let mut missing_time = base.clone();
+        missing_time["processCandidates"][1]["createdFileTime"] = serde_json::Value::Null;
+        assert!(parse_sandboxie_observation(&missing_time.to_string()).is_ok());
     }
 
     #[test]
