@@ -71,22 +71,32 @@ function Invoke-BoundedReadOnlyTool {
   $process.StartInfo = $psi
   try {
     if (-not $process.Start()) { return $null }
-    $reading = $process.StandardOutput.ReadToEndAsync()
+    # Drain before waiting for exit, without allocating an unbounded string.
+    $buffer = [char[]]::new(1024)
+    $output = [System.Text.StringBuilder]::new()
+    $reader = $process.StandardOutput
+    $reading = $reader.ReadAsync($buffer, 0, $buffer.Length)
     if (-not $process.WaitForExit(5000)) {
       try { $process.Kill() } catch { }
       return $null
     }
-    # Start.exe and descendants may inherit the stdout pipe after the helper exits.
-    # A successful WaitForExit alone does not imply the read reached EOF.
-    if (-not $reading.Wait(1000)) { return $null }
-    $result = $reading.GetAwaiter().GetResult()
-    if ($process.ExitCode -ne 0 -or $result.Length -gt 4096) { return $null }
-    return $result.Trim()
+    # Descendants may retain stdout; enforce one total EOF deadline.
+    $drainClock = [Diagnostics.Stopwatch]::StartNew()
+    while ($true) {
+      $remainingMs = 1000 - [int]$drainClock.ElapsedMilliseconds
+      if ($remainingMs -le 0 -or -not $reading.Wait($remainingMs)) { return $null }
+      $received = $reading.GetAwaiter().GetResult()
+      if ($received -eq 0) { break }
+      if ($output.Length + $received -gt 4096) { return $null }
+      [void]$output.Append($buffer, 0, $received)
+      $reading = $reader.ReadAsync($buffer, 0, $buffer.Length)
+    }
+    if ($process.ExitCode -ne 0) { return $null }
+    return $output.ToString().Trim()
   }
   catch { return $null }
   finally {
-    # Closing the reader also releases its pipe if an inherited writer
-    # prevents EOF; never terminate a Minecraft game to finish inspection.
+    # Dispose only helper pipes/handle; never terminate the game.
     try { $process.StandardOutput.Dispose() } catch { }
     $process.Dispose()
   }
@@ -430,8 +440,35 @@ function Get-EducationImageCandidate {
   $educationImageProof[$image] = $result
   return $result
 }
+# Do not confuse an incomplete process snapshot with an empty box.
+# Reconcile every Sandboxie-reported PID, including windowless and helper PIDs.
+$allProcesses = @()
+$processInventoryComplete = $true
+try {
+  $allProcesses = @(Get-Process -ErrorAction Stop)
+} catch {
+  $processInventoryComplete = $false
+}
+if ($membershipStatus -eq 'OBSERVED') {
+  if (-not $processInventoryComplete) {
+    $membershipStatus = 'UNKNOWN'
+    $boxedPids = @()
+  } else {
+    $visiblePids = @{}
+    foreach ($item in $allProcesses) {
+      $visiblePids[[string]$item.Id] = $true
+    }
+    foreach ($boxedPid in $boxedPids) {
+      if (-not $visiblePids.ContainsKey([string]$boxedPid)) {
+        $membershipStatus = 'UNKNOWN'
+        $boxedPids = @()
+        break
+      }
+    }
+  }
+}
 $gameCandidates = @(
-  Get-Process -ErrorAction SilentlyContinue |
+  $allProcesses |
   Where-Object {
     $_.SessionId -eq $session -and
     $_.ProcessName -match '^(Minecraft\.Windows|Minecraft.*Education.*|Education.*Minecraft.*)$'
