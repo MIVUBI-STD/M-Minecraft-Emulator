@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
-import { parseNativeObservation, parseIsolatedClientObservation } from "../src/app/bridge/nativeFeasibilityApi.js";
+import {
+  parseNativeObservation, parseIsolatedClientObservation,
+  isSandboxieBoxPrepared, canRequestClient02,
+} from "../src/app/bridge/nativeFeasibilityApi.js";
 
 const fixture = () => ({
   schema: 1,
@@ -196,6 +199,10 @@ describe("Native candidate IPC evidence", () => {
     expect(engine).not.toContain("/terminate_all");
     expect(bridge).toContain('"desktop_request_sandbox_client_02"');
     expect(active).toContain("nativeFeasibility.requestSandboxClient02(");
+    expect(active).toContain("canRequestClient02(observation)");
+    expect(active).toContain("if (busy || !licenseConfirmed || !selectedExecutable || !canLaunchIsolated) return;");
+    expect(active).toContain("disabled={busy || !licenseConfirmed || !selectedExecutable || !canLaunchIsolated}");
+    expect(active).toContain('activeOperation = "Rechecking Sandboxie and requesting Client 02 launch…";');
     expect(bootstrap).not.toContain("commands::virtual_clients::virtual_clients_");
     expect(bootstrap).not.toContain("commands::setup_tools::setup_");
     expect(bootstrap).not.toContain("commands::window_arrangement::window_");
@@ -229,6 +236,29 @@ describe("Native candidate IPC evidence", () => {
       interpretation: "CONFIG_AND_PROCESS_CANDIDATES_ONLY_NO_AUTHENTICATION_PROOF",
     };
     expect(parseIsolatedClientObservation(valid)).toEqual(valid);
+    // Behavior-level regression: launch is only suggested after an observed,
+    // complete, empty persistent box; the Rust backend still re-inspects.
+    expect(isSandboxieBoxPrepared(parseIsolatedClientObservation(valid))).toBe(true);
+    expect(canRequestClient02(parseIsolatedClientObservation(valid))).toBe(false);
+    const emptyBox = {
+      ...valid, candidateProcessCount: 0, processCandidates: [],
+      isolatedCandidateProcesses: 0, nativeVisibleCandidates: 0,
+      isolatedVisibleCandidates: 0, officialImageOutsideSelectedBoxCount: 0,
+      directPidQuery: "NOT_REQUESTED", signedImageOtherBoxCount: 0,
+      signedImageUnknownBoxCount: 0,
+    };
+    expect(canRequestClient02(parseIsolatedClientObservation(emptyBox))).toBe(true);
+    expect(canRequestClient02(undefined)).toBe(false);
+    for (const ineligible of [
+      { ...emptyBox, membershipStatus: "UNKNOWN" },
+      { ...emptyBox, autoDelete: "ON" },
+      { ...emptyBox, autoRemove: "ON" },
+      { ...emptyBox, credentialHostAccess: "ON" },
+      { ...emptyBox, interactiveSession: false },
+      { ...emptyBox, boxSettingsSource: "UNKNOWN", credentialHostAccess: "UNKNOWN" },
+    ]) {
+      expect(canRequestClient02(parseIsolatedClientObservation(ineligible))).toBe(false);
+    }
     const signedBoxed = {
       ...valid, processCandidates: [
         valid.processCandidates[0],
