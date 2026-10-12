@@ -1,7 +1,7 @@
 # Current Development Handoff
 
 **Branch:** `Local` only. **Product:** Minecraft Instance Manager.
-**Current work:** `emulator/repository-documentation-hygiene`.
+**Current work:** `emulator/client02-launch-admission-hardening`.
 **Engineering state:** source prototype / **Windows build and two-account gameplay NOT_EXECUTED**.
 
 ## One selected outcome and engine
@@ -39,6 +39,12 @@ part of the active implementation.
 - Read-only inspection of Sandboxie box configuration, on-demand process/PID
   membership, visible window candidates and known WinCred-bypass settings,
   including explicit local/global protected-storage template selections.
+- Backend launch admission serializes Client 02 preflight and requests without
+  relying on UI buttons; a brief retry gap guards ambiguous requests.
+- The SummaryOnly IPC schema is now 2, reporting sandbox Minecraft-name
+  process counts even when HWND is absent. Persisted CLI evidence remains
+  schema 1. Collector stdout wait is bounded after helper exit; the launch
+  helper handle is disposed without terminating game or box.
 - One fixed persistent box `MinecraftClient02`, with checks for
   `AutoDelete`, `AutoRemove` and known credential configuration. No
   automatic sandbox creation/deletion, VM mutation or account management.
@@ -55,8 +61,10 @@ part of the active implementation.
    Microsoft Education sessions. Custom/nested templates are not fully resolved.
 2. **Launch / process identity:** Sandboxie's command may return without an
    authenticated Minecraft child. Name-matched HWND/PID candidates are not
-   Edition, sign-in, world or multiplayer proof. Repeated launch of a still
-   invisible child has not been ruled out.
+   Edition, sign-in, world or multiplayer proof. Manager-request overlap,
+   immediate retries and observed windowless boxed Minecraft-name processes
+   now block duplicate launch. Out-of-band starts and unknown membership
+   remain unproven; no account or gameplay state is inferred.
 3. **Graphics and input:** DirectX/OpenGL rendering, Windows foreground focus
    and two playable simultaneous game sessions remain untested.
 4. **Actual resource savings:** no measured manager/WebView2 CPU/RAM baseline,
@@ -74,10 +82,14 @@ not an executed `npm run verify:source` or a Windows acceptance run. Earlier
 ChatGPT V8 at prior pinned revisions; this is **not** Node/Vitest, Rust,
 PowerShell or a two-game proof. Do not promote old evidence to new HEAD.
 
-**One next step:** execute the pinned source build/checks when an authorized
-source-execution context exists, then verify two real, independently licensed
-Minecraft Education Windows sessions on the fixed native + Sandboxie route.
-Repair the first demonstrated failure rather than adding a new checker/engine.
+**Current proof:** exact-source structural/consumer review and authored Rust,
+TypeScript and collector regression checks only. Node, Rust, PowerShell and
+Windows/Minecraft executions on current HEAD remain **NOT_EXECUTED**.
+
+**Next bounded engineering action:** investigate a trusted process identity
+adapter based on the documented Sandboxie API and Windows process creation
+time. Verify the exact vendor ABI/header and trust boundary before any DLL
+binding. No second daemon, credentials storage or lifecycle manager.
 
 ## Historical provenance (not active task state)
 
