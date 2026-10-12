@@ -137,7 +137,7 @@
           <article class="pilot-slot">
             <strong>Client 02 · Isolated</strong>
             <p>Sandboxie box MinecraftClient02</p>
-            <span>{isolatedWindows === null ? "Membership UNKNOWN" : isolatedWindows > 0 ? `${isolatedWindows} visible process candidate(s) in box` : "No visible candidate observed in box"}</span>
+            <span>{isolatedWindows === null ? "Membership UNKNOWN" : observation?.isolatedCandidateProcesses ? `${observation.isolatedCandidateProcesses} process candidate(s) in box · ${isolatedWindows} with window` : "No Minecraft-name process candidate observed in box"}</span>
           </article>
         </div>
         {#if observation}
