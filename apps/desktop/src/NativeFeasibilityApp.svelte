@@ -1,6 +1,8 @@
 <script lang="ts">
   import {
     nativeFeasibility,
+    isSandboxieBoxPrepared,
+    canRequestClient02,
     type IsolatedClientObservation,
     type ProcessIdentityCandidate,
   } from "./app/bridge/nativeFeasibilityApi.js";
@@ -26,16 +28,8 @@
 
   // Presentation-only guidance from the existing observation. The backend
   // remains the sole launch authority and always performs a fresh preflight.
-  $: boxPrepared = observation?.interactiveSession === true &&
-    observation?.boxConfigured === "YES" &&
-    observation?.boxSettingsSource === "BOX_SECTION_ENUMERATED" &&
-    observation?.autoDelete === "OFF" &&
-    observation?.autoRemove === "OFF" &&
-    observation?.credentialHostAccess === "OFF";
-  // UI guidance only: Rust always repeats the actual launch preflight.
-  $: canLaunchIsolated = boxPrepared &&
-    observation?.membershipStatus === "OBSERVED" &&
-    observation?.isolatedCandidateProcesses === 0;
+  $: boxPrepared = isSandboxieBoxPrepared(observation);
+  $: canLaunchIsolated = canRequestClient02(observation);
   $: nextAction = !observation
     ? "Choose Refresh to inspect the Windows session and Sandboxie configuration."
     : !observation.interactiveSession
