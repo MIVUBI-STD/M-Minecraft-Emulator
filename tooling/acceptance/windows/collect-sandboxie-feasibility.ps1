@@ -312,64 +312,139 @@ if ($gameCandidates.Count -gt 16) {
   throw 'Too many name-matched process candidates; inspect directly.'
 }
 
-# Only full manual ImageProof inspects all enabled/active boxes for this user.
-# The inventory is bounded and may become UNKNOWN; an unmatched PID cannot
-# be declared native because disabled/other-user boxes are not included.
-$activeBoxCoverage = 'NOT_REQUESTED'
-$signedOtherActiveBoxCount = 0
-$signedNoActiveBoxMatchCount = 0
+# Optional manual-only per-PID probe of the signed installed SbieDll.dll.
+# QueryProcess is a documented read-only export. Loading it into this SHORT
+# lived PowerShell inspection child avoids loading DLL initialization/hook
+# machinery into the long-lived Tauri application.
+# A nonzero QueryProcess status is UNKNOWN (including non-sandboxed, exited
+# or permission-denied PIDs); never treat it as native proof.
+$directPidQuery = 'NOT_REQUESTED'
+$signedOtherBoxCount = 0
+$signedUnknownBoxCount = 0
 $signedOutside = @($gameCandidates | Where-Object {
   $_.imageEvidence -eq 'SIGNED_EDUCATION_IMAGE_CANDIDATE'
 })
 if ($ImageProof -and $signedOutside.Count -gt 0) {
-  $activeBoxCoverage = 'UNKNOWN'
-  if ($trustedTools -and $serviceRunning -and $membershipStatus -eq 'OBSERVED') {
-    $rawBoxes = Invoke-BoundedReadOnlyTool $iniExe 'query /boxes *'
-    if ($null -ne $rawBoxes) {
-      $boxes = @($rawBoxes -split '\r?\n' | ForEach-Object { $_.Trim() } |
-        Where-Object { $_ -ne '' })
-      $valid = $boxes.Count -ge 1 -and $boxes.Count -le 6 -and
-        @($boxes | Select-Object -Unique).Count -eq $boxes.Count -and
-        @($boxes | Where-Object { $_ -cnotmatch '^[A-Za-z][A-Za-z0-9_]{0,31}$' }).Count -eq 0 -and
-        ($boxes -contains $BoxName)
-      if ($valid) {
-        $other = @{}
-        $complete = $true
-        foreach ($box in $boxes) {
-          if ($box -eq $BoxName) { continue }
-          $rawPids = Invoke-BoundedReadOnlyTool $startExe ('/box:' + $box + ' /listpids')
-          if ($null -eq $rawPids -or $rawPids -notmatch '^[0-9\s]+$') {
-            $complete = $false; break
-          }
-          $lines = @($rawPids -split '\r?\n' | Where-Object { $_ -match '^\d+$' })
-          $count = 0
-          if ($lines.Count -lt 1 -or -not [int]::TryParse($lines[0], [ref]$count) -or
-              $count -lt 0 -or $count -gt 256 -or ($lines.Count - 1) -ne $count) {
-            $complete = $false; break
-          }
-          $seen = @{}
-          foreach ($line in @($lines | Select-Object -Skip 1)) {
-            $id = 0
-            if (-not [int]::TryParse($line, [ref]$id) -or $id -le 0 -or
-                $seen.ContainsKey([string]$id) -or $other.ContainsKey([string]$id) -or
-                $boxedPids -contains $id) {
-              $complete = $false; break
-            }
-            $seen[[string]$id] = $true
-          }
-          if (-not $complete) { break }
-          foreach ($id in $seen.Keys) { $other[$id] = $true }
+  $directPidQuery = 'UNAVAILABLE'
+  $signedUnknownBoxCount = $signedOutside.Count
+  $sbieDll = if ($dir) { Join-Path $dir 'SbieDll.dll' } else { $null }
+  if ($trustedTools -and $serviceRunning -and
+      $null -ne $sbieDll -and
+      (Test-Path -LiteralPath $sbieDll -PathType Leaf)) {
+    $sig = Get-AuthenticodeSignature -LiteralPath $sbieDll
+    $toolSig = Get-AuthenticodeSignature -LiteralPath $startExe
+    if ($sig.Status -eq 'Valid' -and $toolSig.Status -eq 'Valid' -and
+        $null -ne $sig.SignerCertificate -and
+        $null -ne $toolSig.SignerCertificate -and
+        $sig.SignerCertificate.Thumbprint -eq $toolSig.SignerCertificate.Thumbprint) {
+      try {
+        if (-not ('MivubiReadOnlySbieProcessQuery' -as [type])) {
+          Add-Type -TypeDefinition @'
+using System;
+using System.Globalization;
+using System.Runtime.InteropServices;
+
+public static class MivubiReadOnlySbieProcessQuery {
+  const uint PROCESS_QUERY_LIMITED_INFORMATION = 0x1000;
+  const uint LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR = 0x100;
+  const uint LOAD_LIBRARY_SEARCH_DEFAULT_DIRS = 0x1000;
+  [StructLayout(LayoutKind.Sequential)]
+  struct FILETIME { public uint Low, High; }
+
+  [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+  static extern IntPtr LoadLibraryExW(string path, IntPtr reserved, uint flags);
+  [DllImport("kernel32.dll", CharSet = CharSet.Ansi, ExactSpelling = true)]
+  static extern IntPtr GetProcAddress(IntPtr module, string name);
+  [DllImport("kernel32.dll")]
+  [return: MarshalAs(UnmanagedType.Bool)]
+  static extern bool FreeLibrary(IntPtr module);
+  [DllImport("kernel32.dll", SetLastError = true)]
+  static extern IntPtr OpenProcess(uint desiredAccess,
+    [MarshalAs(UnmanagedType.Bool)] bool inherit, uint pid);
+  [DllImport("kernel32.dll")]
+  [return: MarshalAs(UnmanagedType.Bool)]
+  static extern bool CloseHandle(IntPtr process);
+  [DllImport("kernel32.dll", SetLastError = true)]
+  [return: MarshalAs(UnmanagedType.Bool)]
+  static extern bool GetProcessTimes(IntPtr process,
+    out FILETIME created, out FILETIME exited,
+    out FILETIME kernel, out FILETIME user);
+
+  [UnmanagedFunctionPointer(CallingConvention.StdCall, CharSet = CharSet.Unicode)]
+  delegate int QueryProcess(IntPtr pid,
+    [Out, MarshalAs(UnmanagedType.LPArray, ArraySubType = UnmanagedType.U2, SizeConst = 34)]
+      char[] box,
+    IntPtr image, IntPtr sid, IntPtr session);
+
+  static bool SameProcess(IntPtr process, ulong createdExpected) {
+    FILETIME created, exited, kernel, user;
+    if (!GetProcessTimes(process, out created, out exited, out kernel, out user))
+      return false;
+    ulong actual = ((ulong)created.High << 32) | created.Low;
+    return actual != 0 && actual == createdExpected;
+  }
+
+  // Returns OTHER_BOX or UNKNOWN. It intentionally cannot return NATIVE.
+  public static string[] Query(string dll, uint[] pids,
+    string[] fileTimes, string selectedBox) {
+    if (pids == null || fileTimes == null ||
+        pids.Length != fileTimes.Length || pids.Length > 16)
+      throw new ArgumentException("Invalid bounded PID request");
+    IntPtr module = LoadLibraryExW(dll, IntPtr.Zero,
+      LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_DEFAULT_DIRS);
+    if (module == IntPtr.Zero) throw new InvalidOperationException("SbieDll unavailable");
+    try {
+      IntPtr entry = GetProcAddress(module, "SbieApi_QueryProcess");
+      if (entry == IntPtr.Zero) throw new MissingMethodException("QueryProcess unavailable");
+      QueryProcess query = (QueryProcess)Marshal.GetDelegateForFunctionPointer(
+        entry, typeof(QueryProcess));
+      string[] results = new string[pids.Length];
+      for (int i = 0; i < pids.Length; i++) {
+        results[i] = "UNKNOWN";
+        ulong expected;
+        if (pids[i] == 0 || !ulong.TryParse(fileTimes[i],
+            NumberStyles.None, CultureInfo.InvariantCulture, out expected) ||
+            expected == 0)
+          continue;
+        IntPtr process = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pids[i]);
+        if (process == IntPtr.Zero) continue;
+        try {
+          if (!SameProcess(process, expected)) continue;
+          char[] boxName = new char[34];
+          int status = query((IntPtr)(long)pids[i], boxName,
+            IntPtr.Zero, IntPtr.Zero, IntPtr.Zero);
+          if (!SameProcess(process, expected) || status != 0) continue;
+          int len = Array.IndexOf(boxName, '\0');
+          if (len < 1 || len > 32) continue;
+          string box = new string(boxName, 0, len);
+          if (box.IndexOfAny(new char[] { '\\', '/', ':', '\r', '\n' }) >= 0)
+            continue;
+          if (!String.Equals(box, selectedBox, StringComparison.OrdinalIgnoreCase))
+            results[i] = "OTHER_BOX";
+        } finally { CloseHandle(process); }
+      }
+      return results;
+    } finally { FreeLibrary(module); }
+  }
+}
+'@ -ErrorAction Stop | Out-Null
         }
-        if ($complete) {
-          $activeBoxCoverage = 'OBSERVED'
-          foreach ($candidate in $signedOutside) {
-            if ($other.ContainsKey([string]$candidate.pid)) {
-              $signedOtherActiveBoxCount++
-            } else {
-              $signedNoActiveBoxMatchCount++
-            }
-          }
+        $pids = [uint32[]]@($signedOutside | ForEach-Object { $_.pid })
+        $times = [string[]]@($signedOutside | ForEach-Object { $_.createdFileTime })
+        $results = @([MivubiReadOnlySbieProcessQuery]::Query(
+          $sbieDll, $pids, $times, $BoxName))
+        if ($results.Count -eq $signedOutside.Count -and
+            @($results | Where-Object { $_ -notin @('OTHER_BOX', 'UNKNOWN') }).Count -eq 0) {
+          $directPidQuery = 'QUERIED'
+          $signedOtherBoxCount = @($results | Where-Object { $_ -eq 'OTHER_BOX' }).Count
+          $signedUnknownBoxCount = $signedOutside.Count - $signedOtherBoxCount
         }
+      } catch {
+        # DLL load, ABI mismatch or Windows access failure must never infer
+        # the process is unsandboxed. Discard partially inferred counts.
+        $directPidQuery = 'UNAVAILABLE'
+        $signedOtherBoxCount = 0
+        $signedUnknownBoxCount = $signedOutside.Count
       }
     }
   }
@@ -438,7 +513,7 @@ if (-not $SummaryOnly) {
 $summary = [ordered]@{
   # Desktop summary schema evolves independently of the persisted
   # schema-1 CLI report consumed by the existing evidence evaluator.
-  schema = 5
+  schema = 6
   boxName = $BoxName
   stage = $Stage
   boxConfigured = $boxConfigured
@@ -452,9 +527,9 @@ $summary = [ordered]@{
   candidateProcessCount = $gameCandidates.Count
   processCandidates = @($gameCandidates)
   officialImageOutsideSelectedBoxCount = $signedOutside.Count
-  activeBoxCoverage = $activeBoxCoverage
-  signedImageOtherActiveBoxCount = $signedOtherActiveBoxCount
-  signedImageNoActiveBoxMatchCount = $signedNoActiveBoxMatchCount
+  directPidQuery = $directPidQuery
+  signedImageOtherBoxCount = $signedOtherBoxCount
+  signedImageUnknownBoxCount = $signedUnknownBoxCount
   # Include Minecraft-name processes that have not created an HWND yet.
   # UNKNOWN Sandboxie membership is never treated as an empty box.
   isolatedCandidateProcesses = @($gameCandidates | Where-Object {
