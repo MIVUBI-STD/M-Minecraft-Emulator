@@ -78,8 +78,16 @@ describe("Native candidate IPC evidence", () => {
     expect(bootstrap).toContain("commands::native_clients::desktop_select_education_exe,");
     expect(bootstrap).toContain("commands::native_clients::desktop_request_sandbox_client_02,");
     expect(bootstrap).toContain("commands::native_clients::desktop_inspect_sandbox_client_02,");
+    expect(bootstrap).toContain("commands::native_clients::desktop_focus_observed_client_02,");
     expect(commands).toContain("fn desktop_inspect_sandbox_client_02(");
+    expect(commands).toContain("fn desktop_focus_observed_client_02(");
     expect(engine).toContain("pub fn inspect_sandbox_client_02()");
+    expect(engine).toContain("pub fn focus_observed_client_02(");
+    expect(engine).toContain("verify_fresh_focus_target(&target, &fresh)");
+    expect(engine).toContain("GetProcessTimes(process, &mut created");
+    expect(engine).toContain("GetWindowThreadProcessId(hwnd, &mut window_pid)");
+    expect(engine).toContain("SetForegroundWindow(hwnd)");
+    expect(engine).not.toContain("AllowSetForegroundWindow");
     expect(engine).toContain("include_str!(concat!(");
     expect(engine).toContain("WaitForExit(8000)");
     expect(engine).toContain("$launcher.ExitCode");
@@ -90,6 +98,10 @@ describe("Native candidate IPC evidence", () => {
     expect(engine).toContain("GetEnvironmentVariable('ProgramW6432')");
     expect(engine).toContain('observation.credential_host_access != "OFF"');
     expect(bridge).toContain('"desktop_inspect_sandbox_client_02"');
+    expect(bridge).toContain('"desktop_focus_observed_client_02"');
+    expect(active).toContain("nativeFeasibility.focusObservedClient02(target)");
+    expect(active).toContain("disabled={busy || !focusTarget}");
+    expect(active).not.toContain("SetForegroundWindow");
     expect(active).toContain("nativeFeasibility.inspectIsolatedClient02()");
     expect(active).not.toContain("Promise.allSettled");
     expect(active).toContain("observation = await nativeFeasibility.inspectIsolatedClient02()");
