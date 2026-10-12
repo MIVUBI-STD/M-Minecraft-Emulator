@@ -196,6 +196,8 @@ export const nativeFeasibility = {
     invokeRuntime<void>("desktop_request_sandbox_client_02", { executable, licensed }),
   focusObservedClient02: (target: ProcessIdentityCandidate): Promise<void> =>
     invokeRuntime<void>("desktop_focus_observed_client_02", { target }),
+  placeObservedClient02: (target: ProcessIdentityCandidate, side: "LEFT" | "RIGHT"): Promise<void> =>
+    invokeRuntime<void>("desktop_place_observed_client_02", { target, side }),
   inspectIsolatedClient02: async (): Promise<IsolatedClientObservation> =>
     parseIsolatedClientObservation(await invokeRuntime<unknown>("desktop_inspect_sandbox_client_02")),
   inspectCandidates: async (): Promise<NativeProcessObservation> =>
