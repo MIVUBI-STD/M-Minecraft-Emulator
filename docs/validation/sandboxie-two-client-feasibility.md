@@ -100,7 +100,13 @@ requesting foreground activation. This does not establish official Education
 identity, an authenticated account or playable gameplay. If the process
 changed, Refresh first; if Windows rejects foreground activation, click the
 game window or use Alt+Tab. No keyboard simulation, hidden polling,
-automatic process start, VM route or sandbox data mutation is used. Sandboxie Plus requires
+automatic process start, VM route or sandbox data mutation is used.
+The adjacent **Place Left** and **Place Right** controls request half of
+Client 02's current monitor work area only, after the same identity check.
+They neither identify nor move Client 01, keep the existing Z-order and
+focus, and require the game window to be restored from minimized/maximized
+state first. Windows may adjust the final size to Minecraft's constraints;
+the accepted placement request does not certify the final rendering. Sandboxie Plus requires
 a Business Certificate for business/educational use as described upstream.
 
 ## Prerequisites, manually managed
