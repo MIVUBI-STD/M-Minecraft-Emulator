@@ -1,10 +1,58 @@
 # Current Development Handoff
 
 **Branch:** `Local` only. **Product:** Minecraft Instance Manager.
-**Current work:** `emulator/localtest-readiness` (source corrections committed; validation pending).
+**Current work:** `emulator/source-hardening` (additional source-only audit and corrections; local testing explicitly deferred).
 **Engineering state:** source prototype / **exact-HEAD Node/Svelte/Rust/PowerShell execution, Windows build and two-account gameplay NOT_EXECUTED**.
 
-## Latest source-only batch — PID completeness, bounded helper output, launch UX and localtest
+## Latest source-only batch — REA-aligned producer/consumer reconciliation and worker bounds
+
+- **Discovered a concrete source-contract defect (P0):** the collector's
+  `$signedOutside` filter previously counted every signed Education image,
+  including the boxed PID proven by `-BoxedImageProofPid`. Rust independently
+  counts signed images only outside the selected Sandboxie box. A successfully
+  signed boxed PID could therefore make the Focus/Place inspection report
+  self-contradictory and be rejected. The collector now explicitly filters
+  `inSelectedBox -eq $false`. Frontend fixtures exercise both the accepted
+  signed-only-boxed case and a deliberately plausible but contradictory
+  outside counter. This is an observed *source defect corrected in source*,
+  not a measured before/after Windows fix.
+- **CLI process inventory:** the short-lived collector now reads two separate
+  bounded `Start.exe /listpids` snapshots with one canonical strict parser.
+  Only matching sorted PID sets (including valid zero-count sets) yield
+  OBSERVED; otherwise the existing signed `SbieDll` read-only fallback
+  runs. Windows process reconciliation from the prior batch remains active.
+  A changing process between preflight and launch is still a race; no
+  unauthorized second launch is considered proven.
+- **Helper stdout:** replaces the previous read-task-then-wait-for-exit
+  sequence with concurrent draining until EOF, limiting buffered output to
+  4096 characters under a single five-second deadline. This addresses the
+  source-level pipe-fill deadlock and avoids unbounded retained output.
+  PowerShell actual execution remains NOT_EXECUTED.
+- **Rust subprocess workers:** reserves a bounded maximum of 24 concurrent
+  shared I/O worker slots **before** spawning any provider helper. Slots are
+  released by each reader/writer thread on exit, while inherited stdout
+  pipes can still keep a thread alive. The cap prevents repeated ambiguous
+  inspections from silently creating unbounded new detached workers. A
+  source regression for capacity is authored, not executed.
+- **UI:** a new Refresh clears stale success copy before reporting a fresh
+  observation or failure; the Rust/TypeScript contract remains unchanged.
+- **Evidence checks:** inspected current source, verified the relevant
+  collector assertions and source-invariant markers against current files.
+  No Node/Vitest, Cargo, PowerShell or Minecraft tests were executed,
+  and no REA binary/provider session exists. This is not G0 acceptance.
+- **Preserved:** branch `main`, original VMware VM/account data, installed
+  product identifier, old blocked installer, process identity admission,
+  protocol/schema versions, and account/token privacy boundaries.
+- **Still unresolved:** actual Rust/Svelte/PowerShell compilation, Sandboxie
+  ABI compatibility, Windows signed-file attribution, Microsoft WAM account
+  separation, resource usage, socket/session stability, long-running
+  descendant pipe lifetime, localized StartApps, and all gameplay gates.
+- **Next source-only task:** audit fail-closed reporting of process
+  enumeration errors and distinguish genuinely empty boxes from race-related
+  UNKNOWN without a new scheduler, agent, installer, provider or credential
+  state. The user has deferred all local gameplay/Windows tests.
+
+## Previous source-only batch — PID completeness, bounded helper output, launch UX and localtest
 
 - Reconciles a successfully observed Sandboxie box PID set against one bounded
   Windows `Get-Process -ErrorAction Stop` snapshot, including helper and
