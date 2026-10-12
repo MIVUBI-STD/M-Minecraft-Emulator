@@ -304,12 +304,27 @@ pub fn request_sandbox_client_02(executable: String, licensed: bool) -> io::Resu
         return Err(io::Error::new(io::ErrorKind::PermissionDenied,
             "Sandboxie Client 02 preflight blocked: box must be enabled, persistent and OpenCredentials must be verifiably OFF (including inherited global settings)"));
     }
+    // The selected box is dedicated to this test client. Refuse an explicit
+    // second launch when an existing visible boxed Minecraft-name candidate
+    // has already been observed; this does not prove which edition it is.
+    if observation.membership_status == "OBSERVED" &&
+        observation.isolated_visible_candidates > 0
+    {
+        return Err(io::Error::new(io::ErrorKind::AlreadyExists,
+            "Client 02 already has a visible Minecraft process candidate in its box; inspect or close that game before launching another"));
+    }
     let escaped = executable.replace('\'', "''");
     let box_name = CLIENT_02_BOX_NAME;
     let script = format!(r#"
 $ErrorActionPreference = 'Stop'
 $game = '{escaped}'
 $box = '{box_name}'
+# Sandboxie's GUI normally receives a working directory for sandboxed
+# run commands; pin this to the signed installed game EXE directory.
+$gameFolder = [System.IO.Path]::GetDirectoryName($game)
+if (-not (Test-Path -LiteralPath $gameFolder -PathType Container)) {{
+    throw 'Selected Education executable directory is unavailable'
+}}
 if ([Diagnostics.Process]::GetCurrentProcess().SessionId -eq 0) {{
     throw 'Interactive Windows user session required'
 }}
@@ -373,7 +388,7 @@ foreach ($key in @('AutoDelete','AutoRemove')) {{
 }}
 # Sandboxie's GUI Start.exe may return before a child actually launches.
 # Never interpret this request as process membership, login or gameplay.
-$launcher = Start-Process -FilePath $start -ArgumentList @(('/box:' + $box), ('"' + $game + '"')) -PassThru -ErrorAction Stop
+$launcher = Start-Process -FilePath $start -WorkingDirectory $gameFolder -ArgumentList @(('/box:' + $box), ('"' + $game + '"')) -PassThru -ErrorAction Stop
 if (-not $launcher.WaitForExit(8000)) {{
     throw 'Sandboxie Start.exe did not confirm the launch request within 8 seconds; game state remains UNKNOWN'
 }}
