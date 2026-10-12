@@ -295,7 +295,12 @@ test("source-side collector must distinguish missing box keys from failed querie
   assert.equal(source.split("credentialHostAccess = $credentialHostAccess").length - 1, 2);
   assert.ok(source.includes("[switch]$SummaryOnly"));
   assert.ok(source.includes("$reader.ReadAsync($buffer, 0, $buffer.Length)"));
-  assert.ok(source.includes("$remainingMs = 1000 - [int]$drainClock.ElapsedMilliseconds"));
+  assert.ok(source.includes("$remainingMs = 5000 - [int]$clock.ElapsedMilliseconds"));
+  assert.ok(source.includes("$readTask = $reader.ReadAsync($buffer, 0, $buffer.Length)"));
+  assert.ok(source.indexOf("$readTask.Wait($remainingMs)") < source.indexOf("$process.WaitForExit($remainingMs)"));
+  assert.ok(source.includes("$first = Read-BoxPidList"));
+  assert.ok(source.includes("$second = Read-BoxPidList"));
+  assert.ok(source.includes("(($first.Pids -join ',') -ceq ($second.Pids -join ','))"));
   assert.ok(source.includes("if ($output.Length + $received -gt 4096) { return $null }"));
   assert.ok(!source.includes("$process.StandardOutput.ReadToEndAsync()"));
   assert.ok(source.includes("$process.StandardOutput.Dispose()"));
