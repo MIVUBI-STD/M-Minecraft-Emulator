@@ -70,8 +70,16 @@ export function parseNativeObservation(value: unknown): NativeProcessObservation
   };
 }
 
+export interface ProcessIdentityCandidate {
+  pid: number;
+  // Decimal Windows FILETIME, not a lossy JSON floating-point number.
+  createdFileTime: string | null;
+  windowHandle: string | null;
+  inSelectedBox: boolean | null;
+}
+
 export interface IsolatedClientObservation {
-  schema: 2;
+  schema: 3;
   boxName: "MinecraftClient02";
   stage: "INSPECT";
   boxConfigured: "YES" | "NO" | "UNKNOWN";
@@ -83,6 +91,7 @@ export interface IsolatedClientObservation {
   interactiveSession: boolean;
   processEvidenceClass: "NAME_MATCH_CANDIDATE_ONLY";
   candidateProcessCount: number;
+  processCandidates: ProcessIdentityCandidate[];
   isolatedCandidateProcesses: number;
   nativeVisibleCandidates: number;
   isolatedVisibleCandidates: number;
@@ -94,14 +103,14 @@ export function parseIsolatedClientObservation(value: unknown): IsolatedClientOb
     "schema", "boxName", "stage", "boxConfigured", "boxSettingsSource",
     "autoDelete", "autoRemove", "credentialHostAccess", "membershipStatus",
     "interactiveSession", "processEvidenceClass", "candidateProcessCount",
-    "isolatedCandidateProcesses", "nativeVisibleCandidates", "isolatedVisibleCandidates", "interpretation",
+    "processCandidates", "isolatedCandidateProcesses", "nativeVisibleCandidates", "isolatedVisibleCandidates", "interpretation",
   ];
   const flag = (v: unknown): v is "ON" | "OFF" | "UNKNOWN" =>
     v === "ON" || v === "OFF" || v === "UNKNOWN";
   const bounded = (v: unknown): v is number =>
     typeof v === "number" && Number.isSafeInteger(v) && v >= 0 && v <= 16;
   if (!isRecord(value) || !hasOnly(value, keys) ||
-    value.schema !== 2 || value.boxName !== "MinecraftClient02" ||
+    value.schema !== 3 || value.boxName !== "MinecraftClient02" ||
     value.stage !== "INSPECT" ||
     !["YES", "NO", "UNKNOWN"].includes(value.boxConfigured as string) ||
     !["BOX_SECTION_ENUMERATED", "UNKNOWN"].includes(value.boxSettingsSource as string) ||
@@ -115,6 +124,8 @@ export function parseIsolatedClientObservation(value: unknown): IsolatedClientOb
     value.processEvidenceClass !== "NAME_MATCH_CANDIDATE_ONLY" ||
     value.interpretation !== "CONFIG_AND_PROCESS_CANDIDATES_ONLY_NO_AUTHENTICATION_PROOF" ||
     !bounded(value.candidateProcessCount) ||
+    !Array.isArray(value.processCandidates) ||
+    value.processCandidates.length !== value.candidateProcessCount ||
     !bounded(value.isolatedCandidateProcesses) ||
     (value.isolatedCandidateProcesses as number) > (value.candidateProcessCount as number) ||
     !bounded(value.nativeVisibleCandidates) ||
@@ -126,6 +137,53 @@ export function parseIsolatedClientObservation(value: unknown): IsolatedClientOb
        value.isolatedCandidateProcesses !== 0))
   ) {
     throw new TypeError("Untrusted isolated Minecraft process observation.");
+  }
+  const pids = new Set<number>();
+  const windows = new Set<bigint>();
+  let boxed = 0, boxedVisible = 0, outsideVisible = 0;
+  for (const candidate of value.processCandidates as unknown[]) {
+    if (!isRecord(candidate) ||
+      !hasOnly(candidate, ["pid", "createdFileTime", "windowHandle", "inSelectedBox"]) ||
+      typeof candidate.pid !== "number" ||
+      !Number.isSafeInteger(candidate.pid) ||
+      candidate.pid < 1 || candidate.pid > 0xffffffff ||
+      pids.has(candidate.pid)) {
+      throw new TypeError("Invalid process identity PID.");
+    }
+    pids.add(candidate.pid);
+    if (candidate.createdFileTime !== null) {
+      if (typeof candidate.createdFileTime !== "string" ||
+        !/^[1-9][0-9]{0,19}$/.test(candidate.createdFileTime) ||
+        BigInt(candidate.createdFileTime) > 0xffffffffffffffffn) {
+        throw new TypeError("Invalid process creation FILETIME.");
+      }
+    }
+    if (candidate.inSelectedBox !== null &&
+      typeof candidate.inSelectedBox !== "boolean") {
+      throw new TypeError("Invalid process membership.");
+    }
+    if (value.membershipStatus === "UNKNOWN" && candidate.inSelectedBox !== null) {
+      throw new TypeError("Unknown membership cannot attribute process identity.");
+    }
+    if (candidate.inSelectedBox === true) boxed++;
+    if (candidate.windowHandle !== null) {
+      if (typeof candidate.windowHandle !== "string" ||
+        !/^0x[0-9a-f]{1,16}$/i.test(candidate.windowHandle)) {
+        throw new TypeError("Invalid process identity HWND.");
+      }
+      const hwnd = BigInt(candidate.windowHandle);
+      if (hwnd === 0n || windows.has(hwnd)) {
+        throw new TypeError("Duplicate or zero process identity HWND.");
+      }
+      windows.add(hwnd);
+      if (candidate.inSelectedBox === true) boxedVisible++;
+      if (candidate.inSelectedBox === false) outsideVisible++;
+    }
+  }
+  if (boxed !== value.isolatedCandidateProcesses ||
+    boxedVisible !== value.isolatedVisibleCandidates ||
+    outsideVisible !== value.nativeVisibleCandidates) {
+    throw new TypeError("Process candidates contradict snapshot counters.");
   }
   return value as unknown as IsolatedClientObservation;
 }
