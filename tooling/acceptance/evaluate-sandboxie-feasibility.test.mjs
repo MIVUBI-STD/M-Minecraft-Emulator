@@ -36,7 +36,7 @@ const sample = () => ({
     independentInput: "YES",
     accountCrossingObserved: "NO",
     reopenAndRebootPersistent: "YES",
-    multiplayerJoined: "UNKNOWN",
+    multiplayerJoined: "YES",
     observedMinutes: 10,
     evidenceReference: "sandbox-session-001"
   }
@@ -50,7 +50,7 @@ test("positive operator claims never become independently verified Microsoft ses
   assert.equal(result.automatedAccountProof, false);
   assert.equal(result.automatedGameProof, false);
   assert.equal(result.productionFourClientReady, false);
-  assert.ok(result.risks.includes("MULTIPLAYER_NOT_CONFIRMED"));
+  assert.ok(!result.risks.includes("MULTIPLAYER_NOT_CONFIRMED"));
 });
 
 test("inspecting the box without game observations is inconclusive", () => {
@@ -117,6 +117,7 @@ test("unknown account isolation, license, persistence or observation reference s
     r => r.operator.distinctAccounts = "UNKNOWN",
     r => r.operator.licensedForUse = "UNKNOWN",
     r => r.operator.reopenAndRebootPersistent = "UNKNOWN",
+    r => r.operator.multiplayerJoined = "UNKNOWN",
     r => r.operator.observedMinutes = 9,
     r => r.operator.evidenceReference = null
   ]) {
@@ -132,7 +133,8 @@ test("explicit cross-account, license, gameplay or persistence failure remains v
     r => r.operator.licensedForUse = "NO",
     r => r.operator.nativeWorldPlayable = "NO",
     r => r.operator.sandboxWorldPlayable = "NO",
-    r => r.operator.reopenAndRebootPersistent = "NO"
+    r => r.operator.reopenAndRebootPersistent = "NO",
+    r => r.operator.multiplayerJoined = "NO"
   ]) {
     const r = sample();
     change(r);
@@ -148,6 +150,10 @@ test("untrusted process attribution or invented automatic PASS is rejected", () 
     r => r.operator.attribution = "AUTOMATED",
     r => r.machine.candidateProcesses[1].pid = 101,
     r => r.machine.candidateProcesses[1].windowHandle = "0x100",
+    r => r.machine.candidateProcesses[1].windowHandle = "0x0100",
+    r => r.machine.candidateProcesses[1].windowHandle = "0x00000100",
+    r => r.machine.candidateProcesses[1].pid = 0x100000000,
+    r => r.machine.candidateProcesses[1].windowHandle = "0x10000000000000000",
     r => r.machine.candidateProcesses[0].windowHandle = "0x0",
     r => r.operator.evidenceReference = "C:\\Accounts\\secret",
     r => r.operator.observedMinutes = 1441,
@@ -237,6 +243,15 @@ test("process and operator-account evidence are distinct from session persistenc
   assert.equal(reported.accountFeasibility, "OPERATOR_REPORTED_PLAYABLE");
   assert.equal(reported.verdict, "INCONCLUSIVE");
   assert.equal(reported.productAcceptance, "NOT_EVALUATED");
+
+  const unknownMultiplayer = sample();
+  unknownMultiplayer.operator.multiplayerJoined = "UNKNOWN";
+  assert.equal(evaluateSandboxieFeasibility(unknownMultiplayer).accountFeasibility, "OPERATOR_REPORTED_PLAYABLE");
+  assert.equal(evaluateSandboxieFeasibility(unknownMultiplayer).verdict, "INCONCLUSIVE");
+
+  const failedMultiplayer = sample();
+  failedMultiplayer.operator.multiplayerJoined = "NO";
+  assert.equal(evaluateSandboxieFeasibility(failedMultiplayer).verdict, "OPERATOR_REPORTED_FAILURE");
 
   const failedPersistence = sample();
   failedPersistence.operator.reopenAndRebootPersistent = "NO";

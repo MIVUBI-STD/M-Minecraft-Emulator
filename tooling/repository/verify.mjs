@@ -190,6 +190,11 @@ requireFact(nativeEvidenceEvaluator.includes("processFeasibility") &&
   "Native process/account observations must stay distinct from final four-client acceptance");
 
 const sandboxCollector = read("tooling/acceptance/windows/collect-sandboxie-feasibility.ps1");
+const nativeProcessPattern = "^(Minecraft\\.Windows|Minecraft.*Education.*|Education.*Minecraft.*)$";
+requireFact(nativeOwner.includes(nativeProcessPattern) &&
+  nativeEvidenceCollector.includes(nativeProcessPattern) &&
+  sandboxCollector.includes(nativeProcessPattern),
+  "Native and Sandboxie collectors must count the same Minecraft.Windows candidates");
 const sandboxEvaluator = read("tooling/acceptance/evaluate-sandboxie-feasibility.mjs");
 requireFact(sandboxCollector.includes("'query ' + $BoxName + ' *'") &&
   sandboxCollector.includes("'BOX_SECTION_ENUMERATED'") &&
@@ -203,15 +208,17 @@ requireFact(sandboxCollector.includes("'query ' + $BoxName + ' *'") &&
   "Sandboxie lifecycle settings must derive only from a successful box-local enumeration");
 requireFact(sandboxEvaluator.includes("processFeasibility") &&
   sandboxEvaluator.includes("accountFeasibility") &&
-  sandboxEvaluator.includes('productAcceptance: "NOT_EVALUATED"'),
+  sandboxEvaluator.includes('productAcceptance: "NOT_EVALUATED"') &&
+  sandboxEvaluator.includes('operator.multiplayerJoined === "YES"') &&
+  sandboxEvaluator.includes("BigInt(candidate.windowHandle)"),
   "Sandboxie candidate/account evidence must not masquerade as four-account acceptance");
 
 // The current UI cannot be shipped as the old VMware installer while
 // still bundling a Guest Agent and account-bearing installed identity.
 const bundleBuilder = read("apps/desktop/scripts/prepare-package-binaries.mjs");
 requireFact(bundleBuilder.includes("PACKAGE_BLOCKED_NATIVE_FEASIBILITY") &&
-  bundleBuilder.includes('activeDesktopSource.includes("NativeFeasibilityApp")') &&
-  bundleBuilder.includes('publicCommandSource.includes') &&
+  bundleBuilder.includes("const LEGACY_PACKAGE_RELEASE_APPROVED = false;") &&
+  bundleBuilder.includes("if (!LEGACY_PACKAGE_RELEASE_APPROVED)") &&
   bundleBuilder.indexOf("PACKAGE_BLOCKED_NATIVE_FEASIBILITY") < bundleBuilder.indexOf("const binaries ="),
   "Native-feasibility desktop must be blocked from old VMware NSIS packaging");
 const nativeDesktop = read("apps/desktop/src-tauri/src/engine/native_clients.rs");

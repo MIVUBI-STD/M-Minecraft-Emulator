@@ -95,6 +95,16 @@ describe("Native candidate IPC evidence", () => {
     );
     const active = readFileSync(new URL("../src/NativeFeasibilityApp.svelte", import.meta.url), "utf8");
     expect(section).toContain("Get-Process");
+    const pattern = "^(Minecraft\\.Windows|Minecraft.*Education.*|Education.*Minecraft.*)$";
+    const collector = readFileSync(new URL("../../../tooling/acceptance/windows/collect-native-feasibility.ps1", import.meta.url), "utf8");
+    const isolated = readFileSync(new URL("../../../tooling/acceptance/windows/collect-sandboxie-feasibility.ps1", import.meta.url), "utf8");
+    for (const source of [engine, collector, isolated]) expect(source).toContain(pattern);
+    expect(new RegExp(pattern, "i").test("Minecraft.Windows")).toBe(true);
+    expect(new RegExp(pattern, "i").test("EducationHelper")).toBe(false);
+    expect(new RegExp(pattern, "i").test("MinecraftJava")).toBe(false);
+    expect(engine).toContain("RegistryView]::Registry32");
+    expect(engine).toContain("Get-AppxPackage -Name 'Microsoft.MinecraftEducationEdition'");
+    expect(engine).toContain("Get-StartApps");
     expect(section).not.toContain("Start-Process");
     expect(section).not.toContain("Get-Content");
     expect(section).not.toContain("Set-Item");

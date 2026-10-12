@@ -40,8 +40,8 @@ describe("Emulator source verification routing", () => {
     const policy = readFileSync(new URL("../../../engine/distribution/package-contract.json", import.meta.url), "utf8");
     expect(entry).toContain("NativeFeasibilityApp");
     expect(packageBuilder).toContain("PACKAGE_BLOCKED_NATIVE_FEASIBILITY");
-    expect(packageBuilder).toContain('activeDesktopSource.includes("NativeFeasibilityApp")');
-    expect(packageBuilder).toContain("publicCommandSource.includes");
+    expect(packageBuilder).toContain("const LEGACY_PACKAGE_RELEASE_APPROVED = false;");
+    expect(packageBuilder).toContain("if (!LEGACY_PACKAGE_RELEASE_APPROVED)");
     expect(packageBuilder.indexOf("PACKAGE_BLOCKED_NATIVE_FEASIBILITY"))
       .toBeLessThan(packageBuilder.indexOf("const binaries ="));
     expect(policy).toContain("guest/windows/virtual-guest-agent.exe");
