@@ -225,6 +225,15 @@ requireFact(sandboxEvaluator.includes("processFeasibility") &&
   sandboxEvaluator.includes('operator.multiplayerJoined === "YES"') &&
   sandboxEvaluator.includes("BigInt(candidate.windowHandle)"),
   "Sandboxie candidate/account evidence must not masquerade as four-account acceptance");
+// The selected-PID verifier may prove a signed boxed image, but the original
+// outside-only counter must remain zero for that image. Rust rejects drift.
+requireFact(
+  sandboxCollector.includes("$signedOutside = @($gameCandidates | Where-Object {") &&
+  sandboxCollector.includes("$_.imageEvidence -eq 'SIGNED_EDUCATION_IMAGE_CANDIDATE' -and") &&
+  sandboxCollector.includes("$_.inSelectedBox -eq $false") &&
+  read("apps/desktop/src-tauri/src/engine/native_clients.rs").includes(
+    "if candidate.in_selected_box == Some(false) { official_outside += 1; }"),
+  "Boxed signed Education images must never inflate outside-only counters");
 
 // The current UI cannot be shipped as the old VMware installer while
 // still bundling a Guest Agent and account-bearing installed identity.
