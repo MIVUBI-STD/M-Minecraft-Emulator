@@ -237,6 +237,38 @@ if ($trustedTools -and $serviceRunning -and $boxConfigured -eq 'YES') {
 }
 
 $session = [System.Diagnostics.Process]::GetCurrentProcess().SessionId
+# This cold, explicit Refresh path may inspect image signatures, but only
+# for visible candidates outside the selected box. Cache by path for this
+# single invocation; never persist private paths or use this as login proof.
+$educationImageProof = @{}
+function Get-EducationImageCandidate {
+  param([object]$ProcessObject)
+  $image = $null
+  try { $image = [string]$ProcessObject.Path } catch { }
+  if ([string]::IsNullOrWhiteSpace($image) -or
+      -not (Test-Path -LiteralPath $image -PathType Leaf)) {
+    return 'UNKNOWN'
+  }
+  if ($educationImageProof.ContainsKey($image)) {
+    return $educationImageProof[$image]
+  }
+  $result = 'UNKNOWN'
+  try {
+    $product = [Diagnostics.FileVersionInfo]::GetVersionInfo($image).ProductName
+    if ($product -match '(?i)(Minecraft.*Education|Education.*Minecraft)') {
+      $signature = Get-AuthenticodeSignature -LiteralPath $image
+      $publisher = if ($null -ne $signature.SignerCertificate) {
+        [string]$signature.SignerCertificate.Subject
+      } else { '' }
+      if ($signature.Status -eq 'Valid' -and
+          $publisher -match '(?i)(^|,\\s*)O=Microsoft Corporation(,|$)') {
+        $result = 'SIGNED_EDUCATION_IMAGE_CANDIDATE'
+      }
+    }
+  } catch { }
+  $educationImageProof[$image] = $result
+  return $result
+}
 $gameCandidates = @(
   Get-Process -ErrorAction SilentlyContinue |
   Where-Object {
@@ -256,13 +288,19 @@ $gameCandidates = @(
     $handle = if ($_.MainWindowHandle -ne [IntPtr]::Zero) {
       '0x' + $_.MainWindowHandle.ToInt64().ToString('x')
     } else { $null }
+    $inBox = if ($membershipStatus -eq 'OBSERVED') {
+      [bool]($boxedPids -contains [int]$_.Id)
+    } else { $null }
+    $imageEvidence = 'UNKNOWN'
+    if ($inBox -eq $false -and $null -ne $handle) {
+      $imageEvidence = Get-EducationImageCandidate $_
+    }
     [ordered]@{
       pid = [int]$_.Id
       createdFileTime = $createdFileTime
       windowHandle = $handle
-      inSelectedBox = $(if ($membershipStatus -eq 'OBSERVED') {
-        [bool]($boxedPids -contains [int]$_.Id)
-      } else { $null })
+      inSelectedBox = $inBox
+      imageEvidence = $imageEvidence
     }
   }
 )
@@ -333,7 +371,7 @@ if (-not $SummaryOnly) {
 $summary = [ordered]@{
   # Desktop summary schema evolves independently of the persisted
   # schema-1 CLI report consumed by the existing evidence evaluator.
-  schema = 3
+  schema = 4
   boxName = $BoxName
   stage = $Stage
   boxConfigured = $boxConfigured
@@ -346,6 +384,9 @@ $summary = [ordered]@{
   processEvidenceClass = 'NAME_MATCH_CANDIDATE_ONLY'
   candidateProcessCount = $gameCandidates.Count
   processCandidates = @($gameCandidates)
+  officialImageOutsideSelectedBoxCount = @($gameCandidates | Where-Object {
+    $_.imageEvidence -eq 'SIGNED_EDUCATION_IMAGE_CANDIDATE'
+  }).Count
   # Include Minecraft-name processes that have not created an HWND yet.
   # UNKNOWN Sandboxie membership is never treated as an empty box.
   isolatedCandidateProcesses = @($gameCandidates | Where-Object {
