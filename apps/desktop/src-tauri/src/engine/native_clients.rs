@@ -208,6 +208,8 @@ pub struct ProcessIdentityCandidate {
     pub created_file_time: Option<String>,
     pub window_handle: Option<String>,
     pub in_selected_box: Option<bool>,
+    // Microsoft signed Education product image candidate, not native/authenticated.
+    pub image_evidence: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -226,6 +228,7 @@ pub struct SandboxieClientObservation {
     pub process_evidence_class: String,
     pub candidate_process_count: u32,
     pub process_candidates: Vec<ProcessIdentityCandidate>,
+    pub official_image_outside_selected_box_count: u32,
     pub isolated_candidate_processes: u32,
     pub native_visible_candidates: u32,
     pub isolated_visible_candidates: u32,
@@ -236,7 +239,7 @@ fn parse_sandboxie_observation(raw: &str) -> io::Result<SandboxieClientObservati
     let report: SandboxieClientObservation = serde_json::from_str(raw)
         .map_err(|_| invalid_evidence("invalid Sandboxie collector summary"))?;
     let one_of = |value: &str, allowed: &[&str]| allowed.contains(&value);
-    if report.schema != 3
+    if report.schema != 4
         || report.box_name != CLIENT_02_BOX_NAME
         || report.stage != "INSPECT"
         || report.process_evidence_class != "NAME_MATCH_CANDIDATE_ONLY"
@@ -252,6 +255,7 @@ fn parse_sandboxie_observation(raw: &str) -> io::Result<SandboxieClientObservati
         || (report.credential_host_access != "UNKNOWN" && report.box_settings_source != "BOX_SECTION_ENUMERATED")
         || report.candidate_process_count > 16
         || report.process_candidates.len() != report.candidate_process_count as usize
+        || report.official_image_outside_selected_box_count > report.candidate_process_count
         || report.isolated_candidate_processes > report.candidate_process_count
         || report.isolated_visible_candidates > report.isolated_candidate_processes
         || report.native_visible_candidates.saturating_add(report.isolated_visible_candidates)
@@ -270,6 +274,7 @@ fn parse_sandboxie_observation(raw: &str) -> io::Result<SandboxieClientObservati
     let mut boxed = 0_u32;
     let mut boxed_visible = 0_u32;
     let mut outside_visible = 0_u32;
+    let mut official_outside = 0_u32;
     for candidate in &report.process_candidates {
         if candidate.pid == 0 || !pids.insert(candidate.pid) {
             return Err(invalid_evidence("duplicate or zero process identity PID"));
@@ -285,6 +290,19 @@ fn parse_sandboxie_observation(raw: &str) -> io::Result<SandboxieClientObservati
             return Err(invalid_evidence("unknown Sandboxie membership cannot attribute a PID"));
         }
         if candidate.in_selected_box == Some(true) { boxed += 1; }
+        match candidate.image_evidence.as_str() {
+            "UNKNOWN" => (),
+            "SIGNED_EDUCATION_IMAGE_CANDIDATE" => {
+                if candidate.in_selected_box != Some(false)
+                    || candidate.window_handle.is_none()
+                {
+                    return Err(invalid_evidence(
+                        "signed Education image requires a visible outside-box candidate"));
+                }
+                official_outside += 1;
+            }
+            _ => return Err(invalid_evidence("unrecognized executable image evidence")),
+        }
         if let Some(hwnd) = &candidate.window_handle {
             let raw = hwnd.as_bytes();
             if !(3..=18).contains(&raw.len())
@@ -303,6 +321,7 @@ fn parse_sandboxie_observation(raw: &str) -> io::Result<SandboxieClientObservati
         }
     }
     if boxed != report.isolated_candidate_processes
+        || official_outside != report.official_image_outside_selected_box_count
         || boxed_visible != report.isolated_visible_candidates
         || outside_visible != report.native_visible_candidates
     {
