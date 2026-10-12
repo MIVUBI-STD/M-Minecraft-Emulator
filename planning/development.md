@@ -1,8 +1,53 @@
 # Current Development Handoff
 
 **Branch:** `Local` only. **Product:** Minecraft Instance Manager.
-**Current work:** `emulator/signing-installation-provenance` (source-only; runtime tests postponed).
-**Engineering state:** source prototype / **Windows build and two-account gameplay NOT_EXECUTED**.
+**Current work:** `emulator/localtest-readiness` (source corrections committed; validation pending).
+**Engineering state:** source prototype / **exact-HEAD Node/Svelte/Rust/PowerShell execution, Windows build and two-account gameplay NOT_EXECUTED**.
+
+## Latest source-only batch — PID completeness, bounded helper output, launch UX and localtest
+
+- Reconciles a successfully observed Sandboxie box PID set against one bounded
+  Windows `Get-Process -ErrorAction Stop` snapshot, including helper and
+  windowless PIDs. If Windows enumeration fails or a Sandboxie-reported PID
+  cannot be found, process membership is downgraded to UNKNOWN. Backend launch
+  admission already blocks UNKNOWN. This avoids interpreting an incomplete
+  candidate list as an empty box, without storing a second process inventory.
+- In the existing disposable PowerShell collector, `Start.exe`/SbieIni
+  redirected stdout is now read in a bounded 1 KiB buffer and 4 KiB total
+  retained capacity with an overall 1-second EOF drain bound. No unbounded
+  `ReadToEndAsync` string. The helper process—not Minecraft—may be killed
+  when its deadline is exceeded; account storage is untouched.
+- The active two-client Svelte UI requires a successful observed empty-box
+  preflight before allowing Launch Client 02. A pure snapshot projection
+  (`isSandboxieBoxPrepared`, `canRequestClient02`) is consumed by the UI,
+  with behavior-level Vitest cases for UNKNOWN/occupied/misconfigured boxes.
+  Backend always performs its own fresh preflight and remains authoritative.
+  Clear operation-stage messages and license re-confirmation on executable
+  changes reduce avoidable launch errors.
+- Existing source and collector regression assertions were reconciled with
+  current code. Removed stale assertions that used an obsolete visible-only
+  candidate gate or old 1-second output reader. The repository verification
+  now checks the actual boxed PID completeness and launch-admission safeguards.
+- Added [Windows localtest procedure](../docs/validation/native-pilot-localtest.md),
+  indexed through `docs/validation/README.md`. The previous REA audit was
+  registered with mandatory documentation identity metadata to avoid a
+  `verify:repository` documentation failure.
+- **Proof:** exact GitHub source inspection and cross-file structural checks
+  only. Toolchain does not provide Windows, PowerShell 7, Rust, packaged PE,
+  an active REA server, or authenticated Minecraft Education; full
+  `npm run verify:source` / Vitest / Svelte / Cargo / Windows acceptance
+  are **NOT_EXECUTED** on this changed HEAD. A committed test is not a pass.
+- **Still open:** actual Sandboxie CLI/DLL compatibility; simultaneous
+  independently licensed account sessions, world/game rendering, multiplayer,
+  restart persistence, Windows version/localized Start app custom APPDIR,
+  publisher metadata, helper inherited-pipe worker lifetime, CPU/RAM/GPU
+  benchmarks, the intentionally blocked legacy installer, and full REA
+  binary/runtime analysis. Never auto-retry an ambiguous launch.
+- **Next single validation task:** on the pinned `Local` checkout run
+  `npm run setup` and `npm run verify:source`; stop at the first actual
+  compiler/test failure and correct its canonical source owner. If source
+  checks succeed, run `npm run dev` and follow the safe two-client localtest
+  procedure. No promotion to release or four-client claim.
 
 ## Latest source-only batch — signing and installation prerequisites
 
