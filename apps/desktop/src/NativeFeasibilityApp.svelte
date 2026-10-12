@@ -2,6 +2,7 @@
   import {
     nativeFeasibility,
     type NativeProcessObservation,
+    type IsolatedClientObservation,
   } from "./app/bridge/nativeFeasibilityApi.js";
 
   let opening = false;
@@ -10,6 +11,7 @@
   let inspectError = "";
   let launchError = "";
   let observation: NativeProcessObservation | undefined;
+  let isolatedObservation: IsolatedClientObservation | undefined;
   let isolatedExecutable = "";
   let licenseAccepted = false;
   let isolationBusy = false;
@@ -17,6 +19,7 @@
   let isolationError = "";
 
   async function chooseClient02Executable() {
+    if (isolationBusy || opening || inspecting) return;
     isolationBusy = true;
     isolationError = "";
     try {
@@ -30,11 +33,12 @@
   }
 
   async function launchClient02() {
-    if (!isolatedExecutable || !licenseAccepted || isolationBusy) return;
+    if (!isolatedExecutable || !licenseAccepted || isolationBusy || opening || inspecting) return;
     isolationBusy = true;
     isolationNotice = "";
     isolationError = "";
     observation = undefined;
+    isolatedObservation = undefined;
     try {
       await nativeFeasibility.requestSandboxClient02(isolatedExecutable, licenseAccepted);
       isolationNotice = "Launch requested in MinecraftClient02. Independently confirm Sandboxie PID ownership, two game windows and separate Microsoft Education logins.";
@@ -56,30 +60,45 @@
     : null;
 
   function errorMessage(error: unknown): string {
-    return error instanceof Error ? error.message : "Windows observation is unavailable.";
+    if (typeof error === "string" && error.trim()) return error.trim();
+    if (error instanceof Error) return error.message;
+    if (error !== null && typeof error === "object" && "message" in error &&
+        typeof error.message === "string") return error.message;
+    return "Windows observation is unavailable.";
   }
 
   async function inspectWindows() {
-    if (inspecting || opening) return;
+    if (inspecting || opening || isolationBusy) return;
     inspecting = true;
     inspectError = "";
+    observation = undefined;
+    isolatedObservation = undefined;
     try {
-      observation = await nativeFeasibility.inspectCandidates();
-    } catch (error) {
-      observation = undefined;
-      inspectError = errorMessage(error);
+      // Two independent observations. A failed sandbox probe must never
+      // erase a valid native observation or manufacture a zero membership.
+      const [nativeResult, isolatedResult] = await Promise.allSettled([
+        nativeFeasibility.inspectCandidates(),
+        nativeFeasibility.inspectIsolatedClient02(),
+      ]);
+      const failures: string[] = [];
+      if (nativeResult.status === "fulfilled") observation = nativeResult.value;
+      else failures.push("Native observation: " + errorMessage(nativeResult.reason));
+      if (isolatedResult.status === "fulfilled") isolatedObservation = isolatedResult.value;
+      else failures.push("Sandboxie observation: " + errorMessage(isolatedResult.reason));
+      inspectError = failures.join(" | ");
     } finally {
       inspecting = false;
     }
   }
 
   async function launchOfficialMinecraft() {
-    if (opening || inspecting) return;
+    if (opening || inspecting || isolationBusy) return;
     opening = true;
     launchMessage = "";
     launchError = "";
     // Old observations must never be reused as evidence after a launch.
     observation = undefined;
+    isolatedObservation = undefined;
     try {
       await nativeFeasibility.openOfficialMinecraft();
       launchMessage = "Windows received an official launch request. It may reopen the existing game instead of creating another process. Inspect windows after the game has appeared.";
@@ -114,11 +133,11 @@
         <h2>Two independent Minecraft Education accounts — feasibility pilot</h2>
         <p>Current focus: one normal Windows Minecraft Education game plus one MinecraftClient02 sandboxed game, using two different licensed accounts. Four concurrent clients remain a future goal, not an active implementation.</p>
         <div class="pilot-actions">
-          <button class="pilot-primary" disabled={opening || inspecting} on:click={launchOfficialMinecraft}>
+          <button class="pilot-primary" disabled={opening || inspecting || isolationBusy} on:click={launchOfficialMinecraft}>
             {opening ? "Requesting launch…" : "Request official Minecraft launch"}
           </button>
-          <button class="pilot-secondary" disabled={opening || inspecting} on:click={inspectWindows}>
-            {inspecting ? "Inspecting…" : "Inspect Windows (read-only)"}
+          <button class="pilot-secondary" disabled={opening || inspecting || isolationBusy} on:click={inspectWindows}>
+            {inspecting ? "Inspecting…" : "Inspect Windows + Sandboxie (read-only)"}
           </button>
         </div>
         {#if launchMessage}<p class="pilot-info" role="status">{launchMessage}</p>{/if}
@@ -131,14 +150,14 @@
         <h3>Launch Minecraft Education in MinecraftClient02</h3>
         <p>Use one pre-existing, persistent Sandboxie Plus box named MinecraftClient02. Disable AutoDelete and AutoRemove. Select the installed Minecraft Education EXE, not the downloaded installer.</p>
         <div class="pilot-actions">
-          <button class="pilot-secondary" disabled={isolationBusy} on:click={chooseClient02Executable}>
+          <button class="pilot-secondary" disabled={isolationBusy || opening || inspecting} on:click={chooseClient02Executable}>
             Select installed Education EXE
           </button>
         </div>
         {#if isolatedExecutable}<p class="pilot-caution">Executable selected for this session; identity and signature will be checked.</p>{/if}
         <label class="pilot-caution"><input type="checkbox" bind:checked={licenseAccepted} /> I confirm Sandboxie Plus is licensed for this use and MinecraftClient02 is persistent.</label>
         <div class="pilot-actions">
-          <button class="pilot-primary" disabled={isolationBusy || !isolatedExecutable || !licenseAccepted} on:click={launchClient02}>
+          <button class="pilot-primary" disabled={isolationBusy || opening || inspecting || !isolatedExecutable || !licenseAccepted} on:click={launchClient02}>
             {isolationBusy ? "Processing…" : "Launch isolated Client 02"}
           </button>
         </div>
@@ -165,6 +184,28 @@
         {/if}
       </section>
 
+      <section class="pilot-section" aria-label="Sandboxie Client 02 observation">
+        <span class="eyebrow">CLIENT 02 · OBSERVED SANDBOX MEMBERSHIP</span>
+        {#if isolatedObservation}
+          <div class="pilot-counts" role="status">
+            <div><strong>{isolatedObservation.nativeVisibleCandidates}</strong><span>Native window candidates</span></div>
+            <div><strong>{isolatedObservation.isolatedVisibleCandidates}</strong><span>Windows belonging to MinecraftClient02 (candidate only)</span></div>
+          </div>
+          <p class="pilot-caution">
+            Sandboxie box: {isolatedObservation.boxConfigured}.
+            PID membership: {isolatedObservation.membershipStatus}.
+            Host credential-store access: {isolatedObservation.credentialHostAccess}.
+            AutoDelete: {isolatedObservation.autoDelete}.
+            AutoRemove: {isolatedObservation.autoRemove}.
+          </p>
+          <p class="pilot-caution">
+            OpenCredentials OFF only establishes a Sandboxie configuration fact.
+            Microsoft account separation, Minecraft gameplay and WAM authentication are not automatically verified.
+          </p>
+        {:else}
+          <p class="pilot-caution">No verified Sandboxie observation. Inspect Windows + Sandboxie to see whether a separate Minecraft candidate actually belongs to the selected box.</p>
+        {/if}
+      </section>
       <section class="pilot-section">
         <span class="eyebrow">TWO-CLIENT FEASIBILITY TARGET</span>
         <div class="pilot-grid">
