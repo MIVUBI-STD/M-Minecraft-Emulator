@@ -230,9 +230,13 @@ pub fn inspect_sandbox_client_02() -> io::Result<SandboxieClientObservation> {
         env!("CARGO_MANIFEST_DIR"),
         "/../../../tooling/acceptance/windows/collect-sandboxie-feasibility.ps1"
     ));
+    // Wrap the canonical diagnostic collector in a PowerShell script block
+    // so its explicit -SummaryOnly switch can be bound without changing
+    // the full, persisted CLI evidence route. No report written for UI refresh.
+    let script = ["& {\n", INSPECT, "\n} -SummaryOnly"].concat();
     let output = virtual_clients_core::bounded_command_output(
         Path::new("powershell.exe"),
-        ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", INSPECT],
+        ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", script.as_str()],
         Duration::from_secs(30),
     )?;
     parse_sandboxie_observation(&output)
