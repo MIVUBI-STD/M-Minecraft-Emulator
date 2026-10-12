@@ -197,7 +197,11 @@ requireFact(sandboxCollector.includes("[switch]$SummaryOnly") &&
   sandboxCollector.includes("if (-not $SummaryOnly)") &&
   sandboxCollector.includes("if ($null -ne $path) { $summary['reportPath'] = $path }") &&
   (sandboxCollector.split("$boxConfigured = if ($enabled").length - 1) === 1 &&
-  (sandboxCollector.split("$membershipStatus = 'UNKNOWN'").length - 1) === 1,
+  sandboxCollector.includes("$membershipStatus = 'UNKNOWN'") &&
+  sandboxCollector.includes("$allProcesses = @(Get-Process -ErrorAction Stop)") &&
+  sandboxCollector.includes("foreach ($boxedPid in $boxedPids)") &&
+  sandboxCollector.includes("if (-not $visiblePids.ContainsKey([string]$boxedPid))") &&
+  !sandboxCollector.includes("Get-Process -ErrorAction SilentlyContinue"),
   "One valid Sandboxie evidence owner; desktop summary refresh writes no report");
 const nativeProcessPattern = "^(Minecraft\\.Windows|Minecraft.*Education.*|Education.*Minecraft.*)$";
 requireFact(nativeOwner.includes(nativeProcessPattern) &&
@@ -255,7 +259,7 @@ requireFact(nativeDesktop.includes("pub fn request_sandbox_client_02(") &&
   nativeDesktop.includes("WaitForExit(8000)") &&
   nativeDesktop.includes("$launcher.ExitCode") &&
   nativeDesktop.includes("-WorkingDirectory $gameFolder") &&
-  nativeDesktop.includes("observation.isolated_visible_candidates > 0") &&
+  nativeDesktop.includes("observation.isolated_candidate_processes > 0") &&
   nativeDesktop.includes("GetEnvironmentVariable('ProgramW6432')") &&
   read("apps/desktop/src-tauri/src/app_bootstrap.rs").includes(
     "commands::native_clients::desktop_inspect_sandbox_client_02,") &&
