@@ -71,32 +71,39 @@ function Invoke-BoundedReadOnlyTool {
   $process.StartInfo = $psi
   try {
     if (-not $process.Start()) { return $null }
-    # Drain before waiting for exit, without allocating an unbounded string.
+    # Read WHILE the helper is running: waiting for its exit before draining
+    # stdout can deadlock when its pipe fills. Retain at most 4096 chars.
     $buffer = [char[]]::new(1024)
     $output = [System.Text.StringBuilder]::new()
     $reader = $process.StandardOutput
-    $reading = $reader.ReadAsync($buffer, 0, $buffer.Length)
-    if (-not $process.WaitForExit(5000)) {
-      try { $process.Kill() } catch { }
-      return $null
+    $readTask = $reader.ReadAsync($buffer, 0, $buffer.Length)
+    $clock = [Diagnostics.Stopwatch]::StartNew()
+    $eof = $false
+    while (-not $eof) {
+      $remainingMs = 5000 - [int]$clock.ElapsedMilliseconds
+      if ($remainingMs -le 0) { return $null }
+      if (-not $readTask.Wait($remainingMs)) { return $null }
+      $received = $readTask.GetAwaiter().GetResult()
+      if ($received -eq 0) {
+        $eof = $true
+      } else {
+        if ($output.Length + $received -gt 4096) { return $null }
+        [void]$output.Append($buffer, 0, $received)
+        $readTask = $reader.ReadAsync($buffer, 0, $buffer.Length)
+      }
     }
-    # Descendants may retain stdout; enforce one total EOF deadline.
-    $drainClock = [Diagnostics.Stopwatch]::StartNew()
-    while ($true) {
-      $remainingMs = 1000 - [int]$drainClock.ElapsedMilliseconds
-      if ($remainingMs -le 0 -or -not $reading.Wait($remainingMs)) { return $null }
-      $received = $reading.GetAwaiter().GetResult()
-      if ($received -eq 0) { break }
-      if ($output.Length + $received -gt 4096) { return $null }
-      [void]$output.Append($buffer, 0, $received)
-      $reading = $reader.ReadAsync($buffer, 0, $buffer.Length)
+    $remainingMs = 5000 - [int]$clock.ElapsedMilliseconds
+    if ($remainingMs -le 0 -or -not $process.WaitForExit($remainingMs)) {
+      return $null
     }
     if ($process.ExitCode -ne 0) { return $null }
     return $output.ToString().Trim()
   }
   catch { return $null }
   finally {
-    # Dispose only helper pipes/handle; never terminate the game.
+    # Kill only a non-exited inspection HELPER when it exceeds the deadline.
+    # Never kill the Minecraft process or any Sandboxie descendants.
+    try { if (-not $process.HasExited) { $process.Kill() } } catch { }
     try { $process.StandardOutput.Dispose() } catch { }
     $process.Dispose()
   }
@@ -249,37 +256,42 @@ $boxConfigured = if ($enabled -eq 'y') { 'YES' } elseif ($enabled -eq 'n') { 'NO
 
 $membershipStatus = 'UNKNOWN'
 $boxedPids = @()
-if ($trustedTools -and $serviceRunning -and $boxConfigured -eq 'YES') {
-  $raw = Invoke-BoundedReadOnlyTool $startExe ('/box:' + $BoxName + ' /listpids')
-  if ($null -ne $raw -and $raw -match '^[0-9\s]+$') {
-    # /listpids counts ALL processes in a box, including helpers; the
-    # independent Minecraft candidate limit below is still 16.
-    # Keep enumeration bounded at 256 PIDs plus the existing 4096-char
-    # output limit, with strict count, numeric and uniqueness checks.
-    $lines = @($raw -split '\r?\n' |
-      ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' })
-    if ($lines.Count -ge 1 -and
-        @($lines | Where-Object { $_ -notmatch '^\d+$' }).Count -eq 0) {
-      $count = 0
-      if ([int]::TryParse($lines[0], [ref]$count) -and
-          $count -ge 0 -and $count -le 256 -and
-          ($lines.Count - 1) -eq $count) {
-        $parsed = @()
-        foreach ($line in @($lines | Select-Object -Skip 1)) {
-          $number = 0
-          if (-not [int]::TryParse($line, [ref]$number) -or $number -le 0) {
-            $parsed = @()
-            break
-          }
-          $parsed += $number
-        }
-        if ($parsed.Count -eq $count -and
-            @($parsed | Select-Object -Unique).Count -eq $count) {
-          $boxedPids = @($parsed)
-          $membershipStatus = 'OBSERVED'
-        }
-      }
+# Validate both reads with the exact same bounded parser. A single /listpids
+# result must not be treated as a stable box state during concurrent launches.
+function Read-BoxPidList {
+  param([string]$Raw)
+  if ($null -eq $Raw -or $Raw -notmatch '^[0-9\s]+$') { return $null }
+  $lines = @($Raw -split '\r?\n' | ForEach-Object { $_.Trim() } |
+    Where-Object { $_ -ne '' })
+  if ($lines.Count -lt 1 -or
+      @($lines | Where-Object { $_ -notmatch '^\d+$' }).Count -gt 0) {
+    return $null
+  }
+  $count = 0
+  if (-not [int]::TryParse($lines[0], [ref]$count) -or
+      $count -lt 0 -or $count -gt 256 -or
+      ($lines.Count - 1) -ne $count) { return $null }
+  $pids = @()
+  foreach ($line in @($lines | Select-Object -Skip 1)) {
+    $number = 0
+    if (-not [int]::TryParse($line, [ref]$number) -or $number -le 0) {
+      return $null
     }
+    $pids += $number
+  }
+  if (@($pids | Select-Object -Unique).Count -ne $count) { return $null }
+  # Return an object rather than an unwrapped array so a valid empty list
+  # remains distinguishable from an unavailable or invalid result.
+  return [pscustomobject]@{ Pids = @($pids | Sort-Object) }
+}
+if ($trustedTools -and $serviceRunning -and $boxConfigured -eq 'YES') {
+  $first = Read-BoxPidList (Invoke-BoundedReadOnlyTool $startExe ('/box:' + $BoxName + ' /listpids'))
+  $second = Read-BoxPidList (Invoke-BoundedReadOnlyTool $startExe ('/box:' + $BoxName + ' /listpids'))
+  if ($null -ne $first -and $null -ne $second -and
+      $first.Pids.Count -eq $second.Pids.Count -and
+      (@(Compare-Object $first.Pids $second.Pids).Count -eq 0)) {
+    $boxedPids = @($second.Pids)
+    $membershipStatus = 'OBSERVED'
   }
 }
 
