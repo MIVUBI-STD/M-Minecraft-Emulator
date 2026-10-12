@@ -125,12 +125,17 @@ describe("Native candidate IPC evidence", () => {
 
   it("accepts only non-authoritative isolated process and box observations", () => {
     const valid = {
-      schema: 2, boxName: "MinecraftClient02", stage: "INSPECT",
+      schema: 3, boxName: "MinecraftClient02", stage: "INSPECT",
       boxConfigured: "YES", boxSettingsSource: "BOX_SECTION_ENUMERATED",
       autoDelete: "OFF", autoRemove: "OFF", credentialHostAccess: "OFF",
       membershipStatus: "OBSERVED", interactiveSession: true,
       processEvidenceClass: "NAME_MATCH_CANDIDATE_ONLY",
-      candidateProcessCount: 2, isolatedCandidateProcesses: 1,
+      candidateProcessCount: 2,
+      processCandidates: [
+        { pid: 101, createdFileTime: "133400000000000000", windowHandle: "0x100", inSelectedBox: false },
+        { pid: 202, createdFileTime: "133400000000000001", windowHandle: "0x200", inSelectedBox: true },
+      ],
+      isolatedCandidateProcesses: 1,
       nativeVisibleCandidates: 1, isolatedVisibleCandidates: 1,
       interpretation: "CONFIG_AND_PROCESS_CANDIDATES_ONLY_NO_AUTHENTICATION_PROOF",
     };
@@ -143,7 +148,23 @@ describe("Native candidate IPC evidence", () => {
       { ...valid, candidateProcessCount: 1 },
       { ...valid, isolatedCandidateProcesses: 0 },
       { ...valid, isolatedCandidateProcesses: 3 },
-      { ...valid, schema: 1 },
+      { ...valid, schema: 2 },
+      { ...valid, processCandidates: [] },
+      { ...valid, processCandidates: [
+        { ...valid.processCandidates[0], pid: 202 }, valid.processCandidates[1],
+      ] },
+      { ...valid, processCandidates: [
+        valid.processCandidates[0], { ...valid.processCandidates[1], createdFileTime: "0" },
+      ] },
+      { ...valid, processCandidates: [
+        valid.processCandidates[0], { ...valid.processCandidates[1], createdFileTime: 133400000000000000 },
+      ] },
+      { ...valid, processCandidates: [
+        valid.processCandidates[0], { ...valid.processCandidates[1], inSelectedBox: false },
+      ] },
+      { ...valid, processCandidates: [
+        valid.processCandidates[0], { ...valid.processCandidates[1], windowHandle: "0x100" },
+      ] },
       { ...valid, nativeVisibleCandidates: 17 },
       { ...valid, membershipStatus: "UNKNOWN" },
       { ...valid, accountEmail: "forbidden@example.com" },
@@ -152,7 +173,14 @@ describe("Native candidate IPC evidence", () => {
     expect(parseIsolatedClientObservation({
       ...valid, membershipStatus: "UNKNOWN",
       nativeVisibleCandidates: 0, isolatedVisibleCandidates: 0, isolatedCandidateProcesses: 0,
+      processCandidates: valid.processCandidates.map(p => ({ ...p, inSelectedBox: null })),
     }).membershipStatus).toBe("UNKNOWN");
+    expect(parseIsolatedClientObservation({
+      ...valid, processCandidates: [
+        valid.processCandidates[0],
+        { ...valid.processCandidates[1], createdFileTime: null },
+      ],
+    }).processCandidates[1].createdFileTime).toBeNull();
   });
 
   it("uses only generic live names without changing legacy installed identity", () => {
