@@ -9,6 +9,41 @@ lifecycle: ACTIVE
 
 # REA-aligned Full Audit — M-Minecraft-Emulator
 
+## Additional source-only REA-aligned crosscheck — 2026-10-13
+
+This second audit pass traced `-BoxedImageProofPid` from the PowerShell
+producer through Rust and TypeScript IPC parsing to Focus/Place admission.
+
+**Confirmed source-contract defect (new P0, corrected in source):**
+`$signedOutside` formerly selected all signed Minecraft Education images
+without restricting `inSelectedBox`. During targeted boxed ImageProof,
+the collector could publish a nonzero `officialImageOutsideSelectedBoxCount`
+while Rust's per-candidate reconciliation correctly counted zero outside
+images. Rust would reject that observation, blocking the requested Focus/Place.
+The collector now requires both signed evidence **and**
+`inSelectedBox -eq $false` for that original outside-only field.
+Adversarial frontend fixtures cover the signed-only-boxed case and a
+schema-plausible but identity-contradictory counter; tests are **authored
+but NOT_EXECUTED**.
+
+**Additional source mitigations:** repeated and sorted `Start.exe /listpids`
+snapshots (fall back to signed `SbieDll` on unknown/churn); concurrent
+bounded stdout draining before waiting for helper exit; Rust bounded I/O
+worker reservations before child spawn; and clearing stale UI Refresh
+success notices. These do not prove stable Microsoft-account isolation,
+gameplay, worker termination or Sandboxie binary/ABI compatibility.
+
+**REA proof ceiling:** no REA CLI/MCP runtime provider or shipped Windows
+binary was available. This is a source-and-architecture comparison using
+REA's evidence/unknown discipline, **not** a claim that REA decompiled or
+observed the live application. No executable commands, Windows source build,
+sandboxed Minecraft sign-in or local test were run. The user currently
+defers local testing.
+
+Current issue and next owner are in [development handoff](../../planning/development.md);
+the underlying pinned original audit findings below retain their historical
+source revision and should not be misread as the current binary state.
+
 ## Follow-up remediation on `Local` — 2026-10-13
 
 The findings below are a **historical baseline** pinned to
