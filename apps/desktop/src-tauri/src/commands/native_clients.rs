@@ -30,6 +30,14 @@ pub async fn desktop_request_sandbox_client_02(executable: String, licensed: boo
 }
 
 #[tauri::command]
+pub async fn desktop_focus_observed_client_02(target: native_clients::ProcessIdentityCandidate) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || native_clients::focus_observed_client_02(target))
+        .await
+        .map_err(|error| format!("Client 02 focus task failed: {error}"))?
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
 pub async fn desktop_inspect_sandbox_client_02() -> Result<native_clients::SandboxieClientObservation, String> {
     tauri::async_runtime::spawn_blocking(native_clients::inspect_sandbox_client_02)
         .await
