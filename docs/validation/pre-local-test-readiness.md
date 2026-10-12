@@ -9,10 +9,11 @@ lifecycle: ACTIVE
 
 # Legacy VMware G0 — Source & Package Integrity
 
-**Current native-first clarification (2026-10-12):** This is the historic
-VMware NSIS release gate, **not** the current native feasibility test entry.
-The native pilot can use the pinned source checks and `npm run dev` from
-[Native Two-Client Feasibility](./native-multi-instance-feasibility.md).
+**Current selected-isolation clarification (2026-10-12):** This is the
+historical VMware NSIS release gate, **not** the current Minecraft Instance
+Manager test entry. The active native + Sandboxie Plus pilot uses pinned
+source checks and `npm run dev`, with the operator procedure at
+[Sandboxie Client 02 Feasibility](./sandboxie-two-client-feasibility.md).
 The legacy `npm run package:windows` / `DEV.cmd g0` path is intentionally
 blocked with `PACKAGE_BLOCKED_NATIVE_FEASIBILITY`; do not bypass it to
 obtain a test installer. A verified legacy installer at an older SHA does

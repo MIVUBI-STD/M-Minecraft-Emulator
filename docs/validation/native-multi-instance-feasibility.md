@@ -7,7 +7,13 @@ authority: WORKING
 lifecycle: ACTIVE
 ---
 
-# Minecraft Education native two-client feasibility
+# Minecraft Education native two-client feasibility — prior experiment
+
+> **Historical native-only experiment, not the current active launch route.**
+> This procedure is retained for source provenance and comparison. The
+> currently selected design is [Client 01 native + Client 02 Sandboxie Plus](./sandboxie-two-client-feasibility.md).
+> Do not interpret old native process candidate observations as successful
+> two-account Minecraft Education gameplay.
 
 **Work:** emulator/native-multi-instance-feasibility. This experiment is not
 a replacement production provider, automatic four-client support proof, or an

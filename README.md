@@ -36,7 +36,7 @@ native launcher is active; there is no approved native release installer yet. Le
 | Examine VM behavior or diagnose setup | [Implementation Map](docs/system/implementation-map.md) → [Runtime Core](docs/system/runtime-core.md) | `engine/runtime-core/`, observed provider/guest evidence |
 | Follow the selected Windows two-account experiment | [Sandboxie Client 02](docs/validation/sandboxie-two-client-feasibility.md) | Pinned source checks and `npm run dev`; no approved installer, login/gameplay unproven |
 | Review the legacy VMware NSIS release integrity gate | [Historical G0](docs/validation/pre-local-test-readiness.md) | Old NSIS packaging intentionally blocked for native pilot |
-| Prove one Windows VMware guest can boot, install/login and play Education responsively before scaling | [Client Feasibility](docs/validation/client-feasibility.md) | Scratch VM; diagnostics separate from manual game observation |
+| Consult historical one-guest VMware feasibility (inactive) | [Legacy Client Feasibility](docs/validation/client-feasibility.md) | Scratch guest procedure is retained as reference; not an active pilot instruction |
 | Verify Windows/VMware/Minecraft usability | [Validation](docs/validation/README.md) | Real machine and game observations; `tooling/acceptance/` collects bounded evidence |
 | Prepare package or validate update trust | [Distribution](engine/distribution/README.md) | Machine-readable contracts in `engine/distribution/` and Tauri package config |
 | Resume work without the previous chat | [Development Planning](planning/development.md) | Current `Local` source + explicit proof records |
@@ -62,7 +62,7 @@ The root is a thin entry/configuration boundary, not a second home for VM lifecy
 | `DEV.cmd` | Optional Windows-local command launcher | `tooling/windows-toolchain/dev.ps1` |
 | `.editorconfig`, `.gitattributes`, `.gitignore` | Editing, Git and generated-data boundaries | No executable VM semantics |
 
-The root **does not** need a `tsconfig.json` or `package-lock.json`: the only Node dependency installation belongs to `apps/desktop/`. Backend Rust dependencies are locked in `engine/runtime-core/Cargo.lock`. Avoid duplicate manifests just for visual symmetry with another repository.
+The root **does not** need a `tsconfig.json` or `package-lock.json`: the only Node dependency installation belongs to `apps/desktop/`. Rust dependencies are locked separately in `engine/runtime-core/Cargo.lock` and `apps/desktop/src-tauri/Cargo.lock`. Avoid duplicate manifests just for visual symmetry with another repository.
 
 ## Canonical repository domains
 

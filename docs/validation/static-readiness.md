@@ -7,7 +7,15 @@ authority: CANONICAL
 lifecycle: ACTIVE
 ---
 
-# Virtual Clients — Static Readiness Freeze
+# Virtual Clients — Static Readiness Freeze (legacy VMware)
+
+> **Historical source-review snapshot.** The VM lifecycle, Base, Guest
+> Agent, recovery, resource policy and distribution assertions below apply
+> to the paused VMware implementation. They do not certify the active
+> [native + Sandboxie Plus Client 02](./sandboxie-two-client-feasibility.md)
+> system. See [Architecture](../system/architecture.md) for the currently
+> selected implementation and [Legacy Retirement](../system/legacy-retirement.md)
+> for the preserved inactive source inventory.
 
 Status: REMOTE_GITHUB source boundary. This document is not target-machine proof. Source review supports **G0**, not a product-test PASS; only the [five campaign gates G0–G4](./acceptance.md) track testing progress. Individual unit and regression tests remain diagnostic supporting evidence.
 

@@ -24,8 +24,8 @@ apps/desktop/src-tauri/src/app_bootstrap.rs. Retired code is not removed.
 | apps/desktop/src/NativeFeasibilityApp.svelte | ACTIVE PILOT; official native launch, one isolated Client 02 request and one explicit combined candidate observation |
 | apps/desktop/src-tauri/src/engine/native_clients.rs | ACTIVE LIMITED; native Windows launch, fixed Sandboxie Client 02 launch/preflight and bounded read-only observation; no authentication automation |
 | apps/desktop/src/app/bridge/nativeFeasibilityApi.ts | ACTIVE typed IPC for explicit official launch requests and strict read-only process/box candidate schema; no legacy VM backend |
-| tooling/acceptance/windows/collect-native-feasibility.ps1 | ACTIVE EXPERIMENT; read-only unless explicit launch request |
-| tooling/acceptance/evaluate-native-feasibility.mjs | ACTIVE EXPERIMENT; evidence, not proof of gameplay |
+| tooling/acceptance/windows/collect-native-feasibility.ps1 | PRESERVED READ-ONLY; previous native-only feasibility collector, not the selected Client 02 route |
+| tooling/acceptance/evaluate-native-feasibility.mjs | PRESERVED HISTORICAL evaluator; not the selected Sandboxie isolation evidence authority |
 | tooling/acceptance/windows/collect-sandboxie-feasibility.ps1 | ACTIVE; canonical on-demand Sandboxie box/credential-setting/PID collector, `-SummaryOnly` for UI; full explicit CLI produces evidence file |
 | tooling/acceptance/evaluate-sandboxie-feasibility.mjs | ACTIVE evidence interpreter; operator reports never become automated Microsoft-account proof |
 
