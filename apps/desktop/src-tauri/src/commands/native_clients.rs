@@ -38,6 +38,17 @@ pub async fn desktop_focus_observed_client_02(target: native_clients::ProcessIde
 }
 
 #[tauri::command]
+pub async fn desktop_place_observed_client_02(
+    target: native_clients::ProcessIdentityCandidate,
+    side: native_clients::Client02PlacementSide,
+) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || native_clients::place_observed_client_02(target, side))
+        .await
+        .map_err(|error| format!("Client 02 placement task failed: {error}"))?
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
 pub async fn desktop_inspect_sandbox_client_02() -> Result<native_clients::SandboxieClientObservation, String> {
     tauri::async_runtime::spawn_blocking(native_clients::inspect_sandbox_client_02)
         .await
