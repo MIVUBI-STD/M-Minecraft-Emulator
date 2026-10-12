@@ -62,7 +62,8 @@ pub fn inspect_native_candidates() -> io::Result<NativeProcessObservation> {
 
     // Current interactive Windows session only. Never read executable paths,
     // command lines, titles, world files, account IDs, registry tokens or WAM.
-    // PowerShell Get-Process exposes only name-matched PID and visible HWND.
+    // Minecraft.Windows is shared by other Minecraft editions: every PID/HWND
+    // remains a name-matched candidate, never authenticated Minecraft proof.
     const SCRIPT: &str = r#"
 $ErrorActionPreference = 'Stop'
 $sessionId = (Get-Process -Id $PID -ErrorAction Stop).SessionId
@@ -70,7 +71,7 @@ $items = @(
   Get-Process -ErrorAction SilentlyContinue |
     Where-Object {
       $_.SessionId -eq $sessionId -and
-      $_.ProcessName -match '^(Minecraft.*Education.*|Education.*Minecraft.*)$'
+      $_.ProcessName -match '^(Minecraft\.Windows|Minecraft.*Education.*|Education.*Minecraft.*)$'
     } |
     Sort-Object Id |
     ForEach-Object {
@@ -115,6 +116,25 @@ pub fn open_native_minecraft() -> io::Result<()> {
     // Never guess EXE paths, clone game files or accept arbitrary arguments.
     const SCRIPT: &str = r#"
 $ErrorActionPreference = 'Stop'
+$sessionId = (Get-Process -Id $PID -ErrorAction Stop).SessionId
+if ($sessionId -eq 0) { throw 'Minecraft must launch from an interactive Windows session.' }
+$registry = [Microsoft.Win32.RegistryKey]::OpenBaseKey(
+  [Microsoft.Win32.RegistryHive]::LocalMachine,
+  [Microsoft.Win32.RegistryView]::Registry32
+)
+$desktopVersion = $null
+try {
+  $entry = $registry.OpenSubKey('SOFTWARE\Microsoft\Microsoft Studios\Minecraft Education Edition')
+  if ($null -ne $entry) {
+    try { $desktopVersion = [string]$entry.GetValue('Version', '') }
+    finally { $entry.Dispose() }
+  }
+}
+finally { $registry.Dispose() }
+$storePresent = @(Get-AppxPackage -Name 'Microsoft.MinecraftEducationEdition' -ErrorAction SilentlyContinue).Count -gt 0
+if ($desktopVersion -notmatch '^\d+(?:\.\d+){1,4}$' -or $storePresent) {
+  throw 'A single Minecraft Education Desktop installation is required; do not mix Desktop and Store editions.'
+}
 $apps = @(Get-StartApps -ErrorAction Stop | Where-Object {
     $_.Name -eq 'Minecraft Education' -or
     $_.Name -eq 'Minecraft: Education Edition' -or

@@ -211,8 +211,8 @@ fn instance_path() -> Result<PathBuf, String> {
         .or_else(|| std::env::var_os("APPDATA").map(PathBuf::from))
         .ok_or_else(|| "Application data directory is unavailable.".to_string())?;
     Ok(base
-        .join("M-Bedrock")
-        .join("VirtualClients")
+        .join("MIVUBI")
+        .join("MinecraftEmulatorNativePilot")
         .join("desktop-instance.json"))
 }
 

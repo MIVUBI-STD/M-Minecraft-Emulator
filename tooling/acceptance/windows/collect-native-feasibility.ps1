@@ -102,7 +102,7 @@ $candidates = @(
   Get-Process -ErrorAction SilentlyContinue |
     Where-Object {
       $_.SessionId -eq $session -and
-      $_.ProcessName -match '^(Minecraft.*Education.*|Education.*Minecraft.*)$'
+      $_.ProcessName -match '^(Minecraft\.Windows|Minecraft.*Education.*|Education.*Minecraft.*)$'
     } |
     Sort-Object Id |
     ForEach-Object {

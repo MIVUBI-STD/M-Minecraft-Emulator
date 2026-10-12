@@ -51,7 +51,8 @@ export function evaluateSandboxieFeasibility(report) {
   let nativeVisible = 0;
   for (const candidate of machine.candidateProcesses) {
     if (!candidate || !Number.isSafeInteger(candidate.pid) ||
-        candidate.pid < 1 || seenPids.has(candidate.pid) ||
+        candidate.pid < 1 || candidate.pid > 0xffffffff ||
+         seenPids.has(candidate.pid) ||
         (candidate.inSelectedBox !== null &&
           typeof candidate.inSelectedBox !== "boolean") ||
         (box.membershipStatus === "UNKNOWN" && candidate.inSelectedBox !== null)) {
@@ -60,12 +61,11 @@ export function evaluateSandboxieFeasibility(report) {
     seenPids.add(candidate.pid);
     if (candidate.windowHandle !== null) {
       if (typeof candidate.windowHandle !== "string" ||
-          !/^0x[0-9a-f]+$/i.test(candidate.windowHandle) ||
-          /^0x0+$/i.test(candidate.windowHandle)) {
+          !/^0x[0-9a-f]{1,16}$/i.test(candidate.windowHandle)) {
         invalid("Invalid candidate HWND.");
       }
-      const id = candidate.windowHandle.toLowerCase();
-      if (seenHandles.has(id)) invalid("Two processes cannot own one visible HWND.");
+      const id = BigInt(candidate.windowHandle);
+      if (id === 0n || seenHandles.has(id)) invalid("Two processes cannot own one visible HWND.");
       seenHandles.add(id);
       if (candidate.inSelectedBox === true) sandboxVisible++;
       if (candidate.inSelectedBox === false) nativeVisible++;
@@ -143,7 +143,8 @@ export function evaluateSandboxieFeasibility(report) {
      operator.distinctAccounts === "NO" ||
      operator.independentInput === "NO" ||
      operator.accountCrossingObserved === "YES" ||
-     operator.reopenAndRebootPersistent === "NO");
+     operator.reopenAndRebootPersistent === "NO" ||
+      operator.multiplayerJoined === "NO");
   const observedCandidate = report.stage === "TWO_CLIENT" &&
     boxSettingsSource === "BOX_SECTION_ENUMERATED" &&
     box.toolsPresent && box.toolSignaturesValid && box.serviceRunning &&
@@ -157,6 +158,7 @@ export function evaluateSandboxieFeasibility(report) {
     operator.independentInput === "YES" &&
     operator.accountCrossingObserved === "NO" &&
     operator.reopenAndRebootPersistent === "YES" &&
+    operator.multiplayerJoined === "YES" &&
     operator.observedMinutes >= 10 && operator.evidenceReference !== null;
   const verdict = configBlocked ? "CONFIGURATION_BLOCKED" :
     operatorFailed ? "OPERATOR_REPORTED_FAILURE" :
