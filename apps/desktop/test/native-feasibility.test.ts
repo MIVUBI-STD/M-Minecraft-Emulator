@@ -181,7 +181,11 @@ describe("Native candidate IPC evidence", () => {
     expect(sandboxList).toContain("if ($null -ne $lease) { $lease.Dispose() }");
     expect(sandboxList).not.toContain("Get-Process -Id $_.Id -ErrorAction Stop");
     expect(sandboxList).toContain("Get-AuthenticodeSignature -LiteralPath $image");
-    expect(sandboxList).toContain("$count -ge 0 -and $count -le 256");
+    expect(sandboxList).toContain("$count -lt 0 -or $count -gt 256");
+    expect(sandboxList).toContain("function Read-BoxPidList");
+    expect(sandboxList).toContain("$first = Read-BoxPidList");
+    expect(sandboxList).toContain("$second = Read-BoxPidList");
+    expect(sandboxList).toContain("(($first.Pids -join ',') -ceq ($second.Pids -join ','))");
     expect(sandboxList).toContain("if ($gameCandidates.Count -gt 16)");
     expect(active).toContain('typeof reason === "string"');
     expect(commands).toContain("fn desktop_request_sandbox_client_02(");
