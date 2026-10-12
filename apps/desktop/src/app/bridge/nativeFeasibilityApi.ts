@@ -76,10 +76,11 @@ export interface ProcessIdentityCandidate {
   createdFileTime: string | null;
   windowHandle: string | null;
   inSelectedBox: boolean | null;
+  imageEvidence: "UNKNOWN" | "SIGNED_EDUCATION_IMAGE_CANDIDATE";
 }
 
 export interface IsolatedClientObservation {
-  schema: 3;
+  schema: 4;
   boxName: "MinecraftClient02";
   stage: "INSPECT";
   boxConfigured: "YES" | "NO" | "UNKNOWN";
@@ -92,6 +93,7 @@ export interface IsolatedClientObservation {
   processEvidenceClass: "NAME_MATCH_CANDIDATE_ONLY";
   candidateProcessCount: number;
   processCandidates: ProcessIdentityCandidate[];
+  officialImageOutsideSelectedBoxCount: number;
   isolatedCandidateProcesses: number;
   nativeVisibleCandidates: number;
   isolatedVisibleCandidates: number;
@@ -103,14 +105,14 @@ export function parseIsolatedClientObservation(value: unknown): IsolatedClientOb
     "schema", "boxName", "stage", "boxConfigured", "boxSettingsSource",
     "autoDelete", "autoRemove", "credentialHostAccess", "membershipStatus",
     "interactiveSession", "processEvidenceClass", "candidateProcessCount",
-    "processCandidates", "isolatedCandidateProcesses", "nativeVisibleCandidates", "isolatedVisibleCandidates", "interpretation",
+    "processCandidates", "officialImageOutsideSelectedBoxCount", "isolatedCandidateProcesses", "nativeVisibleCandidates", "isolatedVisibleCandidates", "interpretation",
   ];
   const flag = (v: unknown): v is "ON" | "OFF" | "UNKNOWN" =>
     v === "ON" || v === "OFF" || v === "UNKNOWN";
   const bounded = (v: unknown): v is number =>
     typeof v === "number" && Number.isSafeInteger(v) && v >= 0 && v <= 16;
   if (!isRecord(value) || !hasOnly(value, keys) ||
-    value.schema !== 3 || value.boxName !== "MinecraftClient02" ||
+    value.schema !== 4 || value.boxName !== "MinecraftClient02" ||
     value.stage !== "INSPECT" ||
     !["YES", "NO", "UNKNOWN"].includes(value.boxConfigured as string) ||
     !["BOX_SECTION_ENUMERATED", "UNKNOWN"].includes(value.boxSettingsSource as string) ||
@@ -126,6 +128,8 @@ export function parseIsolatedClientObservation(value: unknown): IsolatedClientOb
     !bounded(value.candidateProcessCount) ||
     !Array.isArray(value.processCandidates) ||
     value.processCandidates.length !== value.candidateProcessCount ||
+    !bounded(value.officialImageOutsideSelectedBoxCount) ||
+    (value.officialImageOutsideSelectedBoxCount as number) > (value.candidateProcessCount as number) ||
     !bounded(value.isolatedCandidateProcesses) ||
     (value.isolatedCandidateProcesses as number) > (value.candidateProcessCount as number) ||
     !bounded(value.nativeVisibleCandidates) ||
@@ -140,10 +144,10 @@ export function parseIsolatedClientObservation(value: unknown): IsolatedClientOb
   }
   const pids = new Set<number>();
   const windows = new Set<bigint>();
-  let boxed = 0, boxedVisible = 0, outsideVisible = 0;
+  let boxed = 0, boxedVisible = 0, outsideVisible = 0, officialOutside = 0;
   for (const candidate of value.processCandidates as unknown[]) {
     if (!isRecord(candidate) ||
-      !hasOnly(candidate, ["pid", "createdFileTime", "windowHandle", "inSelectedBox"]) ||
+      !hasOnly(candidate, ["pid", "createdFileTime", "windowHandle", "inSelectedBox", "imageEvidence"]) ||
       typeof candidate.pid !== "number" ||
       !Number.isSafeInteger(candidate.pid) ||
       candidate.pid < 1 || candidate.pid > 0xffffffff ||
@@ -166,6 +170,14 @@ export function parseIsolatedClientObservation(value: unknown): IsolatedClientOb
       throw new TypeError("Unknown membership cannot attribute process identity.");
     }
     if (candidate.inSelectedBox === true) boxed++;
+    if (candidate.imageEvidence === "SIGNED_EDUCATION_IMAGE_CANDIDATE") {
+      if (candidate.inSelectedBox !== false || candidate.windowHandle === null) {
+        throw new TypeError("Signed Education image cannot be boxed or windowless.");
+      }
+      officialOutside++;
+    } else if (candidate.imageEvidence !== "UNKNOWN") {
+      throw new TypeError("Unrecognized executable image evidence.");
+    }
     if (candidate.windowHandle !== null) {
       if (typeof candidate.windowHandle !== "string" ||
         !/^0x[0-9a-f]{1,16}$/i.test(candidate.windowHandle)) {
@@ -181,6 +193,7 @@ export function parseIsolatedClientObservation(value: unknown): IsolatedClientOb
     }
   }
   if (boxed !== value.isolatedCandidateProcesses ||
+    officialOutside !== value.officialImageOutsideSelectedBoxCount ||
     boxedVisible !== value.isolatedVisibleCandidates ||
     outsideVisible !== value.nativeVisibleCandidates) {
     throw new TypeError("Process candidates contradict snapshot counters.");
