@@ -1,4 +1,40 @@
-## Codex next session — G0 verified; disposable VMware G1 prerequisite (2026-10-12)
+## Codex next session — simplify installation: design discussion requested (2026-10-12)
+
+**Work:** `emulator/simple-install-design`; **State: DESIGN_DISCUSSION_READY / MANUAL_VMWARE_SETUP_PAUSED**. User explicitly asks to reconsider the approach and bring the local reports into the repo for discussion. This is the only current continuation. Read this section only, stopping at the first `---`; later sections are evidence/history, not authorization to resume guest setup. Repository baseline: `Local` @ `4fa6cd456094db25352c13c16ed6d831e71bc094` before this documentation commit.
+
+### User requirement and scope
+
+The user wants a Windows Sandbox/BlueStacks-like experience: install the manager, let it prepare the required environment, then use it without manually configuring a hypervisor, booting an ISO, choosing a Windows edition or completing repeated Windows setup. Windows/Microsoft enrollment is specifically reported as disruptive. This analogy specifies ease of use; it does not authorize switching to Android, replacing Minecraft Education, bypassing authentication/licensing or promising zero legitimate game sign-in. Root project stays `D:/Work/AI Stuff/Minecraft-Emulator`, branch `Local`; external Tools contains only local tooling/evidence/guest artifacts. Preserve all VM/account data. Stop further manual VMware onboarding pending design review; no guest was stopped/deleted/reset successfully by this handoff.
+
+### Actual local evidence brought into the discussion
+
+- **G0 PASS at exact product SHA `509ce10f0fd5129e4da2990614651fb57241b256` only:** `DEV.cmd g0` exit 0; source checks, unsigned x64 NSIS build, 16 required installed payload files and disposable install/repair/uninstall/reinstall preservation reviewed. Five installer/uninstaller exit codes were 0; sentinel content survived repair, uninstall and reinstall. Exact command counts and prior failure repairs are preserved in the previous handoff below. Later documentation SHAs were not executable-tested.
+- Installer SHA-256: `27417a28e66f4c82762bbbc89214144aa3443dc49c62567caea759db04b87482`. Source/build log and disposable results remain outside Git under `D:/Work/AI Stuff/Minecraft-Emulator-Tools/`; no raw logs, installers, ISOs, VM disks, screenshots, credentials or encryption material are committed.
+- Host observed: Windows 11 Pro x64 build 26100; i7-14700F, 20 cores/28 threads; 31.76 GiB RAM; RTX 3070 with NVIDIA-reported 8192 MiB VRAM. Local x64 source/package execution is proven. Three guests/four-client capacity is not proven.
+- Windows Sandbox activation required operator-approved UAC and a manual restart. First post-restart startup reported "The Container Manager service or one of its dependencies is not running." `hns` was Disabled/Stopped while core compute services ran; approved setup continuation changed `hns` to Manual/Running. Fresh Sandbox then executed G0 lifecycle checks. This demonstrates disposable installer isolation, not persistent Minecraft clients or the separate App Sandbox GPU-PV provider.
+- VMware download required Broadcom portal login. Operator downloaded and installed Workstation **26.0.0 build-25388281** at `D:/VirtualMachine`; installed executable signature was valid and authorization/NAT services ran. Downloaded official Microsoft ISO: `Windows11_Client_x64_en-gb_26300_9457.iso`, Windows 11 x64 English International build 26300.9457 (page labelled 26H2), 9061271552 bytes; SHA-256 matched the page's published `7e3f373bd3c2321b5d5125dfcf718dfbf1a0abc50a267118669951890df98a5d`. Specific 26H2/Workstation 26H1 guest compatibility remains unverified.
+- One scratch VM was observed running at `D:/Work/AI Stuff/Minecraft-Emulator-Tools/g1-vmware-509ce10/Virtual Machine - 1.vmx`: Windows 11 x64 configuration, EFI, 4096 MiB RAM, 2 vCPUs, NAT and `mks.enable3d=TRUE`; ISO attached. These are configuration/process observations, not guest graphics/desktop proof. Initial CD boot was followed by EFI Network timeout; user booted the ISO and supplied a Windows Setup **Select Image** screenshot. Assistant advised Pro without N. Latest independently visible stage remains Windows Setup; installed desktop completion is UNKNOWN.
+- Automation friction: VMware wizard/console input was unreliable; elevated installer required operator interaction. A CLI reset attempt returned **exit -1**, "A password is required for this operation"; no reset succeeded and no password was requested/stored. No guest collector, VMware Tools verification, Microsoft/game login, playable world or multiplayer observation ran. User reports Windows setup, DLL/setup burden and Microsoft-account enrollment as unacceptable; no specific DLL error or OOBE/login screenshot was independently verified.
+
+| Gate | Actual status for the verified product SHA |
+| --- | --- |
+| G0 source / NSIS / installed payload / disposable preservation | PASS / PASS / PASS / PASS |
+| G1 | NOT_EXECUTED for required desktop/sign-in/gameplay acceptance; firmware and Windows Setup only observed |
+| G2 / G3 / G4 | NOT_EXECUTED |
+
+### Questions for the architecture discussion, not an implementation decision
+
+1. Can first launch own prerequisite detection, downloads/progress, guest preparation and recovery, leaving the user only explicit system consent and necessary licensed game sign-in? Define the desired installer-to-play flow and its failure/retry behavior before changing provider code.
+2. Evaluate the **existing App Sandbox GPU-PV pilot first**: `docs/validation/gpu-pv-disposable-pilot.md`, `engine/runtime-core/src/provider/app_sandbox_pilot.rs`, and existing feasibility collectors. It currently requires manually created Windows and supports inspect/start/graceful shutdown/display only; creation, deletion, snapshots, account reset and production G2-G4 migration are absent. It is not Windows Sandbox and does not already solve onboarding. GPU-PV capabilities, multiple persistent isolated clients and account recovery remain unproven.
+3. Compare that bounded direction with automating the existing VMware preparation flow. Define a legitimate guest-image acquisition/preparation/distribution strategy; persistence across app close/reboot/update; per-client identity/account isolation; GPU/input evidence; resource limits; and existing-data migration/rollback before selecting an approach. Avoid adding a VirtualBox provider merely to remove portal login.
+4. Separate Windows OS provisioning/enrollment from Minecraft Education's independently licensed sign-in. Do not assume the host Windows entitlement licenses guest installations, ship an account-bearing image, automate credentials, or remove account prompts by an undocumented bypass. Ordinary Windows Sandbox's disposable state cannot be assumed to preserve daily client accounts.
+
+**Owner:** current continuation is `planning/development.md`; architecture entry is `docs/system/implementation-map.md` -> existing runtime provider/guest preparation and desktop setup owners. No source, public API, toolchain pin, provider migration, workflow or installed identity change is included in this reporting batch.
+
+**Next:** discuss and document one installer-to-play design against the existing GPU-PV pilot and VMware preparation owners, explicitly resolving guest preparation, persistent isolated account state, legitimate image availability and measured graphics acceptance before authorizing implementation. Do not resume manual guest onboarding from historical `Next` entries. Keep `main` untouched and CI manual-only.
+
+---
+## Previous local report — G0 verified; disposable VMware G1 prerequisite (2026-10-12)
 
 **Work:** `emulator/codex-localtest-handoff`; **State: G0_PASS / G1_NOT_EXECUTED**. This top section is the only current continuation; everything below the divider is history. Preserve all existing VM/account data and work on `Local` only.
 
