@@ -118,6 +118,13 @@ describe("Native candidate IPC evidence", () => {
     expect(engine).toContain("let mut launch_guard = acquire_client_02_launch()?;");
     expect(engine).toContain("*launch_guard = Some(Instant::now());");
     expect(engine).toContain("GetEnvironmentVariable('ProgramW6432')");
+    // Both launch routes refuse unverified package inventory and require
+    // a uniquely registered current-user Minecraft Education Start app.
+    expect(engine.match(/Get-AppxPackage -Name 'Microsoft.MinecraftEducationEdition' -ErrorAction Stop/g)).toHaveLength(2);
+    expect(engine.match(/Get-StartApps -ErrorAction Stop/g)).toHaveLength(2);
+    expect(engine).toContain("Minecraft Education must have exactly one registered Start menu app in this Windows session");
+    expect(engine).toContain("A registered AppID is NOT an authoritative on-disk EXE path");
+    expect(engine).not.toContain("Get-AppxPackage -Name 'Microsoft.MinecraftEducationEdition' -ErrorAction SilentlyContinue");
     expect(engine).toContain('observation.credential_host_access != "OFF"');
     expect(bridge).toContain('"desktop_inspect_sandbox_client_02"');
     expect(bridge).toContain('"desktop_focus_observed_client_02"');

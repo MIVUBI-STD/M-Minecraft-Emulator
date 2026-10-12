@@ -108,7 +108,14 @@ the existing official Windows launcher. For Client 02:
 2. Select the **installed** Minecraft Education Windows Desktop EXE in Minecraft Instance Manager.
    Do not select the downloaded installer. The current pilot requires
    valid Authenticode signing by **Microsoft Corporation**, together with
-   Education product metadata. If the real installed Education release
+   Education product metadata. The Native and Sandboxie launch routes also
+   require the Desktop installation's documented registry version and one
+   matching registered Minecraft Education Start app for the current user.
+   Microsoft Store package enumeration must succeed; an inspection error is
+   not evidence that the package is absent. A registered Start AppID does
+   **not** identify the actual executable path, so a valid signed file and
+   registration are necessary independent prerequisites, not proof that
+   the selected EXE was installed by that registration. If the real installed Education release
    has a different verified signing organization, record its evidence and
    review the trust rule in source rather than disabling the signature check.
 3. Acknowledge Sandboxie licensing and click **Launch isolated Client 02**.
@@ -179,6 +186,28 @@ size/position or protection against every HWND race. Windows may adjust the
 final size to Minecraft's constraints; the accepted request does not
 certify rendering. Sandboxie Plus requires
 a Business Certificate for business/educational use as described upstream.
+
+## Official Desktop installation provenance
+
+[Minecraft Education's Windows installation guide](https://edusupport.minecraft.net/hc/en-us/articles/13106858087956-Windows-Installation-Guide)
+documents the 32-bit-registry-view `Version` detection key and
+mutually incompatible Desktop and Store installation methods. The
+Desktop installer also supports a custom `APPDIR`; checking only
+`Program Files` would therefore reject legitimate installs.
+
+The active Client 01 and Client 02 launch requests now apply the same
+registered Start-app uniqueness and valid AppID syntax checks, alongside
+Desktop registry/version and current-user Microsoft Store package
+inventory. Failure to enumerate the Store package is treated as a
+preflight failure, not silently interpreted as no package. The chosen
+Client 02 EXE additionally requires the existing Microsoft-signed
+Education product metadata and filename rule. These checks do **not**
+prove that the Start AppID resolves to the selected executable, because
+`Get-StartApps` exposes AppUserModelIDs, not trustworthy EXE paths.
+They also do not rule out Store packages for other Windows users.
+The manager does not guess unknown installation directories, modify
+Start registration, copy executables or treat a file signature as proof
+of licensed gameplay. Ambiguous installation provenance stays unverified.
 
 ## Bounded collector transport
 

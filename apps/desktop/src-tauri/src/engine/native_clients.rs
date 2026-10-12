@@ -154,7 +154,7 @@ try {
   }
 }
 finally { $registry.Dispose() }
-$storePresent = @(Get-AppxPackage -Name 'Microsoft.MinecraftEducationEdition' -ErrorAction SilentlyContinue).Count -gt 0
+$storePresent = @(Get-AppxPackage -Name 'Microsoft.MinecraftEducationEdition' -ErrorAction Stop).Count -gt 0
 if ($desktopVersion -notmatch '^\d+(?:\.\d+){1,4}$' -or $storePresent) {
   throw 'A single Minecraft Education Desktop installation is required; do not mix Desktop and Store editions.'
 }
@@ -765,8 +765,24 @@ try {{
     }}
 }} finally {{ $reg.Dispose() }}
 if ($version -notmatch '^\d+(?:\.\d+){{1,4}}$' -or
-    @(Get-AppxPackage -Name 'Microsoft.MinecraftEducationEdition' -ErrorAction SilentlyContinue).Count -gt 0) {{
+    @(Get-AppxPackage -Name 'Microsoft.MinecraftEducationEdition' -ErrorAction Stop).Count -gt 0) {{
     throw 'Requires one official Desktop edition, without Store edition'
+}}
+# Match the unique registered per-user Start app prerequisite of Client 01.
+# A registered AppID is NOT an authoritative on-disk EXE path, especially
+# when the Desktop installer uses its supported custom APPDIR option.
+$apps = @(Get-StartApps -ErrorAction Stop | Where-Object {{
+    $_.Name -eq 'Minecraft Education' -or
+    $_.Name -eq 'Minecraft: Education Edition' -or
+    $_.Name -eq 'Minecraft Education Edition'
+}})
+if ($apps.Count -ne 1) {{
+    throw 'Minecraft Education must have exactly one registered Start menu app in this Windows session'
+}}
+$appId = [string]$apps[0].AppID
+if (-not $appId -or $appId.Length -gt 256 -or
+    $appId -notmatch '^[A-Za-z0-9_.!+{{}}-]+$') {{
+    throw 'Registered Minecraft Education application identity is invalid'
 }}
 $product = [Diagnostics.FileVersionInfo]::GetVersionInfo($game).ProductName
 $signature = Get-AuthenticodeSignature -LiteralPath $game

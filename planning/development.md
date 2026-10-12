@@ -1,10 +1,40 @@
 # Current Development Handoff
 
 **Branch:** `Local` only. **Product:** Minecraft Instance Manager.
-**Current work:** `emulator/executable-file-provenance` (source-only; runtime tests postponed).
+**Current work:** `emulator/signing-installation-provenance` (source-only; runtime tests postponed).
 **Engineering state:** source prototype / **Windows build and two-account gameplay NOT_EXECUTED**.
 
-## Latest source-only batch — executable file provenance and replacement guard
+## Latest source-only batch — signing and installation prerequisites
+
+- Compared the two active Windows launch paths with the official Minecraft
+  Education Windows Installation Guide and Microsoft's Get-StartApps and
+  Get-AuthenticodeSignature documentation.
+- Fixed a concrete prerequisite drift: Client 01 required a unique valid
+  Minecraft Education Start app, while Client 02 required registry/Store
+  installation and signed EXE but did not require matching Start
+  registration. Both launch paths now check current-user Start app
+  uniqueness and valid AppID syntax.
+- Both paths now fail closed if Get-AppxPackage enumeration errors,
+  rather than suppressing errors and inferring the Store edition absent.
+  The existing signed-file ProductName/Microsoft-publisher checks for
+  the selected Client 02 EXE are retained unchanged.
+- Kept custom APPDIR support: Microsoft explicitly allows Desktop
+  installation outside Program Files. A Start AppID does not prove that
+  the selected EXE path is its installed binary; this unresolved
+  association is **not** promoted to source-only proof.
+- No changes to Sandboxie account/credentials, launch scheduler, process
+  inventory, persisted schemas, VM state, or packaging.
+- **Proof:** pinned Local source review and current official Microsoft /
+  Minecraft docs. Frontend/Rust source assertions are authored only;
+  Windows, Minecraft, build, native signing, and two-account acceptance
+  tests remain NOT_EXECUTED by user request.
+- **Unresolved:** Windows Get-StartApps and Get-AppxPackage cross-user
+  differences, custom APPDIR provenance, executable/installation linkage,
+  local issuer metadata and real launcher compatibility.
+- **Next:** narrow source-only audit of error classification and
+  user-facing recovery without adding a second readiness state machine.
+
+## Previous source-only batch — executable file provenance and replacement guard
 
 - Found the gap: unchanged path strings before/after Authenticode do not
   prove that the path still names the same filesystem object.
