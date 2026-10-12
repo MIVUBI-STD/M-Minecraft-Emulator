@@ -294,14 +294,17 @@ test("source-side collector must distinguish missing box keys from failed querie
   );
   assert.equal(source.split("credentialHostAccess = $credentialHostAccess").length - 1, 2);
   assert.ok(source.includes("[switch]$SummaryOnly"));
-  assert.ok(source.includes("if (-not $reading.Wait(1000)) { return $null }"));
+  assert.ok(source.includes("$reader.ReadAsync($buffer, 0, $buffer.Length)"));
+  assert.ok(source.includes("$remainingMs = 1000 - [int]$drainClock.ElapsedMilliseconds"));
+  assert.ok(source.includes("if ($output.Length + $received -gt 4096) { return $null }"));
+  assert.ok(!source.includes("$process.StandardOutput.ReadToEndAsync()"));
   assert.ok(source.includes("$process.StandardOutput.Dispose()"));
   assert.ok(source.includes("schema = 1")); // durable full CLI report
   assert.ok(source.includes("schema = 6")); // on-demand desktop summary only
   assert.ok(source.includes("isolatedCandidateProcesses = @($gameCandidates | Where-Object {"));
   assert.ok(source.includes("createdFileTime = $createdFileTime"));
   assert.ok(source.includes("imageEvidence = $imageEvidence"));
-  assert.ok(source.includes("officialImageOutsideSelectedBoxCount = @($gameCandidates | Where-Object {"));
+  assert.ok(source.includes("officialImageOutsideSelectedBoxCount = $signedOutside.Count"));
   assert.ok(source.includes("$educationImageProof = @{}"));
   assert.ok(source.includes("Get-AuthenticodeSignature -LiteralPath $image"));
   assert.ok(!source.includes("query /boxes *")); // replaced by per-PID API
@@ -310,8 +313,8 @@ test("source-side collector must distinguish missing box keys from failed querie
   assert.ok(source.includes("GetProcessTimes(process,"));
   assert.ok(source.includes("SameProcess(process, expected)"));
   assert.ok(source.includes("LoadLibraryExW(dll, IntPtr.Zero"));
-  assert.ok(source.includes("Get-AuthenticodeSignature -LiteralPath $sbieDll"));
-  assert.ok(source.includes("$sig.SignerCertificate.Thumbprint -eq $toolSig.SignerCertificate.Thumbprint"));
+  assert.ok(source.includes("Get-AuthenticodeSignature -LiteralPath $dll"));
+  assert.ok(source.includes("$dllSig.SignerCertificate.Thumbprint -eq"));
   assert.ok(source.includes("if ($ImageProof -and $signedOutside.Count -gt 0)"));
   assert.ok(source.includes("$directPidQuery = 'UNAVAILABLE'"));
   assert.ok(source.includes("$directPidQuery = 'QUERIED'"));
@@ -324,5 +327,12 @@ test("source-side collector must distinguish missing box keys from failed querie
   assert.ok(source.includes("if (-not $SummaryOnly)"));
   assert.ok(source.includes("if ($null -ne $path) { $summary['reportPath'] = $path }"));
   assert.equal(source.split("$boxConfigured = if ($enabled").length - 1, 1);
-  assert.equal(source.split("$membershipStatus = 'UNKNOWN'").length - 1, 1);
+  assert.ok(source.includes("$membershipStatus = 'UNKNOWN'"));
+  // A successful Sandboxie box scan cannot authorize a launch if the Windows
+  // process enumeration fails or omits any PID reported inside the box.
+  assert.ok(source.includes("$allProcesses = @(Get-Process -ErrorAction Stop)"));
+  assert.ok(source.includes("if (-not $processInventoryComplete)"));
+  assert.ok(source.includes("foreach ($boxedPid in $boxedPids)"));
+  assert.ok(source.includes("if (-not $visiblePids.ContainsKey([string]$boxedPid))"));
+  assert.ok(!source.includes("Get-Process -ErrorAction SilentlyContinue"));
 });
