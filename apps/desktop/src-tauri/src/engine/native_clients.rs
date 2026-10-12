@@ -353,12 +353,18 @@ if ($product -notmatch '(?i)(Minecraft.*Education|Education.*Minecraft)' -or
     $publisher -notmatch '(?i)(^|,\s*)O=Microsoft Corporation(,|$)') {{
     throw 'Selected executable must be a valid Microsoft Corporation-signed Minecraft Education Desktop build'
 }}
-$install = @((Join-Path $env:ProgramFiles 'Sandboxie-Plus'),
-             (Join-Path $env:ProgramFiles 'Sandboxie')) |
-             Where-Object {{
-                 (Test-Path -LiteralPath (Join-Path $_ 'Start.exe') -PathType Leaf) -and
-                 (Test-Path -LiteralPath (Join-Path $_ 'SbieIni.exe') -PathType Leaf)
-             }} | Select-Object -First 1
+# Search the same trusted Windows installation roots as the canonical
+# read-only collector, avoiding preflight/launch path inconsistencies.
+$roots = @(
+    [Environment]::GetEnvironmentVariable('ProgramW6432'),
+    [Environment]::GetEnvironmentVariable('ProgramFiles'),
+    [Environment]::GetEnvironmentVariable('ProgramFiles(x86)')
+) | Where-Object {{ $_ }} | Select-Object -Unique
+$install = @($roots | ForEach-Object {{ Join-Path $_ 'Sandboxie-Plus' }} |
+    Where-Object {{
+        (Test-Path -LiteralPath (Join-Path $_ 'Start.exe') -PathType Leaf) -and
+        (Test-Path -LiteralPath (Join-Path $_ 'SbieIni.exe') -PathType Leaf)
+    }}) | Select-Object -First 1
 if (-not $install) {{ throw "Install Sandboxie Plus and create $box first" }}
 $start = Join-Path $install 'Start.exe'
 $ini = Join-Path $install 'SbieIni.exe'
