@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Minecraft Education VMware multi-instance management workspace",
+  "description": "Minecraft Education native and Sandboxie feasibility controller; legacy VMware source retained",
   "engines": {
     "node": "24.x"
   },

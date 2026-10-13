@@ -21,15 +21,10 @@ lifecycle: ACTIVE
 ### Source verification (repository root)
 
 ```powershell
-git branch --show-current
-git rev-parse HEAD
-git status --short
-.\DEV.cmd doctor
-npm run setup
-npm run verify:source
+.\DEV.cmd preflight
 ```
 
-**Stop if any command fails.** The source verifier runs repository rules, evidence evaluator tests, frontend Svelte/TypeScript/Vitest/build checks, Rust checks/tests/format. A Git commit or an authored test is *not* evidence of a passing command. A clean verification result does not prove Minecraft playability.
+**Stop if this command fails.** `DEV.cmd preflight` confirms a clean committed `Local` SHA, checks pinned developer tools and the tracked Cargo lockfile, installs locked desktop npm dependencies, runs root `npm run verify:source`, and rechecks that tracked source/HEAD did not change. It does not open the desktop or package the application. If a stage fails, keep the first error and SHA; do not retry by disabling checks. The source verifier runs repository rules, evidence evaluator tests, frontend Svelte/TypeScript/Vitest/build checks, Rust checks/tests/format. A Git commit or an authored test is *not* evidence of a passing command. A clean verification result does not prove Minecraft playability.
 
 **Do not use** `npm run package:windows`, `npm run build:app`, `DEV.cmd package` or `DEV.cmd g0` to obtain an installer: those legacy VMware packaging paths are deliberately blocked while this native pilot is active.
 
@@ -71,7 +66,7 @@ For a manually confirmed two-game report, follow the existing commands in [Sandb
 
 | Symptom | Record / action |
 | --- | --- |
-| `npm run verify:source` fails | Save the first failing command, compiler message, git SHA and tool versions; do not proceed to gameplay. |
+| `DEV.cmd preflight` fails | Save the first failing command, compiler message, git SHA and tool versions; do not proceed to gameplay. |
 | `Refresh` fails or membership UNKNOWN | Report Sandboxie version, collector error category, whether the box exists, and whether its service is running; do **not** keep clicking launch. |
 | Start Menu / Desktop edition rejected | Inspect official Windows installation/Start app mapping; record language and install-path category, **not** private path or credentials. Do not relax signer verification just to pass. |
 | Launch requested but no second window | Check whether Minecraft focused the first instance, an unsigned/unattributed process appeared, or Sandboxie reported an error; record result as inconclusive/failure as appropriate. |

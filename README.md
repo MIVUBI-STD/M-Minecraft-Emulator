@@ -34,7 +34,7 @@ native launcher is active; there is no approved native release installer yet. Le
 | --- | --- | --- |
 | Develop, refactor, repair, or improve repository | [AGENTS.md](AGENTS.md) → [.agents development procedure](.agents/skills/emulator-development/SKILL.md) | Existing source owner in `apps/` or `engine/` |
 | Examine VM behavior or diagnose setup | [Implementation Map](docs/system/implementation-map.md) → [Runtime Core](docs/system/runtime-core.md) | `engine/runtime-core/`, observed provider/guest evidence |
-| Follow the selected Windows two-account experiment | [Sandboxie Client 02](docs/validation/sandboxie-two-client-feasibility.md) | Pinned source checks and `npm run dev`; no approved installer, login/gameplay unproven |
+| Follow the selected Windows two-account experiment | [Native pilot local test](docs/validation/native-pilot-localtest.md) | `DEV.cmd preflight` → `DEV.cmd dev`; no installer, login/gameplay still unproven |
 | Review the legacy VMware NSIS release integrity gate | [Historical G0](docs/validation/pre-local-test-readiness.md) | Old NSIS packaging intentionally blocked for native pilot |
 | Consult historical one-guest VMware feasibility (inactive) | [Legacy Client Feasibility](docs/validation/client-feasibility.md) | Scratch guest procedure is retained as reference; not an active pilot instruction |
 | Verify Windows/VMware/Minecraft usability | [Validation](docs/validation/README.md) | Real machine and game observations; `tooling/acceptance/` collects bounded evidence |
@@ -102,17 +102,17 @@ npm run dev                      # Tauri desktop development
 npm run package:windows          # explicit Windows NSIS build, not signed publication
 ```
 
-Windows developers may use `DEV.cmd help`; all of its operations delegate to the scripts above. GitHub workflows are **manual-only**. A committed test or valid static check is not proof of a passing Windows package or working four-client Minecraft session.
+For the native Windows pilot, use `DEV.cmd preflight` to run the exact-SHA toolchain, locked setup and complete source checks in one non-destructive sequence; only after it succeeds use `DEV.cmd dev` for the manual two-client experiment. `DEV.cmd g0` and packaging remain blocked legacy routes. Windows developers can also use `DEV.cmd help`; it delegates to the existing PowerShell development script. GitHub workflows are **manual-only**. A committed test or valid static check is not proof of a passing Windows package or working four-client Minecraft session.
 
 ## Product and compatibility invariants
 
 - Svelte is presentation; thin Tauri commands route to the Rust runtime authority.
-- VMware Workstation is the initial Windows provider; Fusion implementation is retained as macOS backend source.
+- **Active pilot:** one official host-native Windows client plus one Sandboxie Plus Client 02; neither account independence nor render/playability is proven. VMware Workstation/Fusion implementations remain **inactive legacy backend source**, not the active native pilot provider.
 - Native/Base/Virtual Minecraft version parity and finalized Base lineage gate VM start/provisioning.
 - Each Virtual retains its own guest disk and account state; destructive reprovision requires explicit confirmation.
 - VM running, Guest Agent reachable, game process running, sign-in usable and multiplayer-ready are different observations.
 - Legacy installed product name **M-Bedrock Virtual Clients**, Windows application identifier, guest/protocol identities, persisted runtime paths and release-asset naming remain compatibility contracts. **Repository/source-path cleanup does not rename installed artifacts.**
-- The target one-native-plus-three-virtual use case is **not yet proven on a real machine**. Consult [Validation](docs/validation/README.md).
+- The current four-client target is **not yet proven on a real machine**, and Client 03–04 have no approved implementation approach. Consult [Validation](docs/validation/README.md).
 
 ## Extraction history
 

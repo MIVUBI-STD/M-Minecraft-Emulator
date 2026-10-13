@@ -1,6 +1,6 @@
 param(
     [Parameter(Position=0)]
-    [ValidateSet("setup", "doctor", "lock", "g0", "check", "test", "dev", "package", "help")]
+    [ValidateSet("setup", "doctor", "lock", "g0", "preflight", "check", "test", "dev", "package", "help")]
     [string]$Command = "help"
 )
 
@@ -19,11 +19,11 @@ function Invoke-RepositoryNpm {
 
 function Assert-LocalCheckout {
     if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
-        throw "Git is required to bind local G0 results to the committed Local source."
+        throw "Git is required to bind developer results to the committed Local source."
     }
     $branchName = (& git branch --show-current).Trim()
     if ($LASTEXITCODE -ne 0 -or $branchName -ne "Local") {
-        throw "G0 work must run on branch Local; observed '$branchName'. No branch was changed."
+        throw "Developer verification must run on branch Local; observed '$branchName'. No branch was changed."
     }
     $commit = (& git rev-parse --verify HEAD).Trim()
     if ($LASTEXITCODE -ne 0 -or $commit -notmatch '^[0-9a-f]{40}$') {
@@ -43,7 +43,7 @@ function Assert-CleanSourceAtHead {
         throw "Git status could not be evaluated."
     }
     if ($changes.Count -gt 0 -and ($changes -join "").Trim().Length -gt 0) {
-        throw "G0 needs an exact clean committed Local revision; commit or restore source changes first. VM files were not touched."
+        throw "Source verification needs an exact clean committed Local revision; commit or restore source changes first. VM files were not touched."
     }
 }
 
@@ -176,6 +176,29 @@ function Assert-BuiltWindowsPackage {
     Write-Host "Installed payload, repair/uninstall preservation, signatures, VMware and Minecraft remain UNVERIFIED."
 }
 
+
+# Active native + Sandboxie pilot: one read-only source checkpoint, not the
+# intentionally blocked legacy VMware G0 packaging route. Installs only locked
+# developer dependencies and produces ordinary ignored build artifacts.
+function Invoke-NativeSourcePreflight {
+    $sha = Assert-LocalCheckout
+    Assert-CleanSourceAtHead -ExpectedSha $sha
+    Test-DeveloperToolchain
+
+    & git ls-files --error-unmatch -- $DesktopLock *> $null
+    if ($LASTEXITCODE -ne 0) {
+        throw "Native source preflight requires a tracked desktop Cargo.lock at the committed Local HEAD."
+    }
+
+    Write-Host "Native source preflight SHA: $sha"
+    Invoke-RepositoryNpm -NpmArguments @("run", "setup")
+    Invoke-RepositoryNpm -NpmArguments @("run", "verify:source")
+    Assert-CleanSourceAtHead -ExpectedSha $sha
+
+    Write-Host "Source verification completed for $sha."
+    Write-Host "No installer, VM, Sandboxie process, licensed sign-in or Minecraft session was tested."
+}
+
 # One opt-in source/package checkpoint. This is NOT a game/VM test and does not
 # install/uninstall the product or access account-bearing guest disks.
 function Invoke-G0SourcePackage {
@@ -215,6 +238,7 @@ try {
         "doctor"  { Test-DeveloperToolchain }
         "lock"    { New-DesktopCargoLock }
         "g0"      { Invoke-G0SourcePackage }
+        "preflight" { Invoke-NativeSourcePreflight }
         "check"   { Invoke-RepositoryNpm -NpmArguments @("run", "verify:source") }
         "test"    {
             Invoke-RepositoryNpm -NpmArguments @("run", "test")
@@ -226,6 +250,7 @@ try {
             Write-Host "M-Minecraft-Emulator (optional Windows developer commands)"
             Write-Host "  DEV.cmd lock     # resolve missing Tauri Cargo.lock (no automatic commit)"
             Write-Host "  DEV.cmd doctor   # pinned toolchain checks"
+            Write-Host "  DEV.cmd preflight # native pilot exact-SHA setup + full source verification (NO package/game)"
             Write-Host "  DEV.cmd g0       # one exact-SHA source + unsigned NSIS build batch"
             Write-Host "  DEV.cmd setup    # install pinned npm dependencies"
             Write-Host "  DEV.cmd check    # full source verification"

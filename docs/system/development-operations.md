@@ -45,22 +45,23 @@ npm run dev
 
 `verify:repository` is a structural policy/consumer check. Desktop `verify:source` runs Svelte typecheck, Vitest source tests, frontend build, Tauri Rust check and Rust desktop tests; `verify:source` at **root** also checks canonical runtime Rust and formatting. Neither automatically starts VMware or Minecraft.
 
-`DEV.cmd` delegates to `tooling/windows-toolchain/dev.ps1` for optional Windows developer tasks:
+`DEV.cmd` delegates to `tooling/windows-toolchain/dev.ps1` for optional Windows developer tasks. The selected native pilot uses one fail-fast preflight before manual gameplay; the old `g0` packaging route remains separate:
 
 ```text
 DEV.cmd setup
 DEV.cmd doctor
+DEV.cmd preflight
 DEV.cmd check
 DEV.cmd test
 DEV.cmd dev
 DEV.cmd package
 ```
 
-`doctor` checks developer toolchain only, not Microsoft licensing, VMware GPU or gameplay readiness.
+`doctor` checks developer toolchain only. `preflight` checks a clean committed `Local` SHA, installed tool versions and committed lockfiles, performs `npm run setup` and `npm run verify:source`, then confirms the checkout remains unchanged. It does **not** test Microsoft licensing, Sandboxie, Windows gameplay, VM state or installer preservation.
 
 ## Package and release boundary
 
-`npm run package:windows` builds an explicit Windows NSIS package in a suitable build environment; it is not a trusted signed release. Packaging resources come from `engine/guest/windows/`, `tooling/acceptance/windows/` and `engine/distribution/`. Resource destination paths inside the installed application remain stable.
+`npm run package:windows` is **intentionally blocked** in the active native feasibility pilot: the old NSIS configuration still carries VMware resources and installed identity. Its retained source describes historical packaging only, not an installable native prototype. Do not bypass this release hold to obtain a local-test installer. A future approved native package needs separate identity, contents and preservation review. Packaging resources come from `engine/guest/windows/`, `tooling/acceptance/windows/` and `engine/distribution/`. Resource destination paths inside the installed application remain stable.
 
 GitHub workflow files in `.github/workflows/` are `workflow_dispatch` only and may be invoked solely when appropriate. They are evidence tools, not a parallel source of readiness state. No push-based CI, unattended release or automatic promotion to `main`.
 
