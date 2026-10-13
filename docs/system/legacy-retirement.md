@@ -21,7 +21,7 @@ apps/desktop/src-tauri/src/app_bootstrap.rs. Retired code is not removed.
 
 | Source | State / responsibility |
 | --- | --- |
-| apps/desktop/src/NativeFeasibilityApp.svelte | ACTIVE PILOT; official native launch, one isolated Client 02 request and one explicit combined candidate observation |
+| apps/desktop/src/CompactManagerApp.svelte | ACTIVE UI; compact English-only Instances/Settings presentation of official native and isolated actions, using the existing typed native bridge |
 | apps/desktop/src-tauri/src/engine/native_clients.rs | ACTIVE LIMITED; native Windows launch, fixed Sandboxie Client 02 launch/preflight and bounded read-only observation; no authentication automation |
 | apps/desktop/src/app/bridge/nativeFeasibilityApi.ts | ACTIVE typed IPC for explicit official launch requests and strict read-only process/box candidate schema; no legacy VM backend |
 | tooling/acceptance/windows/collect-native-feasibility.ps1 | PRESERVED READ-ONLY; previous native-only feasibility collector, not the selected Client 02 route |
@@ -37,6 +37,7 @@ tokens, profile copies or private worlds are stored in Git.
 
 | Root | State / reason |
 | --- | --- |
+| apps/desktop/src/NativeFeasibilityApp.svelte | UNMOUNTED historical native feasibility screen; retained for source regression and review only |
 | apps/desktop/src/App.svelte and legacy app/surfaces, dialogs | UNMOUNTED; VMware wizard and VM controls not available to user |
 | Tauri commands/virtual_clients.rs, setup_tools.rs, window_arrangement.rs | NOT REGISTERED and NOT DECLARED in the native desktop's Rust module tree; old source retained for reversible legacy support |
 | engine/runtime-core/src/runtime.rs and provider/workstation.rs, fusion.rs, vmx.rs, storage.rs | VM MUTATIONS PAUSED at public command boundary |
@@ -45,7 +46,7 @@ tokens, profile copies or private worlds are stored in Git.
 | tooling/acceptance/windows/collect-client-feasibility.ps1 and old VM G0–G4 scripts | HISTORICAL EVIDENCE ROUTE; not an active campaign |
 | experiments/gpu-pv-migration-design.md | RESEARCH ARCHIVE, no production provider migration |
 | engine/distribution/ and existing NSIS resources | COMPATIBILITY PRESERVED; old release assets still embed VM Guest Agent and scripts |
-| apps/desktop/scripts/prepare-package-binaries.mjs | PACKAGE BLOCKED while NativeFeasibilityApp is mounted; fails before building/staging old guest binaries |
+| apps/desktop/scripts/prepare-package-binaries.mjs | PACKAGE BLOCKED while the native-first pilot remains the active desktop; fails before building/staging old guest binaries |
 
 The active desktop `commands/mod.rs` declares only `native_clients`. Its `engine/mod.rs` declares only `app_instance`, `dpi`, and `native_clients`. The legacy screen-overlay module was also unmounted: no active command could start it, so its shutdown hook was inert. These changes exclude unused modules from the active native desktop compile graph without deleting their files, tests, historical data or the legacy runtime-core dependency. Desktop-only legacy Rust tests will not be compiled while those modules are excluded; this is not proof that the old VMware implementation remains buildable.
 
@@ -88,7 +89,7 @@ manual graceful shutdown. Installing this code does not stop or erase VMs.
 
 The installed Tauri identifier and current NSIS payload still belong to
 the old VM manager. The canonical packaging command therefore remains
-blocked while the native feasibility surface is mounted. **Do not remove
+blocked while the native-first desktop route is selected. **Do not remove
 this block** merely to obtain a downloadable test installer.
 
 A future isolated prototype must first demonstrate all of these properties

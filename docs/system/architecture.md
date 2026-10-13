@@ -44,7 +44,7 @@ Windows host
 handles the currently selected Windows launch and inspection decisions;
 `src-tauri/src/commands/native_clients.rs` is a thin Tauri adapter,
 `src/app/bridge/nativeFeasibilityApi.ts` validates its data and
-`src/NativeFeasibilityApp.svelte` only presents user actions and transient
+`src/CompactManagerApp.svelte` only presents user actions and transient
 status. Existing `tooling/acceptance/windows/collect-sandboxie-feasibility.ps1`
 is the canonical, read-only **evidence collector**, not another lifecycle
 manager. It is embedded in the current proof-of-concept backend, so it is
@@ -371,7 +371,7 @@ Product source was separated from `MIVUBI-STD/M-Lazy-Developer` `Experimental` a
 ## Maintenance boundaries for the active desktop
 
 The active entry is `apps/desktop/src/main.ts`, which mounts
-`NativeFeasibilityApp.svelte`. Svelte owns transient interaction state and
+`CompactManagerApp.svelte`. Svelte owns transient interaction state and
 presentation, **not** Windows process identity, sandbox membership or licensed
 account status. `app/bridge/nativeFeasibilityApi.ts` owns strict IPC input
 validation; `src-tauri/src/commands/native_clients.rs` owns thin Tauri
