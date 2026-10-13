@@ -133,9 +133,12 @@ describe("Native candidate IPC evidence", () => {
     expect(engine).toContain("GetEnvironmentVariable('ProgramW6432')");
     // Both launch routes refuse unverified package inventory and require
     // a uniquely registered current-user Minecraft Education Start app.
-    expect(engine.match(/Get-AppxPackage -Name 'Microsoft.MinecraftEducationEdition' -ErrorAction Stop/g)).toHaveLength(2);
-    expect(engine.match(/Get-StartApps -ErrorAction Stop/g)).toHaveLength(2);
-    expect(engine).toContain("Minecraft Education must have exactly one registered Start menu app in this Windows session");
+    expect(engine.match(/Get-AppxPackage -Name 'Microsoft.MinecraftEducationEdition' -ErrorAction Stop/g)).toHaveLength(1);
+    expect(engine.match(/Get-StartApps -ErrorAction Stop/g)).toHaveLength(1);
+    expect(engine).toContain("[EDUCATION_DESKTOP_PREFLIGHT, SCRIPT].concat()");
+    expect(engine).toContain("let desktop_preflight = EDUCATION_DESKTOP_PREFLIGHT;");
+    expect(engine).toContain("{desktop_preflight}");
+    expect(engine).toContain("Minecraft Education must have exactly one registered Start menu app.");
     expect(engine).toContain("A registered AppID is NOT an authoritative on-disk EXE path");
     expect(engine).not.toContain("Get-AppxPackage -Name 'Microsoft.MinecraftEducationEdition' -ErrorAction SilentlyContinue");
     expect(engine).toContain('observation.credential_host_access != "OFF"');
@@ -439,5 +442,21 @@ describe("Native candidate IPC evidence", () => {
     expect(active).not.toContain("onMount(");
     expect(active).not.toContain("setInterval");
     expect(active).not.toContain("localStorage");
+  });
+  it("admits modern Desktop registration without accepting command text or ambiguous installs", () => {
+    const engine = readFileSync(new URL("../src-tauri/src/engine/native_clients.rs", import.meta.url), "utf8");
+    const preflight = engine.match(/const EDUCATION_DESKTOP_PREFLIGHT: &str = r#"([\s\S]*?)"#;/)?.[1] ?? "";
+    expect(preflight).toContain("RegistryView]::Registry32");
+    expect(preflight).toContain("RegistryView]::Registry64");
+    expect(preflight).toContain("$desktopVersions.Count -ne 1 -or $storePresent");
+    const pattern = preflight.match(/\$desktopAppId = \$appId -match '([^']+)'/)?.[1];
+    expect(pattern).toBeDefined();
+    const matcher = new RegExp(pattern!);
+    const appId = "{6D809377-6AF0-444B-8957-A3773F02200E}\\Microsoft Studios\\Minecraft Education\\Minecraft.Windows.exe";
+    expect(matcher.test(appId)).toBe(true);
+    for (const invalid of [appId + '\"', appId + ";calc", appId.replace("Microsoft Studios", ".."), "C:\\Minecraft.Windows.exe", "\\\\server\\game.exe"]) {
+      expect(matcher.test(invalid)).toBe(false);
+    }
+    expect(engine).toContain(String.raw`('"shell:AppsFolder\' + $appId + '"')`);
   });
 });

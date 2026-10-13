@@ -1,5 +1,14 @@
 # Current Development Handoff
 
+## Desktop x64 installation admission — 2026-10-14
+
+- **Observed runtime:** user installed Sandboxie Plus 1.18.5 and official Microsoft-signed Education Desktop 1.26.3200.0 after manually removing Store Education. One responsive Education window is a candidate only; no sign-in/world proof. The explicitly requested new persistent `MinecraftClient02` box has verified enabled/empty membership and AutoDelete/AutoRemove/credential-bypass OFF. Existing DefaultBox and game data were preserved.
+- **First wrong source owner:** native launch and Client 02 preflight read Registry32 only and rejected the official x64 install's known-folder-path Start AppID. One shared preflight now accepts exactly one valid registration across Registry32/Registry64 and either the existing simple ID or a constrained GUID-relative Win32 path. Native Explorer receives one quoted argument. Store conflicts, ambiguous registration, interactive session and Client 02 signed-image checks remain fail-closed.
+- **Executed correction evidence:** actual shared PowerShell preflight passed against the x64 installation; 116 desktop Vitest tests and Tauri all-target Cargo check passed in the corrected working tree. Full correction-commit preflight remains pending until recorded separately. Regression covers GUID path, quotes/command text/traversal rejection, both registry views and shared launch consumers.
+- **Check status diagnosis:** inherited Codex PowerShell 7 PSModulePath caused Windows PowerShell Security module type-data collision. Reproduced with the exact embedded stdin transport; the same transport succeeded with PSModulePath removed from that child environment. Correct only the developer session environment; no global settings or product module-loading bypass.
+- **Prior exact-SHA evidence:** full Windows `DEV.cmd preflight` PASS and responsive Compact Manager startup at `a8f4aa1bd6c4a3f3bdcaf37e3b68cc839b58270b`; one symlink test skipped for absent privilege. Metadata remains in ignored workspace/runs. This evidence does not certify this later source correction.
+- **Next:** clean correction-commit preflight, then restart developer UI with Windows PowerShell module paths isolated for this session; manually select the signed Desktop EXE and confirm operator-provided licensing before one explicit Client 02 launch. Independent accounts, playable worlds, multiplayer, restart persistence and sustained use remain NOT_EXECUTED.
+
 ## Windows localtest resumed — 2026-10-14
 
 - **Authorization:** user resumed localtest through two licensed playable sessions, native Client 01 plus persistent Sandboxie Client 02; sign-in and Windows restart remain manual. User reports both Education accounts and applicable Sandboxie licensing available.

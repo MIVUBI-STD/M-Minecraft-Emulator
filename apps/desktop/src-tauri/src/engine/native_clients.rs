@@ -156,31 +156,27 @@ pub fn inspect_native_candidates() -> io::Result<NativeProcessObservation> {
 }
 
 #[cfg(target_os = "windows")]
-pub fn open_native_minecraft() -> io::Result<()> {
-    use std::time::Duration;
-
-    // Request the single registered official application as the current
-    // interactive user. This does NOT create a guaranteed second instance.
-    // Never guess EXE paths, clone game files or accept arbitrary arguments.
-    const SCRIPT: &str = r#"
+const EDUCATION_DESKTOP_PREFLIGHT: &str = r#"
 $ErrorActionPreference = 'Stop'
 $sessionId = (Get-Process -Id $PID -ErrorAction Stop).SessionId
 if ($sessionId -eq 0) { throw 'Minecraft must launch from an interactive Windows session.' }
-$registry = [Microsoft.Win32.RegistryKey]::OpenBaseKey(
-  [Microsoft.Win32.RegistryHive]::LocalMachine,
-  [Microsoft.Win32.RegistryView]::Registry32
-)
-$desktopVersion = $null
-try {
-  $entry = $registry.OpenSubKey('SOFTWARE\Microsoft\Microsoft Studios\Minecraft Education Edition')
-  if ($null -ne $entry) {
-    try { $desktopVersion = [string]$entry.GetValue('Version', '') }
-    finally { $entry.Dispose() }
+$desktopVersions = @(
+  foreach ($view in @([Microsoft.Win32.RegistryView]::Registry32, [Microsoft.Win32.RegistryView]::Registry64)) {
+    $registry = [Microsoft.Win32.RegistryKey]::OpenBaseKey([Microsoft.Win32.RegistryHive]::LocalMachine, $view)
+    try {
+      $entry = $registry.OpenSubKey('SOFTWARE\Microsoft\Microsoft Studios\Minecraft Education Edition')
+      if ($null -ne $entry) {
+        try {
+          $version = [string]$entry.GetValue('Version', '')
+          if ($version -notmatch '^\d+(?:\.\d+){1,4}$') { throw 'Desktop version registration is invalid.' }
+          $version
+        } finally { $entry.Dispose() }
+      }
+    } finally { $registry.Dispose() }
   }
-}
-finally { $registry.Dispose() }
+)
 $storePresent = @(Get-AppxPackage -Name 'Microsoft.MinecraftEducationEdition' -ErrorAction Stop).Count -gt 0
-if ($desktopVersion -notmatch '^\d+(?:\.\d+){1,4}$' -or $storePresent) {
+if ($desktopVersions.Count -ne 1 -or $storePresent) {
   throw 'A single Minecraft Education Desktop installation is required; do not mix Desktop and Store editions.'
 }
 $apps = @(Get-StartApps -ErrorAction Stop | Where-Object {
@@ -192,18 +188,33 @@ if ($apps.Count -ne 1) {
     throw 'Minecraft Education must have exactly one registered Start menu app. Check the official installation.'
 }
 $appId = [string]$apps[0].AppID
-if (-not $appId -or $appId.Length -gt 256 -or $appId -notmatch '^[A-Za-z0-9_.!+{}-]+$') {
+# A registered AppID is NOT an authoritative on-disk EXE path.
+# Win32 Start apps can use a known-folder GUID followed by a relative path.
+$simpleAppId = $appId -match '^[A-Za-z0-9_.!+{}-]+$'
+$desktopAppId = $appId -match '^\{[0-9A-Fa-f]{8}(?:-[0-9A-Fa-f]{4}){3}-[0-9A-Fa-f]{12}\}(?:\\[A-Za-z0-9_][A-Za-z0-9_. -]*)+$'
+if (-not $appId -or $appId.Length -gt 256 -or -not ($simpleAppId -or $desktopAppId)) {
     throw 'Registered Minecraft Education application identity is invalid.'
 }
+"#;
+
+#[cfg(target_os = "windows")]
+pub fn open_native_minecraft() -> io::Result<()> {
+    use std::time::Duration;
+
+    // Request the single registered official application as the current
+    // interactive user. This does NOT create a guaranteed second instance.
+    // Never guess EXE paths, clone game files or accept arbitrary arguments.
+    const SCRIPT: &str = r#"
 $explorer = Join-Path ([Environment]::GetFolderPath([Environment+SpecialFolder]::Windows)) 'explorer.exe'
 if (-not (Test-Path -LiteralPath $explorer -PathType Leaf)) {
     throw 'Windows Explorer is unavailable; refusing an untrusted executable search'
 }
-Start-Process -FilePath $explorer -ArgumentList ('shell:AppsFolder\' + $appId) -ErrorAction Stop | Out-Null
+Start-Process -FilePath $explorer -ArgumentList ('"shell:AppsFolder\' + $appId + '"') -ErrorAction Stop | Out-Null
 "#;
+    let script = [EDUCATION_DESKTOP_PREFLIGHT, SCRIPT].concat();
     virtual_clients_core::bounded_command_output(
         &system_powershell()?,
-        ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", SCRIPT],
+        ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", &script],
         Duration::from_secs(12),
     )
     .map(|_| ())
@@ -774,8 +785,9 @@ pub fn request_sandbox_client_02(executable: String, licensed: bool) -> io::Resu
     admit_client_02_launch_snapshot(&observation)?;
     let escaped = executable.replace('\'', "''");
     let box_name = CLIENT_02_BOX_NAME;
+    let desktop_preflight = EDUCATION_DESKTOP_PREFLIGHT;
     let script = format!(r#"
-$ErrorActionPreference = 'Stop'
+{desktop_preflight}
 $game = '{escaped}'
 $box = '{box_name}'
 # Sandboxie's GUI normally receives a working directory for sandboxed
@@ -783,40 +795,6 @@ $box = '{box_name}'
 $gameFolder = [System.IO.Path]::GetDirectoryName($game)
 if (-not (Test-Path -LiteralPath $gameFolder -PathType Container)) {{
     throw 'Selected Education executable directory is unavailable'
-}}
-if ([Diagnostics.Process]::GetCurrentProcess().SessionId -eq 0) {{
-    throw 'Interactive Windows user session required'
-}}
-$reg = [Microsoft.Win32.RegistryKey]::OpenBaseKey(
-    [Microsoft.Win32.RegistryHive]::LocalMachine,
-    [Microsoft.Win32.RegistryView]::Registry32)
-$version = $null
-try {{
-    $k = $reg.OpenSubKey('SOFTWARE\Microsoft\Microsoft Studios\Minecraft Education Edition')
-    if ($null -ne $k) {{
-        try {{ $version = [string]$k.GetValue('Version','') }}
-        finally {{ $k.Dispose() }}
-    }}
-}} finally {{ $reg.Dispose() }}
-if ($version -notmatch '^\d+(?:\.\d+){{1,4}}$' -or
-    @(Get-AppxPackage -Name 'Microsoft.MinecraftEducationEdition' -ErrorAction Stop).Count -gt 0) {{
-    throw 'Requires one official Desktop edition, without Store edition'
-}}
-# Match the unique registered per-user Start app prerequisite of Client 01.
-# A registered AppID is NOT an authoritative on-disk EXE path, especially
-# when the Desktop installer uses its supported custom APPDIR option.
-$apps = @(Get-StartApps -ErrorAction Stop | Where-Object {{
-    $_.Name -eq 'Minecraft Education' -or
-    $_.Name -eq 'Minecraft: Education Edition' -or
-    $_.Name -eq 'Minecraft Education Edition'
-}})
-if ($apps.Count -ne 1) {{
-    throw 'Minecraft Education must have exactly one registered Start menu app in this Windows session'
-}}
-$appId = [string]$apps[0].AppID
-if (-not $appId -or $appId.Length -gt 256 -or
-    $appId -notmatch '^[A-Za-z0-9_.!+{{}}-]+$') {{
-    throw 'Registered Minecraft Education application identity is invalid'
 }}
 $product = [Diagnostics.FileVersionInfo]::GetVersionInfo($game).ProductName
 $signature = Get-AuthenticodeSignature -LiteralPath $game
