@@ -13,6 +13,7 @@ lifecycle: ACTIVE
 
 - [Four-account product contract](./four-concurrent-accounts.md) — goal, limits and preserved historical implementation.
 - [Compact Manager UX specification (DRAFT)](./compact-manager-ux-spec.md) — everyday Instances, truthful status/action mapping, safe interaction states, adaptive UI, and acceptance criteria; **not implemented**.
+- [Compact Manager Screen Design (DRAFT)](./compact-manager-screen-design.md) — clean visual system, Instances, detail/setup sheets, Window Layout, Settings, error wording and component acceptance; **design only**.
 - [Lightweight Windows architecture](../system/architecture.md) — source ownership, one Sandboxie engine and resource-efficiency strategy.
 - [Active two-client procedure](../validation/sandboxie-two-client-feasibility.md) — official Desktop executable, sandbox evidence and manual licensed login.
 
