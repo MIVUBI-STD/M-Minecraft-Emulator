@@ -26,6 +26,9 @@ const required = [
   "apps/desktop/src-tauri/src/engine/native_clients.rs",
   "apps/desktop/src-tauri/src/commands/native_clients.rs",
   "apps/desktop/src/NativeFeasibilityApp.svelte",
+  "apps/desktop/src/CompactManagerApp.svelte",
+  "apps/desktop/src/app/presentation/compactManager.ts",
+  "docs/product/compact-manager-implementation.md",
   "apps/desktop/src/app/bridge/nativeFeasibilityApi.ts",
   "docs/system/legacy-retirement.md",
   "tooling/acceptance/windows/collect-client-feasibility.ps1",
@@ -124,7 +127,7 @@ requireFact(read("docs/product/four-concurrent-accounts.md").includes(
   "four separate Minecraft Education Windows desktop clients concurrently"),
   "Four-client end-user outcome was removed from canonical product contract");
 const activeEntry = read("apps/desktop/src/main.ts");
-const activeSurface = read("apps/desktop/src/NativeFeasibilityApp.svelte");
+const activeSurface = read("apps/desktop/src/CompactManagerApp.svelte");
 const rustCommandBoundary = read("engine/runtime-core/src/command.rs");
 const activeTauri = read("apps/desktop/src-tauri/src/app_bootstrap.rs");
 const activeCommandModules = read("apps/desktop/src-tauri/src/commands/mod.rs");
@@ -135,15 +138,22 @@ requireFact(activeCommandModules.includes("pub mod native_clients;") &&
   !/^\s*pub mod (setup_tools|window_arrangement|screen_overlay);/m.test(activeEngineModules) &&
   !activeTauri.includes("screen_overlay::shutdown()"),
   "Legacy desktop Rust modules must remain outside the active native compile graph");
-requireFact(activeEntry.includes('import NativeFeasibilityApp from "./NativeFeasibilityApp.svelte";') &&
-  activeEntry.includes("mount(NativeFeasibilityApp, { target });") &&
+requireFact(activeEntry.includes('import CompactManagerApp from "./CompactManagerApp.svelte";') &&
+  activeEntry.includes("mount(CompactManagerApp, { target });") &&
+  !activeEntry.includes("NativeFeasibilityApp") &&
   !activeEntry.includes('import App from "./App.svelte";'),
-  "Old VMware UI was mounted instead of the native-first pilot");
+  "The sole active desktop entry must mount the Compact Manager");
 requireFact(activeSurface.includes("nativeFeasibility.openOfficialMinecraft()") &&
   activeSurface.includes("nativeFeasibility.inspectIsolatedClient02()") &&
   !activeSurface.includes("nativeFeasibility.inspectCandidates()") &&
   !activeSurface.includes("Promise.allSettled") &&
   !activeSurface.includes("setInterval(") &&
+  !activeSurface.includes("onMount(") &&
+  !activeSurface.includes("<aside") &&
+  activeSurface.includes("<h1>Instances</h1>") &&
+  activeSurface.includes("Settings") &&
+  !activeSurface.includes("Start All") &&
+  !activeSurface.includes("Stop All") &&
   !activeSurface.includes("backend.snapshot()") &&
   !activeSurface.includes("backend.startClient(") &&
   !activeSurface.includes("backend.provision("),
@@ -259,7 +269,7 @@ requireFact(bundleBuilder.includes("PACKAGE_BLOCKED_NATIVE_FEASIBILITY") &&
   bundleBuilder.indexOf("PACKAGE_BLOCKED_NATIVE_FEASIBILITY") < bundleBuilder.indexOf("const binaries ="),
   "Native-feasibility desktop must be blocked from old VMware NSIS packaging");
 const nativeDesktop = read("apps/desktop/src-tauri/src/engine/native_clients.rs");
-const isolatedScreen = read("apps/desktop/src/NativeFeasibilityApp.svelte");
+const isolatedScreen = read("apps/desktop/src/CompactManagerApp.svelte");
 const isolatedBridge = read("apps/desktop/src/app/bridge/nativeFeasibilityApi.ts");
 requireFact(nativeDesktop.includes("pub fn request_sandbox_client_02(") &&
   nativeDesktop.includes('const CLIENT_02_BOX_NAME: &str = "MinecraftClient02";') &&
@@ -276,7 +286,7 @@ requireFact(nativeDesktop.includes("pub fn request_sandbox_client_02(") &&
     "commands::native_clients::desktop_request_sandbox_client_02,") &&
   isolatedScreen.includes("nativeFeasibility.requestSandboxClient02(") &&
   isolatedScreen.includes("nativeFeasibility.inspectIsolatedClient02()") &&
-  isolatedScreen.includes("observation = await nativeFeasibility.inspectIsolatedClient02()") &&
+  isolatedScreen.includes("const result = await nativeFeasibility.inspectIsolatedClient02()") &&
   nativeDesktop.includes('-SummaryOnly"].concat()') &&
   nativeDesktop.includes("include_str!(concat!(") &&
   nativeDesktop.includes('observation.credential_host_access != "OFF"') &&
@@ -295,7 +305,7 @@ const desktopPilotLease = read("apps/desktop/src-tauri/src/engine/app_instance.r
 requireFact(tauri.app.windows[0].title === "Minecraft Instance Manager" &&
   tauri.productName === "M-Bedrock Virtual Clients" &&
   tauri.identifier === "com.mivubi.mbedrock.virtualclients" &&
-  isolatedScreen.includes("Minecraft Instance Manager") &&
+  activeEntry.includes("Minecraft Instance Manager") &&
   isolatedScreen.includes("MinecraftClient02") &&
   !isolatedScreen.includes("MIVUBI") &&
   sandboxBoxCollector.includes("BoxName = 'MinecraftClient02'") &&
