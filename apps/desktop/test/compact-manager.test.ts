@@ -68,6 +68,11 @@ describe("Compact Manager projections", () => {
     expect(rowPresentation("02", false, base, "", null, { instance: "02", text: "Open requested" }))
       .toMatchObject({ status: "Open requested", action: null });
   });
+  it("the open-request notice cannot be confused with a verified window", () => {
+    const base = client02Presentation(inspected(), "path", true);
+    expect(rowPresentation("02", false, base, "", null, { instance: "02", text: "Open requested" }))
+      .toMatchObject({ status: "Open requested", action: null });
+  });
   it("gives user-owned setup steps without claiming configuration automation", () => {
     expect(setupInstruction({ ...inspected(), boxConfigured: "NO", boxSettingsSource: "UNKNOWN", credentialHostAccess: "UNKNOWN" }).text).toContain("Sandboxie Plus");
     expect(setupInstruction({ ...inspected(), autoDelete: "ON" }).title).toContain("sandbox data");

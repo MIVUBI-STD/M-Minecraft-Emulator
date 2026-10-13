@@ -68,6 +68,7 @@
       observation = result;
       lastCheck = new Date();
       lastCheckIsCurrent = true;
+      if (detailMode === "issue") expanded = null;
     } catch (error) {
       reportIssue("02", "Couldn't check status",
         "The app couldn't confirm the instance status. Review Sandboxie Plus, then check again.", error);
@@ -103,6 +104,7 @@
         licenseConfirmed = false;
       }
       issue = null;
+      detailMode = "setup";
     } catch (error) {
       reportIssue("02", "Couldn't select Minecraft",
         "Choose the official Minecraft Education Desktop executable.", error);
@@ -137,7 +139,9 @@
     notice = null;
     try {
       await nativeFeasibility.focusObservedClient02(target);
-      notice = { instance: "02", text: "Switch requested" };
+      // A focus request does not invalidate the observed target or disable further switching.
+      // The backend revalidates process and window identity on every attempt.
+      notice = null;
     } catch (error) {
       invalidateCurrentInspection();
       reportIssue("02", "Couldn't switch to Minecraft",
@@ -204,7 +208,7 @@
             <span class="cm-monitor" aria-hidden="true"></span>
             <div class="cm-row-copy">
               <h2>Minecraft 01</h2>
-              <p class:cm-warning={row01.tone === "warning"} aria-live="polite">{row01.status}</p>
+              <p class={row01.tone === "warning" ? "cm-warning" : ""} aria-live="polite">{row01.status}</p>
             </div>
             <div class="cm-row-actions">
               {#if row01.action}
@@ -236,7 +240,7 @@
             <span class="cm-monitor" aria-hidden="true"></span>
             <div class="cm-row-copy">
               <h2>Minecraft 02</h2>
-              <p class:cm-warning={row02.tone === "warning"} aria-live="polite">{row02.status}</p>
+              <p class={row02.tone === "warning" ? "cm-warning" : ""} aria-live="polite">{row02.status}</p>
             </div>
             <div class="cm-row-actions">
               {#if row02.action}
@@ -267,7 +271,7 @@
                 <h3>{setupInstruction(observation).title}</h3>
                 <p>{setupInstruction(observation).text}</p>
                 <div class="cm-field">
-                  <label>Installed Minecraft Education</label>
+                  <span class="cm-field-label">Installed Minecraft Education</span>
                   <div class="cm-field-row">
                     <span class="cm-file-state">{selectedExecutable ? "Minecraft selected" : "No installation selected"}</span>
                     <button class="cm-button cm-secondary" type="button" disabled={Boolean(busy)} on:click={selectMinecraft}>Browse…</button>

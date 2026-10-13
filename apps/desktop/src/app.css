@@ -44,7 +44,7 @@ button:disabled { opacity: .52; cursor: not-allowed; }
 .cm-detail p, .cm-settings p { color: #a8b0b7; font-size: 13px; line-height: 1.65; margin: 0; }
 .cm-assist { font-size: 12px !important; color: #909ca6 !important; }
 .cm-field { display: grid; gap: 8px; width: 100%; }
-.cm-field > label { color: #eef2f6; font-weight: 600; font-size: 12.5px; }
+.cm-field > .cm-field-label { color: #eef2f6; font-weight: 600; font-size: 12.5px; }
 .cm-field-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
 .cm-file-state { font-size: 12.5px; color: #a8b0b7; }
 .cm-checkbox { display: flex; align-items: start; gap: 11px; color: #dce1e5; font-size: 12.5px; line-height: 1.6; }
