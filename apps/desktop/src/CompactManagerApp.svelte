@@ -270,21 +270,25 @@
               {:else if detailMode === "setup"}
                 <h3>{setupInstruction(observation).title}</h3>
                 <p>{setupInstruction(observation).text}</p>
-                <div class="cm-field">
-                  <span class="cm-field-label">Installed Minecraft Education</span>
-                  <div class="cm-field-row">
-                    <span class="cm-file-state">{selectedExecutable ? "Minecraft selected" : "No installation selected"}</span>
-                    <button class="cm-button cm-secondary" type="button" disabled={Boolean(busy)} on:click={selectMinecraft}>Browse…</button>
+                {#if !observation || !isSandboxieBoxPrepared(observation)}
+                  <p class="cm-assist">Complete this step in Windows or Sandboxie Plus, then use Check status in the toolbar.</p>
+                  <details><summary>Sandboxie Plus settings</summary>
+                    <p>Create and enable the persistent MinecraftClient02 box. Keep AutoDelete, AutoRemove and credential-bypass/protected-storage settings off. Never copy another Minecraft account profile.</p>
+                  </details>
+                {:else}
+                  <div class="cm-field">
+                    <span class="cm-field-label">Installed Minecraft Education</span>
+                    <div class="cm-field-row">
+                      <span class="cm-file-state">{selectedExecutable ? "Minecraft selected" : "No installation selected"}</span>
+                      <button class="cm-button cm-secondary" type="button" disabled={Boolean(busy)} on:click={selectMinecraft}>Browse…</button>
+                    </div>
                   </div>
-                </div>
-                <label class="cm-checkbox">
-                  <input type="checkbox" bind:checked={licenseConfirmed} disabled={Boolean(busy)}/>
-                  I confirm Sandboxie Plus is licensed for this use and MinecraftClient02 is a persistent box.
-                </label>
-                <p class="cm-assist">Sign in to Minecraft manually in each game window. Account credentials are never requested here.</p>
-                <details><summary>Sandboxie Plus settings</summary>
-                  <p>Create and enable the MinecraftClient02 box. Keep AutoDelete, AutoRemove and credential-bypass/protected-storage options disabled. Then select Check status.</p>
-                </details>
+                  <label class="cm-checkbox">
+                    <input type="checkbox" bind:checked={licenseConfirmed} disabled={Boolean(busy)}/>
+                    I confirm Sandboxie Plus is licensed for this use and MinecraftClient02 is a persistent box.
+                  </label>
+                  <p class="cm-assist">Sign in separately in each Minecraft window. This app never requests Microsoft credentials.</p>
+                {/if}
               {:else if detailMode === "move" && moveEligible}
                 <h3>Move window</h3>
                 <p>Choose where Minecraft 02 should appear on its current monitor.</p>
