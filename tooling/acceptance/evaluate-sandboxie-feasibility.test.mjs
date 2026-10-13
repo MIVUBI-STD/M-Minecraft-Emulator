@@ -346,6 +346,15 @@ test("source-side collector must distinguish missing box keys from failed querie
   assert.ok(source.includes("if ([string]::IsNullOrWhiteSpace($processName) -or $processSession -lt 0)"));
   assert.ok(source.includes("$allProcesses = @()"));
   assert.ok(source.includes("$handle = $null"));
+  // A boxed PID with an inaccessible/missing session or process name
+  // may be a Minecraft client. It cannot be silently discarded as a helper.
+  assert.ok(source.includes("$rawSession = $process.SessionId"));
+  assert.ok(source.includes("if ($null -eq $rawSession -or $rawSession -isnot [int])"));
+  assert.ok(source.includes("$processName = [string]$process.ProcessName"));
+  assert.ok(source.includes("if ([string]::IsNullOrWhiteSpace($processName) -or $processSession -lt 0)"));
+  assert.ok(source.includes("$allProcesses = @()"));
+  assert.ok(source.includes("if ($_.MainWindowHandle -ne [IntPtr]::Zero)"));
+  assert.ok(source.includes("Window handles may be unavailable"));
   assert.ok(source.includes("Window handles may be unavailable"));
   assert.ok(!source.includes("Get-Process -ErrorAction SilentlyContinue"));
 });
