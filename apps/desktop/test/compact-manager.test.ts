@@ -171,7 +171,7 @@ describe("Compact Manager app source and command boundary", () => {
   const bootstrap = readFileSync(new URL("../src-tauri/src/app_bootstrap.rs", import.meta.url), "utf8");
   it("keeps the active Sandboxie localtest instructions aligned with mounted controls", () => {
     const guide = readFileSync(new URL("../../../docs/validation/sandboxie-two-client-feasibility.md", import.meta.url), "utf8");
-    expect(app).toContain(">Check status</button>");
+    expect(app).toContain('{busy === "check" ? "Checking…" : "Check status"}');
     expect(app).toContain(">Settings</button>");
     expect(app).toContain('on:click={showClient02MoveDetails}>Move window</button>');
     expect(guide).toContain(".\\DEV.cmd preflight");
