@@ -4,6 +4,15 @@
 **Current work:** `emulator/pre-local-cleanup`; **PAUSED at user request on 2026-10-13**. User will continue repository discussion in ChatGPT; do not resume local runtime tests without explicit instruction.
 **Execution ceiling:** Windows source preflight **PASS** at `e6e9ad22625cf0c5928ee6cf5ee6efb2e503e598`; developer binary/window observed; Refresh confirmation observed in user-supplied screenshot. Sandboxie membership, account isolation, Minecraft gameplay, package and four-client acceptance remain **NOT_EXECUTED / UNKNOWN**. Later documentation commits do not inherit exact-HEAD execution PASS.
 
+## Compact Manager clean UI revision v2 — 2026-10-13
+
+- **User requirement:** concise, clear, familiar wording and clean everyday application; no tester/developer dashboard on the user-facing home.
+- **Latest design source:** `docs/product/compact-manager-screen-design.md`, section `Design revision v2 — concise Indonesian-first UI` (supersedes conflicting earlier visual/copy recommendations).
+- **Standalone design artifact:** `compact-manager-clean-v2.html` with browser screenshots, delivered in the ChatGPT conversation; NOT a production Tauri build or GitHub app.
+- **Design labels:** Minecraft / Tata Jendela / Pengaturan / Bantuan. Primary actions Buka / Periksa / Siapkan / Tampilkan. No duplicate headings, counters, technical instructions or future-instance roadmap cards on home.
+- **Actual browser checks:** prototype JavaScript interactions and screenshots at 1180×760 and current 920×620 Tauri minimum, no horizontal overflow or page JS errors. This does NOT prove native IPC, Windows behavior or Minecraft sessions.
+- **Next:** review visual/copy, then implement one Svelte shell and safe capability projection; local Windows/runtime test stays PAUSED until separately approved.
+
 ## Compact Manager UI design continuation — 2026-10-13
 
 - **Work type:** design-only; no Tauri/Svelte/Rust UI implementation, no local Windows testing resumed.
