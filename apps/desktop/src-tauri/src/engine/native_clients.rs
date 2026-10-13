@@ -363,7 +363,7 @@ fn admit_client_02_launch_snapshot(observation: &SandboxieClientObservation) -> 
     }
     if observation.membership_status != "OBSERVED" {
         return Err(io::Error::new(io::ErrorKind::WouldBlock,
-            "Client 02 launch blocked: Sandboxie process membership is UNKNOWN; inspect Start.exe /listpids and Refresh before retrying"));
+            "Client 02 launch blocked: Sandboxie PID membership or Windows process identity is UNKNOWN; check Sandboxie service, box process list and process-inspection permissions, then Refresh"));
     }
     if observation.isolated_candidate_processes > 0 {
         return Err(io::Error::new(io::ErrorKind::AlreadyExists,
