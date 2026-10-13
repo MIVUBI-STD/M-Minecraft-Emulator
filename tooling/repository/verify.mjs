@@ -407,4 +407,40 @@ for (const path of markdownFiles("docs")) {
       "Broken documentation link in " + path + " -> " + target);
   }
 }
+
+const storagePolicy = read("docs/system/artifact-storage.md");
+requireFact(storagePolicy.startsWith("---\nid: document.system.artifact-storage\n"),
+  "Canonical artifact storage policy is missing");
+for (const localPath of [
+  "workspace/downloads/vendor-setup.exe",
+  "workspace/packages/installer-copy.exe",
+  "workspace/runs/test-session/logs/output.log",
+  "workspace/private/profile.json",
+  "artifacts/misplaced.zip",
+  "downloads/misplaced.exe",
+  "installers/misplaced.msi",
+  "test-results/misplaced.json"
+]) {
+  const result = spawnSync("git", ["check-ignore", "--no-index", "-q", "--", localPath], {
+    cwd: root, encoding: "utf8"
+  });
+  requireFact(!result.error && result.status === 0,
+    "Machine-local output is not Git-ignored: " + localPath);
+}
+const readmeIgnoreCheck = spawnSync("git",
+  ["check-ignore", "--no-index", "-q", "--", "workspace/README.md"], {
+    cwd: root, encoding: "utf8"
+  });
+requireFact(!readmeIgnoreCheck.error && readmeIgnoreCheck.status === 1,
+  "Canonical workspace README must remain trackable");
+const trackedLocal = spawnSync("git", ["ls-files", "-z", "--",
+  "workspace", "artifacts", "downloads", "installers", "test-results"], {
+  cwd: root, encoding: "utf8"
+});
+requireFact(!trackedLocal.error && trackedLocal.status === 0,
+  "Cannot verify tracked machine-output ownership");
+const trackedStrays = trackedLocal.stdout.split("\0").filter(Boolean)
+  .filter((path) => path !== "workspace/README.md");
+requireFact(trackedStrays.length === 0,
+  "Machine-local output is already tracked: " + trackedStrays.join(", "));
 console.log("Emulator repository contract: PASS (source/layout inspection only).");

@@ -1,7 +1,23 @@
-# Workspace
+# Local workspace
 
-Working evidence and handoff material may live here when an actual session requires it.
+This is an **untracked machine-local storage area**. Only this README is
+versioned. See the canonical [Artifact and Local-Test Storage Policy](../docs/system/artifact-storage.md).
 
-Do not commit target-machine captures, host identity fingerprints, guest images/disks, sign-in artifacts, support archives, worlds or account-bearing snapshots. `evidence/`, `captures/` and `private/` are ignored.
+| Local folder (create on demand) | Owner and intent |
+| --- | --- |
+| `downloads/` | External installer/prerequisite staging; note publisher URL, version and SHA-256 |
+| `packages/` | Copies of future **approved** package candidates; not a publishing channel |
+| `runs/<UTC>-<shortSHA>-<scenario>/` | Separate per-attempt manifests, logs, raw evidence and sanitized summaries |
+| `scratch/` | Disposable research and experiments |
+| `private/` | Operator-controlled sensitive material, never publish |
+| `evidence/`, `captures/`, `images/`, `runtime/`, `diagnostics/` | Historical local paths: preserve until producers and consumers are reviewed |
 
-Canonical source status belongs in `../planning/development.md`, executable contracts belong in source and tests, and durable explanation belongs in `../docs/`. No parallel state registry is needed yet.
+Compiled and dependency outputs remain tool-owned: `apps/desktop/node_modules/`,
+`apps/desktop/dist/`, Rust/Tauri `target/` and generated Tauri staging directories.
+Do not move them for visual consistency.
+
+**The native + Sandboxie feasibility pilot has no approved installer.** Use the
+separately authorized `DEV.cmd preflight` and `DEV.cmd dev` routes; do not
+unblock the old VMware NSIS package. Never commit Minecraft game binaries,
+account profiles/tokens, Windows machine identifiers, guest disks, private
+worlds, signing keys, or unredacted logs. Git ignore is not encryption.

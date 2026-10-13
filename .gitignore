@@ -49,3 +49,23 @@ workspace/runtime/
 workspace/diagnostics/
 engine/runtime-core/runtime/
 engine/runtime-core/images/
+# Machine-local execution materials: never source-control.
+# The workspace README is the only intentionally tracked entry.
+/workspace/*
+!/workspace/README.md
+
+# Prevent accidental second output roots.
+/artifacts/
+/downloads/
+/installers/
+/test-results/
+
+# Common accidentally copied root-level binary outputs.
+/*.exe
+/*.msi
+/*.msix
+/*.msixbundle
+/*.iso
+/*.zip
+/*.7z
+/*.dmp

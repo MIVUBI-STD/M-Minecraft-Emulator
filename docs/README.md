@@ -20,7 +20,7 @@ This is the **single documentation entrypoint**. Load only the domain needed for
 | Source proof, Windows/VMware/ Minecraft acceptance | [Validation](./validation/README.md) | `tooling/acceptance/windows/` and live evidence |
 | Installer packaging, update and trust policy | [Distribution](../engine/distribution/README.md) | `engine/distribution/`, Tauri packaging |
 | Current tasks, blockers and continuation | [Planning](../planning/README.md) | Current branch HEAD and `planning/development.md` |
-| Working artifacts | [Workspace](../workspace/README.md) | Private machine evidence is not committed |
+| Working artifacts and local-test storage | [Storage Policy](./system/artifact-storage.md) → [Workspace](../workspace/README.md) | Private evidence, caches and generated packages are not committed |
 
 ## Canonical navigation
 
