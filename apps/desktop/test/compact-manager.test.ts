@@ -225,6 +225,28 @@ describe("Compact Manager app source and command boundary", () => {
     expect(app).toContain('on:click={showClient02MoveDetails}>Move window</button>');
     expect(app).not.toContain('on:click={() => (detailMode = "move")}');
   });
+  it("fails closed on Focus/Move errors without discarding the error or native feedback", () => {
+    const focus = app.split("async function switchMinecraft02()")[1]?.split("async function moveMinecraft02()")[0] ?? "";
+    const move = app.split("async function moveMinecraft02()")[1]?.split("function choosePrimary(")[0] ?? "";
+    for (const operation of [focus, move]) {
+      const failure = operation.split("} catch (error) {")[1]?.split("} finally {")[0] ?? "";
+      // Never leave PID/HWND eligibility active when a backend revalidation
+      // or asynchronous Win32 outcome fails.
+      expect(failure).toContain("invalidateCurrentInspection();");
+      expect(failure).toContain('reportIssue("02",');
+      expect(failure.indexOf("invalidateCurrentInspection();"))
+        .toBeLessThan(failure.indexOf('reportIssue("02",'));
+      expect(operation).toContain('busy = "";');
+      expect(operation).toContain("const requestRevision = navigationRevision;");
+      expect(operation).toContain('clearFeedback("02");');
+    }
+    expect(focus).toContain("focusObservedClient02(target)");
+    expect(move).toContain("placeObservedClient02(target, moveSide)");
+    expect(move).toContain("Check status before trying again.");
+    expect(move).toContain("If Minecraft is maximized or minimized");
+    expect(move).not.toContain("Restore Minecraft to a normal window, then check status");
+    expect(app).toContain("lastCheckIsCurrent ?");
+  });
   it("keeps IPC outcome effects subordinate to later UI navigation", () => {
     expect(app).toContain("let navigationRevision = 0;");
     for (const operation of [

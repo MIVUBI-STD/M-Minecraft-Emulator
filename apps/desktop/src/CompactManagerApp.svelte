@@ -275,7 +275,7 @@
     } catch (error) {
       invalidateCurrentInspection();
       reportIssue("02", "Couldn't move window",
-        "Restore Minecraft to a normal window, then check status and try again.", error, requestRevision);
+        "Check status before trying again. If Minecraft is maximized or minimized, restore it to a normal window.", error, requestRevision);
     } finally {
       busy = "";
     }

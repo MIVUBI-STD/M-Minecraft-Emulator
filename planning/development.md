@@ -1,5 +1,13 @@
 # Current Development Handoff
 
+## Focus/Move refusal guidance and stale-status regressions — 2026-10-14
+
+- **Verified existing safety:** the active UI's Focus and Move error branches already invalidate the last Client 02 PID/HWND observation, mark any previous inspection as historical, preserve the affected instance's error for View issue, and release the busy guard. Explicit Check status remains the recovery route; no poller or automatic retry is needed.
+- **Concrete UX mismatch:** all Move failures were described as requiring a window restore, while Rust may instead refuse stale process identity, changed Sandboxie membership or untrusted signed-image evidence. Error guidance now says to Check status first, and conditionally restore Minecraft if maximized/minimized.
+- **Verification:** six source-extracted Focus/Move IPC-mock scenarios executed in V8 at parent HEAD `495f25b783d9` and passed; targeted Vitest source-contract regression authored. Run the same mock check on the committed SHA before asserting its outcome. Node24/Vitest/Svelte/Cargo/Windows/Minecraft remain NOT_EXECUTED; Windows localtest PAUSED.
+- **Next:** stop this bounded failure-path change after exact-head source review; actual full toolchain and Windows gameplay remain a separate proof boundary.
+
+
 ## Fresh Focus/Place uniqueness after a process changes — 2026-10-14
 
 - **Confirmed mismatch:** the active frontend `focusCandidate` requires exactly one isolated game candidate, but Rust `verify_fresh_focus_target` previously accepted any matching target among a *newly larger* boxed-candidate set. A second boxed game process appearing between Check status and Focus/Place was not rejected, even though the original PID/FILETIME/HWND was still live.

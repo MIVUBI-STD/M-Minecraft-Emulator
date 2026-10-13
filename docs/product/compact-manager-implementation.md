@@ -165,6 +165,23 @@ No automatic sandbox creation, AutoDelete/AutoRemove changes, account duplicatio
 
 EXE selection and licence checkbox are CURRENTLY session-local; do not imply preferences survive reopen. Future non-secret path/alias/layout persistence requires a separate reviewed data owner and must never cache account credentials or waive Rust admission checks.
 
+### Source failure-path review — Focus and Move (2026-10-14)
+
+Focus and Move already invalidate their Client 02 observation when the
+backend rejects the operation, preserve a scoped error for **View issue**,
+mark the last check historical, and unblock the single-operation UI guard.
+No new failure-state manager or automatic retry is required. A targeted
+source regression covers these invariants for both IPC paths.
+
+The Move error copy previously presumed every rejection meant the Minecraft
+window needed restoration. Rust can instead reject stale PID/creation time/
+HWND evidence, changed Sandboxie membership, unsigned executable attribution,
+or Win32 refusal. The guidance now asks for an explicit **Check status**
+first, and suggests restoring a normal window only *if* the game is currently
+minimized/maximized. This does not classify free-form backend messages and
+does not imply that Windows actually moved the window. Local Windows,
+Svelte/Vitest and Minecraft acceptance remain NOT_EXECUTED.
+
 ## 9. Window management rules
 
 Current capability: **Client 02 only**: `Move window` -> choose `Left`/`Right` -> `Apply`. This adjusts the selected isolated window within its current monitor work area; it does not arrange Client 01.
