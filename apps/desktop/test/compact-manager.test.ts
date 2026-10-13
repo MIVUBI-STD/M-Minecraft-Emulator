@@ -79,7 +79,7 @@ describe("Compact Manager projections", () => {
   });
   it("redacts Windows, forward-slash and macOS-style user directories", () => {
     for (const path of [
-      "C:\\\\Users\\\\PersonalName\\\\Documents\\\\file.exe failed",
+      "C:\\Users\\PersonalName\\Documents\\file.exe failed",
       "C:/Users/PersonalName/Documents/file.exe failed",
       "/Users/PersonalName/Library/file.exe failed",
     ]) {
