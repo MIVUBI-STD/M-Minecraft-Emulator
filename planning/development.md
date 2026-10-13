@@ -1,5 +1,14 @@
 # Current Development Handoff
 
+## First success reported; idle crash and integration discussion — 2026-10-14
+
+- **Current request:** publish the redacted first-success report to Local, then discuss simpler Sandboxie integration and performance/crash causes before implementing further changes. See [full runtime report](../docs/validation/two-client-first-success-2026-10-14.md).
+- **Confirmed basic success:** operator-reported distinct-account login, simultaneous playable worlds, permitted multiplayer and account separation after Client 02 reopen. Source preflight remains pinned to `588046b3e989e6c1aa4a0737a085600b25b2a098`; machine compatibility was applied at `ef214ff60239ce88c02a479cc62afd43b8d015b8`.
+- **Subsequent failure:** operator confirms Client 02 crashed while idle. Only the prior native game process remained at subsequent inspection; no matching Minecraft Application event was found in the queried window. First causal owner remains UNKNOWN. Sustained stability is FAIL by operator report; a completed 30–60-minute resource profile and deferred Windows restart persistence remain NOT_EXECUTED. The prior turn was interrupted before a continuous resource collector was launched.
+- **Performance evidence:** cropped screenshot has unequal instantaneous CPU/memory/rightmost percentage readings but no PIDs/headers; it cannot establish which row is boxed, CPU-bound rendering or a GPU fault. Hardware observed: i7-14700F / RTX 3070 / Windows 11 build 26100. No new FPS/RAM threshold.
+- **Discussion boundary:** prefer evaluating integration through existing official signed Sandboxie tools and the current backend owner before a custom engine/driver fork. Bundling, licensing, onboarding box mutations and performance changes are proposals only. Account-bearing data, public schemas, installer and Client 03–04 remain outside this report.
+- **Next:** discuss matched native/boxed workload and idle-crash attribution before selecting one bounded implementation change; no automatic relaunch or restart.
+
 ## Two-client login repair and operator gameplay evidence — 2026-10-14
 
 - **Active user request:** repair Client 02 login through usable two-account gameplay. The operator explicitly approved Application Compartment/OpenCOM/DropAdminRights for the two-account test and closed Client 02 normally; fresh inspection confirmed only the native game remained before configuration and restart.
