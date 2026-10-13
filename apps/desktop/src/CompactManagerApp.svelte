@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { tick } from "svelte";
   import {
     nativeFeasibility,
     isSandboxieBoxPrepared,
@@ -31,19 +32,40 @@
   let issue: UiIssue | null = null;
   let notice: UiNotice | null = null;
   let moveSide: MoveSide = "LEFT";
+  let checkStatusButton: HTMLButtonElement | undefined;
+  let disclosureTrigger: HTMLButtonElement | null = null;
 
   $: base02 = client02Presentation(observation, selectedExecutable, licenseConfirmed);
   $: row01 = rowPresentation("01", observation !== undefined, base02, busy, issue, notice);
   $: row02 = rowPresentation("02", observation !== undefined, base02, busy, issue, notice);
   $: moveEligible = Boolean(observation && focusCandidate(observation) && base02.canMove);
 
-  function toggleDetails(instance: InstanceId, mode: DetailMode) {
-    if (expanded === instance && detailMode === mode) {
-      expanded = null;
-    } else {
-      expanded = instance;
-      detailMode = mode;
-    }
+  function closeDetails() {
+    const origin = disclosureTrigger;
+    expanded = null;
+    // The closing button is removed from the DOM. Restore a stable keyboard
+    // target after Svelte updates the view, not before it removes the panel.
+    void tick().then(() => {
+      if (origin?.isConnected && !origin.disabled) origin.focus();
+      else checkStatusButton?.focus();
+    });
+  }
+
+  function expandDetails(instance: InstanceId, mode: DetailMode, origin: HTMLButtonElement) {
+    disclosureTrigger = origin;
+    expanded = instance;
+    detailMode = mode;
+  }
+
+  function toggleDetails(instance: InstanceId, mode: DetailMode, origin: HTMLButtonElement) {
+    if (expanded === instance && detailMode === mode) closeDetails();
+    else expandDetails(instance, mode, origin);
+  }
+
+  function handleWindowKeydown(event: KeyboardEvent) {
+    if (event.key !== "Escape" || event.defaultPrevented || page !== "instances" || expanded === null) return;
+    event.preventDefault();
+    closeDetails();
   }
 
   function invalidateCurrentInspection() {
@@ -53,6 +75,7 @@
 
   function reportIssue(instance: InstanceId, title: string, message: string, error?: unknown) {
     issue = { instance, title, message, details: error === undefined ? undefined : safeErrorDetails(error) };
+    disclosureTrigger = null;
     notice = null;
     expanded = instance;
     detailMode = "issue";
@@ -123,7 +146,7 @@
     try {
       await nativeFeasibility.requestSandboxClient02(selectedExecutable, licenseConfirmed);
       notice = { instance: "02", text: "Open requested" };
-      expanded = null;
+      closeDetails();
     } catch (error) {
       reportIssue("02", "Couldn't confirm if Minecraft opened",
         "Check status before trying to open another copy.", error);
@@ -161,7 +184,7 @@
     try {
       await nativeFeasibility.placeObservedClient02(target, moveSide);
       notice = { instance: "02", text: "Move requested" };
-      expanded = null;
+      closeDetails();
     } catch (error) {
       invalidateCurrentInspection();
       reportIssue("02", "Couldn't move window",
@@ -171,13 +194,15 @@
     }
   }
 
-  function choosePrimary(id: InstanceId) {
+  function choosePrimary(id: InstanceId, origin: HTMLButtonElement) {
     const action = id === "01" ? row01.action : row02.action;
     if (busy) return;
     if (id === "01" && action === "open") { void openMinecraft01(); return; }
     if (id === "02" && action === "open") { void openMinecraft02(); return; }
     if (id === "02" && action === "switch") { void switchMinecraft02(); return; }
-    if (action === "setup" || action === "issue") toggleDetails(id, action);
+    // "View issue" must never close the issue when it is already visible.
+    if (action === "issue") { expandDetails(id, "issue", origin); return; }
+    if (action === "setup") toggleDetails(id, "setup", origin);
   }
 
   function primaryLabel(action: string | null) {
@@ -189,13 +214,14 @@
   }
 </script>
 
+<svelte:window on:keydown={handleWindowKeydown} />
 <div class="cm-shell">
   <main class="cm-content">
     {#if page === "instances"}
       <header class="cm-toolbar">
         <h1>Instances</h1>
         <div class="cm-toolbar-actions">
-          <button class="cm-button cm-secondary" type="button" disabled={Boolean(busy)} on:click={checkStatus}>
+          <button class="cm-button cm-secondary" type="button" bind:this={checkStatusButton} disabled={Boolean(busy)} on:click={checkStatus}>
             <span class="cm-refresh-icon" aria-hidden="true">↻</span>
             {busy === "check" ? "Checking…" : "Check status"}
           </button>
@@ -214,15 +240,15 @@
             <div class="cm-row-actions">
               {#if row01.action}
                 <button class="cm-button cm-primary" type="button" disabled={Boolean(busy)}
-                  on:click={() => choosePrimary("01")}>{primaryLabel(row01.action)}</button>
+                  on:click={(event) => choosePrimary("01", event.currentTarget)} aria-expanded={row01.action === "issue" ? expanded === "01" : undefined} aria-controls={row01.action === "issue" ? "cm-details-01" : undefined}>{primaryLabel(row01.action)}</button>
               {/if}
               {#if issue?.instance === "01"}
-                <button class="cm-link" type="button" aria-expanded={expanded === "01"} on:click={() => toggleDetails("01", "issue")}>Details</button>
+                <button class="cm-link" type="button" aria-expanded={expanded === "01"} aria-controls="cm-details-01" on:click={(event) => toggleDetails("01", "issue", event.currentTarget)}>Details</button>
               {/if}
             </div>
           </div>
           {#if expanded === "01"}
-            <div class="cm-detail" aria-label="Minecraft 01 details">
+            <div id="cm-details-01" class="cm-detail" role="region" aria-label="Minecraft 01 details">
               {#if issue?.instance === "01"}
                 <h3>{issue.title}</h3>
                 <p>{issue.message}</p>
@@ -231,7 +257,7 @@
                 <h3>About Minecraft 01</h3>
                 <p>Opens the official Minecraft Education app on this PC. The manager does not check account sign-in or gameplay.</p>
               {/if}
-              <button class="cm-link" type="button" on:click={() => (expanded = null)}>Close details</button>
+              <button class="cm-link" type="button" on:click={closeDetails}>Close details</button>
             </div>
           {/if}
         </div>
@@ -246,17 +272,17 @@
             <div class="cm-row-actions">
               {#if row02.action}
                 <button type="button" class="cm-button cm-primary" disabled={Boolean(busy)}
-                  on:click={() => choosePrimary("02")}>{primaryLabel(row02.action)}</button>
+                  on:click={(event) => choosePrimary("02", event.currentTarget)} aria-expanded={row02.action === "issue" || row02.action === "setup" ? expanded === "02" : undefined} aria-controls={row02.action === "issue" || row02.action === "setup" ? "cm-details-02" : undefined}>{primaryLabel(row02.action)}</button>
               {/if}
               {#if row02.action === "switch" || expanded === "02"}
                 <button class="cm-link" type="button" aria-expanded={expanded === "02"}
-                  on:click={() => toggleDetails("02", row02.action === "switch" ? "move" : "info")}>Details</button>
+                  aria-controls="cm-details-02" on:click={(event) => toggleDetails("02", row02.action === "switch" ? "move" : "info", event.currentTarget)}>Details</button>
               {/if}
             </div>
           </div>
 
           {#if expanded === "02"}
-            <div class="cm-detail" aria-label="Minecraft 02 details">
+            <div id="cm-details-02" class="cm-detail" role="region" aria-label="Minecraft 02 details">
               {#if detailMode === "issue" || issue?.instance === "02"}
                 <h3>{issue?.instance === "02" ? issue.title : base02.status}</h3>
                 <p>{issue?.instance === "02" ? issue.message : base02.details}</p>
@@ -306,7 +332,7 @@
                 {#if moveEligible}<button class="cm-button cm-secondary" type="button" on:click={() => (detailMode = "move")}>Move window</button>{/if}
               {/if}
               <div class="cm-detail-footer">
-                <button class="cm-link" type="button" on:click={() => (expanded = null)}>Close details</button>
+                <button class="cm-link" type="button" on:click={closeDetails}>Close details</button>
               </div>
             </div>
           {/if}

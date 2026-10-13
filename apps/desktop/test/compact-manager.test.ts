@@ -106,4 +106,19 @@ describe("Compact Manager app source and command boundary", () => {
     expect(app).not.toContain("Stop All");
     expect(app).not.toContain("Start All");
   });
+  it("restores keyboard focus when a panel closes and allows Escape to close it", () => {
+    expect(app).toContain('import { tick } from "svelte"');
+    expect(app).toContain("origin?.isConnected && !origin.disabled");
+    expect(app).toContain("checkStatusButton?.focus()");
+    expect(app).toContain('<svelte:window on:keydown={handleWindowKeydown} />');
+    expect(app).toContain('event.key !== "Escape"');
+    expect(app.match(/on:click={closeDetails}>Close details/g)).toHaveLength(2);
+  });
+  it("never toggles an already visible issue closed from View issue", () => {
+    expect(app).toContain('if (action === "issue") { expandDetails(id, "issue", origin); return; }');
+    expect(app).toContain('if (action === "setup") toggleDetails(id, "setup", origin);');
+    expect(app).toContain('id="cm-details-01"');
+    expect(app).toContain('id="cm-details-02"');
+    expect(app).toContain('aria-controls="cm-details-02"');
+  });
 });

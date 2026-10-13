@@ -1,5 +1,13 @@
 # Current Development Handoff
 
+## Remote-only UI hardening — 2026-10-13
+
+- **Scope:** one active Compact Manager Svelte owner, its source-contract tests, and existing product specification.
+- **Change:** correct View issue so a repeat click does not close the error; add Escape dismissal, keyboard focus restoration to a surviving disclosure origin (fallback to Check status), and semantic region/expanded relations. A successful Open/Move request can remove its inline panel without stranding keyboard focus.
+- **Proof:** REMOTE_GITHUB exact-source review and authored source-contract assertions; Node/Svelte/Rust, actual Windows keyboard/screen-reader behavior, game account isolation and gameplay remain **NOT_EXECUTED** on this new HEAD.
+- **Next while localtest is unavailable:** preserve manual validation requirements; investigate only source-provable performance/evidence tooling, without running Windows or changing sandbox/VM/account state.
+
+
 **Repository/branch:** `MIVUBI-STD/M-Minecraft-Emulator` / `Local` only.
 **Current work:** `emulator/pre-local-cleanup`; **PAUSED at user request on 2026-10-13**. User will continue repository discussion in ChatGPT; do not resume local runtime tests without explicit instruction.
 **Execution ceiling:** Windows source preflight **PASS** at `e6e9ad22625cf0c5928ee6cf5ee6efb2e503e598`; developer binary/window observed; Refresh confirmation observed in user-supplied screenshot. Sandboxie membership, account isolation, Minecraft gameplay, package and four-client acceptance remain **NOT_EXECUTED / UNKNOWN**. Later documentation commits do not inherit exact-HEAD execution PASS.

@@ -228,6 +228,16 @@ Design review must be followed by actual executable tests on a pinned source SHA
 
 **Windows acceptance later, only on explicit user instruction:** exact-SHA dev startup and smoke, real official installed Education app behavior, Sandboxie preparation/membership checks, two independent licensed sessions (manual login), window focus/left-right actions, Fullscreen/maximize/minimize, DPI/monitor changes, crash/timeout ambiguity, manager close/reopen. Source build and browser prototype never prove gameplay or package compatibility.
 
+### Source accessibility hardening — 2026-10-13
+
+The active Compact Manager now records the user-triggering button for inline details,
+restores keyboard focus after the panel is removed (using a Check status fallback if
+the previous button disappeared), and supports Escape to dismiss the visible details.
+"View issue" always reveals the issue, even when the panel is already open; a
+separate Close details action handles dismissal. Expanded buttons reference their
+detail region with ARIA attributes. These are source changes and test assertions,
+**not** Windows keyboard/screen-reader acceptance evidence.
+
 ### Implementation notes — 2026-10-13
 
 The first frontend batch mounts `CompactManagerApp.svelte` from `src/main.ts`, and adds a pure projection module and tests. The legacy `NativeFeasibilityApp.svelte` and inactive VMware `App.svelte` remain in Git but must not be mounted. There is no new Tauri command, native process monitor, persistence owner or packaged release. The UI uses on-demand combined inspection and conservative launch outcomes. The new branch state requires exact-revision source verification and later explicit Windows usability approval; do not infer it from older SHA preflight.
