@@ -49,9 +49,12 @@ Sandboxie Plus provides:
 
   The collector also requires every Sandboxie-reported PID to be present in
   the current Windows process snapshot **with a readable process name and
-  integer SessionId**. Missing, unreadable, duplicate or unclassifiable boxed
-  process identity downgrades membership to `UNKNOWN` even if Sandboxie
-  originally reported the PID. Optional window-handle access failures retain
+  integer SessionId** that matches the current interactive session. Missing,
+  unreadable, duplicate, foreign-session or unclassifiable boxed process
+  identity downgrades membership to `UNKNOWN` even if Sandboxie reported
+  the PID. The source caches only the validated boxed PID name and session
+  within this collector invocation to avoid re-reading volatile name/session
+  getters when creating the Minecraft candidate list. Optional window-handle access failures retain
   a name-matched candidate without a window; they do **not** make the box
   empty. A Windows/Sandboxie enumeration remains a time-bounded observation,
   not an atomic guarantee against another launch or exit.

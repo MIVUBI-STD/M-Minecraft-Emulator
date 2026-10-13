@@ -4,7 +4,36 @@
 **Current work:** `emulator/source-hardening` (additional source-only audit and corrections; local testing explicitly deferred).
 **Engineering state:** source prototype / **exact-HEAD Node/Svelte/Rust/PowerShell execution, Windows build and two-account gameplay NOT_EXECUTED**.
 
-## Latest source-only batch — fail-closed boxed PID identity and UNKNOWN guidance
+## Latest source-only batch — cross-session PID and validated boxed identity
+
+- **First wrong owner:** The collector filtered game candidates by the current
+  `$session`, even though the selected Sandboxie box inventory could contain a
+  process in another Windows session. The originally observed PID was readable,
+  but its game name could be excluded from the final candidate list; an empty
+  in-session list is not proof that the box has no game.
+- **Source correction:** A boxed PID whose validated `SessionId` differs from
+  the current interactive collector session forces `membershipStatus=UNKNOWN`,
+  which the existing Rust admission rejects. For same-session boxed PIDs, a
+  read-only in-invocation PID-to-name/session snapshot is used to classify
+  Minecraft candidate names, preventing a second property read from silently
+  dropping a formerly identified boxed game. No new IPC field, daemon, store,
+  token inspection, launch retry or persisted user data.
+- **Operator UX:** Launch error and Svelte guidance now mention foreign Windows
+  sessions as a possible cause of UNKNOWN. It is not a confirmed diagnosis:
+  no new reason-specific evidence is exposed to the UI.
+- **Source tests:** Updated source-only collector, native UI, and repository
+  verifier assertions for foreign-session refusal and checked metadata
+  reuse. Removed stale source assertions that still expected the earlier
+  exact single-line process-name guard and duplicate assertion copy.
+- **Proof ceiling:** inspection of the pinned GitHub code and contract
+  consistency only; PowerShell, Rust, Svelte/Vitest, Windows, Sandboxie and
+  Minecraft execution remain NOT_EXECUTED. A PID inventory is non-atomic,
+  and a process may change or exit after the read.
+- **Next bounded source investigation:** examine the selected Sandboxie box
+  process identity stability and command-line transport failure boundaries;
+  do not add a second process manager or automatically trigger localtest.
+
+## Previous source-only batch — fail-closed boxed PID identity and UNKNOWN guidance
 
 - **First wrong owner:** `tooling/acceptance/windows/collect-sandboxie-feasibility.ps1`. A Sandboxie-reported boxed PID was previously required only to occur in the global `Get-Process` snapshot. Presence alone did not prove that its `ProcessName` and `SessionId` could be read. If a boxed Minecraft process failed to classify, the launch preflight might report zero named candidates despite its PID existing. This is a source-level false-empty risk, not an observed duplicate launch.
 - **Correction:** A failed global enumeration discards any partial list; duplicate/missing boxed PIDs, an empty process name, an unavailable/non-integer/invalid boxed `SessionId`, or a denied getter all downgrade `membershipStatus` to `UNKNOWN` with no inferred box attribution. The existing Rust admission rule refuses `UNKNOWN`. An inaccessible optional `MainWindowHandle` remains a null HWND on a name-matched process rather than deleting that candidate, so a windowless Client 02 still blocks another launch.

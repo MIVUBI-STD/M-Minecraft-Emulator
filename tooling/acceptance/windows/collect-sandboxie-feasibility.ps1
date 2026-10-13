@@ -530,8 +530,7 @@ $gameCandidates = @(
           $boxedIdentityByPid.ContainsKey($candidateKey)) {
         # Reuse the name/session already checked for this boxed PID. The
         # getter can fail later if the process exits during enumeration.
-        $boxedIdentityByPid[$candidateKey].Name -match
-          '^(Minecraft\.Windows|Minecraft.*Education.*|Education.*Minecraft.*)$'
+        $boxedIdentityByPid[$candidateKey].Name -match '^(Minecraft\.Windows|Minecraft.*Education.*|Education.*Minecraft.*)$'
       } else {
         $_.SessionId -eq $session -and
         $_.ProcessName -match '^(Minecraft\.Windows|Minecraft.*Education.*|Education.*Minecraft.*)$'

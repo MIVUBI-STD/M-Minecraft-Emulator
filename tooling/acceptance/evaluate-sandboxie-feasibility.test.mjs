@@ -343,7 +343,8 @@ test("source-side collector must distinguish missing box keys from failed querie
   assert.ok(source.includes("foreach ($boxedPid in $boxedPids)"));
   assert.ok(source.includes("if (-not $observedByPid.ContainsKey($key))"));
   assert.ok(source.includes("if ($null -eq $rawSession -or $rawSession -isnot [int])"));
-  assert.ok(source.includes("if ([string]::IsNullOrWhiteSpace($processName) -or $processSession -lt 0)"));
+  assert.ok(source.includes("$processSession -lt 0 -or $processSession -ne $session"));
+  assert.ok(source.includes("$boxedIdentityByPid[$key] = [pscustomobject]@{"));
   assert.ok(source.includes("$allProcesses = @()"));
   assert.ok(source.includes("$handle = $null"));
   // A boxed PID with an inaccessible/missing session or process name
@@ -351,10 +352,10 @@ test("source-side collector must distinguish missing box keys from failed querie
   assert.ok(source.includes("$rawSession = $process.SessionId"));
   assert.ok(source.includes("if ($null -eq $rawSession -or $rawSession -isnot [int])"));
   assert.ok(source.includes("$processName = [string]$process.ProcessName"));
-  assert.ok(source.includes("if ([string]::IsNullOrWhiteSpace($processName) -or $processSession -lt 0)"));
+  assert.ok(source.includes("$boxedIdentityByPid.ContainsKey($candidateKey)"));
+  assert.ok(source.includes("$boxedIdentityByPid[$candidateKey].Name -match"));
   assert.ok(source.includes("$allProcesses = @()"));
   assert.ok(source.includes("if ($_.MainWindowHandle -ne [IntPtr]::Zero)"));
-  assert.ok(source.includes("Window handles may be unavailable"));
   assert.ok(source.includes("Window handles may be unavailable"));
   assert.ok(!source.includes("Get-Process -ErrorAction SilentlyContinue"));
 });

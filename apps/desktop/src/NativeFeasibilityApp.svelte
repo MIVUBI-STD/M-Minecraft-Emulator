@@ -43,7 +43,7 @@
     : observation.credentialHostAccess !== "OFF"
     ? "Review OpenCredentials and protected-storage options in Sandboxie Plus. This is not Microsoft account isolation proof."
     : observation.membershipStatus !== "OBSERVED"
-    ? "Sandboxie membership or Windows process identity is unknown. Check Sandboxie Plus, its service and process-inspection permissions, then Refresh. Client 02 launch remains blocked."
+    ? "Sandboxie membership or Windows process identity is unknown. Check Sandboxie Plus, process-inspection permissions and whether the box has processes in another Windows session, then Refresh. Client 02 launch remains blocked."
     : observation.isolatedCandidateProcesses > 0
     ? "A Client 02 process candidate exists. Use Focus if its window identity is available; do not request another launch."
     : "The inspected box settings meet the launch preflight checks. Select the official Desktop EXE and confirm licensing; authentication remains unverified.";

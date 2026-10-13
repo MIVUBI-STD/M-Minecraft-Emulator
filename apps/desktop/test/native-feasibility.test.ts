@@ -188,6 +188,10 @@ describe("Native candidate IPC evidence", () => {
     expect(sandboxList).toContain("(($first.Pids -join ',') -ceq ($second.Pids -join ','))");
     expect(sandboxList).toContain("if ($gameCandidates.Count -gt 16)");
     expect(sandboxList).toContain("$rawSession = $process.SessionId");
+    expect(sandboxList).toContain("$processSession -lt 0 -or $processSession -ne $session");
+    expect(sandboxList).toContain("$boxedIdentityByPid[$key] = [pscustomobject]@{");
+    expect(sandboxList).toContain("$boxedIdentityByPid.ContainsKey($candidateKey)");
+    expect(sandboxList).toContain("$boxedIdentityByPid[$candidateKey].Name -match");
     expect(sandboxList).toContain("if ($null -eq $rawSession -or $rawSession -isnot [int])");
     expect(sandboxList).toContain("if (-not $observedByPid.ContainsKey($key))");
     expect(sandboxList).toContain("$handle = $null");

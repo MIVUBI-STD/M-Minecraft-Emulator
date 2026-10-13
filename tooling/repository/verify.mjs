@@ -202,6 +202,9 @@ requireFact(sandboxCollector.includes("[switch]$SummaryOnly") &&
   sandboxCollector.includes("foreach ($boxedPid in $boxedPids)") &&
   sandboxCollector.includes("if (-not $observedByPid.ContainsKey($key))") &&
   sandboxCollector.includes("if ($null -eq $rawSession -or $rawSession -isnot [int])") &&
+  sandboxCollector.includes("$processSession -lt 0 -or $processSession -ne $session") &&
+  sandboxCollector.includes("$boxedIdentityByPid.ContainsKey($candidateKey)") &&
+  sandboxCollector.includes("$boxedIdentityByPid[$candidateKey].Name -match") &&
   sandboxCollector.includes("$allProcesses = @()") &&
   sandboxCollector.includes("$handle = $null") &&
   !sandboxCollector.includes("Get-Process -ErrorAction SilentlyContinue"),
