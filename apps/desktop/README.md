@@ -1,7 +1,7 @@
 # Minecraft Instance Manager — Experimental Desktop
 
 The active Windows developer pilot is **Minecraft Instance Manager**. The single mounted
-`NativeFeasibilityApp.svelte` provides Client 01 launch, one Client 02
+`CompactManagerApp.svelte` (English-only Compact Manager) provides the same typed on-demand controls through the existing native bridge; the historical unmounted `NativeFeasibilityApp.svelte` provided Client 01 launch, one Client 02
 Sandboxie (`MinecraftClient02`) launch request with checked launcher exit,
 and **one explicit Refresh** that observes native/boxed process candidates
 and WinCred-hook configuration through `src/app/bridge/nativeFeasibilityApi.ts`.
@@ -33,7 +33,8 @@ This follows the same desktop architecture as `M-LazyBuilder-Plugin/apps/launche
 ## Layer boundary
 
 ```text
-ACTIVE: NativeFeasibilityApp.svelte (presentation + transient UI state)
+ACTIVE: CompactManagerApp.svelte (presentation + transient UI state)
+        app/presentation/compactManager.ts (pure status/action projection)
             ↓
         app/bridge/nativeFeasibilityApi.ts (typed, fail-closed IPC)
             ↓
@@ -43,7 +44,7 @@ ACTIVE: NativeFeasibilityApp.svelte (presentation + transient UI state)
             ↓
         read-only collector / official vendor launchers
 
-INACTIVE: App.svelte, virtualClientsApi.ts, VMware Rust routes
+INACTIVE: NativeFeasibilityApp.svelte, App.svelte, virtualClientsApi.ts, VMware Rust routes
           are retained for compatibility, but not registered.
 ```
 

@@ -2,12 +2,12 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 
 describe("Active native-first startup boundary", () => {
-  it("mounts the native pilot without querying VMware, Guest Agent or update APIs", () => {
+  it("mounts the Compact Manager without querying VMware, Guest Agent or update APIs", () => {
     const entry = readFileSync(new URL("../src/main.ts", import.meta.url), "utf8");
-    const active = readFileSync(new URL("../src/NativeFeasibilityApp.svelte", import.meta.url), "utf8");
+    const active = readFileSync(new URL("../src/CompactManagerApp.svelte", import.meta.url), "utf8");
     const bootstrap = readFileSync(new URL("../src-tauri/src/app_bootstrap.rs", import.meta.url), "utf8");
-    expect(entry).toContain('import NativeFeasibilityApp from "./NativeFeasibilityApp.svelte"');
-    expect(entry).toContain("mount(NativeFeasibilityApp, { target });");
+    expect(entry).toContain('import CompactManagerApp from "./CompactManagerApp.svelte"');
+    expect(entry).toContain("mount(CompactManagerApp, { target });");
     expect(active).toContain("nativeFeasibility.openOfficialMinecraft()");
     expect(active).toContain("nativeFeasibility.inspectIsolatedClient02()");
     expect(active).not.toContain("backend.");

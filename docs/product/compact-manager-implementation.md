@@ -9,7 +9,7 @@ lifecycle: ACTIVE
 
 # Minecraft Instance Manager — Compact Manager Implementation Specification
 
-**Decision state:** UX DESIGN FROZEN for the current two-client surface, 2026-10-13. **Implementation state:** NOT IMPLEMENTED / NOT TESTED. This document describes target behavior, not current runtime proof.
+**Decision state:** UX DESIGN FROZEN for the current two-client surface, 2026-10-13. **Implementation state:** FRONTEND UI IMPLEMENTATION IN PROGRESS; source/Windows results remain unverified until run at the new exact HEAD. This document describes target behavior, not current runtime proof.
 **Source baseline:** `Local` at `0dc41fd19a93581b59143045b45a14d1dffc52c1` (reviewed source and contracts).
 **Scope:** Windows desktop, Minecraft Education. Long-term goal: four separately licensed, independent sessions. Active code: native Client 01 + one Sandboxie Plus isolated Client 02 experiment. Client 03/04, distinct game sessions and packaged native release remain UNPROVEN/UNIMPLEMENTED.
 **Authority boundary:** Rust/native platform and the typed IPC decide eligibility. The frontend explains observations and requests supported actions; this spec does not authorize new providers, account actions, implicit polling, destructive changes, packaging, or resumed Windows localtests.
@@ -227,6 +227,10 @@ Design review must be followed by actual executable tests on a pinned source SHA
 10. Close and reopening logic does not itself send Stop/reset, erase sandbox/world data or re-enable VMware commands.
 
 **Windows acceptance later, only on explicit user instruction:** exact-SHA dev startup and smoke, real official installed Education app behavior, Sandboxie preparation/membership checks, two independent licensed sessions (manual login), window focus/left-right actions, Fullscreen/maximize/minimize, DPI/monitor changes, crash/timeout ambiguity, manager close/reopen. Source build and browser prototype never prove gameplay or package compatibility.
+
+### Implementation notes — 2026-10-13
+
+The first frontend batch mounts `CompactManagerApp.svelte` from `src/main.ts`, and adds a pure projection module and tests. The legacy `NativeFeasibilityApp.svelte` and inactive VMware `App.svelte` remain in Git but must not be mounted. There is no new Tauri command, native process monitor, persistence owner or packaged release. The UI uses on-demand combined inspection and conservative launch outcomes. The new branch state requires exact-revision source verification and later explicit Windows usability approval; do not infer it from older SHA preflight.
 
 ## 14. Execution plan and ownership boundary
 

@@ -4,6 +4,14 @@
 **Current work:** `emulator/pre-local-cleanup`; **PAUSED at user request on 2026-10-13**. User will continue repository discussion in ChatGPT; do not resume local runtime tests without explicit instruction.
 **Execution ceiling:** Windows source preflight **PASS** at `e6e9ad22625cf0c5928ee6cf5ee6efb2e503e598`; developer binary/window observed; Refresh confirmation observed in user-supplied screenshot. Sandboxie membership, account isolation, Minecraft gameplay, package and four-client acceptance remain **NOT_EXECUTED / UNKNOWN**. Later documentation commits do not inherit exact-HEAD execution PASS.
 
+## Compact Manager frontend implementation — 2026-10-13
+
+- **Scope:** frontend source only. New mounted `CompactManagerApp.svelte`, `app/presentation/compactManager.ts`, compact `app.css`, direct source-mount and state-projection regression tests.
+- **Active UI:** English-only Instances and Settings, no sidebar; single on-demand Check status; conditional Open, Set up, Switch to and Client 02 Left/Right; inline issue details. The old feasibility Svelte remains unmounted, and the legacy VMware app remains unmounted.
+- **Safety:** existing native typed IPC and Rust backend untouched. Client 01 native window identity is NOT proven; Client 02 eligibility still requires fresh Rust preflight; operation success is only request acceptance. No auto-polling, auto-retry, automated sign-in, Stop, restart, tray, Start All or virtual client 03/04.
+- **Verification status:** pending execution on this exact commit; source edits, tests written and commit are NOT proof of compiled or Windows gameplay behavior. Windows localtest remains PAUSED at user request.
+- **Next:** run desktop source checks and actual Windows visual/keyboard/manual acceptance when explicitly approved; preserve package guard and legacy assets.
+
 ## Compact Manager consolidated design baseline — 2026-10-13
 
 - **Decision:** UX design frozen for the current two-client UI; no runtime implementation or local Windows tests resumed.
