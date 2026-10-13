@@ -465,8 +465,13 @@ fn verify_fresh_focus_target(
 ) -> io::Result<(u64, u64)> {
     let invalid = || io::Error::new(io::ErrorKind::InvalidInput,
         "Client 02 focus requires a visible boxed process with known identity; Refresh first");
+    // UI eligibility requires exactly one boxed Minecraft candidate.
+    // Repeat that requirement against the NEW snapshot: another game process
+    // may have appeared since Check status, even if the old PID/HWND survives.
     if target.pid == 0 || target.in_selected_box != Some(true)
         || !fresh.interactive_session || fresh.membership_status != "OBSERVED"
+        || fresh.isolated_candidate_processes != 1
+        || fresh.isolated_visible_candidates != 1
     {
         return Err(invalid());
     }
@@ -970,6 +975,43 @@ mod tests {
         // caller-supplied imageEvidence remains ignored.
         assert_eq!(super::verify_fresh_focus_target(&target, &fresh).unwrap().0,
             133400000000000001);
+
+        // The selected PID/time/HWND still matches, but a SECOND boxed
+        // candidate appeared after the UI snapshot. Focus and Place must
+        // recheck unique eligibility instead of trusting the old window.
+        let mut extra_boxed = fresh.clone();
+        let mut newcomer = target.clone();
+        newcomer.pid = 203;
+        newcomer.created_file_time = Some("133400000000000003".into());
+        newcomer.window_handle = None;
+        newcomer.image_evidence = "UNKNOWN".into();
+        extra_boxed.process_candidates.push(newcomer.clone());
+        extra_boxed.candidate_process_count = 2;
+        extra_boxed.isolated_candidate_processes = 2;
+        assert!(parse_sandboxie_observation(
+            &serde_json::to_string(&extra_boxed).unwrap()).is_ok());
+        assert!(super::verify_fresh_focus_target(&target, &extra_boxed).is_err());
+
+        // Both windows might be visible by the time the action reaches Rust.
+        let mut extra_window = extra_boxed.clone();
+        extra_window.process_candidates[1].window_handle = Some("0x300".into());
+        extra_window.isolated_visible_candidates = 2;
+        assert!(parse_sandboxie_observation(
+            &serde_json::to_string(&extra_window).unwrap()).is_ok());
+        assert!(super::verify_fresh_focus_target(&target, &extra_window).is_err());
+
+        // A distinct outside-box native candidate is NOT a second boxed
+        // client, so it does not invalidate the verified boxed target.
+        let mut native_outside = fresh.clone();
+        newcomer.in_selected_box = Some(false);
+        newcomer.window_handle = Some("0x300".into());
+        native_outside.process_candidates.push(newcomer);
+        native_outside.candidate_process_count = 2;
+        native_outside.native_visible_candidates = 1;
+        assert!(parse_sandboxie_observation(
+            &serde_json::to_string(&native_outside).unwrap()).is_ok());
+        assert!(super::verify_fresh_focus_target(&target, &native_outside).is_ok());
+
         let mut changed = target.clone();
         changed.created_file_time = Some("133400000000000002".into());
         assert!(super::verify_fresh_focus_target(&changed, &fresh).is_err());

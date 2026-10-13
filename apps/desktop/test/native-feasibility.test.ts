@@ -98,6 +98,10 @@ describe("Native candidate IPC evidence", () => {
     expect(engine).toContain("SWP_ASYNCWINDOWPOS");
     expect(engine).toContain("fn placement_slot_keeps_all_pieces_inside_monitor_work_area()");
     expect(engine).toContain("verify_fresh_focus_target(&target, &fresh)");
+    expect(engine).toContain("fresh.isolated_candidate_processes != 1");
+    expect(engine).toContain("fresh.isolated_visible_candidates != 1");
+    expect(engine).toContain("extra_boxed.process_candidates.push(newcomer.clone());");
+    expect(engine).toContain("native_outside.process_candidates.push(newcomer);");
     expect(engine).toContain("GetProcessTimes(process, &mut created");
     expect(engine).toContain("GetWindowThreadProcessId(hwnd, &mut actual_pid)");
     expect(engine).toContain("fn verify_live_client_02_window(");

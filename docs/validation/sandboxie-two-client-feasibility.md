@@ -422,6 +422,29 @@ Pure Node fixture tests only:
 
     npm run test:sandboxie-feasibility
 
+### Process changes between Check status and Switch/Move
+
+Process/window counts in the UI are last-observed hints, never a continuous
+claim that a game is running. If a boxed Minecraft candidate exits or its
+PID/creation FILETIME/HWND changes, the existing Rust action boundary refuses
+the stale target, and the UI clears the stale observation on failure.
+
+**Additional source guard (2026-10-14):** a different failure mode existed
+when the old target survived but a *second boxed game candidate* appeared
+after inspection. The frontend only offers actions for one boxed candidate,
+but the earlier Rust `verify_fresh_focus_target` accepted any exact matching
+target among a newer multi-candidate snapshot. Both Focus and Place now
+require the freshly collected snapshot to contain **exactly one boxed
+Minecraft candidate and one visible boxed candidate** as well as the
+existing PID/FILETIME/HWND, signed executable and Win32 checks. A separate
+outside-box native candidate is not grounds to reject the boxed one.
+
+These are source and regression assertions, not evidence that the Windows
+collector, Svelte, signed clients, Microsoft authentication or gameplay passed
+actual runtime acceptance. The manager does not add periodic polling or
+automatically start/stop Minecraft. If an action refuses an outdated state,
+the user may explicitly use Check status to inspect again.
+
 ## Interpretation and safety
 
 - CONFIGURATION_BLOCKED: AutoDelete/AutoRemove is ON, or box explicitly

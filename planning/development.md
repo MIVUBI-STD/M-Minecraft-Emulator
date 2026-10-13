@@ -1,5 +1,14 @@
 # Current Development Handoff
 
+## Fresh Focus/Place uniqueness after a process changes — 2026-10-14
+
+- **Confirmed mismatch:** the active frontend `focusCandidate` requires exactly one isolated game candidate, but Rust `verify_fresh_focus_target` previously accepted any matching target among a *newly larger* boxed-candidate set. A second boxed game process appearing between Check status and Focus/Place was not rejected, even though the original PID/FILETIME/HWND was still live.
+- **Fix:** require the newly collected Rust snapshot to have exactly one isolated candidate and one visible isolated candidate, on top of its existing interactive session, verified membership, signed image and process/window ownership checks. Both Focus and Place use the same Rust owner. A native outside-box candidate remains allowed.
+- **Regression coverage:** extend the existing Rust fixture with a late second boxed candidate without a window, then with a visible window, and a separate outside-box native candidate; parse every constructed snapshot to keep test evidence internally consistent. Add an accompanying source-contract assertion to the native bridge tests.
+- **Proof ceiling:** REMOTE_GITHUB exact-source inspection and test source authored. Cargo/Rust, Vitest/Svelte, real Windows/Sandboxie, licensed Minecraft sign-in and multiplayer remain NOT_EXECUTED. Windows localtest remains PAUSED.
+- **Next:** review committed source and verify structural contracts; do not claim hardware or four-client acceptance.
+
+
 ## Pending executable selection projection — 2026-10-14
 
 - **Verified UI inconsistency:** while `busy === "select"`, Client 02 `rowPresentation` could still project `Ready to open` and an `open` action based on the previous executable/licence state. The mounted button was globally disabled by `Boolean(busy)`, so the issue was misleading presentation rather than bypass of the launch admission guard.
