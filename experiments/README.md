@@ -4,6 +4,8 @@ Bounded research and disposable prototypes only. Experiments must identify the p
 
 Do not route production VM mutations or acceptance reporting through an experiment. Promote only validated changes into an existing canonical owner; avoid duplicate lifecycle implementations, guest protocols or machine-state databases.
 
+- [Minecraft Education macOS/Android and Multi-Instance Research](./minecraft-education-platform-research.md) — official packaging facts, REA evidence plan, comparison sources and no-premature-migration decision.
+
 - [Emulator Subsystem Reference Study](./emulator-subsystem-reference-study.md) — bounded external architecture comparisons and explicit no-overdevelopment decisions; research only.
 
 - [MCloud and Windows Multi-Instance Cross-check](./mcloud-windows-crosscheck.md) — externally sourced, source-only decisions for the active Sandboxie Windows pilot; not a second engine.

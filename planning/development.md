@@ -1,5 +1,13 @@
 # Current Development Handoff
 
+## Mac/Android architecture hypothesis and REA evidence plan — 2026-10-13
+
+- **Research owner:** `experiments/minecraft-education-platform-research.md`; not a provider, engine, additional product gate or acceptance database.
+- **Established externally:** Minecraft Education macOS uses an official Apple application installation route; Android is separately supported. Package type does not prove shared/different game engine, nor that macOS is a modified APK.
+- **Unavailable proof:** no authorized official Mac/Android artifacts, REA native analysis provider, or runtime captures in this session. REA binary/package investigation remains NOT_EXECUTED, with no invented Evidence IDs.
+- **Decision:** retain selected Windows native + Sandboxie two-client experiment; use PresentMon/ETW and independent licensed gameplay acceptance before considering any platform/architecture migration.
+- **Next:** source changes are complete for this bounded research topic; defer platform internals until real artifacts and authorized host evidence exist.
+
 ## Offline native process-performance report interpretation — 2026-10-13
 
 - **Scope:** reuse the existing Node evidence-evaluator pattern; read the JSON produced by the native process sampler.
