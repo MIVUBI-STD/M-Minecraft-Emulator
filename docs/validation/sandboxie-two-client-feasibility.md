@@ -131,49 +131,64 @@ real-device performance proof remain **NOT_EXECUTED**.
 
 ## Single desktop experiment — Client 01 + Client 02
 
-In a clean `Local` checkout, run `npm run setup`, `npm run
-verify:source`, then `npm run dev`. Use the **Minecraft Instance Manager**
-interface, not the blocked VMware NSIS installer. Start Client 01 through
-the existing official Windows launcher. For Client 02:
+The native + Sandboxie pilot is tested from a **clean `Local` checkout
+of one exact SHA**, on Windows x64 with the pinned development toolchain:
 
-1. Prepare exactly one persistent `MinecraftClient02` box in the licensed Sandboxie
-   Plus interface; keep AutoDelete/AutoRemove OFF.
-2. Select the **installed** Minecraft Education Windows Desktop EXE in Minecraft Instance Manager.
-   Do not select the downloaded installer. The current pilot requires
-   valid Authenticode signing by **Microsoft Corporation**, together with
-   Education product metadata. The Native and Sandboxie launch routes also
-   require the Desktop installation's documented registry version and one
-   matching registered Minecraft Education Start app for the current user.
-   Microsoft Store package enumeration must succeed; an inspection error is
-   not evidence that the package is absent. A registered Start AppID does
-   **not** identify the actual executable path, so a valid signed file and
-   registration are necessary independent prerequisites, not proof that
-   the selected EXE was installed by that registration. If the real installed Education release
-   has a different verified signing organization, record its evidence and
-   review the trust rule in source rather than disabling the signature check.
-3. Acknowledge Sandboxie licensing and click **Launch isolated Client 02**.
-   The backend reuses the canonical Windows collector, requires a persistent
-   enabled box with AutoDelete/AutoRemove OFF and verifiable
-   OpenCredentials OFF (box-local or inherited), and a **fresh OBSERVED
-   process list with no Minecraft-name process candidate** before requesting
-   launch. If /listpids is unreadable, the request fails closed rather than
-   assuming an empty box. This does not prevent all out-of-band process
-   creation between inspection and launch.
-   A nonzero Start.exe exit code is reported as an error; a launcher that
-   never exits before the deadline is UNKNOWN, not gameplay success.
-4. Click **Refresh both clients**. One collector reports candidates
-   **outside the selected box** versus **inside MinecraftClient02**.
-   Being outside the box is not proof a process belongs to native Client 01.
-   It also reports the WinCred hook-bypass configuration. The desktop uses
-   `-SummaryOnly`, which does not write an evidence file. A PID/window
-   candidate is not Microsoft account proof.
-5. Independently verify two different licensed Microsoft Education logins,
-   world/input, multiplayer and persistence. Mark missing evidence UNKNOWN.
+```powershell
+.\DEV.cmd preflight  # source checks; no Minecraft, sandbox or package mutation
+.\DEV.cmd dev        # only after preflight succeeds; launch Tauri dev UI
+```
+
+Use the mounted **Minecraft Instance Manager** interface, not the historical
+VMware NSIS installer or `DEV.cmd g0`/`DEV.cmd package` (both release-blocked).
+The current UI has **Check status**, **Set up**, **Open**, **Switch to** and
+contextual **Move window**; it has no "Refresh both clients" or "Launch isolated
+Client 02" action. The one Check status button inspects Client 02 Sandboxie
+evidence; it does not confirm native Client 01 login or gameplay.
+
+1. In licensed Sandboxie Plus, prepare exactly one persistent box named
+   `MinecraftClient02`; AutoDelete/AutoRemove must be OFF. Review the
+   credential-bypass/protected-storage settings as described below.
+2. In **Instances**, press **Check status** before attempting Client 02 Open.
+   If status is unknown or setup is incomplete, use **Set up** and correct the
+   indicated Sandboxie settings before explicitly checking again. Unknown
+   membership is not evidence of an empty box.
+3. With the box positively inspected as prepared, use **Set up** → **Browse…**
+   to choose the **installed** Minecraft Education Windows Desktop EXE,
+   not its downloaded installer. Then explicitly confirm Sandboxie licensing
+   and the persistent box. A different EXE selection resets that confirmation.
+   The current pilot requires valid Authenticode signing by **Microsoft
+   Corporation** and Education product metadata. The native and boxed launch
+   routes also require the Desktop installation's documented registry version,
+   one matching registered Minecraft Education Start app for this user, and
+   successful Microsoft Store package enumeration. A registered Start AppID
+   is not an authoritative EXE path. If a legitimate Education release has
+   different signing evidence, review it before proposing source changes:
+   never bypass signature verification simply to make the test pass.
+4. Only when the UI presents **Open** for Minecraft 02, request its launch.
+   Rust again checks the chosen EXE, explicit licence confirmation, Sandboxie
+   persistence/configuration and a **fresh OBSERVED boxed process list with
+   no Minecraft-name candidates**. Unreadable `/listpids` fails closed. A
+   successful Start.exe helper exit means only that Open was requested, not
+   that Minecraft launched, signed in or rendered. A timeout is UNKNOWN; do
+   not blindly request a second launch.
+5. Press **Check status** again. The collector distinguishes candidates
+   inside `MinecraftClient02` from those outside it; outside-box does **not**
+   prove native Client 01 identity. The collector uses `-SummaryOnly`,
+   without writing an evidence file. With a unique eligible boxed window,
+   **Switch to** requests a fresh backend-verified focus; open its **Details**
+   for conditional **Move window** → **Left/Right** → **Apply**. Neither
+   action proves authentication or moves Client 01.
+6. Independently observe the officially launched native Client 01 and the
+   boxed Client 02: two distinct licensed Microsoft Education logins,
+   actual window/world rendering and input, multiplayer where required,
+   and persistence. Mark missing, ambiguous or failed evidence explicitly;
+   do not record account identifiers, tokens, world names or private images.
 
 A launch or PID count does not override a manual game observation; a failed
 launch is diagnosed without altering account/VM data.
 
-The pilot offers a manual **Focus Client 02** button only when a single
+The mounted UI offers **Switch to** only when a single
 boxed, visible Minecraft-name process candidate has a known creation FILETIME.
 The Rust owner re-inspects Sandboxie membership on every Focus, then
 requests an **on-demand Authenticode verification of only the selected boxed
@@ -203,17 +218,17 @@ in IPC nor saved in reports. The read-only file handle reduces replacement
 risk but cannot eliminate every filesystem or in-memory image race.
 Files with unsupported path/handle semantics fail closed. It does not
 establish authenticated accounts or playable gameplay. If the process
-changed, Refresh first; if Windows rejects foreground activation, click the
+changed, use Check status first; if Windows rejects foreground activation, click the
 game window or use Alt+Tab. No keyboard simulation, hidden polling,
 automatic process start, VM route or sandbox data mutation is used.
-The adjacent **Place Left** and **Place Right** controls request half of
+The contextual **Move window** panel's **Left/Right** and **Apply** controls request half of
 Client 02's current monitor work area only, after the same identity check.
 They neither identify nor move Client 01, keep the existing Z-order and
 focus, and require the game window to be restored from minimized/maximized
 state first. Immediately before placement, the backend rechecks the full
 live window ownership, minimized/maximized state, and whether the window
 moved to another monitor while its work area was inspected. A changing
-window fails closed and asks for Refresh. Windows can queue SetWindowPos
+window fails closed and asks for Check status. Windows can queue SetWindowPos
 asynchronously, so even a successful request is not a guarantee of final
 size/position or protection against every HWND race. Windows may adjust the
 final size to Minecraft's constraints; the accepted request does not
@@ -257,7 +272,7 @@ This transport has not been exercised on a real Windows machine.
 
 ## Boxed executable attribution (source-only)
 
-- **Manual Refresh:** `-ImageProof` still checks visible outside-box
+- **Manual Check status:** `-ImageProof` still checks visible outside-box
   Microsoft-signed Education file candidates and can invoke the manual
   vendor-DLL per-PID box lookup. It does not mark Client 01 truly native.
 - **On-demand Focus/Place:** `-BoxedImageProofPid` verifies only one
@@ -355,12 +370,12 @@ list of Minecraft-name process candidates with PID, optional Windows
 creation FILETIME string, HWND, observed sandbox membership and image
 evidence. The list is internally reconciled against visible/boxed counters,
 including processes without a window. A process without accessible start
-time remains a name-matched candidate only. Explicit desktop Refresh
+time remains a name-matched candidate only. Explicit desktop Check status
 uses SummaryOnly -ImageProof: only visible candidates outside the
 selected box are checked for valid Microsoft Corporation Authenticode
 and Minecraft Education product metadata, using an invocation-local cache
 without sending paths to the UI. Launch/Focus/Place omit -ImageProof to
-avoid repeated signer checks. When a signed candidate exists, explicit Refresh optionally loads
+avoid repeated signer checks. When a signed candidate exists, explicit Check status optionally loads
 the installed SbieDll.dll inside its disposable PowerShell child, checks
 its digital signature against the trusted Sandboxie Start.exe signer, then
 calls the documented SbieApi_QueryProcess for at most 16 candidates.
@@ -372,7 +387,7 @@ or unavailable API counts as UNKNOWN. **UNKNOWN must never be interpreted
 as confirmed host-native**, including when Sandboxie did not register a
 process. No sandbox names, executable paths or user credentials are
 included in the IPC response. DLL initialization failures can end the
-inspection subprocess and surface a Refresh error; this has not been
+inspection subprocess and surface a Check status error; this has not been
 run against an installed Sandboxie version. The persisted full JSON report remains schema 1
 with earlier process field shapes for the existing evaluator.
 The Rust backend serializes manager-initiated launch attempts and suppresses

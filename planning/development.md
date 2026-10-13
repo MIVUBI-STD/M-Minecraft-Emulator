@@ -1,5 +1,14 @@
 # Current Development Handoff
 
+## Native Sandboxie pre-localtest operator route alignment — 2026-10-14
+
+- **Pre-localtest audit:** `Local` includes pinned `apps/desktop/src-tauri/Cargo.lock` and active Svelte `CompactManagerApp.svelte`. `tooling/windows-toolchain/dev.ps1` provides native `DEV.cmd preflight` (exact clean Local SHA, pinned toolchain, npm ci/source tests) and `DEV.cmd dev` (Tauri developer UI); native NSIS packaging is intentionally blocked by `PACKAGE_BLOCKED_NATIVE_FEASIBILITY`.
+- **Confirmed documentation defect:** the active Sandboxie procedure still told operators to click obsolete `Launch isolated Client 02`, `Refresh both clients`, `Focus Client 02` and `Place Left/Right` controls. Current UI uses Check status, Set up, Open, Switch to and contextual Move window. The test sequence also missed the required initial Check status before a prepared Client 02 can be opened.
+- **Fix:** align the single existing active Sandboxie pilot document with mounted control labels, exact-SHA native preflight, correct Check status → Set up/EXE/licence → Open → Check status flow and manual licensed gameplay evidence; do not alter frontend/backend or unblock legacy installer. Add one desktop source/guide regression.
+- **Proof:** REMOTE_GITHUB exact-source/static route inspection only on the current new SHA; Node24/Vitest/Svelte/Cargo/Rust, Windows actual UI, Sandboxie Plus licensing/compatibility and Minecraft gameplay remain NOT_EXECUTED. No claim that UI/system is fully correct before preflight.
+- **Next:** execute `DEV.cmd preflight` at the same committed Local SHA when native Windows testing is resumed, then only if it passes launch `DEV.cmd dev`.
+
+
 ## Focus/Move refusal guidance and stale-status regressions — 2026-10-14
 
 - **Verified existing safety:** the active UI's Focus and Move error branches already invalidate the last Client 02 PID/HWND observation, mark any previous inspection as historical, preserve the affected instance's error for View issue, and release the busy guard. Explicit Check status remains the recovery route; no poller or automatic retry is needed.

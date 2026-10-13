@@ -169,6 +169,23 @@ describe("Compact Manager app source and command boundary", () => {
   const entry = readFileSync(new URL("../src/main.ts", import.meta.url), "utf8");
   const app = readFileSync(new URL("../src/CompactManagerApp.svelte", import.meta.url), "utf8");
   const bootstrap = readFileSync(new URL("../src-tauri/src/app_bootstrap.rs", import.meta.url), "utf8");
+  it("keeps the active Sandboxie localtest instructions aligned with mounted controls", () => {
+    const guide = readFileSync(new URL("../../../docs/validation/sandboxie-two-client-feasibility.md", import.meta.url), "utf8");
+    expect(app).toContain(">Check status</button>");
+    expect(app).toContain(">Settings</button>");
+    expect(app).toContain('on:click={showClient02MoveDetails}>Move window</button>');
+    expect(guide).toContain(".\\DEV.cmd preflight");
+    expect(guide).toContain(".\\DEV.cmd dev");
+    expect(guide).toContain("**Check status**");
+    expect(guide).toContain("**Set up**");
+    expect(guide).toContain("**Open**");
+    expect(guide).toContain("**Switch to**");
+    expect(guide).toContain("**Move window**");
+    expect(guide).toContain("not the historical");
+    expect(guide).not.toContain("Click **Refresh both clients**");
+    expect(guide).not.toContain("click **Launch isolated Client 02**");
+    expect(guide).not.toContain("manual **Focus Client 02** button");
+  });
   it("mounts exactly one compact UI with no new native providers", () => {
     expect(entry).toContain('mount(CompactManagerApp, { target });');
     expect(entry).not.toContain("NativeFeasibilityApp");
