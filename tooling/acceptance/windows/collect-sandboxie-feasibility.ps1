@@ -459,23 +459,50 @@ $processInventoryComplete = $true
 try {
   $allProcesses = @(Get-Process -ErrorAction Stop)
 } catch {
+  # Never present a partial enumeration as a trustworthy process inventory.
   $processInventoryComplete = $false
+  $allProcesses = @()
 }
 if ($membershipStatus -eq 'OBSERVED') {
   if (-not $processInventoryComplete) {
     $membershipStatus = 'UNKNOWN'
     $boxedPids = @()
   } else {
-    $visiblePids = @{}
+    $observedByPid = @{}
     foreach ($item in $allProcesses) {
-      $visiblePids[[string]$item.Id] = $true
-    }
-    foreach ($boxedPid in $boxedPids) {
-      if (-not $visiblePids.ContainsKey([string]$boxedPid)) {
-        $membershipStatus = 'UNKNOWN'
-        $boxedPids = @()
+      $key = [string]$item.Id
+      if ($observedByPid.ContainsKey($key)) {
+        $processInventoryComplete = $false
         break
       }
+      $observedByPid[$key] = $item
+    }
+    if ($processInventoryComplete) {
+      foreach ($boxedPid in $boxedPids) {
+        $key = [string]$boxedPid
+        if (-not $observedByPid.ContainsKey($key)) {
+          $processInventoryComplete = $false
+          break
+        }
+        # A PID without a readable name or session must never be silently
+        # classified as a non-Minecraft helper, enabling a duplicate launch.
+        try {
+          $process = $observedByPid[$key]
+          $processName = [string]$process.ProcessName
+          $processSession = [int]$process.SessionId
+          if ([string]::IsNullOrWhiteSpace($processName) -or $processSession -lt 0) {
+            $processInventoryComplete = $false
+            break
+          }
+        } catch {
+          $processInventoryComplete = $false
+          break
+        }
+      }
+    }
+    if (-not $processInventoryComplete) {
+      $membershipStatus = 'UNKNOWN'
+      $boxedPids = @()
     }
   }
 }
