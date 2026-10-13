@@ -1,5 +1,19 @@
 # Current Development Handoff
 
+## Upstream baseline build preparation — 2026-10-14
+
+**Work:** independently reproducible unmodified source baseline for planned `M-Isolation-Engine`. **State:** DONE for pinned build-only source tooling; GitHub fork creation and actual Windows compilation NOT_EXECUTED.
+
+**Decision:** pin Sandboxie v1.18.5 at `abd4c240031cfb46666daa74ca47ed4e48b561e4`. Preserve full source history in a **separate** checkout/future GitHub fork rather than importing vendor kernel code into Tauri. Start from CI-confirmed Win32 support → x64 core → x64 driver, hash required binaries and source templates from `Installer/copy_build.cmd`. Keep all core dependencies until proven removable; defer SandMan/Qt UI and packaging. Noncommercial personal educational use does not remove GPL attribution or driver-signing obligations.
+
+**Source changes:** `tooling/isolation-source/upstream-baseline.json`, `build-baseline.ps1`, `README.md` and tooling index. The build script is opt-in with `-Build`; default is manifest collection, no driver/service/box changes. Refuses a dirty/unpinned source checkout or writing the report into the vendor tree. No signing, runtime install, migration or official launch change.
+
+**Proof:** upstream `v1.18.5` exact GitHub tag, `Sandboxie/ReadMe.md`, `.github/workflows/main.yml` and `Installer/copy_build.cmd` source crosschecked; static manifest path uniqueness and stage order reviewed. No connected GitHub fork/create-repository action was available. **Windows MSBuild, x86/x64 compilation, artifact SHA-256 collection, driver signing/loading, live Minecraft and resource tests NOT_EXECUTED**; source changes are not a built engine.
+
+**Unresolved:** published source fork requires supported repository-creation/fork action; build environment/WDK/signing not verified; Client 02 idle crash owner UNKNOWN; existing credentials/worlds must stay unchanged.
+
+**Next ONE task:** validate and execute pinned unmodified upstream baseline build in a permitted Windows build environment, recording hashes/compilation logs without installing any custom driver or touching the live client box. If the environment remains unavailable, continue source-level reproducibility and contract testing without reporting a build pass.
+
 ## Inspection-only IsolationBackend v0.1 — 2026-10-14
 
 **Work:** internal isolation inspection provider. **State:** DONE for bounded source change; owned-engine fork and Windows proof remain ACTIVE.
