@@ -6,6 +6,14 @@
 
 ## Windows preflight assertion correction (2026-10-13)
 
+Exact Windows source preflight passed at
+`070323474d0b7a4b9dd0a4966cd6750707f09601` (one symlink test skipped for
+missing Windows privilege). Developer startup then failed when Vite watched
+a locked Rust build PDB under `src-tauri/target`. The Vite watcher now ignores
+that generated output tree; frontend source watching remains active.
+Next: clean-commit preflight and developer startup on this correction.
+Minecraft, Sandboxie and interactive UI acceptance remain NOT_EXECUTED.
+
 The subsequent exact-SHA Windows preflight at
 `83e1a978c3d9d920bf4331a5d1a75537f9f77fd6` passed desktop and runtime
 checks/tests and frontend build, then failed at runtime `cargo fmt --check`.
