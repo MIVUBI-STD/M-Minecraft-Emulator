@@ -113,7 +113,8 @@ export function rowPresentation(
         tone: "neutral" as const, action: "open" as const,
         details: "The app can request Windows to open Minecraft Education. It cannot confirm the native game window.", canMove: false }
     : isolated;
-  if (busy === "check") return { ...base, status: "Checking…", tone: "neutral", action: null, canMove: false };
+  // Check status observes isolated Client 02, not native Client 01.
+  if (busy === "check" && id === "02") return { ...base, status: "Checking…", tone: "neutral", action: null, canMove: false };
   if (busy === "open-" + id) return { ...base, status: "Opening…", tone: "neutral", action: null, canMove: false };
   if (busy === "switch" && id === "02") return { ...base, status: "Switching…", action: null, canMove: false };
   if (busy === "move" && id === "02") return { ...base, status: "Moving…", action: null, canMove: false };

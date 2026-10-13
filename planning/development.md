@@ -1,5 +1,13 @@
 # Current Development Handoff
 
+## Independent Client 01/02 UI feedback — 2026-10-14
+
+- **Source defect:** a single `issue`/`notice` value was shared between both rows. Client 02-only Check status erased Client 01's unresolved native launch feedback, while native Open erased Client 02's error/notice. The Client 02 inspection also projected a misleading Checking status onto native Client 01.
+- **Fix:** retain one global in-flight operation guard, with independent temporary feedback keyed by Client 01/02 in the mounted Svelte shell. All relevant actions clear/update only their own instance. The Client 02 Check status displays Checking only on Client 02.
+- **Proof:** REMOTE_GITHUB exact-source review and targeted regression assertions authored. Full Node24/Vitest/Svelte/Tauri/Rust/Windows/Minecraft remains NOT_EXECUTED; Windows localtest is paused.
+- **Next:** verify available feedback scenarios without a real Minecraft host; no new provider or Client 03–04 features.
+
+
 ## Asynchronous UI outcome versus newer navigation — 2026-10-13
 
 - **Confirmed source race:** UI navigation/detail controls remain usable while IPC operations are pending. Client 02 Open/Move success unconditionally called `closeDetails()`, which could collapse a different panel opened after the request. Error callbacks unconditionally chose the issue panel, replacing newer Settings/contextual navigation. A cancelled executable picker cleared the previous issue even without a successful selection or renewed inspection.

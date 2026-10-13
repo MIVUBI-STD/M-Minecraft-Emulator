@@ -228,6 +228,19 @@ Design review must be followed by actual executable tests on a pinned source SHA
 
 **Windows acceptance later, only on explicit user instruction:** exact-SHA dev startup and smoke, real official installed Education app behavior, Sandboxie preparation/membership checks, two independent licensed sessions (manual login), window focus/left-right actions, Fullscreen/maximize/minimize, DPI/monitor changes, crash/timeout ambiguity, manager close/reopen. Source build and browser prototype never prove gameplay or package compatibility.
 
+### Source-only client-specific feedback — 2026-10-14
+
+The active Compact Manager keeps one global UI operation guard, but now stores
+temporary issue and notice feedback separately for Minecraft 01 and 02.
+Native Open clears only native feedback; Check status/Open/Focus/Move for the
+isolated client clear only isolated feedback. A Sandboxie-only check cannot
+resolve an earlier native launch warning. A Client 02 check also no longer
+labels Client 01 "Checking…" since it does not actually inspect native sign-in.
+Per-client feedback remains UI-only, does not authorize actions, and does not
+introduce another lifecycle state machine, polling, credential storage or
+backend command. Source regression tests have been authored; full Svelte/Windows
+runtime evidence is still NOT_EXECUTED.
+
 ### Source-only asynchronous outcome navigation safety — 2026-10-13
 
 The active Compact Manager now increments one ephemeral UI navigation revision

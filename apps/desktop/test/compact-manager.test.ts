@@ -60,6 +60,21 @@ describe("Compact Manager projections", () => {
     expect(focusCandidate({ ...found, membershipStatus: "UNKNOWN" })).toBeNull();
     expect(focusCandidate({ ...found, isolatedCandidateProcesses: 2 })).toBeNull();
   });
+  it("does not mark Client 01 as being checked by Client 02 inspection", () => {
+    const isolated = client02Presentation(inspected(), "path", true);
+    expect(rowPresentation("01", false, isolated, "check", null, null).status).toBe("Not checked");
+    expect(rowPresentation("02", true, isolated, "check", null, null))
+      .toMatchObject({ status: "Checking…", action: null });
+  });
+  it("retains native errors while displaying isolated request outcomes", () => {
+    const isolated = client02Presentation(inspected(), "path", true);
+    const nativeIssue = { instance: "01" as const, title: "Native launch uncertain", message: "Look for existing window." };
+    const boxedNotice = { instance: "02" as const, text: "Open requested" };
+    expect(rowPresentation("01", false, isolated, "", nativeIssue, null))
+      .toMatchObject({ status: "Native launch uncertain", action: "issue" });
+    expect(rowPresentation("02", true, isolated, "", null, boxedNotice))
+      .toMatchObject({ status: "Open requested", action: null });
+  });
   it("does not show an available action during busy and uncertain operations", () => {
     const base = client02Presentation(inspected(), "path", true);
     expect(rowPresentation("02", true, base, "open-02", null, null)).toMatchObject({ status: "Opening…", action: null });
@@ -145,6 +160,20 @@ describe("Compact Manager app source and command boundary", () => {
     expect(app).toContain('<svelte:window on:keydown={handleWindowKeydown} />');
     expect(app).toContain('event.key !== "Escape"');
     expect(app.match(/on:click={closeDetails}>Close details/g)).toHaveLength(2);
+  });
+  it("tracks instance-local issue/notice feedback, not a shared global message", () => {
+    expect(app).toContain("let issues: Partial<Record<InstanceId, UiIssue>> = {}");
+    expect(app).toContain("let notices: Partial<Record<InstanceId, UiNotice>> = {}");
+    expect(app).toContain('clearFeedback("01");');
+    expect(app.match(/clearFeedback\("02"\);/g)).toHaveLength(4);
+    expect(app).toContain('issues = { ...issues, [instance]: { instance, title, message');
+    expect(app).toContain('notices = { ...notices, [instance]: undefined }');
+    expect(app).toContain('rowPresentation("01", observation !== undefined, base02, busy, issue01, notice01)');
+    expect(app).toContain('rowPresentation("02", observation !== undefined, base02, busy, issue02, notice02)');
+    expect(app).not.toContain("let issue: UiIssue | null");
+    expect(app).not.toContain("let notice: UiNotice | null");
+    expect(app).toContain('{#if issue01}');
+    expect(app).toContain('{#if issue02?.details}');
   });
   it("keeps IPC outcome effects subordinate to later UI navigation", () => {
     expect(app).toContain("let navigationRevision = 0;");

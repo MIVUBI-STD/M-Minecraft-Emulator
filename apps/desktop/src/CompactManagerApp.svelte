@@ -29,8 +29,9 @@
   let lastCheckIsCurrent = false;
   let selectedExecutable = "";
   let licenseConfirmed = false;
-  let issue: UiIssue | null = null;
-  let notice: UiNotice | null = null;
+  // Temporary UI feedback, isolated by supported instance identity.
+  let issues: Partial<Record<InstanceId, UiIssue>> = {};
+  let notices: Partial<Record<InstanceId, UiNotice>> = {};
   let moveSide: MoveSide = "LEFT";
   let checkStatusButton: HTMLButtonElement | undefined;
   let settingsBackButton: HTMLButtonElement | undefined;
@@ -40,8 +41,12 @@
   let navigationRevision = 0;
 
   $: base02 = client02Presentation(observation, selectedExecutable, licenseConfirmed);
-  $: row01 = rowPresentation("01", observation !== undefined, base02, busy, issue, notice);
-  $: row02 = rowPresentation("02", observation !== undefined, base02, busy, issue, notice);
+  $: issue01 = issues["01"] ?? null;
+  $: issue02 = issues["02"] ?? null;
+  $: notice01 = notices["01"] ?? null;
+  $: notice02 = notices["02"] ?? null;
+  $: row01 = rowPresentation("01", observation !== undefined, base02, busy, issue01, notice01);
+  $: row02 = rowPresentation("02", observation !== undefined, base02, busy, issue02, notice02);
   $: moveEligible = Boolean(observation && focusCandidate(observation) && base02.canMove);
 
   function closeDetails() {
@@ -112,9 +117,14 @@
     lastCheckIsCurrent = false;
   }
 
+  function clearFeedback(instance: InstanceId) {
+    issues = { ...issues, [instance]: undefined };
+    notices = { ...notices, [instance]: undefined };
+  }
+
   function reportIssue(instance: InstanceId, title: string, message: string, error: unknown, requestRevision: number) {
-    issue = { instance, title, message, details: error === undefined ? undefined : safeErrorDetails(error) };
-    notice = null;
+    issues = { ...issues, [instance]: { instance, title, message, details: error === undefined ? undefined : safeErrorDetails(error) } };
+    notices = { ...notices, [instance]: undefined };
     // Preserve the issue for View issue, but never hijack a newer user panel.
     if (page === "instances" && requestRevision === navigationRevision) {
       disclosureTrigger = null;
@@ -127,8 +137,7 @@
     if (busy) return;
     const requestRevision = navigationRevision;
     busy = "check";
-    issue = null;
-    notice = null;
+    clearFeedback("02");
     invalidateCurrentInspection();
     try {
       const result = await nativeFeasibility.inspectIsolatedClient02();
@@ -148,12 +157,11 @@
     if (busy) return;
     const requestRevision = navigationRevision;
     busy = "open-01";
-    issue = null;
-    notice = null;
+    clearFeedback("01");
     invalidateCurrentInspection();
     try {
       await nativeFeasibility.openOfficialMinecraft();
-      notice = { instance: "01", text: "Open requested" };
+      notices = { ...notices, "01": { instance: "01", text: "Open requested" } };
     } catch (error) {
       reportIssue("01", "Couldn't confirm if Minecraft opened",
         "Check for an existing Minecraft window before trying again.", error, requestRevision);
@@ -191,12 +199,11 @@
     const requestedPanel = expanded;
     const requestedMode = detailMode;
     busy = "open-02";
-    issue = null;
-    notice = null;
+    clearFeedback("02");
     invalidateCurrentInspection();
     try {
       await nativeFeasibility.requestSandboxClient02(selectedExecutable, licenseConfirmed);
-      notice = { instance: "02", text: "Open requested" };
+      notices = { ...notices, "02": { instance: "02", text: "Open requested" } };
       if (page === "instances" && requestRevision === navigationRevision &&
           requestedPanel === "02" && expanded === requestedPanel && detailMode === requestedMode) {
         closeDetails();
@@ -214,13 +221,12 @@
     if (busy || !target || base02.action !== "switch") return;
     const requestRevision = navigationRevision;
     busy = "switch";
-    issue = null;
-    notice = null;
+    clearFeedback("02");
     try {
       await nativeFeasibility.focusObservedClient02(target);
       // A focus request does not invalidate the observed target or disable further switching.
       // The backend revalidates process and window identity on every attempt.
-      notice = null;
+      // Only Client 02 feedback was reset when Focus started.
     } catch (error) {
       invalidateCurrentInspection();
       reportIssue("02", "Couldn't switch to Minecraft",
@@ -237,11 +243,10 @@
     const requestedPanel = expanded;
     const requestedMode = detailMode;
     busy = "move";
-    issue = null;
-    notice = null;
+    clearFeedback("02");
     try {
       await nativeFeasibility.placeObservedClient02(target, moveSide);
-      notice = { instance: "02", text: "Move requested" };
+      notices = { ...notices, "02": { instance: "02", text: "Move requested" } };
       if (page === "instances" && requestRevision === navigationRevision &&
           requestedPanel === "02" && expanded === requestedPanel && detailMode === requestedMode) {
         closeDetails();
@@ -303,17 +308,17 @@
                 <button class="cm-button cm-primary" type="button" disabled={Boolean(busy)}
                   on:click={(event) => choosePrimary("01", event.currentTarget)} aria-expanded={row01.action === "issue" ? expanded === "01" : undefined} aria-controls={row01.action === "issue" ? "cm-details-01" : undefined}>{primaryLabel(row01.action)}</button>
               {/if}
-              {#if issue?.instance === "01"}
+              {#if issue01}
                 <button class="cm-link" type="button" aria-expanded={expanded === "01"} aria-controls="cm-details-01" on:click={(event) => toggleDetails("01", "issue", event.currentTarget)}>Details</button>
               {/if}
             </div>
           </div>
           {#if expanded === "01"}
             <div id="cm-details-01" class="cm-detail" role="region" aria-label="Minecraft 01 details">
-              {#if issue?.instance === "01"}
-                <h3>{issue.title}</h3>
-                <p>{issue.message}</p>
-                {#if issue.details}<details><summary>Advanced details</summary><p class="cm-technical">{issue.details}</p></details>{/if}
+              {#if issue01}
+                <h3>{issue01.title}</h3>
+                <p>{issue01.message}</p>
+                {#if issue01.details}<details><summary>Advanced details</summary><p class="cm-technical">{issue01.details}</p></details>{/if}
               {:else}
                 <h3>About Minecraft 01</h3>
                 <p>Opens the official Minecraft Education app on this PC. The manager does not check account sign-in or gameplay.</p>
@@ -345,11 +350,11 @@
           {#if expanded === "02"}
             <div id="cm-details-02" class="cm-detail" role="region" aria-label="Minecraft 02 details" tabindex="-1" bind:this={client02DetailPanel}>
               {#if detailMode === "issue"}
-                <h3>{issue?.instance === "02" ? issue.title : base02.status}</h3>
-                <p>{issue?.instance === "02" ? issue.message : base02.details}</p>
+                <h3>{issue02 ? issue02.title : base02.status}</h3>
+                <p>{issue02 ? issue02.message : base02.details}</p>
                 <p class="cm-assist">Use Check status in the toolbar to inspect the current Windows session.</p>
-                {#if issue?.details}
-                  <details><summary>Advanced details</summary><p class="cm-technical">{issue.details}</p></details>
+                {#if issue02?.details}
+                  <details><summary>Advanced details</summary><p class="cm-technical">{issue02.details}</p></details>
                 {:else if observation}
                   <details><summary>Advanced details</summary>
                     <p class="cm-technical">Box: {observation.boxConfigured}; membership: {observation.membershipStatus}; settings: {observation.boxSettingsSource}.</p>
