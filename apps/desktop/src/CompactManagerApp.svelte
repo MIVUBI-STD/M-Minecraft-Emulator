@@ -33,6 +33,8 @@
   let notice: UiNotice | null = null;
   let moveSide: MoveSide = "LEFT";
   let checkStatusButton: HTMLButtonElement | undefined;
+  let settingsBackButton: HTMLButtonElement | undefined;
+  let client02DetailPanel: HTMLDivElement | undefined;
   let disclosureTrigger: HTMLButtonElement | null = null;
 
   $: base02 = client02Presentation(observation, selectedExecutable, licenseConfirmed);
@@ -43,12 +45,34 @@
   function closeDetails() {
     const origin = disclosureTrigger;
     expanded = null;
-    // The closing button is removed from the DOM. Restore a stable keyboard
-    // target after Svelte updates the view, not before it removes the panel.
+    disclosureTrigger = null;
+    // Async operations may resolve after the user navigates to Settings.
+    // Never steal focus from Settings or a different newly opened panel.
     void tick().then(() => {
+      if (page !== "instances" || expanded !== null) return;
       if (origin?.isConnected && !origin.disabled) origin.focus();
-      else checkStatusButton?.focus();
+      else if (checkStatusButton?.isConnected && !checkStatusButton.disabled) checkStatusButton.focus();
     });
+  }
+
+  function showSettings() {
+    page = "settings";
+    void tick().then(() => settingsBackButton?.focus());
+  }
+
+  function showInstances() {
+    page = "instances";
+    void tick().then(() => checkStatusButton?.focus());
+  }
+
+  function openClient02DetailsFromSettings(mode: "setup" | "move") {
+    page = "instances";
+    expanded = "02";
+    detailMode = mode;
+    disclosureTrigger = null;
+    // Settings' action is removed when the page changes. Focus the region
+    // deliberately so Tab continues into the actual setup/move controls.
+    void tick().then(() => client02DetailPanel?.focus());
   }
 
   function expandDetails(instance: InstanceId, mode: DetailMode, origin: HTMLButtonElement) {
@@ -225,7 +249,7 @@
             <span class="cm-refresh-icon" aria-hidden="true">↻</span>
             {busy === "check" ? "Checking…" : "Check status"}
           </button>
-          <button class="cm-button cm-quiet" type="button" on:click={() => (page = "settings")}>Settings</button>
+          <button class="cm-button cm-quiet" type="button" on:click={showSettings}>Settings</button>
         </div>
       </header>
 
@@ -282,7 +306,7 @@
           </div>
 
           {#if expanded === "02"}
-            <div id="cm-details-02" class="cm-detail" role="region" aria-label="Minecraft 02 details">
+            <div id="cm-details-02" class="cm-detail" role="region" aria-label="Minecraft 02 details" tabindex="-1" bind:this={client02DetailPanel}>
               {#if detailMode === "issue" || issue?.instance === "02"}
                 <h3>{issue?.instance === "02" ? issue.title : base02.status}</h3>
                 <p>{issue?.instance === "02" ? issue.message : base02.details}</p>
@@ -350,18 +374,18 @@
     {:else}
       <header class="cm-toolbar">
         <h1>Settings</h1>
-        <button class="cm-button cm-secondary" type="button" on:click={() => (page = "instances")}>Back to Instances</button>
+        <button class="cm-button cm-secondary" type="button" bind:this={settingsBackButton} on:click={showInstances}>Back to Instances</button>
       </header>
       <section class="cm-settings" aria-label="Application settings">
         <div class="cm-setting-group">
           <h2>Minecraft setup</h2>
           <p>Choose the official Minecraft Education Desktop installation for Minecraft 02.</p>
-          <button type="button" class="cm-button cm-secondary" on:click={() => { page = "instances"; expanded = "02"; detailMode = "setup"; }}>Set up Minecraft 02</button>
+          <button type="button" class="cm-button cm-secondary" on:click={() => openClient02DetailsFromSettings("setup")}>Set up Minecraft 02</button>
         </div>
         <div class="cm-setting-group">
           <h2>Window preferences</h2>
           <p>Move a detected Minecraft 02 window using its instance details. Other layouts are not available yet.</p>
-          {#if moveEligible}<button type="button" class="cm-button cm-secondary" on:click={() => {page = "instances"; expanded = "02"; detailMode = "move";}}>Move window</button>{/if}
+          {#if moveEligible}<button type="button" class="cm-button cm-secondary" on:click={() => openClient02DetailsFromSettings("move")}>Move window</button>{/if}
         </div>
         <div class="cm-setting-group">
           <h2>Help</h2>

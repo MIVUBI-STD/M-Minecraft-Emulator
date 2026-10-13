@@ -228,6 +228,17 @@ Design review must be followed by actual executable tests on a pinned source SHA
 
 **Windows acceptance later, only on explicit user instruction:** exact-SHA dev startup and smoke, real official installed Education app behavior, Sandboxie preparation/membership checks, two independent licensed sessions (manual login), window focus/left-right actions, Fullscreen/maximize/minimize, DPI/monitor changes, crash/timeout ambiguity, manager close/reopen. Source build and browser prototype never prove gameplay or package compatibility.
 
+### Source-only Settings focus handling — 2026-10-13
+
+The active Svelte shell now transfers keyboard focus to the mounted Settings
+Back button when opening Settings, and to Check status when returning to
+Instances. Settings' contextual setup/move actions focus the Client 02 inline
+region (programmatic focus only, no modal trap). Closing an inline panel after
+an asynchronous request never focuses an unmounted Instances control while
+Settings remains open and does not override another expanded panel. This is
+source behavior with authored assertions, **not** a Windows UI or screen-reader
+acceptance result.
+
 ### Source accessibility hardening — 2026-10-13
 
 The active Compact Manager now records the user-triggering button for inline details,

@@ -146,6 +146,25 @@ describe("Compact Manager app source and command boundary", () => {
     expect(app).toContain('event.key !== "Escape"');
     expect(app.match(/on:click={closeDetails}>Close details/g)).toHaveLength(2);
   });
+  it("keeps keyboard focus inside the mounted page after Settings navigation", () => {
+    expect(app).toContain("function showSettings()");
+    expect(app).toContain("function showInstances()");
+    expect(app).toContain("settingsBackButton?.focus()");
+    expect(app).toContain("checkStatusButton?.focus()");
+    expect(app).toContain('on:click={showSettings}>Settings</button>');
+    expect(app).toContain('on:click={showInstances}>Back to Instances</button>');
+    expect(app).toContain('openClient02DetailsFromSettings("setup")');
+    expect(app).toContain('openClient02DetailsFromSettings("move")');
+    expect(app).toContain("client02DetailPanel?.focus()");
+    expect(app).toContain('tabindex="-1" bind:this={client02DetailPanel}');
+  });
+  it("does not steal focus from Settings or newly expanded details after an async close", () => {
+    expect(app).toContain('if (page !== "instances" || expanded !== null) return;');
+    expect(app).toContain("checkStatusButton?.isConnected && !checkStatusButton.disabled");
+    expect(app).toContain("disclosureTrigger = null;");
+    expect(app).not.toMatch(/on:click=\{\(\) => \(page =/);
+  });
+
   it("never toggles an already visible issue closed from View issue", () => {
     expect(app).toContain('if (action === "issue") { expandDetails(id, "issue", origin); return; }');
     expect(app).toContain('if (action === "setup") toggleDetails(id, "setup", origin);');
