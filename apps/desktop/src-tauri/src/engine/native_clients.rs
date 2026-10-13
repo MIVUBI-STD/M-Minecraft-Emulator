@@ -24,6 +24,30 @@ fn acquire_client_02_launch() -> io::Result<MutexGuard<'static, Option<Instant>>
 }
 
 
+#[cfg(windows)]
+fn system_powershell() -> io::Result<std::path::PathBuf> {
+    use std::{ffi::OsString, os::windows::ffi::OsStringExt, path::PathBuf};
+    use windows_sys::Win32::System::SystemInformation::GetSystemDirectoryW;
+
+    // Use the actual Windows system directory, not PATH or the working
+    // directory. A lookalike powershell.exe must never run our collector.
+    let mut system_dir = [0_u16; 32768];
+    let length = unsafe { GetSystemDirectoryW(system_dir.as_mut_ptr(), system_dir.len() as u32) };
+    if length == 0 || length as usize >= system_dir.len() {
+        return Err(io::Error::new(io::ErrorKind::NotFound,
+            "Windows system directory could not be resolved"));
+    }
+    let executable = PathBuf::from(OsString::from_wide(&system_dir[..length as usize]))
+        .join("WindowsPowerShell")
+        .join("v1.0")
+        .join("powershell.exe");
+    if !executable.is_file() {
+        return Err(io::Error::new(io::ErrorKind::NotFound,
+            "Windows system PowerShell is unavailable; refusing an untrusted executable search"));
+    }
+    Ok(executable)
+}
+
 // Desktop-native observation only. PIDs and window handles are candidates,
 // not verified Minecraft, Microsoft account, rendering or gameplay evidence.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -81,7 +105,7 @@ fn parse_native_observation(raw: &str) -> io::Result<NativeProcessObservation> {
 
 #[cfg(target_os = "windows")]
 pub fn inspect_native_candidates() -> io::Result<NativeProcessObservation> {
-    use std::{path::Path, time::Duration};
+    use std::time::Duration;
 
     // Current interactive Windows session only. Never read executable paths,
     // command lines, titles, world files, account IDs, registry tokens or WAM.
@@ -90,8 +114,9 @@ pub fn inspect_native_candidates() -> io::Result<NativeProcessObservation> {
     const SCRIPT: &str = r#"
 $ErrorActionPreference = 'Stop'
 $sessionId = (Get-Process -Id $PID -ErrorAction Stop).SessionId
+$allProcesses = @(Get-Process -ErrorAction Stop)
 $items = @(
-  Get-Process -ErrorAction SilentlyContinue |
+  $allProcesses |
     Where-Object {
       $_.SessionId -eq $sessionId -and
       $_.ProcessName -match '^(Minecraft\.Windows|Minecraft.*Education.*|Education.*Minecraft.*)$'
@@ -115,7 +140,7 @@ if ($items.Count -gt 16) { throw 'Candidate process cap exceeded' }
 "#;
 
     let output = virtual_clients_core::bounded_command_output(
-        Path::new("powershell.exe"),
+        &system_powershell()?,
         ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", SCRIPT],
         Duration::from_secs(8),
     )?;
@@ -132,7 +157,7 @@ pub fn inspect_native_candidates() -> io::Result<NativeProcessObservation> {
 
 #[cfg(target_os = "windows")]
 pub fn open_native_minecraft() -> io::Result<()> {
-    use std::{path::Path, time::Duration};
+    use std::time::Duration;
 
     // Request the single registered official application as the current
     // interactive user. This does NOT create a guaranteed second instance.
@@ -170,10 +195,14 @@ $appId = [string]$apps[0].AppID
 if (-not $appId -or $appId.Length -gt 256 -or $appId -notmatch '^[A-Za-z0-9_.!+{}-]+$') {
     throw 'Registered Minecraft Education application identity is invalid.'
 }
-Start-Process -FilePath 'explorer.exe' -ArgumentList ('shell:AppsFolder\' + $appId) -ErrorAction Stop | Out-Null
+$explorer = Join-Path ([Environment]::GetFolderPath([Environment+SpecialFolder]::Windows)) 'explorer.exe'
+if (-not (Test-Path -LiteralPath $explorer -PathType Leaf)) {
+    throw 'Windows Explorer is unavailable; refusing an untrusted executable search'
+}
+Start-Process -FilePath $explorer -ArgumentList ('shell:AppsFolder\' + $appId) -ErrorAction Stop | Out-Null
 "#;
     virtual_clients_core::bounded_command_output(
-        Path::new("powershell.exe"),
+        &system_powershell()?,
         ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", SCRIPT],
         Duration::from_secs(12),
     )
@@ -380,7 +409,7 @@ fn inspect_sandbox_client_02_mode(
     image_proof: bool,
     boxed_image_pid: Option<u32>,
 ) -> io::Result<SandboxieClientObservation> {
-    use std::{path::Path, time::Duration};
+    use std::time::Duration;
     const INSPECT: &str = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
         "/../../../tooling/acceptance/windows/collect-sandboxie-feasibility.ps1"
@@ -399,7 +428,7 @@ fn inspect_sandbox_client_02_mode(
     // The source stays embedded and read-only; no .ps1 file is written.
     const BOOTSTRAP: &str = "$r=[System.IO.StreamReader]::new([Console]::OpenStandardInput(),[System.Text.Encoding]::UTF8);& ([ScriptBlock]::Create($r.ReadToEnd()))";
     let output = virtual_clients_core::bounded_command_output_with_stdin(
-        Path::new("powershell.exe"),
+        &system_powershell()?,
         ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", BOOTSTRAP],
         Duration::from_secs(30),
         script.as_bytes(),
@@ -853,7 +882,7 @@ try {{
     // Reserve a brief retry gap before the potentially ambiguous side effect.
     *launch_guard = Some(Instant::now());
     virtual_clients_core::bounded_command_output(
-        Path::new("powershell.exe"),
+        &system_powershell()?,
         ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", script.as_str()],
         Duration::from_secs(20),
     )?;
@@ -880,6 +909,16 @@ mod tests {
                 {"pid": 456, "windowHandle": null}
             ]
         })
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn system_powershell_is_absolute_and_from_windows_system_directory() {
+        let tool = super::system_powershell()
+            .expect("system PowerShell must be available for the Windows pilot");
+        assert!(tool.is_absolute());
+        assert!(tool.is_file());
+        assert!(tool.ends_with(std::path::Path::new("WindowsPowerShell/v1.0/powershell.exe")));
     }
 
     #[test]

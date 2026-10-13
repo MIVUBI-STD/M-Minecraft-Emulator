@@ -114,6 +114,12 @@ describe("Native candidate IPC evidence", () => {
     expect(engine).not.toContain("AllowSetForegroundWindow");
     expect(engine).not.toContain("SendInput(");
     expect(engine).toContain("include_str!(concat!(");
+    // Structural guard only; the Windows Rust test executes the resolved path.
+    expect(engine).toContain("GetSystemDirectoryW");
+    expect(engine).not.toContain('Path::new("powershell.exe")');
+    expect(engine).toContain("$allProcesses = @(Get-Process -ErrorAction Stop)");
+    expect(engine).not.toContain("Get-Process -ErrorAction SilentlyContinue");
+    expect(engine).toContain("Start-Process -FilePath $explorer");
     expect(engine).toContain("WaitForExit(8000)");
     expect(engine).toContain("$launcher.ExitCode");
     expect(engine).toContain("-WorkingDirectory $gameFolder");

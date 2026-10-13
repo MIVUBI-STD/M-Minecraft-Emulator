@@ -4,7 +4,15 @@
 **Current work:** `emulator/source-hardening` (additional source-only audit and corrections; local testing explicitly deferred).
 **Engineering state:** source prototype / **exact-HEAD Node/Svelte/Rust/PowerShell execution, Windows build and two-account gameplay NOT_EXECUTED**.
 
-## Latest source-only batch — cross-session PID and validated boxed identity
+## Latest source-hardening batch — bind Windows helpers to system paths
+
+- **First wrong owner:** `apps/desktop/src-tauri/src/engine/native_clients.rs` ran four PowerShell commands as a relative `powershell.exe`, allowing command resolution to depend on the host process search path/current directory. Its native-only process inspector also used `Get-Process -ErrorAction SilentlyContinue`, which could yield a misleading empty observation when enumeration failed.
+- **Source correction:** Resolve Windows PowerShell through `GetSystemDirectoryW` and refuse operation if that exact system file is absent. Launch the official Start-app shell via Explorer from Windows' SpecialFolder rather than an unqualified executable name. Native candidate enumeration now requires `Get-Process -ErrorAction Stop`; a failed query is an error, not evidence of zero processes. The existing Sandboxie collector, admission contract, candidate schema, credential boundaries and launch semantics are otherwise unchanged.
+- **Regression:** Added one Windows-only Rust test that exercises the system PowerShell resolver, plus source contract assertions for absolute helper resolution and fail-closed native inventory. These are **AUTHORED, NOT_EXECUTED** in the GitHub-only environment.
+- **Proof ceiling:** No Windows/Rust/Svelte/PowerShell source execution, artifact or REA runtime observation, Sandboxie login or Minecraft gameplay was performed. The Windows API binding and official shell path must be exercised on the target OS; there is no claim that two independently signed-in sessions work.
+- **Next bounded action:** Run exact-SHA Windows source verification before further changes; inspect any genuine compiler/test failure as the first wrong owner. Do not unblock legacy VM packaging or change `main`.
+
+## Previous source-only batch — cross-session PID and validated boxed identity
 
 - **First wrong owner:** The collector filtered game candidates by the current
   `$session`, even though the selected Sandboxie box inventory could contain a
