@@ -341,6 +341,11 @@ test("source-side collector must distinguish missing box keys from failed querie
   assert.ok(source.includes("$allProcesses = @(Get-Process -ErrorAction Stop)"));
   assert.ok(source.includes("if (-not $processInventoryComplete)"));
   assert.ok(source.includes("foreach ($boxedPid in $boxedPids)"));
-  assert.ok(source.includes("if (-not $visiblePids.ContainsKey([string]$boxedPid))"));
+  assert.ok(source.includes("if (-not $observedByPid.ContainsKey($key))"));
+  assert.ok(source.includes("if ($null -eq $rawSession -or $rawSession -isnot [int])"));
+  assert.ok(source.includes("if ([string]::IsNullOrWhiteSpace($processName) -or $processSession -lt 0)"));
+  assert.ok(source.includes("$allProcesses = @()"));
+  assert.ok(source.includes("$handle = $null"));
+  assert.ok(source.includes("Window handles may be unavailable"));
   assert.ok(!source.includes("Get-Process -ErrorAction SilentlyContinue"));
 });
