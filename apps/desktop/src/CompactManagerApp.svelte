@@ -94,6 +94,14 @@
     });
   }
 
+  function showClient02MoveDetails() {
+    if (page !== "instances" || expanded !== "02" || !moveEligible) return;
+    // Inline mode changes are navigation too: late IPC results must not
+    // override a Move panel selected after their request began.
+    navigationRevision += 1;
+    detailMode = "move";
+  }
+
   function expandDetails(instance: InstanceId, mode: DetailMode, origin: HTMLButtonElement) {
     navigationRevision += 1;
     disclosureTrigger = origin;
@@ -398,7 +406,7 @@
                 <h3>About Minecraft 02</h3>
                 <p>{base02.details}</p>
                 <p class="cm-assist">Environment: Isolated · Sandboxie Plus.</p>
-                {#if moveEligible}<button class="cm-button cm-secondary" type="button" on:click={() => (detailMode = "move")}>Move window</button>{/if}
+                {#if moveEligible}<button class="cm-button cm-secondary" type="button" on:click={showClient02MoveDetails}>Move window</button>{/if}
               {/if}
               <div class="cm-detail-footer">
                 <button class="cm-link" type="button" on:click={closeDetails}>Close details</button>

@@ -1,5 +1,13 @@
 # Current Development Handoff
 
+## Inline Move navigation revision hardening — 2026-10-14
+
+- **Confirmed first wrong owner:** `apps/desktop/src/CompactManagerApp.svelte`. The inline Client 02 `Move window` control wrote `detailMode = "move"` directly, without increasing the UI navigation revision that protects against late IPC responses. A pending Focus request could later reject and hijack the newly selected panel, because it still matched the old revision.
+- **Patch:** route that one Move detail action through a guarded component function that checks Client 02 panel eligibility, increments `navigationRevision`, and changes the mode. No new state machine, dependency, IPC, runtime process, or provider is introduced. Add a focused source regression.
+- **Proof:** REMOTE_GITHUB exact-source review and regression assertion authored; separately identify any V8 mock execution if performed. Node24/Vitest/Svelte/Rust/Windows/Minecraft acceptance is still NOT_EXECUTED, and localtest remains PAUSED.
+- **Next:** only further source-proven state/action defects, or exact-SHA compiled checks when supported execution becomes available.
+
+
 ## Cross-client expanded detail isolation — 2026-10-14
 
 - **Source finding:** isolated Check status could close a native Client 01 issue panel because it checked only shared `detailMode`. An incoming issue could also auto-replace the other client's currently open panel.

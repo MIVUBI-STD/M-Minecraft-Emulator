@@ -182,6 +182,14 @@ describe("Compact Manager app source and command boundary", () => {
     expect(app).toContain('{#if issue01}');
     expect(app).toContain('{#if issue02?.details}');
   });
+  it("counts the inline Move window action as user navigation for pending IPC results", () => {
+    const action = app.split("function showClient02MoveDetails()")[1]?.split("function expandDetails(")[0] ?? "";
+    expect(action).toContain('page !== "instances" || expanded !== "02" || !moveEligible');
+    expect(action).toContain("navigationRevision += 1;");
+    expect(action).toContain('detailMode = "move";');
+    expect(app).toContain('on:click={showClient02MoveDetails}>Move window</button>');
+    expect(app).not.toContain('on:click={() => (detailMode = "move")}');
+  });
   it("keeps IPC outcome effects subordinate to later UI navigation", () => {
     expect(app).toContain("let navigationRevision = 0;");
     for (const operation of [

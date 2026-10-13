@@ -228,6 +228,19 @@ Design review must be followed by actual executable tests on a pinned source SHA
 
 **Windows acceptance later, only on explicit user instruction:** exact-SHA dev startup and smoke, real official installed Education app behavior, Sandboxie preparation/membership checks, two independent licensed sessions (manual login), window focus/left-right actions, Fullscreen/maximize/minimize, DPI/monitor changes, crash/timeout ambiguity, manager close/reopen. Source build and browser prototype never prove gameplay or package compatibility.
 
+### Source-only inline Move navigation revision — 2026-10-14
+
+The contextual **Move window** button inside Client 02 About details previously
+set `detailMode = "move"` without advancing the existing UI navigation
+revision. If a prior IPC operation was still pending, its late error or success
+could treat that newly selected panel as the original one and auto-replace it.
+This button now uses a guarded handler in the mounted Svelte shell which
+increments the same ephemeral revision as other user-owned navigation.
+Eligibility remains advisory; backend focus/placement still revalidates fresh
+PID/FILETIME/HWND and Sandboxie membership. This changes neither backend
+admission nor the current no-polling/no-credential policy. Runtime UI and
+Minecraft outcomes remain NOT_EXECUTED.
+
 ### Source-only cross-client details on IPC completion — 2026-10-14
 
 After feedback was scoped per instance, the shared inline panel could still
