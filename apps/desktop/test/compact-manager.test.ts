@@ -146,6 +146,28 @@ describe("Compact Manager app source and command boundary", () => {
     expect(app).toContain('event.key !== "Escape"');
     expect(app.match(/on:click={closeDetails}>Close details/g)).toHaveLength(2);
   });
+  it("keeps IPC outcome effects subordinate to later UI navigation", () => {
+    expect(app).toContain("let navigationRevision = 0;");
+    for (const operation of [
+      "checkStatus", "openMinecraft01", "selectMinecraft",
+      "openMinecraft02", "switchMinecraft02", "moveMinecraft02",
+    ]) {
+      const body = app.split(`async function ${operation}()`)[1]?.split("async function ")[0] ?? "";
+      expect(body).toContain("const requestRevision = navigationRevision;");
+      expect(body).not.toMatch(/reportIssue\([\s\S]*?, error\);/);
+    }
+    expect(app).toContain('if (page === "instances" && requestRevision === navigationRevision)');
+    expect(app).toContain('requestedPanel === "02" && expanded === requestedPanel && detailMode === requestedMode');
+    expect(app).toContain('if (selected && page === "instances" && requestRevision === navigationRevision && expanded === "02")');
+    expect(app).not.toContain("      issue = null;\n      detailMode = \"setup\";");
+  });
+  it("retains canceled file-picker errors until actual reinspection", () => {
+    const picker = app.split("async function selectMinecraft()")[1]?.split("async function openMinecraft02()")[0] ?? "";
+    expect(picker).not.toContain("issue = null;");
+    expect(picker).toContain("if (selected && selected !== selectedExecutable)");
+    expect(picker).toContain('if (selected && page === "instances"');
+  });
+
   it("keeps keyboard focus inside the mounted page after Settings navigation", () => {
     expect(app).toContain("function showSettings()");
     expect(app).toContain("function showInstances()");

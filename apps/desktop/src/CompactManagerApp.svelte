@@ -36,6 +36,8 @@
   let settingsBackButton: HTMLButtonElement | undefined;
   let client02DetailPanel: HTMLDivElement | undefined;
   let disclosureTrigger: HTMLButtonElement | null = null;
+  // UI-only revision: IPC completion must not undo later user navigation.
+  let navigationRevision = 0;
 
   $: base02 = client02Presentation(observation, selectedExecutable, licenseConfirmed);
   $: row01 = rowPresentation("01", observation !== undefined, base02, busy, issue, notice);
@@ -43,6 +45,7 @@
   $: moveEligible = Boolean(observation && focusCandidate(observation) && base02.canMove);
 
   function closeDetails() {
+    navigationRevision += 1;
     const origin = disclosureTrigger;
     expanded = null;
     disclosureTrigger = null;
@@ -56,6 +59,7 @@
   }
 
   function showSettings() {
+    navigationRevision += 1;
     page = "settings";
     void tick().then(() => {
       if (page === "settings" && settingsBackButton?.isConnected) settingsBackButton.focus();
@@ -63,6 +67,7 @@
   }
 
   function showInstances() {
+    navigationRevision += 1;
     page = "instances";
     void tick().then(() => {
       if (page === "instances" && checkStatusButton?.isConnected && !checkStatusButton.disabled) checkStatusButton.focus();
@@ -70,6 +75,7 @@
   }
 
   function openClient02DetailsFromSettings(mode: "setup" | "move") {
+    navigationRevision += 1;
     page = "instances";
     expanded = "02";
     detailMode = mode;
@@ -84,6 +90,7 @@
   }
 
   function expandDetails(instance: InstanceId, mode: DetailMode, origin: HTMLButtonElement) {
+    navigationRevision += 1;
     disclosureTrigger = origin;
     expanded = instance;
     detailMode = mode;
@@ -105,16 +112,20 @@
     lastCheckIsCurrent = false;
   }
 
-  function reportIssue(instance: InstanceId, title: string, message: string, error?: unknown) {
+  function reportIssue(instance: InstanceId, title: string, message: string, error: unknown, requestRevision: number) {
     issue = { instance, title, message, details: error === undefined ? undefined : safeErrorDetails(error) };
-    disclosureTrigger = null;
     notice = null;
-    expanded = instance;
-    detailMode = "issue";
+    // Preserve the issue for View issue, but never hijack a newer user panel.
+    if (page === "instances" && requestRevision === navigationRevision) {
+      disclosureTrigger = null;
+      expanded = instance;
+      detailMode = "issue";
+    }
   }
 
   async function checkStatus() {
     if (busy) return;
+    const requestRevision = navigationRevision;
     busy = "check";
     issue = null;
     notice = null;
@@ -124,10 +135,10 @@
       observation = result;
       lastCheck = new Date();
       lastCheckIsCurrent = true;
-      if (detailMode === "issue") expanded = null;
+      if (page === "instances" && requestRevision === navigationRevision && detailMode === "issue") expanded = null;
     } catch (error) {
       reportIssue("02", "Couldn't check status",
-        "The app couldn't confirm the instance status. Review Sandboxie Plus, then check again.", error);
+        "The app couldn't confirm the instance status. Review Sandboxie Plus, then check again.", error, requestRevision);
     } finally {
       busy = "";
     }
@@ -135,6 +146,7 @@
 
   async function openMinecraft01() {
     if (busy) return;
+    const requestRevision = navigationRevision;
     busy = "open-01";
     issue = null;
     notice = null;
@@ -144,7 +156,7 @@
       notice = { instance: "01", text: "Open requested" };
     } catch (error) {
       reportIssue("01", "Couldn't confirm if Minecraft opened",
-        "Check for an existing Minecraft window before trying again.", error);
+        "Check for an existing Minecraft window before trying again.", error, requestRevision);
     } finally {
       busy = "";
     }
@@ -152,6 +164,7 @@
 
   async function selectMinecraft() {
     if (busy) return;
+    const requestRevision = navigationRevision;
     busy = "select";
     try {
       const selected = await nativeFeasibility.selectEducationExe();
@@ -159,11 +172,14 @@
         selectedExecutable = selected;
         licenseConfirmed = false;
       }
-      issue = null;
-      detailMode = "setup";
+      // Cancelled picker is not evidence that a previous issue was resolved.
+      // A completed picker must not redirect a different newly opened panel.
+      if (selected && page === "instances" && requestRevision === navigationRevision && expanded === "02") {
+        detailMode = "setup";
+      }
     } catch (error) {
       reportIssue("02", "Couldn't select Minecraft",
-        "Choose the official Minecraft Education Desktop executable.", error);
+        "Choose the official Minecraft Education Desktop executable.", error, requestRevision);
     } finally {
       busy = "";
     }
@@ -171,6 +187,9 @@
 
   async function openMinecraft02() {
     if (busy || !observation || !selectedExecutable || !licenseConfirmed || base02.action !== "open") return;
+    const requestRevision = navigationRevision;
+    const requestedPanel = expanded;
+    const requestedMode = detailMode;
     busy = "open-02";
     issue = null;
     notice = null;
@@ -178,10 +197,13 @@
     try {
       await nativeFeasibility.requestSandboxClient02(selectedExecutable, licenseConfirmed);
       notice = { instance: "02", text: "Open requested" };
-      closeDetails();
+      if (page === "instances" && requestRevision === navigationRevision &&
+          requestedPanel === "02" && expanded === requestedPanel && detailMode === requestedMode) {
+        closeDetails();
+      }
     } catch (error) {
       reportIssue("02", "Couldn't confirm if Minecraft opened",
-        "Check status before trying to open another copy.", error);
+        "Check status before trying to open another copy.", error, requestRevision);
     } finally {
       busy = "";
     }
@@ -190,6 +212,7 @@
   async function switchMinecraft02() {
     const target = focusCandidate(observation);
     if (busy || !target || base02.action !== "switch") return;
+    const requestRevision = navigationRevision;
     busy = "switch";
     issue = null;
     notice = null;
@@ -201,7 +224,7 @@
     } catch (error) {
       invalidateCurrentInspection();
       reportIssue("02", "Couldn't switch to Minecraft",
-        "The window may have changed. Check status or select it with Alt+Tab.", error);
+        "The window may have changed. Check status or select it with Alt+Tab.", error, requestRevision);
     } finally {
       busy = "";
     }
@@ -210,17 +233,23 @@
   async function moveMinecraft02() {
     const target = focusCandidate(observation);
     if (busy || !target || !base02.canMove) return;
+    const requestRevision = navigationRevision;
+    const requestedPanel = expanded;
+    const requestedMode = detailMode;
     busy = "move";
     issue = null;
     notice = null;
     try {
       await nativeFeasibility.placeObservedClient02(target, moveSide);
       notice = { instance: "02", text: "Move requested" };
-      closeDetails();
+      if (page === "instances" && requestRevision === navigationRevision &&
+          requestedPanel === "02" && expanded === requestedPanel && detailMode === requestedMode) {
+        closeDetails();
+      }
     } catch (error) {
       invalidateCurrentInspection();
       reportIssue("02", "Couldn't move window",
-        "Restore Minecraft to a normal window, then check status and try again.", error);
+        "Restore Minecraft to a normal window, then check status and try again.", error, requestRevision);
     } finally {
       busy = "";
     }

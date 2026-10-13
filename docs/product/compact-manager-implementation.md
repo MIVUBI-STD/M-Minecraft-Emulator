@@ -228,6 +228,20 @@ Design review must be followed by actual executable tests on a pinned source SHA
 
 **Windows acceptance later, only on explicit user instruction:** exact-SHA dev startup and smoke, real official installed Education app behavior, Sandboxie preparation/membership checks, two independent licensed sessions (manual login), window focus/left-right actions, Fullscreen/maximize/minimize, DPI/monitor changes, crash/timeout ambiguity, manager close/reopen. Source build and browser prototype never prove gameplay or package compatibility.
 
+### Source-only asynchronous outcome navigation safety — 2026-10-13
+
+The active Compact Manager now increments one ephemeral UI navigation revision
+when the operator opens/closes details or changes pages. Each IPC operation
+records the revision on request. Late success or error responses still update
+their appropriate operation result, but cannot automatically close a newer
+Client 02 panel or replace newer contextual navigation with the issue panel.
+The issue remains accessible through **View issue**, without parsing backend
+error strings into authoritative status. A cancelled executable picker does not
+clear a preexisting launch/inspection issue. This is presentation-only
+concurrency safety: it does not cancel a game operation, retry, persist a
+status machine, or prove a Minecraft window has opened. Source regressions
+are authored; Svelte/Windows execution remains NOT_EXECUTED.
+
 ### Source-only Client 02 issue/detail routing — 2026-10-13
 
 The Client 02 inline panel now renders the **explicitly selected detail mode**.

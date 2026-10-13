@@ -1,5 +1,13 @@
 # Current Development Handoff
 
+## Asynchronous UI outcome versus newer navigation — 2026-10-13
+
+- **Confirmed source race:** UI navigation/detail controls remain usable while IPC operations are pending. Client 02 Open/Move success unconditionally called `closeDetails()`, which could collapse a different panel opened after the request. Error callbacks unconditionally chose the issue panel, replacing newer Settings/contextual navigation. A cancelled executable picker cleared the previous issue even without a successful selection or renewed inspection.
+- **Fix:** one ephemeral `navigationRevision` inside the existing Compact Manager shell; capture it when each IPC request begins. Preserve real operation notice/issue while guarding late panel close/auto-expand and post-picker detail changes against subsequent user navigation. Do not clear unresolved issues when file selection is canceled.
+- **Proof:** REMOTE_GITHUB exact source/consumer contract review and regression assertions authored. No Node24/Vitest/Svelte/Tauri/Windows/Minecraft execution; Windows localtest remains PAUSED. No engine, Sandboxie, account or installer modification.
+- **Next:** continue only narrowly reproducible source-level issues; use a genuine runtime environment for full source/game acceptance when it becomes available.
+
+
 ## Compact Manager issue/detail panel precedence — 2026-10-13
 
 - **Confirmed source issue:** Client 02 template selected its issue branch whenever `issue?.instance === "02"`, overriding explicit `detailMode = "setup"` or `"info"` from the supported UI navigation while a previous error persisted.
