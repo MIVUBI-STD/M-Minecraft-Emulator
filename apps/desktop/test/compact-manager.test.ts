@@ -75,6 +75,24 @@ describe("Compact Manager projections", () => {
     expect(rowPresentation("02", true, isolated, "", null, boxedNotice))
       .toMatchObject({ status: "Open requested", action: null });
   });
+  it("does not present Client 02 as ready while executable selection is pending", () => {
+    const safeBox = inspected();
+    const initial = client02Presentation(safeBox, "C:/old.exe", true);
+    expect(initial).toMatchObject({ status: "Ready to open", action: "open" });
+    expect(rowPresentation("02", true, initial, "select", null, null))
+      .toMatchObject({ status: "Selecting…", action: null, canMove: false });
+    expect(rowPresentation("01", false, initial, "select", null, null).status).toBe("Not checked");
+    const afterChangedFile = client02Presentation(safeBox, "C:/new.exe", false);
+    expect(afterChangedFile).toMatchObject({ status: "Setup required", action: "setup" });
+    expect(client02Presentation(safeBox, "C:/new.exe", true))
+      .toMatchObject({ status: "Ready to open", action: "open" });
+    const uncertain = { instance: "02" as const, title: "Couldn't confirm if Minecraft opened",
+      message: "Check status before opening another copy." };
+    expect(rowPresentation("02", true, afterChangedFile, "", uncertain, null))
+      .toMatchObject({ status: uncertain.title, action: "issue", canMove: false });
+    expect(client02Presentation(undefined, "C:/new.exe", true))
+      .toMatchObject({ status: "Not checked", action: null });
+  });
   it("does not show an available action during busy and uncertain operations", () => {
     const base = client02Presentation(inspected(), "path", true);
     expect(rowPresentation("02", true, base, "open-02", null, null)).toMatchObject({ status: "Opening…", action: null });

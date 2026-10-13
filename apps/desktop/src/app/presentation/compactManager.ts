@@ -121,6 +121,9 @@ export function rowPresentation(
     : isolated;
   // Check status observes isolated Client 02, not native Client 01.
   if (busy === "check" && id === "02") return { ...base, status: "Checking…", tone: "neutral", action: null, canMove: false };
+  // The file dialog may change the selected EXE and reset licence consent.
+  // Suppress a misleading Ready to open / Open action while it is unresolved.
+  if (busy === "select" && id === "02") return { ...base, status: "Selecting…", tone: "neutral", action: null, canMove: false };
   if (busy === "open-" + id) return { ...base, status: "Opening…", tone: "neutral", action: null, canMove: false };
   if (busy === "switch" && id === "02") return { ...base, status: "Switching…", action: null, canMove: false };
   if (busy === "move" && id === "02") return { ...base, status: "Moving…", action: null, canMove: false };

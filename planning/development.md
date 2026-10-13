@@ -1,5 +1,14 @@
 # Current Development Handoff
 
+## Pending executable selection projection — 2026-10-14
+
+- **Verified UI inconsistency:** while `busy === "select"`, Client 02 `rowPresentation` could still project `Ready to open` and an `open` action based on the previous executable/licence state. The mounted button was globally disabled by `Boolean(busy)`, so the issue was misleading presentation rather than bypass of the launch admission guard.
+- **Change:** one narrowly scoped branch in existing `compactManager.ts`: for Client 02 only, show `Selecting…` with null action and null move eligibility during the file dialog. Existing source tests now cover old-path READY → picker pending → different-file unlicensed Setup required → licensed READY, no observation, and an ambiguous launch issue.
+- **Backend audit:** `native_clients.rs` validates the selected executable basename/path, file existence, official Windows Desktop registry/registered Start app, signed product identity and current Sandboxie box state on launch. No new manager, filesystem mutation, Tauri command or account automation required.
+- **Proof:** exact source inspection and targeted regression authored, with optional V8 direct projection tests if actually executed; Node24/Vitest/Svelte/Rust/Windows/Minecraft test execution remains NOT_EXECUTED and localtest PAUSED.
+- **Next:** stop here for this source owner unless another concrete source-contract defect is found; do not claim G0 or game-session success.
+
+
 ## Executable-picker error provenance — 2026-10-14
 
 - **Source finding:** successful `selectMinecraft()` kept its earlier file-picker error visible. Cancel already preserved it appropriately; launch/inspection failure must also be preserved when a file is selected.

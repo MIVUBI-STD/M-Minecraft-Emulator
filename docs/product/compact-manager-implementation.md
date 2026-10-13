@@ -228,6 +228,23 @@ Design review must be followed by actual executable tests on a pinned source SHA
 
 **Windows acceptance later, only on explicit user instruction:** exact-SHA dev startup and smoke, real official installed Education app behavior, Sandboxie preparation/membership checks, two independent licensed sessions (manual login), window focus/left-right actions, Fullscreen/maximize/minimize, DPI/monitor changes, crash/timeout ambiguity, manager close/reopen. Source build and browser prototype never prove gameplay or package compatibility.
 
+### Source-only executable selection pending state — 2026-10-14
+
+Client 02's presentation previously displayed "Ready to open" while the
+executable-picker IPC request was in flight. Its Open button was disabled by
+the existing global busy guard, so this was not an authorization bypass, but
+the status was misleading while the selected file and licence acknowledgement
+could change. During `busy === "select"`, only Client 02 now displays
+"Selecting…" with no primary action or Move eligibility; native Client 01
+is not falsely marked as selecting. On successful choice of a **different**
+file, the existing UI clears the licence checkbox and the resulting source
+projection is Setup required until explicit reconfirmation. An unchanged path
+does not silently alter the previous checkbox, but Rust still repeats its
+signed official-installation, licencing and Sandboxie preflight before launch.
+A failed/cancelled picker still preserves the appropriate previous issue.
+These are presentation and authored source regressions, not proof of an actual
+Minecraft sign-in, file integrity or executed Svelte build.
+
 ### Source-only executable-picker error resolution — 2026-10-14
 
 An explicitly successful executable selection resolves only a previous
