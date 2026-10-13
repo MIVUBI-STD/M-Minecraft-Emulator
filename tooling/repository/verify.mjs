@@ -126,6 +126,14 @@ const activeEntry = read("apps/desktop/src/main.ts");
 const activeSurface = read("apps/desktop/src/NativeFeasibilityApp.svelte");
 const rustCommandBoundary = read("engine/runtime-core/src/command.rs");
 const activeTauri = read("apps/desktop/src-tauri/src/app_bootstrap.rs");
+const activeCommandModules = read("apps/desktop/src-tauri/src/commands/mod.rs");
+const activeEngineModules = read("apps/desktop/src-tauri/src/engine/mod.rs");
+requireFact(activeCommandModules.includes("pub mod native_clients;") &&
+  !/^\s*pub mod (setup_tools|virtual_clients|window_arrangement);/m.test(activeCommandModules) &&
+  activeEngineModules.includes("pub mod native_clients;") &&
+  activeEngineModules.includes("pub mod screen_overlay;") &&
+  !/^\s*pub mod (setup_tools|window_arrangement);/m.test(activeEngineModules),
+  "Legacy desktop Rust modules must remain outside the active native compile graph");
 requireFact(activeEntry.includes('import NativeFeasibilityApp from "./NativeFeasibilityApp.svelte";') &&
   activeEntry.includes("mount(NativeFeasibilityApp, { target });") &&
   !activeEntry.includes('import App from "./App.svelte";'),

@@ -38,7 +38,7 @@ tokens, profile copies or private worlds are stored in Git.
 | Root | State / reason |
 | --- | --- |
 | apps/desktop/src/App.svelte and legacy app/surfaces, dialogs | UNMOUNTED; VMware wizard and VM controls not available to user |
-| Tauri commands/virtual_clients.rs, setup_tools.rs, window_arrangement.rs | NOT REGISTERED in desktop IPC; old layout assumes VMware |
+| Tauri commands/virtual_clients.rs, setup_tools.rs, window_arrangement.rs | NOT REGISTERED and NOT DECLARED in the native desktop's Rust module tree; old source retained for reversible legacy support |
 | engine/runtime-core/src/runtime.rs and provider/workstation.rs, fusion.rs, vmx.rs, storage.rs | VM MUTATIONS PAUSED at public command boundary |
 | engine/runtime-core/src/provider/app_sandbox_pilot.rs | POWER/DISPLAY ACTIONS PAUSED; explicit inspect remains read-only |
 | engine/guest/windows/, Base preparation and Guest Agent | LEGACY BUILD-ONLY; installed guest binaries not modified |
@@ -46,6 +46,8 @@ tokens, profile copies or private worlds are stored in Git.
 | experiments/gpu-pv-migration-design.md | RESEARCH ARCHIVE, no production provider migration |
 | engine/distribution/ and existing NSIS resources | COMPATIBILITY PRESERVED; old release assets still embed VM Guest Agent and scripts |
 | apps/desktop/scripts/prepare-package-binaries.mjs | PACKAGE BLOCKED while NativeFeasibilityApp is mounted; fails before building/staging old guest binaries |
+
+The active desktop `commands/mod.rs` now declares only `native_clients`. Its `engine/mod.rs` declares only `app_instance`, `dpi`, `native_clients` and `screen_overlay` (shutdown still called during app close). This excludes unused legacy Tauri modules from native desktop compilation without deleting their files, tests, historical data or the legacy runtime-core dependency. Desktop-only legacy Rust tests will not be compiled while those modules are excluded; this is not proof that the old VMware implementation remains buildable.
 
 The pause list at command.rs blocks actions, stage-update, register-base,
 open-base-finalization, provision, reprovision, verify-identities, start,
@@ -115,9 +117,7 @@ through reviewed source and real package execution:
 This is a release-isolation specification, not authorization to rename
 the current production identifier or implement another packaging system.
 The current source pilot can still be developed and statically reviewed
-without an installer. Old core runtime and VM libraries remain compiled
-in existing dependency graphs, so reduced package/RAM/storage size is
-not yet demonstrated.
+without an installer. The old Tauri command/setup/window modules are excluded from the active Rust desktop module graph, but `virtual-clients-core` still compiles its legacy runtime and provider tree. Reduced package/RAM/storage size is **not yet demonstrated**.
 
 ## Deletion criteria — not yet met
 
