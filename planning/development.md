@@ -1,5 +1,13 @@
 # Current Development Handoff
 
+## Pre-localtest operator-guide and ownership reconciliation — 2026-10-14
+
+- **Scope:** source/docs-only correction for the approved native + Sandboxie two-client pilot. The mounted entry point is `apps/desktop/src/main.ts` → `CompactManagerApp.svelte`; sandbox inspection cannot authenticate Client 01.
+- **Confirmed defects:** `docs/validation/native-pilot-localtest.md` still instructed obsolete UI actions and used `REFRESH STATUS`. `docs/system/implementation-map.md` named unmounted legacy VMware UI/overlay modules as though they owned active navigation.
+- **Change:** align the existing Windows acceptance procedure to Check status → Set up/Browse/licence → Minecraft 01 Open → Minecraft 02 Open → Check status → actual account/world observations; correct active/legacy ownership labels. Extend the existing Compact Manager regression to cover the second operator document and active source map; no new verifier, provider, IPC or installer route.
+- **Proof:** REMOTE_GITHUB exact-ref code/guide review and authored static/Vitest assertions; Vitest/Svelte/Rust/Windows/Sandboxie/Minecraft **NOT_EXECUTED** in this batch. No REA binary-analysis output claimed.
+- **Next:** upon approved Windows resumption, run `DEV.cmd preflight` on the exact clean `Local` SHA, then `DEV.cmd dev` only if it passes.
+
 ## Native Sandboxie pre-localtest operator route alignment — 2026-10-14
 
 - **Pre-localtest audit:** `Local` includes pinned `apps/desktop/src-tauri/Cargo.lock` and active Svelte `CompactManagerApp.svelte`. `tooling/windows-toolchain/dev.ps1` provides native `DEV.cmd preflight` (exact clean Local SHA, pinned toolchain, npm ci/source tests) and `DEV.cmd dev` (Tauri developer UI); native NSIS packaging is intentionally blocked by `PACKAGE_BLOCKED_NATIVE_FEASIBILITY`.

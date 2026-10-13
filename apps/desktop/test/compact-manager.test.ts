@@ -186,6 +186,32 @@ describe("Compact Manager app source and command boundary", () => {
     expect(guide).not.toContain("click **Launch isolated Client 02**");
     expect(guide).not.toContain("manual **Focus Client 02** button");
   });
+  it("keeps the Windows operator procedure and architecture owner aligned with mounted Compact Manager", () => {
+    const localGuide = readFileSync(new URL("../../../docs/validation/native-pilot-localtest.md", import.meta.url), "utf8");
+    const map = readFileSync(new URL("../../../docs/system/implementation-map.md", import.meta.url), "utf8");
+    const acceptanceSteps = localGuide.split("## B. Two-client manual acceptance sequence")[1]
+      ?.split("## C. Read-only collector")[0] ?? "";
+    expect(entry).toContain('mount(CompactManagerApp, { target });');
+    expect(app).toContain('{busy === "check" ? "Checking…" : "Check status"}');
+    expect(app).toContain('on:click={showClient02MoveDetails}>Move window</button>');
+    expect(localGuide).toContain(".\\DEV.cmd preflight");
+    expect(localGuide).toContain(".\\DEV.cmd dev");
+    for (const control of ["**Check status**", "**Set up**", "**Browse…**", "**Open**", "**Switch to**", "**Move window**"]) {
+      expect(acceptanceSteps).toContain(control);
+    }
+    expect(acceptanceSteps).toContain("**Check status** before Client 02 setup or launch");
+    expect(acceptanceSteps).toContain("does not authenticate Client 01");
+    expect(acceptanceSteps).toContain("do not auto-retry");
+    expect(acceptanceSteps).not.toMatch(/Refresh both clients|Launch Client 0[12]|Launch isolated Client 02|Focus Client 02|Place Left/);
+    expect(localGuide).toContain("CHECK STATUS (CLIENT 02):");
+    expect(localGuide).not.toContain("REFRESH STATUS:");
+    expect(localGuide).toContain("**NOT_EXECUTED** for that revision");
+    expect(map).toContain("Active desktop navigation / transient visual state | `apps/desktop/src/CompactManagerApp.svelte`");
+    expect(map).toContain("Legacy VMware client-owned setup wizard (inactive)");
+    expect(map).toContain("legacy VMware layout/overlay (inactive)");
+    expect(map).toContain("Explicit **Check status** (`-ImageProof`)");
+  });
+
   it("mounts exactly one compact UI with no new native providers", () => {
     expect(entry).toContain('mount(CompactManagerApp, { target });');
     expect(entry).not.toContain("NativeFeasibilityApp");
