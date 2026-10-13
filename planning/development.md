@@ -4,6 +4,16 @@
 **Current work:** `emulator/pre-local-cleanup`; **PAUSED at user request on 2026-10-13**. User will continue repository discussion in ChatGPT; do not resume local runtime tests without explicit instruction.
 **Execution ceiling:** Windows source preflight **PASS** at `e6e9ad22625cf0c5928ee6cf5ee6efb2e503e598`; developer binary/window observed; Refresh confirmation observed in user-supplied screenshot. Sandboxie membership, account isolation, Minecraft gameplay, package and four-client acceptance remain **NOT_EXECUTED / UNKNOWN**. Later documentation commits do not inherit exact-HEAD execution PASS.
 
+## Compact Manager UI design continuation — 2026-10-13
+
+- **Work type:** design-only; no Tauri/Svelte/Rust UI implementation, no local Windows testing resumed.
+- **Product decision:** everyday **Compact Manager**, **not** a testing dashboard. Three main destinations: Instances, Window Layout, Settings; contextual Help & Diagnostics; no Local Test navigation.
+- **Design contracts:** [Compact Manager UX Specification](../docs/product/compact-manager-ux-spec.md) and [Clean Compact Screen Design](../docs/product/compact-manager-screen-design.md). Both are `DRAFT`, not running code or validation evidence.
+- **Visual proof:** an offline standalone HTML/CSS/JS clickable prototype and browser-rendered screen captures were produced in the design conversation; no Tauri IPC, game process or sandbox interaction. The repository holds canonical UX decisions; the standalone prototype was delivered as a conversation artifact, not installed into the product.
+- **Reviewed screens:** Instances rows and UNKNOWN-safe primary actions, contextual per-instance details, 3-step isolated setup, Client 02 Left/Right placement preview, grouped Settings, Help/Error states. Existing Tauri minimum window is 920×620, default 1180×760; design review must respect those dimensions.
+- **Executed checks:** offline browser prototype smoke interactions only; do **not** interpret as actual app/build source verification or Minecraft success.
+- **Next approved discussion:** visual review and refine wording, density, accessibility, future language choices; after design approval implement frontend in batches with one active app shell while preserving native security/IPC boundaries. Localtest remains **PAUSED** unless the user explicitly resumes it.
+
 ## Paused localtest report — 2026-10-13
 
 - **Tested source:** GitHub `Local` / `e6e9ad22625cf0c5928ee6cf5ee6efb2e503e598`.
