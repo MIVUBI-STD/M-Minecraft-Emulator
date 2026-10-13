@@ -228,6 +228,18 @@ Design review must be followed by actual executable tests on a pinned source SHA
 
 **Windows acceptance later, only on explicit user instruction:** exact-SHA dev startup and smoke, real official installed Education app behavior, Sandboxie preparation/membership checks, two independent licensed sessions (manual login), window focus/left-right actions, Fullscreen/maximize/minimize, DPI/monitor changes, crash/timeout ambiguity, manager close/reopen. Source build and browser prototype never prove gameplay or package compatibility.
 
+### Source-only executable-picker error resolution — 2026-10-14
+
+An explicitly successful executable selection resolves only a previous
+`UiIssue.origin = "executable-picker"` UI error. The error tag is set by
+the file-picker catch handler, not inferred from free-form backend messages.
+A cancelled/empty selection preserves previous errors, and any ambiguous
+Open, inspection, Focus or Move error remains until its own relevant check.
+Different executable selection continues to require licence confirmation;
+a file choice does not establish Microsoft signing, successful launch or
+playable gameplay. This is source-level presentation behavior with authored
+regressions, not Windows/Vitest/Svelte execution evidence.
+
 ### Source-only inline Move navigation revision — 2026-10-14
 
 The contextual **Move window** button inside Client 02 About details previously

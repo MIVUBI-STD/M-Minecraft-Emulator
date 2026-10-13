@@ -1,5 +1,13 @@
 # Current Development Handoff
 
+## Executable-picker error provenance — 2026-10-14
+
+- **Source finding:** successful `selectMinecraft()` kept its earlier file-picker error visible. Cancel already preserved it appropriately; launch/inspection failure must also be preserved when a file is selected.
+- **Correction:** optional `UiIssue.origin = "executable-picker"` set solely by file-picker catch; pure `shouldClearPickerIssue` predicate clears only that error after a non-empty picker selection. No free-form Rust error classification or backend changes. Selecting a different path still resets the existing licence confirmation.
+- **Proof:** exact GitHub source review, authored Vitest/static regressions, bounded V8 predicate checks. Full Node24/Vitest/Svelte/Rust/Windows/Minecraft execution remains NOT_EXECUTED and localtest PAUSED.
+- **Next:** inspect committed source and optional V8 mocked-picker behavior, then stop; no imaginary G0 PASS.
+
+
 ## Inline Move navigation revision hardening — 2026-10-14
 
 - **Confirmed first wrong owner:** `apps/desktop/src/CompactManagerApp.svelte`. The inline Client 02 `Move window` control wrote `detailMode = "move"` directly, without increasing the UI navigation revision that protects against late IPC responses. A pending Focus request could later reject and hijack the newly selected panel, because it still matched the old revision.

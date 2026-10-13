@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import {
   client02Presentation, focusCandidate, rowPresentation,
-  safeErrorDetails, setupInstruction,
+  safeErrorDetails, setupInstruction, shouldClearPickerIssue,
 } from "../src/app/presentation/compactManager.js";
 import type { IsolatedClientObservation } from "../src/app/bridge/nativeFeasibilityApi.js";
 
@@ -91,6 +91,23 @@ describe("Compact Manager projections", () => {
   it("gives user-owned setup steps without claiming configuration automation", () => {
     expect(setupInstruction({ ...inspected(), boxConfigured: "NO", boxSettingsSource: "UNKNOWN", credentialHostAccess: "UNKNOWN" }).text).toContain("Sandboxie Plus");
     expect(setupInstruction({ ...inspected(), autoDelete: "ON" }).title).toContain("sandbox data");
+  });
+  it("resolves only picker-origin errors when an executable is selected", () => {
+    const pickerIssue = {
+      instance: "02" as const, title: "Couldn't select Minecraft",
+      message: "Choose the official executable.",
+      origin: "executable-picker" as const,
+    };
+    const launchIssue = {
+      instance: "02" as const, title: "Couldn't confirm if Minecraft opened",
+      message: "Inspect the window before retrying.",
+    };
+    const path = "C:/Program Files/Minecraft Education/Minecraft.Windows.exe";
+    expect(shouldClearPickerIssue(pickerIssue, path)).toBe(true);
+    expect(shouldClearPickerIssue(pickerIssue, null)).toBe(false);
+    expect(shouldClearPickerIssue(pickerIssue, "")).toBe(false);
+    expect(shouldClearPickerIssue(launchIssue, path)).toBe(false);
+    expect(shouldClearPickerIssue(undefined, path)).toBe(false);
   });
   it("redacts Windows, forward-slash and macOS-style user directories", () => {
     for (const path of [
@@ -206,6 +223,16 @@ describe("Compact Manager app source and command boundary", () => {
     expect(app).toContain('requestedPanel === "02" && expanded === requestedPanel && detailMode === requestedMode');
     expect(app).toContain('if (selected && page === "instances" && requestRevision === navigationRevision && expanded === "02")');
     expect(app).not.toContain("      issue = null;\n      detailMode = \"setup\";");
+  });
+  it("reconciles only picker-origin feedback and preserves ambiguous outcomes", () => {
+    const picker = app.split("async function selectMinecraft()")[1]?.split("async function openMinecraft02()")[0] ?? "";
+    expect(picker).toContain('shouldClearPickerIssue(issues["02"], selected)');
+    expect(picker).toContain('issues = { ...issues, "02": undefined };');
+    expect(picker).toContain('requestRevision, "executable-picker");');
+    expect(picker).not.toContain('clearFeedback("02")');
+    const report = app.split("function reportIssue(")[1]?.split("async function checkStatus()")[0] ?? "";
+    expect(report).toContain('origin?: UiIssue["origin"]');
+    expect(report).toContain('...(origin ? { origin } : {})');
   });
   it("retains canceled file-picker errors until actual reinspection", () => {
     const picker = app.split("async function selectMinecraft()")[1]?.split("async function openMinecraft02()")[0] ?? "";

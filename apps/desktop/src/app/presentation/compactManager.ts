@@ -21,6 +21,12 @@ export interface UiIssue {
   title: string;
   message: string;
   details?: string;
+  // UI picker provenance only: not a machine/runtime verdict.
+  origin?: "executable-picker";
+}
+
+export function shouldClearPickerIssue(issue: UiIssue | undefined, selected: string | null): boolean {
+  return Boolean(selected) && issue?.origin === "executable-picker";
 }
 export interface UiNotice {
   instance: InstanceId;

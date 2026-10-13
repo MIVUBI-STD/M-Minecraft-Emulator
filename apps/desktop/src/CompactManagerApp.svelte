@@ -11,6 +11,7 @@
     rowPresentation,
     safeErrorDetails,
     setupInstruction,
+    shouldClearPickerIssue,
     type InstanceId,
     type UiIssue,
     type UiNotice,
@@ -130,8 +131,12 @@
     notices = { ...notices, [instance]: undefined };
   }
 
-  function reportIssue(instance: InstanceId, title: string, message: string, error: unknown, requestRevision: number) {
-    issues = { ...issues, [instance]: { instance, title, message, details: error === undefined ? undefined : safeErrorDetails(error) } };
+  function reportIssue(instance: InstanceId, title: string, message: string, error: unknown, requestRevision: number, origin?: UiIssue["origin"]) {
+    issues = { ...issues, [instance]: {
+      instance, title, message,
+      details: error === undefined ? undefined : safeErrorDetails(error),
+      ...(origin ? { origin } : {}),
+    } };
     notices = { ...notices, [instance]: undefined };
     // Do not replace a detail panel owned by the other client.
     if (page === "instances" && requestRevision === navigationRevision &&
@@ -191,6 +196,11 @@
         selectedExecutable = selected;
         licenseConfirmed = false;
       }
+      // Only a prior picker failure is resolved by choosing a file; ambiguous
+      // launch/inspection errors remain until a relevant recheck.
+      if (shouldClearPickerIssue(issues["02"], selected)) {
+        issues = { ...issues, "02": undefined };
+      }
       // Cancelled picker is not evidence that a previous issue was resolved.
       // A completed picker must not redirect a different newly opened panel.
       if (selected && page === "instances" && requestRevision === navigationRevision && expanded === "02") {
@@ -198,7 +208,7 @@
       }
     } catch (error) {
       reportIssue("02", "Couldn't select Minecraft",
-        "Choose the official Minecraft Education Desktop executable.", error, requestRevision);
+        "Choose the official Minecraft Education Desktop executable.", error, requestRevision, "executable-picker");
     } finally {
       busy = "";
     }
