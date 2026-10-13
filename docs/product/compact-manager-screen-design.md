@@ -15,6 +15,41 @@ lifecycle: DRAFT
 **Visual references:** M-TranslateIT for dark neutral tokens and labeled navigation, M-LazyBuilder for operational error recovery, Prism Launcher and BlueStacks for instance-first workflows, Windows/Fluent guidelines for desktop accessibility and content density.
 **Prototype:** A standalone, offline interactive HTML/CSS/JS design prototype was produced for review in the ChatGPT conversation. It is NOT a GitHub production application or a backend-connected build.
 
+## Design revision v2 — concise Indonesian-first UI (2026-10-13)
+
+**Priority:** short, familiar, understandable labels for everyday users. This section supersedes v1 presentation wording and any conflicting visual recommendations below. It is design guidance only; runtime constraints and validation claims remain unchanged.
+
+### What changed
+- The main navigation now uses **Minecraft**, **Tata Jendela**, **Pengaturan**, with **Bantuan** in the navigation footer. `Minecraft` is the first and default screen. Do not add Overview, Local Test, Status Dashboard or VM controls.
+- Remove duplicated `Instances` headings, kicker/tagline, `Available instances` label, fake running metrics, 03/04 roadmap card, permanent descriptions of the pilot and other repeated introductory text.
+- Main page: **Minecraft** → one short sentence `Buka dan kelola Minecraft di komputer ini.` → **Periksa status** → two compact rows → one qualified `last inspection` sentence.
+- Per row, keep only **Minecraft 01 / 02**, short environment **Di komputer ini / Terisolasi**, one truthful observation label, and one actionable button. `···` contains only supported secondary actions. Avoid generic status icons as the sole information.
+- Primary labels: **Buka**, **Periksa**, **Siapkan**, **Tampilkan**. Specific confirmations/errors must explain their actual effect; `Buka` only submits a launch request, `Tampilkan` requires validated Client 02 window identity.
+- Primary statuses: **Belum diperiksa**, **Perlu disiapkan**, **Status belum pasti**, **Jendela ditemukan**. If last inspection had no boxed candidate, say `Tidak ditemukan saat diperiksa` (not live `Stopped`). An observed candidate is never proof of playable Minecraft or Microsoft sign-in.
+- An error expands **under the affected Minecraft 02 row**, e.g. `Belum bisa memastikan kondisi Minecraft 02.` plus **Lihat solusi**; no full-page warning banner. Technical fields are behind **Informasi teknis**.
+- Details panel: just `Jenis`, `Status`, `Login & permainan`, one short context explanation and supported actions. Do not repeat pilot limitations on every surface.
+- Setup is three concise steps: **Temukan Minecraft → Siapkan lingkungan → Periksa kesiapan**. User-visible instructions are short; Sandboxie settings are described only in their relevant step/technical details.
+- Layout screen: **Tata Jendela**, preview `Minecraft 02` left/right, **Di kiri / Di kanan** and **Terapkan**. Client 01 is not repositioned by the current active backend.
+- Settings: **Instalasi Minecraft**, **Posisi jendela**, **Informasi teknis**. Do not present unimplemented theme/language preferences as functional toggles. Localized Indonesian prototype does not imply runtime i18n exists.
+
+### Visual density and readability
+- No decorative hero sections or KPI cards. Compact 88 px rows, ~46 px muted monitor icon, main body text >= 12 px in the current first-pass prototype.
+- Quiet charcoal surfaces, thin borders, neutral primary control; semantic color only for verified statuses, always accompanied by text.
+- Primary button stays at the right of each row; overflow is separate. Consistent spacing and no stacked explanatory paragraphs in the main list.
+- Current Tauri minimum **920×620** is a required validation target. Standalone prototype browser smoke passed at both 1180×760 and 920×620 with no horizontal overflow or page JavaScript errors. Those tests are NOT Svelte/Tauri or Minecraft proof.
+- All demo controls are explicitly labeled as **pratinjau**, never represented as connected to Windows processes or Minecraft.
+
+### Design acceptance — production implementation has NOT run
+1. User recognizes which Minecraft to open without reading a technical explanation.
+2. Main page shows at most one primary action per instance.
+3. No fake Start, Focus or Stop; no auto launch retry; no false `running` or gameplay label.
+4. Unknown status remains unknown, with safe next step near the row.
+5. Native Minecraft 01 remains independently usable while boxed Client 02 is unconfigured.
+6. All labels fit the current minimum Tauri size; keyboard focus and error explanations remain accessible.
+7. The frontend uses one localization catalog before supporting user-selectable language; do not scatter Indonesian strings through backend contracts.
+
+**Artifact handoff:** `compact-manager-clean-v2.html` standalone clickable browser design and its screenshots were supplied in the design conversation, not integrated into Tauri or uploaded into GitHub. The authoritative next implementation must translate these interaction rules into Svelte components, not copy demo state or simulated controls.
+
 ## 1. Product identity and non-goals
 
 The app's durable purpose is **daily management of legitimate Minecraft Education Windows Desktop instances**, eventually four independent licensed game sessions. Never present the product as a test runner or developer tool. `Local Test`, `Dev Mode`, `PID Membership`, `GAMEPLAY NOT VERIFIED` and `Sandboxie Pilot` are NOT main navigation items or persistent marketing banners. Source-level feasibility limitations remain documented and can appear where an actual operation depends on them.
