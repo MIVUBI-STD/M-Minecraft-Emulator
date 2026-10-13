@@ -4,6 +4,18 @@
 **Current work:** `emulator/pre-local-cleanup`; active **Minecraft Instance Manager** native + Sandboxie feasibility pilot.
 **Execution ceiling:** exact-HEAD Node/Svelte/Rust/PowerShell tests, Windows binary, Sandboxie session and Minecraft gameplay are **NOT_EXECUTED**. A committed regression is not an executed PASS.
 
+## Windows preflight assertion correction (2026-10-13)
+
+Actual Windows preflight at `9da075fd6b89d9c5ca8dac0b6461a366913c0998`
+failed in desktop Vitest because the collector stdin guard searched the entire
+native engine, including the separate launch script. The guard now checks only
+`inspect_sandbox_client_02_mode`, including its stdin runner, payload and bootstrap.
+All 85 desktop tests passed on Windows with Node 24.21.0 / npm 11.19.0 after
+the correction. npm uses a session-only prefix; global tools were not replaced.
+The prior ignored preflight manifest records FAIL, not PASS. Full clean-commit
+preflight, Rust/Tauri builds, UI and Minecraft remain unproven for this correction.
+Next: run `DEV.cmd preflight` on the committed corrected Local revision.
+
 ## Selected product scope
 
 - **Goal:** four independent, licensed, concurrently playable Windows Minecraft Education clients on one PC.

@@ -157,12 +157,15 @@ describe("Native candidate IPC evidence", () => {
     expect(active).toContain("observation = await nativeFeasibility.inspectIsolatedClient02()");
     expect(active).not.toContain("nativeFeasibility.inspectCandidates()");
     expect(engine).toContain('["& {\\n", INSPECT, "\\n} -SummaryOnly"].concat()');
-    expect(engine).toContain("bounded_command_output_with_stdin(");
-    expect(engine).toContain("script.as_bytes()");
-    expect(engine).toContain("OpenStandardInput()");
-    expect(engine).toContain("System.IO.StreamReader]::new");
-    expect(engine).toContain("ScriptBlock]::Create");
-    expect(engine).not.toContain('"-Command", script.as_str()');
+    // Only the oversized embedded collector must use stdin; launch is separate.
+    const inspection = engine.match(/fn inspect_sandbox_client_02_mode\([\s\S]*?\n\}/)?.[0];
+    expect(inspection).toBeDefined();
+    expect(inspection).toContain("bounded_command_output_with_stdin(");
+    expect(inspection).toContain("script.as_bytes()");
+    expect(inspection).toContain("OpenStandardInput()");
+    expect(inspection).toContain("System.IO.StreamReader]::new");
+    expect(inspection).toContain("ScriptBlock]::Create");
+    expect(inspection).not.toContain('"-Command", script.as_str()');
     expect(engine).toContain('["& {\\n", INSPECT, "\\n} -SummaryOnly -ImageProof"].concat()');
     expect(engine).toContain("inspect_sandbox_client_02_mode(true, None)");
     expect(engine).toContain("inspect_sandbox_client_02_mode(false, None)");
