@@ -232,6 +232,13 @@ fn drain_output(mut pipe: impl Read, oversized: &AtomicBool) -> io::Result<Vec<u
     let mut output = Vec::new();
     let mut chunk = [0_u8; 8192];
     loop {
+        // A peer reader may have invalidated the entire helper observation.
+        // When this reader can make progress, stop before another read instead
+        // of retaining the worker or consuming additional, useless bytes.
+        // This does NOT cancel an OS read already blocked on an inherited pipe.
+        if oversized.load(Ordering::Acquire) {
+            break;
+        }
         let count = pipe.read(&mut chunk)?;
         if count == 0 {
             break;
@@ -421,6 +428,49 @@ mod tests {
         assert!(overflow.load(Ordering::Acquire));
         // The reader stopped before EOF even though the source had more data.
         assert!(cursor.position() < (super::OUTPUT_LIMIT * 4) as u64);
+    }
+
+    #[test]
+    fn peer_overflow_stops_reader_after_current_read() {
+        use std::sync::atomic::{AtomicBool, Ordering};
+
+        struct PeerOverflowReader<'a> {
+            flag: &'a AtomicBool,
+            reads: usize,
+        }
+
+        impl io::Read for PeerOverflowReader<'_> {
+            fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+                self.reads += 1;
+                assert_eq!(self.reads, 1, "reader must stop before another read");
+                buf[0] = b'x';
+                // Simulate the other pipe crossing its cap during this read.
+                self.flag.store(true, Ordering::Release);
+                Ok(1)
+            }
+        }
+
+        let flag = AtomicBool::new(false);
+        let mut reader = PeerOverflowReader { flag: &flag, reads: 0 };
+        let output = super::drain_output(&mut reader, &flag)
+            .expect("cooperatively cancelled peer reader should return");
+        assert_eq!(reader.reads, 1);
+        assert_eq!(output, b"x");
+        assert!(flag.load(Ordering::Acquire));
+    }
+
+    #[test]
+    fn peer_overflow_prevents_initial_read() {
+        use std::sync::atomic::AtomicBool;
+        struct NeverRead;
+        impl io::Read for NeverRead {
+            fn read(&mut self, _: &mut [u8]) -> io::Result<usize> {
+                panic!("cancelled reader must not issue a blocking read");
+            }
+        }
+
+        let flag = AtomicBool::new(true);
+        assert!(super::drain_output(NeverRead, &flag).unwrap().is_empty());
     }
 
     #[test]

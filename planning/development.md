@@ -4,7 +4,15 @@
 **Current work:** `emulator/source-hardening` (additional source-only audit and corrections; local testing explicitly deferred).
 **Engineering state:** source prototype / **exact-HEAD Node/Svelte/Rust/PowerShell execution, Windows build and two-account gameplay NOT_EXECUTED**.
 
-## Latest source-hardening batch — bounded overflow reader retirement
+## Latest source-hardening batch — cooperative peer-reader stop
+
+- **First wrong owner:** `engine/runtime-core/src/provider/process.rs`. When stdout exceeded its cap, the peer stderr reader was informed indirectly via an atomic flag, but `drain_output` did not inspect that flag and could continue consuming unneeded output until its own EOF or size cap. The same applied with stdout/stderr reversed.
+- **Source correction:** Check the existing shared overflow flag **before each subsequent read** in both output workers. A peer already invalidated by overflow now stops consuming additional bytes as soon as its current `read` returns. This reuses the existing signal and 24-worker ceiling; it adds no threads, polling processes, public IPC, new dependencies or VM/guest mutations.
+- **Regression authored:** A deterministic fake reader signals peer overflow mid-read and proves there is no second read. A second fake panics if an already-cancelled reader is called, verifying pre-read refusal. Existing overflow and timeout tests are retained.
+- **Proof ceiling:** Exact source and regression definitions inspected; Rust/Windows execution and Minecraft gameplay remain **NOT_EXECUTED**. A reader **already blocked inside an OS pipe read** can still remain there if a descendant retains the handle. This patch does **not** claim kernel-level I/O cancellation or complete thread reclamation.
+- **Next bounded action:** Verify the latest Rust tests on an executable toolchain and use an actual inherited-handle reproducer before choosing Windows-specific cancellation; avoid speculative process-tree termination.
+
+## Previous source-hardening batch — bounded overflow reader retirement
 
 - **First wrong owner:** `engine/runtime-core/src/provider/process.rs`. After passing the 64 KiB output cap, readers continued consuming a potentially unbounded stream until EOF. This could keep a worker occupied unnecessarily and leave it tied to descendant-inherited pipe handles even though the result was already invalid.
 - **Source correction:** Each reader retains only the existing 64 KiB + sentinel and closes its pipe immediately on overflow. A shared atomic overflow signal allows the supervising thread to refuse the result and terminate **only its directly owned helper**; after direct-child exit, the other stream also stops waiting when its peer has overflowed. Existing normal-output, process-reaping, worker-slot ceiling and legacy provider boundaries remain unchanged.
