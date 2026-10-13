@@ -1,5 +1,14 @@
 # Current Development Handoff
 
+## Credential-free compatibility candidate — 2026-10-14
+
+- **Active user request:** repair Client 02 login through usable two-account gameplay. The existing MinecraftClient02 game/configuration remains unchanged pending the explicit isolation decision and normal game closure requested from the operator.
+- **Executed candidate evidence:** an ignored C++/WinRT probe built with installed Windows SDK headers performs Microsoft provider discovery only. It passes on the host, returns `0x80070424` in MinecraftClient02, and passes in the separate account-free `MinecraftBrokerDiagnostic` box with `NoSecurityIsolation=y`, `Template=OpenCOM` and `DropAdminRights=y`. TokenBrokerInternal activation also passes in that diagnostic compartment. These are compatibility probes, not signed-in game evidence.
+- **Adapter qualification:** the .NET probe terminated during provider discovery in the diagnostic mode, so that result is not treated as a Minecraft failure or acceptance verdict; the SDK C++ probe distinguishes the candidate's successful native WinRT path. SbieApi_GetMessage was refused with ACCESS_DENIED; no elevated retry or broad/raw authentication log capture was performed.
+- **Reviewable change:** append only the installed official OpenCOM template and set NoSecurityIsolation/DropAdminRights on MinecraftClient02 after the operator's decision. Existing AutoDelete/AutoRemove/OpenCredentials/OpenProtectedStorage remain OFF; no host token copy or account automation. A metadata-only backup of the affected keys is retained in ignored local evidence for rollback. The diagnostic box contains no game or account login and was not deleted.
+- **Material tradeoff:** Application Compartment bypasses several standard security-isolation mechanisms; OpenCOM opens host COM/RPC infrastructure. File/registry virtualization is not a security boundary or independent Windows account. See [vendor mode documentation](https://sandboxie-plus.github.io/sandboxie-docs/Content/NoSecurityIsolation/). User consent for this changed isolation mode is pending; legal supporter/usage eligibility remains operator-provided, not verified by a short probe.
+- **Next:** after the requested explicit decision and normal Client 02 closure, apply the bounded reversible configuration, rerun native provider discovery in the actual box, then request one game launch and hand manual distinct-account sign-in to the user. Login/world/multiplayer/persistence acceptance remains unverified.
+
 ## TokenBroker activation differential — 2026-10-14
 
 - **User-approved continuation:** narrow diagnosis of the existing Client 02 sign-in failure; no account/configuration mutation or new provider implementation.
