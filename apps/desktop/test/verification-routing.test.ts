@@ -48,6 +48,17 @@ describe("Emulator source verification routing", () => {
     expect(app.scripts["build:app"]).toContain("npm run prepare:package-binaries");
   });
 
+  it("native preflight rejects unsupported Windows hosts and does not package legacy VM resources", () => {
+    const preflight = router.split("function Invoke-NativeSourcePreflight {")[1]
+      ?.split("# One opt-in source/package checkpoint.")[0] ?? "";
+    expect(router).toContain("function Assert-NativePilotHost");
+    expect(preflight).toContain("Assert-NativePilotHost");
+    expect(preflight).toContain("Assert-CleanSourceAtHead -ExpectedSha $sha");
+    expect(preflight).toContain('Invoke-RepositoryNpm -NpmArguments @("run", "verify:source")');
+    expect(preflight).not.toContain('Invoke-RepositoryNpm -NpmArguments @("run", "package:windows")');
+    expect(router).toContain('"preflight" { Invoke-NativeSourcePreflight }');
+  });
+
   it("routes the optional Windows entrypoint through source checks", () => {
     expect(router).toContain("& npm @NpmArguments");
     expect(router).toMatch(/"check"\s*\{ Invoke-RepositoryNpm -NpmArguments @\("run", "verify:source"\) \}/);

@@ -11,12 +11,32 @@ lifecycle: ACTIVE
 
 **Scope:** developer-mode local feasibility check for **one native Minecraft Education Client 01 + one Sandboxie Plus Client 02**, on a **single Windows 10/11 x64 PC**. Does not install/replace the legacy VMware manager. Does not start/delete/reset VMware guests and does not automate Microsoft sign-in. The goal of four independently playable licensed sessions is **NOT PROVEN**.
 
+## Quick start — first Windows session
+
+For a new checkout, open PowerShell 7 in a normal developer folder and run:
+
+```powershell
+git clone --branch Local --single-branch https://github.com/MIVUBI-STD/M-Minecraft-Emulator.git
+cd M-Minecraft-Emulator
+.\DEV.cmd preflight
+```
+
+For an existing checkout, inspect `git status --short` first, preserve any local edits, then use `git switch Local` and `git pull --ff-only origin Local`. Never run `git reset --hard` as a troubleshooting shortcut.
+
+**Stop at the first failed stage.** If preflight passes, run the developer UI in a terminal at the same repository root:
+
+```powershell
+.\DEV.cmd dev
+```
+
+This developer mode does not install/replace the old VMware manager.
+
 ## A. Before starting (stop on failures)
 
 1. Use **branch `Local`** at a known commit (prefer latest reviewed `Local`). Confirm the checkout is clean with `git status --short` and record `git rev-parse HEAD`. Source changes or untracked edits can invalidate exact-head verification.
-2. Install development prerequisites matching `toolchain.json`: Node **24.21.0**, bundled npm **11.19.0**, Rust **1.98.1** with rustfmt and **x86_64-pc-windows-msvc** host, and PowerShell **7+** for the optional `DEV.cmd` launcher. Windows desktop build prerequisites must be installed; use the existing `docs/system/development-operations.md`.
-3. Use an official, installed **Minecraft Education Windows Desktop** build, not copied binaries or mixed Microsoft Store + Desktop editions. Have **two distinct properly entitled Education accounts** ready for manual sign-in. Do not place usernames, tokens, passwords, world files or screenshots exposing identities in Git.
-4. Use a legitimately licensed Sandboxie Plus installation in the applicable environment. Create **one clean, persistent, enabled** box named exactly `MinecraftClient02` in Sandboxie Plus. Keep **AutoDelete**, **AutoRemove** and credential-bypass/protected-storage settings disabled; do not clone existing account data. The manager does **not** provision the box or its license. Check effective settings in Sandboxie Plus, including templates.
+2. Install [Node **24.21.0** with bundled npm **11.19.0**](https://nodejs.org/en/download/archive/v24.21.0), Rust **1.98.1** with rustfmt and **x86_64-pc-windows-msvc** host, [PowerShell **7+**](https://learn.microsoft.com/en-us/powershell/scripting/install/install-powershell-on-windows) and Git. For Tauri, ensure [MSVC Desktop development with C++ and WebView2](https://v2.tauri.app/start/prerequisites/) are available. The toolchain doctor checks exact language versions; only a real build establishes linker/SDK compatibility.
+3. Use an [official Minecraft Education Windows Desktop installation](https://edusupport.minecraft.net/hc/en-us/articles/13106858087956-Windows-Installation-Guide), not copied binaries or mixed Microsoft Store + Desktop editions. Have **two distinct properly entitled Education accounts** ready for manual sign-in. Do not place usernames, tokens, passwords, world files or screenshots exposing identities in Git.
+4. Use a legitimately licensed [Sandboxie Plus installation](https://sandboxie-plus.com/downloads/) in the applicable environment. Check the vendor's business/educational certificate requirements where applicable. Create **one clean, persistent, enabled** box named exactly `MinecraftClient02` in Sandboxie Plus. Keep **AutoDelete**, **AutoRemove** and credential-bypass/protected-storage settings disabled; do not clone existing account data. The manager does **not** provision the box or its license. Check effective settings in Sandboxie Plus, including templates.
 
 ### Source verification (repository root)
 
@@ -24,19 +44,21 @@ lifecycle: ACTIVE
 .\DEV.cmd preflight
 ```
 
-**Stop if this command fails.** `DEV.cmd preflight` confirms a clean committed `Local` SHA, checks pinned developer tools and the tracked Cargo lockfile, installs locked desktop npm dependencies, runs root `npm run verify:source`, and rechecks that tracked source/HEAD did not change. It does not open the desktop or package the application. If a stage fails, keep the first error and SHA; do not retry by disabling checks. The source verifier runs repository rules, evidence evaluator tests, frontend Svelte/TypeScript/Vitest/build checks, Rust checks/tests/format. A Git commit or an authored test is *not* evidence of a passing command. A clean verification result does not prove Minecraft playability.
+**Stop if this command fails.** `DEV.cmd preflight` prints four numbered stages, rejects unsupported Windows hosts, and confirms a clean committed `Local` SHA, checks pinned developer tools and the tracked Cargo lockfile, installs locked desktop npm dependencies, runs root `npm run verify:source`, and rechecks that tracked source/HEAD did not change. It does not open the desktop or package the application. If a stage fails, keep the first error and SHA; do not retry by disabling checks. The source verifier runs repository rules, evidence evaluator tests, frontend Svelte/TypeScript/Vitest/build checks, Rust checks/tests/format. A Git commit or an authored test is *not* evidence of a passing command. A clean verification result does not prove Minecraft playability.
 
 **Do not use** `npm run package:windows`, `npm run build:app`, `DEV.cmd package` or `DEV.cmd g0` to obtain an installer: those legacy VMware packaging paths are deliberately blocked while this native pilot is active.
 
 ### Start the developer-mode application
 
 ```powershell
-npm run dev
+.\DEV.cmd dev
 ```
 
 This runs the desktop development UI, **not** the release installer or a virtual machine. Leave the developer console visible; record only generic error classifications and timings. Do not edit game executables, profiles, or credential storage.
 
 ## B. Two-client manual acceptance sequence
+
+Start with a short smoke test: verify that the manager opens, then Client 01, then the independent Client 02 window, then distinct licensed sign-ins and playable worlds. Attempt multiplayer, restart persistence and long-duration performance only after this basic sequence succeeds. The controller does not automatically verify account identities or game playability.
 
 | Step | Action | Expected observation | Decision |
 | --- | --- | --- | --- |
@@ -75,6 +97,25 @@ For a manually confirmed two-game report, follow the existing commands in [Sandb
 | Installer request | Existing package path is deliberately blocked. Only developer mode is supported for this pilot. |
 
 ## E. Evidence handoff — no secret data
+
+When reporting the **first** error, send a short manually redacted report instead of raw logs or account details:
+
+```text
+COMMIT SHA:
+WINDOWS: 10/11 x64
+PREFLIGHT: PASS / FAILED / NOT_RUN
+FAILED STAGE: 1/4, 2/4, 3/4, 4/4 or NONE
+FIRST ERROR: <failing command + redacted error>
+DEV UI OPENS: YES / NO / NOT_TESTED
+REFRESH STATUS: OBSERVED / UNKNOWN / ERROR / NOT_TESTED
+CLIENT 01 PLAYABLE: YES / NO / NOT_TESTED
+CLIENT 02 WINDOW: YES / NO / UNKNOWN / NOT_TESTED
+SEPARATE ACCOUNT SESSIONS: YES / NO / UNKNOWN / NOT_TESTED
+```
+
+Do not share usernames, access tokens, IP addresses, full filesystem paths containing personal names, private worlds, or screenshots with visible account identities. A source preflight PASS does not establish successful multi-instance gameplay.
+
+
 
 Record the exact SHA, Windows version, official Minecraft version, Sandboxie version, app/toolchain versions, elapsed time for Refresh and launch, observed window count, world responsiveness, distinct-account outcome as **YES/NO/UNKNOWN** (no identities), multiplayer result, persistence result, approximate CPU/RAM/GPU measurements, reproducible error message, and whether the observation is **machine-observed** or **operator-reported**.
 

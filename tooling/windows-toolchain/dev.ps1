@@ -47,6 +47,19 @@ function Assert-CleanSourceAtHead {
     }
 }
 
+function Assert-NativePilotHost {
+    if (-not $IsWindows) {
+        throw "Native Minecraft local test requires Windows 10 or 11 x64."
+    }
+    if ([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture -ne
+        [System.Runtime.InteropServices.Architecture]::X64) {
+        throw "Native Minecraft local test requires x64 Windows, not ARM64/x86."
+    }
+    if ([Environment]::OSVersion.Version.Major -lt 10) {
+        throw "Native Minecraft local test requires Windows 10 or 11."
+    }
+}
+
 function Test-DeveloperToolchain {
     param([switch]$AllowMissingDesktopLock, [switch]$RustOnly)
     $toolchain = Get-Content (Join-Path $Root "toolchain.json") -Raw | ConvertFrom-Json
@@ -181,21 +194,27 @@ function Assert-BuiltWindowsPackage {
 # intentionally blocked legacy VMware G0 packaging route. Installs only locked
 # developer dependencies and produces ordinary ignored build artifacts.
 function Invoke-NativeSourcePreflight {
+    Write-Host "[1/4] Checking Windows x64 and clean committed Local HEAD..."
+    Assert-NativePilotHost
     $sha = Assert-LocalCheckout
     Assert-CleanSourceAtHead -ExpectedSha $sha
-    Test-DeveloperToolchain
 
+    Write-Host "[2/4] Checking exact toolchain versions and tracked Cargo lockfile..."
+    Test-DeveloperToolchain
     & git ls-files --error-unmatch -- $DesktopLock *> $null
     if ($LASTEXITCODE -ne 0) {
         throw "Native source preflight requires a tracked desktop Cargo.lock at the committed Local HEAD."
     }
-
     Write-Host "Native source preflight SHA: $sha"
+
+    Write-Host "[3/4] Installing locked developer npm dependencies..."
     Invoke-RepositoryNpm -NpmArguments @("run", "setup")
+    Write-Host "[4/4] Executing all source checks, without packaging or launching games..."
     Invoke-RepositoryNpm -NpmArguments @("run", "verify:source")
     Assert-CleanSourceAtHead -ExpectedSha $sha
 
-    Write-Host "Source verification completed for $sha."
+    Write-Host "SOURCE PREFLIGHT COMPLETE for $sha (not Minecraft acceptance)."
+    Write-Host "NEXT: .\DEV.cmd dev  (manual UI test; no legacy installer)"
     Write-Host "No installer, VM, Sandboxie process, licensed sign-in or Minecraft session was tested."
 }
 

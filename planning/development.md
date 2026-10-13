@@ -52,6 +52,10 @@ Inactive Tauri VMware command and layout modules were excluded from the active d
 6. **P1 — release path:** an isolated native prototype installer, package manifest, coexistence, upgrades and uninstall preservation are not approved; the old VMware NSIS release hold remains.
 7. **P2 — legacy reduction:** after feasibility, measure dependency graph and trace reachability; retire legacy files in reviewable, reversible commits without deleting VMs/worlds or installed identity.
 
+## First Windows session (source-prepared, NOT_EXECUTED)
+
+The native `DEV.cmd preflight` now shows four stages, checks Windows 10/11 x64 explicitly before running external source tasks, and prints one next developer-mode command. The localtest guide provides official prerequisite links, a clean-`Local` clone path, a short staged smoke test, and a minimal redacted first-error report. These changes are source-authored and are **not** proof of successful Windows compilation or two licensed Minecraft sessions.
+
 ## Stop rule and next action
 
 **Source cleanup complete does not mean product acceptance.** The next necessary evidence is exact-SHA `DEV.cmd preflight` execution on the supported Windows toolchain, with first failing command and tool versions recorded, followed by the ordered [two-client manual procedure](../docs/validation/native-pilot-localtest.md) only after source checks pass. Do not run `DEV.cmd g0` or `npm run package:windows` for this pilot.
