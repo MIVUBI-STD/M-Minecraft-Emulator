@@ -161,6 +161,13 @@ describe("Compact Manager app source and command boundary", () => {
     expect(app).toContain('event.key !== "Escape"');
     expect(app.match(/on:click={closeDetails}>Close details/g)).toHaveLength(2);
   });
+  it("does not close or replace the other client's open issue details", () => {
+    const inspector = app.split("async function checkStatus()")[1]?.split("async function openMinecraft01()")[0] ?? "";
+    expect(inspector).toContain('expanded === "02" && detailMode === "issue") expanded = null;');
+    const issueReport = app.split("function reportIssue(")[1]?.split("async function checkStatus()")[0] ?? "";
+    expect(issueReport).toContain('(expanded === null || expanded === instance)');
+    expect(issueReport).toContain("issues = { ...issues, [instance]");
+  });
   it("tracks instance-local issue/notice feedback, not a shared global message", () => {
     expect(app).toContain("let issues: Partial<Record<InstanceId, UiIssue>> = {}");
     expect(app).toContain("let notices: Partial<Record<InstanceId, UiNotice>> = {}");
@@ -185,7 +192,9 @@ describe("Compact Manager app source and command boundary", () => {
       expect(body).toContain("const requestRevision = navigationRevision;");
       expect(body).not.toMatch(/reportIssue\([\s\S]*?, error\);/);
     }
-    expect(app).toContain('if (page === "instances" && requestRevision === navigationRevision)');
+    expect(app).toContain('if (page === "instances" && requestRevision === navigationRevision &&');
+    expect(app).toContain('(expanded === null || expanded === instance)');
+    expect(app).toContain('expanded === "02" && detailMode === "issue") expanded = null;');
     expect(app).toContain('requestedPanel === "02" && expanded === requestedPanel && detailMode === requestedMode');
     expect(app).toContain('if (selected && page === "instances" && requestRevision === navigationRevision && expanded === "02")');
     expect(app).not.toContain("      issue = null;\n      detailMode = \"setup\";");

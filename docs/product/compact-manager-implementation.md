@@ -228,6 +228,17 @@ Design review must be followed by actual executable tests on a pinned source SHA
 
 **Windows acceptance later, only on explicit user instruction:** exact-SHA dev startup and smoke, real official installed Education app behavior, Sandboxie preparation/membership checks, two independent licensed sessions (manual login), window focus/left-right actions, Fullscreen/maximize/minimize, DPI/monitor changes, crash/timeout ambiguity, manager close/reopen. Source build and browser prototype never prove gameplay or package compatibility.
 
+### Source-only cross-client details on IPC completion — 2026-10-14
+
+After feedback was scoped per instance, the shared inline panel could still
+be dismissed by Client 02 inspection while Client 01's issue was expanded,
+or replaced by an error from a different client. Now only the Client 02
+issue panel may auto-close on Client 02 inspection success, and an issue
+may auto-open only if no panel is expanded or the current panel belongs to
+the same instance. The other client's error remains available via View issue.
+No backend, account, or Minecraft game behavior changed. Regression tests
+are authored, not a compiled UI acceptance claim.
+
 ### Source-only client-specific feedback — 2026-10-14
 
 The active Compact Manager keeps one global UI operation guard, but now stores

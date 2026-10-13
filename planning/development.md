@@ -1,5 +1,13 @@
 # Current Development Handoff
 
+## Cross-client expanded detail isolation — 2026-10-14
+
+- **Source finding:** isolated Check status could close a native Client 01 issue panel because it checked only shared `detailMode`. An incoming issue could also auto-replace the other client's currently open panel.
+- **Fix:** Client 02 inspector only closes an expanded Client 02 issue; error auto-open requires an empty panel or the same instance. Both client errors remain accessible via their own View issue controls.
+- **Proof:** GitHub exact-source/consumer checks and regression assertions authored; no Node24/Vitest/Svelte/Windows/Minecraft execution. Windows localtest remains PAUSED.
+- **Next:** verify source-level cross-client scenarios; avoid unsupported source execution claims.
+
+
 ## Independent Client 01/02 UI feedback — 2026-10-14
 
 - **Source defect:** a single `issue`/`notice` value was shared between both rows. Client 02-only Check status erased Client 01's unresolved native launch feedback, while native Open erased Client 02's error/notice. The Client 02 inspection also projected a misleading Checking status onto native Client 01.

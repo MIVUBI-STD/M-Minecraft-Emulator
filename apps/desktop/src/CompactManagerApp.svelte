@@ -125,8 +125,9 @@
   function reportIssue(instance: InstanceId, title: string, message: string, error: unknown, requestRevision: number) {
     issues = { ...issues, [instance]: { instance, title, message, details: error === undefined ? undefined : safeErrorDetails(error) } };
     notices = { ...notices, [instance]: undefined };
-    // Preserve the issue for View issue, but never hijack a newer user panel.
-    if (page === "instances" && requestRevision === navigationRevision) {
+    // Do not replace a detail panel owned by the other client.
+    if (page === "instances" && requestRevision === navigationRevision &&
+        (expanded === null || expanded === instance)) {
       disclosureTrigger = null;
       expanded = instance;
       detailMode = "issue";
@@ -144,7 +145,9 @@
       observation = result;
       lastCheck = new Date();
       lastCheckIsCurrent = true;
-      if (page === "instances" && requestRevision === navigationRevision && detailMode === "issue") expanded = null;
+      // Client 02 inspection cannot dismiss Client 01's expanded issue.
+      if (page === "instances" && requestRevision === navigationRevision &&
+          expanded === "02" && detailMode === "issue") expanded = null;
     } catch (error) {
       reportIssue("02", "Couldn't check status",
         "The app couldn't confirm the instance status. Review Sandboxie Plus, then check again.", error, requestRevision);
