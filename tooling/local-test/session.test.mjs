@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, symlinkSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync, unlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
@@ -65,4 +65,25 @@ test('refuses symlinked storage instead of escaping to unrelated directories', (
     throw error;
   }
   assert.throws(() => beginPreflight(root, commit), /real directories/);
+});
+
+test('rejects a modified commit identity rather than granting source PASS', (t) => {
+  const root = fixture(t);
+  const folder = beginPreflight(root, commit);
+  const changed = manifest(folder);
+  changed.source.commit = 'b'.repeat(40);
+  writeFileSync(join(folder, 'manifest.json'), JSON.stringify(changed));
+  assert.throws(() => finishPreflight(root, folder, 'PASS', 'complete'), /manifest identity/);
+  assert.equal(manifest(folder).status, 'RUNNING');
+});
+
+test('exclusive finalization prevents a competing process from recording PASS', (t) => {
+  const root = fixture(t);
+  const folder = beginPreflight(root, commit);
+  writeFileSync(join(folder, '.finalize.lock'), 'another finalizer is active', { flag: 'wx' });
+  assert.throws(() => finishPreflight(root, folder, 'PASS', 'complete'), /EEXIST/);
+  assert.equal(manifest(folder).status, 'RUNNING');
+  unlinkSync(join(folder, '.finalize.lock'));
+  finishPreflight(root, folder, 'PASS', 'complete');
+  assert.equal(manifest(folder).status, 'PASS');
 });

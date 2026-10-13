@@ -132,8 +132,8 @@ const activeEngineModules = read("apps/desktop/src-tauri/src/engine/mod.rs");
 requireFact(activeCommandModules.includes("pub mod native_clients;") &&
   !/^\s*pub mod (setup_tools|virtual_clients|window_arrangement);/m.test(activeCommandModules) &&
   activeEngineModules.includes("pub mod native_clients;") &&
-  activeEngineModules.includes("pub mod screen_overlay;") &&
-  !/^\s*pub mod (setup_tools|window_arrangement);/m.test(activeEngineModules),
+  !/^\s*pub mod (setup_tools|window_arrangement|screen_overlay);/m.test(activeEngineModules) &&
+  !activeTauri.includes("screen_overlay::shutdown()"),
   "Legacy desktop Rust modules must remain outside the active native compile graph");
 requireFact(activeEntry.includes('import NativeFeasibilityApp from "./NativeFeasibilityApp.svelte";') &&
   activeEntry.includes("mount(NativeFeasibilityApp, { target });") &&

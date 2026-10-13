@@ -66,7 +66,9 @@ after Windows, branch, pinned toolchain and lockfile checks succeed. It
 records exact commit, UTC timestamps, source-only result and failing phase.
 No console output, account information or host fingerprint is captured
 automatically. Earlier failures may leave no report. An interrupted
-`RUNNING` record is **not a PASS**. This manifest is not an additional
+`RUNNING` record is **not a PASS**. Finalizing a run now requires an exclusive
+local lock and a matching manifest/folder source identity. A stale lock is
+reported as a blocked finalization, never automatically overwritten. This manifest is not an additional
 product acceptance gate or remote telemetry store.
 
 Future manually curated evidence may use these additional fields: schema version, complete 40-character

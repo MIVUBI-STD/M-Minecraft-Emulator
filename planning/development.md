@@ -36,6 +36,22 @@ Use [implementation ownership](../docs/system/implementation-map.md) for older V
 
 The historical source-hardening history, evidence qualifications and per-batch details are retained in [pre-compaction development handoff](https://github.com/MIVUBI-STD/M-Minecraft-Emulator/blob/38aafe6817814b3f25e202d6ff8140d8be5b595f/planning/development.md) and the [REA-aligned baseline](../docs/validation/rea-source-audit-2026-10-13.md). Treat those as pinned history, **not** the present HEAD acceptance verdict.
 
+## Local-test verifier and compiled desktop cleanup (2026-10-13)
+
+Found a real test-contract mismatch: `apps/desktop/test/verification-routing.test.ts`
+still expected the old `verify:source` command list after `test:localtest` was
+added. Corrected the expected route so a source check no longer fails solely
+because the test itself is stale. Hardened the single local-test recorder with
+exclusive finalization, source-folder identity checks and adversarial
+regressions. The screen-overlay implementation remains preserved as source,
+but has been removed from the native pilot's compile graph since no active
+command invoked it. No VM, guest or account data was touched.
+
+The six focused recorder tests were executed and passed with Node 22.16.0
+in an isolated Linux copy of the affected module. Exact repository HEAD,
+Windows PowerShell, Node 24, Tauri/Rust compilation, Minecraft and Sandboxie
+remain NOT_EXECUTED. Continue on source evidence only until target verification.
+
 ## Local-test recording and application ownership (2026-10-13)
 
 `tooling/local-test/session.mjs` now provides one metadata-only

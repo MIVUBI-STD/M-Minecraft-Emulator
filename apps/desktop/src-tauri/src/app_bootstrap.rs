@@ -31,7 +31,6 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("failed to run Minecraft Instance Manager desktop runtime");
-    crate::engine::screen_overlay::shutdown();
 }
 
 fn show_startup_error(message: &str) {

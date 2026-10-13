@@ -47,7 +47,7 @@ tokens, profile copies or private worlds are stored in Git.
 | engine/distribution/ and existing NSIS resources | COMPATIBILITY PRESERVED; old release assets still embed VM Guest Agent and scripts |
 | apps/desktop/scripts/prepare-package-binaries.mjs | PACKAGE BLOCKED while NativeFeasibilityApp is mounted; fails before building/staging old guest binaries |
 
-The active desktop `commands/mod.rs` now declares only `native_clients`. Its `engine/mod.rs` declares only `app_instance`, `dpi`, `native_clients` and `screen_overlay` (shutdown still called during app close). This excludes unused legacy Tauri modules from native desktop compilation without deleting their files, tests, historical data or the legacy runtime-core dependency. Desktop-only legacy Rust tests will not be compiled while those modules are excluded; this is not proof that the old VMware implementation remains buildable.
+The active desktop `commands/mod.rs` declares only `native_clients`. Its `engine/mod.rs` declares only `app_instance`, `dpi`, and `native_clients`. The legacy screen-overlay module was also unmounted: no active command could start it, so its shutdown hook was inert. These changes exclude unused modules from the active native desktop compile graph without deleting their files, tests, historical data or the legacy runtime-core dependency. Desktop-only legacy Rust tests will not be compiled while those modules are excluded; this is not proof that the old VMware implementation remains buildable.
 
 The pause list at command.rs blocks actions, stage-update, register-base,
 open-base-finalization, provision, reprovision, verify-identities, start,
