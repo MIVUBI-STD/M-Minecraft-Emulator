@@ -4,7 +4,7 @@ use std::{
     io::{Read, Write},
     path::Path,
     process::{Child, Command, Stdio},
-    sync::{atomic::{AtomicUsize, Ordering}, mpsc},
+    sync::{atomic::{AtomicBool, AtomicUsize, Ordering}, mpsc, Arc},
     thread,
     time::{Duration, Instant},
 };
@@ -126,19 +126,30 @@ where
         .ok_or_else(|| io::Error::new(io::ErrorKind::Other, "missing stderr pipe"))?;
     let (stdout_sender, stdout_reader) = mpsc::sync_channel(1);
     let (stderr_sender, stderr_reader) = mpsc::sync_channel(1);
+    // An overflowing helper is already invalid evidence. Stop reading it
+    // rather than retaining a worker until an arbitrary descendant closes EOF.
+    let oversized_output = Arc::new(AtomicBool::new(false));
+    let stdout_overflow = Arc::clone(&oversized_output);
+    let stderr_overflow = Arc::clone(&oversized_output);
     let stdout_slot = slots.next().expect("reserved stdout worker slot");
     let stderr_slot = slots.next().expect("reserved stderr worker slot");
     thread::spawn(move || {
         let _slot = stdout_slot;
-        let _ = stdout_sender.send(drain_output(stdout));
+        let _ = stdout_sender.send(drain_output(stdout, &stdout_overflow));
     });
     thread::spawn(move || {
         let _slot = stderr_slot;
-        let _ = stderr_sender.send(drain_output(stderr));
+        let _ = stderr_sender.send(drain_output(stderr, &stderr_overflow));
     });
 
     let started = Instant::now();
     loop {
+        // Never wait for EOF from a stream whose bounded capture already
+        // overflowed. Terminate ONLY our direct helper, not game descendants.
+        if oversized_output.load(Ordering::Acquire) {
+            terminate_direct_child(&mut child, program, "oversized output")?;
+            return Err(oversized_output_error(program));
+        }
         let observed_status = match child.try_wait() {
             Ok(status) => status,
             Err(error) => {
@@ -156,14 +167,13 @@ where
             // A descendant may inherit a pipe even after vmrun exits. Do not
             // block indefinitely waiting for EOF from an unrelated process.
             let remaining = timeout.saturating_sub(started.elapsed());
-            let stdout = receive_output(&stdout_reader, remaining)?;
+            let stdout = receive_output(&stdout_reader, remaining, &oversized_output)?;
             let remaining = timeout.saturating_sub(started.elapsed());
-            let stderr = receive_output(&stderr_reader, remaining)?;
-            if stdout.len() > OUTPUT_LIMIT || stderr.len() > OUTPUT_LIMIT {
-                return Err(io::Error::new(
-                    io::ErrorKind::InvalidData,
-                    format!("{} output exceeded {} bytes per stream; refusing truncated provider evidence", program.display(), OUTPUT_LIMIT),
-                ));
+            let stderr = receive_output(&stderr_reader, remaining, &oversized_output)?;
+            if oversized_output.load(Ordering::Acquire)
+                || stdout.len() > OUTPUT_LIMIT || stderr.len() > OUTPUT_LIMIT
+            {
+                return Err(oversized_output_error(program));
             }
             return require_success(program, status.success(), &stdout, &stderr);
         }
@@ -207,10 +217,18 @@ fn terminate_direct_child(child: &mut Child, program: &Path, context: &str) -> i
     }
 }
 
-// Keep diagnostic memory bounded while still draining arbitrarily verbose tools.
+// Keep diagnostic memory bounded. Oversize output is invalid evidence, so
+// release that pipe promptly rather than draining unbounded producer output.
 const OUTPUT_LIMIT: usize = 64 * 1024;
 
-fn drain_output(mut pipe: impl Read) -> io::Result<Vec<u8>> {
+fn oversized_output_error(program: &Path) -> io::Error {
+    io::Error::new(
+        io::ErrorKind::InvalidData,
+        format!("{} output exceeded {} bytes per stream; refusing truncated provider evidence", program.display(), OUTPUT_LIMIT),
+    )
+}
+
+fn drain_output(mut pipe: impl Read, oversized: &AtomicBool) -> io::Result<Vec<u8>> {
     let mut output = Vec::new();
     let mut chunk = [0_u8; 8192];
     loop {
@@ -218,9 +236,14 @@ fn drain_output(mut pipe: impl Read) -> io::Result<Vec<u8>> {
         if count == 0 {
             break;
         }
-        // Retain one sentinel byte so callers can distinguish truncated output.
+        // Keep one sentinel byte, then close this reader: additional output
+        // cannot make an already-invalid helper result trustworthy again.
         let remaining = (OUTPUT_LIMIT + 1).saturating_sub(output.len());
         output.extend_from_slice(&chunk[..count.min(remaining)]);
+        if output.len() > OUTPUT_LIMIT {
+            oversized.store(true, Ordering::Release);
+            break;
+        }
     }
     Ok(output)
 }
@@ -228,17 +251,35 @@ fn drain_output(mut pipe: impl Read) -> io::Result<Vec<u8>> {
 fn receive_output(
     reader: &mpsc::Receiver<io::Result<Vec<u8>>>,
     timeout: Duration,
+    oversized: &AtomicBool,
 ) -> io::Result<Vec<u8>> {
-    match reader.recv_timeout(timeout) {
-        Ok(result) => result,
-        Err(mpsc::RecvTimeoutError::Timeout) => Err(io::Error::new(
-            io::ErrorKind::TimedOut,
-            "command exited but an output pipe remained open beyond the deadline",
-        )),
-        Err(mpsc::RecvTimeoutError::Disconnected) => Err(io::Error::new(
-            io::ErrorKind::Other,
-            "command output reader exited without a result",
-        )),
+    let started = Instant::now();
+    loop {
+        // A second stream may exceed the cap while the first still has an
+        // inherited open handle. Do not wait out the whole deadline in that case.
+        if oversized.load(Ordering::Acquire) {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "output exceeded provider limit; refusing truncated provider evidence",
+            ));
+        }
+        let remaining = timeout.saturating_sub(started.elapsed());
+        match reader.recv_timeout(remaining.min(Duration::from_millis(100))) {
+            Ok(result) => return result,
+            Err(mpsc::RecvTimeoutError::Timeout) if started.elapsed() >= timeout => {
+                return Err(io::Error::new(
+                    io::ErrorKind::TimedOut,
+                    "command exited but an output pipe remained open beyond the deadline",
+                ));
+            }
+            Err(mpsc::RecvTimeoutError::Disconnected) => {
+                return Err(io::Error::new(
+                    io::ErrorKind::Other,
+                    "command output reader exited without a result",
+                ));
+            }
+            Err(mpsc::RecvTimeoutError::Timeout) => {}
+        }
     }
 }
 
@@ -360,16 +401,37 @@ mod tests {
     #[test]
     fn output_reader_has_bounded_wait_without_eof() {
         let (_sender, receiver) = std::sync::mpsc::sync_channel(1);
-        let error = super::receive_output(&receiver, Duration::from_millis(1)).unwrap_err();
+        let error = super::receive_output(
+            &receiver,
+            Duration::from_millis(1),
+            &std::sync::atomic::AtomicBool::new(false),
+        ).unwrap_err();
         assert_eq!(error.kind(), io::ErrorKind::TimedOut);
     }
 
     #[test]
     fn output_drain_is_bounded_even_for_large_streams() {
+        use std::sync::atomic::{AtomicBool, Ordering};
         let input = vec![b'x'; super::OUTPUT_LIMIT * 4];
-        let output = super::drain_output(std::io::Cursor::new(input)).unwrap();
+        let mut cursor = std::io::Cursor::new(input);
+        let overflow = AtomicBool::new(false);
+        let output = super::drain_output(&mut cursor, &overflow).unwrap();
         assert_eq!(output.len(), super::OUTPUT_LIMIT + 1);
         assert!(output.iter().all(|byte| *byte == b'x'));
+        assert!(overflow.load(Ordering::Acquire));
+        // The reader stopped before EOF even though the source had more data.
+        assert!(cursor.position() < (super::OUTPUT_LIMIT * 4) as u64);
+    }
+
+    #[test]
+    fn inherited_reader_can_be_refused_once_other_stream_overflows() {
+        let (_sender, receiver) = std::sync::mpsc::sync_channel(1);
+        let overflowing = std::sync::atomic::AtomicBool::new(true);
+        let started = std::time::Instant::now();
+        let error = super::receive_output(&receiver, Duration::from_secs(5), &overflowing)
+            .expect_err("an oversized parallel stream must stop waiting for EOF");
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert!(started.elapsed() < Duration::from_secs(1));
     }
 
     #[test]

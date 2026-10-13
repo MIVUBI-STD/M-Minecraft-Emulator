@@ -4,7 +4,15 @@
 **Current work:** `emulator/source-hardening` (additional source-only audit and corrections; local testing explicitly deferred).
 **Engineering state:** source prototype / **exact-HEAD Node/Svelte/Rust/PowerShell execution, Windows build and two-account gameplay NOT_EXECUTED**.
 
-## Latest source-hardening batch — bind Windows helpers to system paths
+## Latest source-hardening batch — bounded overflow reader retirement
+
+- **First wrong owner:** `engine/runtime-core/src/provider/process.rs`. After passing the 64 KiB output cap, readers continued consuming a potentially unbounded stream until EOF. This could keep a worker occupied unnecessarily and leave it tied to descendant-inherited pipe handles even though the result was already invalid.
+- **Source correction:** Each reader retains only the existing 64 KiB + sentinel and closes its pipe immediately on overflow. A shared atomic overflow signal allows the supervising thread to refuse the result and terminate **only its directly owned helper**; after direct-child exit, the other stream also stops waiting when its peer has overflowed. Existing normal-output, process-reaping, worker-slot ceiling and legacy provider boundaries remain unchanged.
+- **Regression coverage authored:** A bounded cursor proves that the reader returns without consuming all available bytes. Another test proves that a waiting reader refuses promptly when its peer stream overflows. Existing verbose-output integration regression remains. No persistent files, scheduler, new dependency or account data were added.
+- **Proof ceiling:** Source consistency reviewed at this commit, but Rust/Windows/Node execution, inherited-pipe reproduction on a real host, and Minecraft gameplay are **NOT_EXECUTED**. This reduces unbounded output-driven worker retention; it does **not** solve a valid short-output helper whose descendant inherits a still-open pipe.
+- **Next bounded action:** Execute the exact-HEAD Rust/Windows source tests where available and investigate only observed failures; do not infer complete inherited-pipe cancellation or two-account support from static inspection.
+
+## Previous source-hardening batch — bind Windows helpers to system paths
 
 - **First wrong owner:** `apps/desktop/src-tauri/src/engine/native_clients.rs` ran four PowerShell commands as a relative `powershell.exe`, allowing command resolution to depend on the host process search path/current directory. Its native-only process inspector also used `Get-Process -ErrorAction SilentlyContinue`, which could yield a misleading empty observation when enumeration failed.
 - **Source correction:** Resolve Windows PowerShell through `GetSystemDirectoryW` and refuse operation if that exact system file is absent. Launch the official Start-app shell via Explorer from Windows' SpecialFolder rather than an unqualified executable name. Native candidate enumeration now requires `Get-Process -ErrorAction Stop`; a failed query is an error, not evidence of zero processes. The existing Sandboxie collector, admission contract, candidate schema, credential boundaries and launch semantics are otherwise unchanged.
