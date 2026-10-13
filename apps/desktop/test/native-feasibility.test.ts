@@ -176,7 +176,10 @@ describe("Native candidate IPC evidence", () => {
     expect(engine).toContain('["& {\\n", INSPECT, "\\n} -SummaryOnly -ImageProof"].concat()');
     expect(engine).toContain("inspect_sandbox_client_02_mode(true, None)");
     expect(engine).toContain("inspect_sandbox_client_02_mode(false, None)");
-    expect(engine).toContain("let fresh = inspect_sandbox_client_02_mode(false, Some(target.pid))?;");
+    expect(engine).toContain("IsolationInspection::TargetedImageProof(target.pid)");
+    expect(engine).toContain("trait IsolationBackend {");
+    expect(engine).toContain("struct OfficialSandboxieBackend;");
+    expect(engine).toContain("inspect_with_backend(&ACTIVE_ISOLATION_BACKEND, IsolationInspection::FastLaunchPreflight)");
     expect(engine).toContain('candidate.image_evidence == "SIGNED_EDUCATION_IMAGE_CANDIDATE"');
     expect(engine).toContain('candidate.created_file_time == target.created_file_time');
     expect(active).toContain("UNKNOWN or unsigned files are refused");

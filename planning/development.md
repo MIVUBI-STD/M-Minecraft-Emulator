@@ -1,5 +1,17 @@
 # Current Development Handoff
 
+## Inspection-only IsolationBackend v0.1 — 2026-10-14
+
+**Work:** internal isolation inspection provider. **State:** DONE for bounded source change; owned-engine fork and Windows proof remain ACTIVE.
+
+**Decision:** private `IsolationBackend::inspect` and sole `OfficialSandboxieBackend` at the current `apps/desktop/src-tauri/src/engine/native_clients.rs` authority. Status, fast launch preflight and targeted signed-PID window checks all use the same provider. **Launch remains unchanged** through the official signed Sandboxie tools; no runtime engine switch, driver install, settings migration, destructive box operation, public Tauri schema or UI change.
+
+**Proof:** pinned current GitHub source, TypeScript source consumer assertions adjusted, Rust fake-backend tests authored for timeout, incomplete evidence and zero-PID targeted proof. Relevant prior launch-admission and boxed identity regressions preserved. **Node/Vitest, Rust cargo/rustfmt, Windows Sandboxie and Minecraft tests NOT_EXECUTED** for this revision; compilation or gameplay success is NOT claimed.
+
+**Unresolved:** Client 02 idle-crash cause UNKNOWN, reboot and sustained resource profiling NOT_EXECUTED; no owned engine build, signing, cutover, Client 03/04 implementation or data migration.
+
+**Next ONE task:** plan and establish upstream-history-preserving Sandboxie v1.18.5 fork baseline and reproducible unchanged x86/x64 build evidence before further engine/runtime changes.
+
 ## Initial owned-isolation source batch — 2026-10-14
 
 **Work:** app-owned isolation independent of an external Sandboxie-Plus installation, intended only for personal noncommercial educational use. **State:** ACTIVE. **Latest bounded result:** source-level inventory and design documents authored at current baseline; NO native engine code, signed driver, fork repository, host installation or Windows/Minecraft test executed in this batch.

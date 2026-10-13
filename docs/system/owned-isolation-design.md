@@ -30,7 +30,7 @@ Svelte CompactManagerApp
 Tauri native client commands (thin)
     ↓
 Rust native_clients.rs (current single authority)
-    ↓ proposed internal IsolationBackend boundary
+    ↓ implemented inspection-only IsolationBackend boundary (official adapter)
     ├─ OfficialSandboxieAdapter → installed signed official 1.18.5 tools (ACTIVE)
     └─ OwnedIsolationAdapter  → independently built/signed/tested fork (FUTURE)
            ↓ service/driver/DLL matched as one release
@@ -40,7 +40,13 @@ Persistent per-client profile, Windows process and HWND
 
 This is an internal implementation boundary, not a new Tauri public schema, network API, daemon or parallel lifecycle manager. One backend selected for an entire local runtime **installation context**, not per-client free switching between incompatible drivers. Windows driver/service namespace, system settings and reused box paths must be proven nonconflicting before any cutover.
 
-### Draft internal interface (design-only; no source implementation yet)
+### Implemented source checkpoint: Inspection Adapter v0.1
+
+The first **source-only** Rust boundary is implemented in the active desktop owner `apps/desktop/src-tauri/src/engine/native_clients.rs`. It privately defines `IsolationBackend::inspect` and `OfficialSandboxieBackend` as the **sole** active implementation. Existing UI status inspection, fast launch preflight and signed-PID window inspection now route through that interface. The actual sandboxed launch remains the **unchanged** official Sandboxie request path and still performs a fresh backend-admitted inspection before requesting `Start.exe`.
+
+The public Tauri/schema-6 `SandboxieClientObservation` is intentionally preserved. This is still an upstream-specific observation; vendor-neutral models, launch abstraction and the separate owned runtime remain future tasks. No new daemon, driver, user setting, account migration or box mutation is added. A fake inspection adapter exercises timeout/incomplete evidence and a zero-PID refusal; authored tests are **NOT_EXECUTED** until Rust/Windows tooling becomes available. This checkpoint does not establish crash recovery, independent deployment, or new gameplay acceptance.
+
+### Future full interface (design-only; not implemented)
 
 ~~~rust
 trait IsolationBackend {
@@ -92,4 +98,4 @@ Stop before modifying the host if: required source/license provenance UNKNOWN, d
 
 Each meaningful implementation batch records exact product SHA, upstream SHA, changed module owner, Windows/compiler/WDK versions where applicable, artifact digests/signatures, exercised tests, results, unknowns, rollback method, and explicit `NOT_EXECUTED` for unavailable layers. REA may analyze **owned build artifacts only if helpful**; it is a developer tool and not a runtime dependency.
 
-**First next coding task:** introduce only the internal read-only backend abstraction at `apps/desktop/src-tauri/src/engine/native_clients.rs` and wire the existing official adapter through it, with behavioral tests for malformed/UNKNOWN evidence and no change to UI or public Tauri interface. The future owned implementation comes later, after the unmodified upstream build and its signing prerequisites are established.
+**Next bounded task:** determine the upstream-history-preserving fork repository and reproducible unchanged build plan from pinned Sandboxie v1.18.5; include provenance and artifact-hash manifest before any driver changes. The installed official pilot and account-bearing profiles remain untouched.

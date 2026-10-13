@@ -412,6 +412,56 @@ fn admit_client_02_launch_snapshot(observation: &SandboxieClientObservation) -> 
     Ok(())
 }
 
+// The first provider boundary is inspection-only. Launch remains owned by
+// request_sandbox_client_02, including its original lock, preflight and
+// signed official launcher. No runtime provider selector or new state exists.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum IsolationInspection {
+    StatusWithImageProof,
+    FastLaunchPreflight,
+    TargetedImageProof(u32),
+}
+
+trait IsolationBackend {
+    fn inspect(&self, mode: IsolationInspection) -> io::Result<SandboxieClientObservation>;
+}
+
+struct OfficialSandboxieBackend;
+const ACTIVE_ISOLATION_BACKEND: OfficialSandboxieBackend = OfficialSandboxieBackend;
+
+impl IsolationBackend for OfficialSandboxieBackend {
+    fn inspect(&self, mode: IsolationInspection) -> io::Result<SandboxieClientObservation> {
+        if matches!(mode, IsolationInspection::TargetedImageProof(0)) {
+            return Err(io::Error::new(io::ErrorKind::InvalidInput,
+                "Targeted inspection requires a nonzero process PID"));
+        }
+        #[cfg(windows)]
+        {
+            match mode {
+                IsolationInspection::StatusWithImageProof =>
+                    inspect_sandbox_client_02_mode(true, None),
+                IsolationInspection::FastLaunchPreflight =>
+                    inspect_sandbox_client_02_mode(false, None),
+                IsolationInspection::TargetedImageProof(pid) =>
+                    inspect_sandbox_client_02_mode(false, Some(pid)),
+            }
+        }
+        #[cfg(not(windows))]
+        {
+            let _ = mode;
+            Err(io::Error::new(io::ErrorKind::Unsupported, "Windows is required"))
+        }
+    }
+}
+
+// An adapter error is propagated verbatim, never interpreted as zero PIDs.
+fn inspect_with_backend(
+    backend: &impl IsolationBackend,
+    mode: IsolationInspection,
+) -> io::Result<SandboxieClientObservation> {
+    backend.inspect(mode)
+}
+
 // The same collector owns both paths. Explicit UI Refresh checks candidate
 // executable provenance; Focus/Place/Launch inspect only the process/box
 // evidence they need, without repeated Authenticode verification.
@@ -447,24 +497,13 @@ fn inspect_sandbox_client_02_mode(
     parse_sandboxie_observation(&output)
 }
 
-#[cfg(windows)]
 pub fn inspect_sandbox_client_02() -> io::Result<SandboxieClientObservation> {
-    inspect_sandbox_client_02_mode(true, None)
+    inspect_with_backend(&ACTIVE_ISOLATION_BACKEND, IsolationInspection::StatusWithImageProof)
 }
 
 #[cfg(windows)]
 fn inspect_sandbox_client_02_fast() -> io::Result<SandboxieClientObservation> {
-    inspect_sandbox_client_02_mode(false, None)
-}
-
-#[cfg(not(windows))]
-pub fn inspect_sandbox_client_02() -> io::Result<SandboxieClientObservation> {
-    Err(io::Error::new(io::ErrorKind::Unsupported, "Windows is required"))
-}
-
-#[cfg(not(windows))]
-fn inspect_sandbox_client_02_fast() -> io::Result<SandboxieClientObservation> {
-    Err(io::Error::new(io::ErrorKind::Unsupported, "Windows is required"))
+    inspect_with_backend(&ACTIVE_ISOLATION_BACKEND, IsolationInspection::FastLaunchPreflight)
 }
 
 // Focus is a user-requested, non-destructive window operation. Never use a
@@ -595,7 +634,8 @@ fn with_verified_client_02_window(
     })?;
     // A targeted, read-only signed-file probe is run only for this boxed
     // PID. The manual outside-box ImageProof remains a different mode.
-    let fresh = inspect_sandbox_client_02_mode(false, Some(target.pid))?;
+    let fresh = inspect_with_backend(
+        &ACTIVE_ISOLATION_BACKEND, IsolationInspection::TargetedImageProof(target.pid))?;
     let (expected_time, hwnd_number) = verify_fresh_focus_target(&target, &fresh)?;
     let process = unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, target.pid) };
     if process.is_null() {
@@ -902,6 +942,53 @@ mod tests {
         assert!(tool.is_absolute());
         assert!(tool.is_file());
         assert!(tool.ends_with(std::path::Path::new("WindowsPowerShell/v1.0/powershell.exe")));
+    }
+
+
+    struct FakeInspection {
+        value: Option<super::SandboxieClientObservation>,
+        failure: Option<std::io::ErrorKind>,
+        probes: std::cell::Cell<u32>,
+    }
+    impl super::IsolationBackend for FakeInspection {
+        fn inspect(&self, mode: super::IsolationInspection)
+            -> std::io::Result<super::SandboxieClientObservation> {
+            assert_eq!(mode, super::IsolationInspection::FastLaunchPreflight);
+            self.probes.set(self.probes.get() + 1);
+            if let Some(error) = self.failure {
+                return Err(std::io::Error::new(error, "unknown inspection outcome"));
+            }
+            self.value.clone().ok_or_else(|| std::io::Error::new(
+                std::io::ErrorKind::InvalidData, "no complete sandbox observation"))
+        }
+    }
+
+    #[test]
+    fn adapter_propagates_timeout_and_incomplete_evidence_without_fallback() {
+        let fake = FakeInspection {
+            value: None, failure: Some(std::io::ErrorKind::TimedOut),
+            probes: std::cell::Cell::new(0),
+        };
+        assert_eq!(super::inspect_with_backend(
+            &fake, super::IsolationInspection::FastLaunchPreflight)
+            .unwrap_err().kind(), std::io::ErrorKind::TimedOut);
+        assert_eq!(fake.probes.get(), 1);
+
+        let invalid = FakeInspection {
+            value: None, failure: None, probes: std::cell::Cell::new(0),
+        };
+        assert_eq!(super::inspect_with_backend(
+            &invalid, super::IsolationInspection::FastLaunchPreflight)
+            .unwrap_err().kind(), std::io::ErrorKind::InvalidData);
+        assert_eq!(invalid.probes.get(), 1);
+    }
+
+    #[test]
+    fn official_adapter_rejects_zero_pid_before_os_image_proof() {
+        use super::IsolationBackend;
+        assert_eq!(super::ACTIVE_ISOLATION_BACKEND.inspect(
+            super::IsolationInspection::TargetedImageProof(0))
+            .unwrap_err().kind(), std::io::ErrorKind::InvalidInput);
     }
 
     #[test]
