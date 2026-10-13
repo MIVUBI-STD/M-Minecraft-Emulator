@@ -57,12 +57,16 @@
 
   function showSettings() {
     page = "settings";
-    void tick().then(() => settingsBackButton?.focus());
+    void tick().then(() => {
+      if (page === "settings" && settingsBackButton?.isConnected) settingsBackButton.focus();
+    });
   }
 
   function showInstances() {
     page = "instances";
-    void tick().then(() => checkStatusButton?.focus());
+    void tick().then(() => {
+      if (page === "instances" && checkStatusButton?.isConnected && !checkStatusButton.disabled) checkStatusButton.focus();
+    });
   }
 
   function openClient02DetailsFromSettings(mode: "setup" | "move") {
@@ -72,7 +76,11 @@
     disclosureTrigger = null;
     // Settings' action is removed when the page changes. Focus the region
     // deliberately so Tab continues into the actual setup/move controls.
-    void tick().then(() => client02DetailPanel?.focus());
+    void tick().then(() => {
+      if (page === "instances" && expanded === "02" && detailMode === mode && client02DetailPanel?.isConnected) {
+        client02DetailPanel.focus();
+      }
+    });
   }
 
   function expandDetails(instance: InstanceId, mode: DetailMode, origin: HTMLButtonElement) {

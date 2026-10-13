@@ -149,13 +149,14 @@ describe("Compact Manager app source and command boundary", () => {
   it("keeps keyboard focus inside the mounted page after Settings navigation", () => {
     expect(app).toContain("function showSettings()");
     expect(app).toContain("function showInstances()");
-    expect(app).toContain("settingsBackButton?.focus()");
-    expect(app).toContain("checkStatusButton?.focus()");
+    expect(app).toContain('page === "settings" && settingsBackButton?.isConnected');
+    expect(app).toContain('page === "instances" && checkStatusButton?.isConnected && !checkStatusButton.disabled');
     expect(app).toContain('on:click={showSettings}>Settings</button>');
     expect(app).toContain('on:click={showInstances}>Back to Instances</button>');
     expect(app).toContain('openClient02DetailsFromSettings("setup")');
     expect(app).toContain('openClient02DetailsFromSettings("move")');
-    expect(app).toContain("client02DetailPanel?.focus()");
+    expect(app).toContain('page === "instances" && expanded === "02" && detailMode === mode && client02DetailPanel?.isConnected');
+    expect(app).toContain("client02DetailPanel.focus()");
     expect(app).toContain('tabindex="-1" bind:this={client02DetailPanel}');
   });
   it("does not steal focus from Settings or newly expanded details after an async close", () => {

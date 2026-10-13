@@ -237,7 +237,9 @@ region (programmatic focus only, no modal trap). Closing an inline panel after
 an asynchronous request never focuses an unmounted Instances control while
 Settings remains open and does not override another expanded panel. This is
 source behavior with authored assertions, **not** a Windows UI or screen-reader
-acceptance result.
+acceptance result. Navigation focus callbacks also confirm that the destination
+page and intended target are still mounted when deferred focus runs; they
+do not resurrect obsolete details or steal focus after rapid navigation.
 
 ### Source accessibility hardening — 2026-10-13
 

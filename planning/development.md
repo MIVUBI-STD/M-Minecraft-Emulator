@@ -3,7 +3,7 @@
 ## Compact Manager Settings navigation focus correction — 2026-10-13
 
 - **Source finding:** the active Svelte Settings navigation used direct `page = ...` mutations without transferring keyboard focus after the clicked button unmounted. The existing `closeDetails` could attempt focus on an unmounted Check status button after an in-flight operation finished while Settings was open.
-- **Fix:** keep navigation in the one active UI component. After Svelte's `tick()`, focus the mounted Settings Back button, Instances Check status button, or contextual Client 02 region. Asynchronous detail close checks that the Instances page still exists and no other panel has opened; no auto-polling or backend behavior changed.
+- **Fix:** keep navigation in the one active UI component. After Svelte's `tick()`, focus the mounted Settings Back button, Instances Check status button, or contextual Client 02 region. Asynchronous detail close checks that the Instances page still exists and no other panel has opened. Deferred navigation focus also checks the destination page and connected target before focusing; no auto-polling or backend behavior changed.
 - **Proof:** GitHub exact-head source/contract inspection and regression assertions authored. Svelte/Vitest/Windows keyboard and screen-reader execution remains **NOT_EXECUTED**; Minecraft localtest still paused.
 - **Next:** resume only available source-level changes supported by concrete findings; exact-head Svelte/Windows validation awaits a genuinely available execution context.
 
