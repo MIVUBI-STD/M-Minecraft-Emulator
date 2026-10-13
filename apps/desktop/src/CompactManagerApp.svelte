@@ -1,6 +1,7 @@
 <script lang="ts">
   import {
     nativeFeasibility,
+    isSandboxieBoxPrepared,
     type IsolatedClientObservation,
   } from "./app/bridge/nativeFeasibilityApi.js";
   import {
