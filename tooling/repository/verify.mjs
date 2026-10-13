@@ -200,7 +200,10 @@ requireFact(sandboxCollector.includes("[switch]$SummaryOnly") &&
   sandboxCollector.includes("$membershipStatus = 'UNKNOWN'") &&
   sandboxCollector.includes("$allProcesses = @(Get-Process -ErrorAction Stop)") &&
   sandboxCollector.includes("foreach ($boxedPid in $boxedPids)") &&
-  sandboxCollector.includes("if (-not $visiblePids.ContainsKey([string]$boxedPid))") &&
+  sandboxCollector.includes("if (-not $observedByPid.ContainsKey($key))") &&
+  sandboxCollector.includes("if ($null -eq $rawSession -or $rawSession -isnot [int])") &&
+  sandboxCollector.includes("$allProcesses = @()") &&
+  sandboxCollector.includes("$handle = $null") &&
   !sandboxCollector.includes("Get-Process -ErrorAction SilentlyContinue"),
   "One valid Sandboxie evidence owner; desktop summary refresh writes no report");
 const nativeProcessPattern = "^(Minecraft\\.Windows|Minecraft.*Education.*|Education.*Minecraft.*)$";
