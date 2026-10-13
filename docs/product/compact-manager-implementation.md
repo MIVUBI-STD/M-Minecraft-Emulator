@@ -228,6 +228,18 @@ Design review must be followed by actual executable tests on a pinned source SHA
 
 **Windows acceptance later, only on explicit user instruction:** exact-SHA dev startup and smoke, real official installed Education app behavior, Sandboxie preparation/membership checks, two independent licensed sessions (manual login), window focus/left-right actions, Fullscreen/maximize/minimize, DPI/monitor changes, crash/timeout ambiguity, manager close/reopen. Source build and browser prototype never prove gameplay or package compatibility.
 
+### Source-only Client 02 issue/detail routing — 2026-10-13
+
+The Client 02 inline panel now renders the **explicitly selected detail mode**.
+Previously a stored Client 02 issue forced the issue panel even when the user
+requested Set up from Settings or tried to open About details. The row may
+continue showing the unresolved issue, and View issue still explicitly selects
+the issue panel, but a stale issue must not hijack contextual navigation.
+The change does not clear errors, assert that launch failed, bypass process
+admission, or enable Move window without a validated candidate. Source/test
+changes are **not** evidence of a compiled Svelte build or actual Windows UI
+interaction.
+
 ### Source-only Settings focus handling — 2026-10-13
 
 The active Svelte shell now transfers keyboard focus to the mounted Settings

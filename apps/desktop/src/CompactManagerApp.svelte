@@ -315,7 +315,7 @@
 
           {#if expanded === "02"}
             <div id="cm-details-02" class="cm-detail" role="region" aria-label="Minecraft 02 details" tabindex="-1" bind:this={client02DetailPanel}>
-              {#if detailMode === "issue" || issue?.instance === "02"}
+              {#if detailMode === "issue"}
                 <h3>{issue?.instance === "02" ? issue.title : base02.status}</h3>
                 <p>{issue?.instance === "02" ? issue.message : base02.details}</p>
                 <p class="cm-assist">Use Check status in the toolbar to inspect the current Windows session.</p>

@@ -1,5 +1,13 @@
 # Current Development Handoff
 
+## Compact Manager issue/detail panel precedence — 2026-10-13
+
+- **Confirmed source issue:** Client 02 template selected its issue branch whenever `issue?.instance === "02"`, overriding explicit `detailMode = "setup"` or `"info"` from the supported UI navigation while a previous error persisted.
+- **Fix:** render the issue branch only when `detailMode === "issue"`. Keep issue state intact for the existing `View issue` action; preserve existing backend admission and ambiguity/UNKNOWN semantics. Regression assertions cover setup/move branches and the action returning to issue details.
+- **Proof:** REMOTE_GITHUB source branch review and authored regressions. Node24/Vitest/Svelte/Tauri/Windows/Minecraft execution on the new exact HEAD remains **NOT_EXECUTED**, with Windows localtest paused.
+- **Next:** only additional concrete source defects may be fixed without local runtime; do not promote source-only proof into gameplay acceptance.
+
+
 ## Compact Manager Settings navigation focus correction — 2026-10-13
 
 - **Source finding:** the active Svelte Settings navigation used direct `page = ...` mutations without transferring keyboard focus after the clicked button unmounted. The existing `closeDetails` could attempt focus on an unmounted Check status button after an in-flight operation finished while Settings was open.

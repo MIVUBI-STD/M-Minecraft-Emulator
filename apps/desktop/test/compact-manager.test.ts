@@ -166,6 +166,16 @@ describe("Compact Manager app source and command boundary", () => {
     expect(app).not.toMatch(/on:click=\{\(\) => \(page =/);
   });
 
+  it("uses the selected Client 02 detail mode even if an earlier issue persists", () => {
+    // Issue status may remain available through View issue, but selecting
+    // Set up in Settings must not be trapped in the previous issue panel.
+    expect(app).toContain('{#if detailMode === "issue"}');
+    expect(app).not.toContain('{#if detailMode === "issue" || issue?.instance === "02"}');
+    expect(app).toContain('{:else if detailMode === "setup"}');
+    expect(app).toContain('{:else if detailMode === "move" && moveEligible}');
+    expect(app).toContain('if (action === "issue") { expandDetails(id, "issue", origin); return; }');
+    expect(app).toContain('on:click={() => openClient02DetailsFromSettings("setup")}');
+  });
   it("never toggles an already visible issue closed from View issue", () => {
     expect(app).toContain('if (action === "issue") { expandDetails(id, "issue", origin); return; }');
     expect(app).toContain('if (action === "setup") toggleDetails(id, "setup", origin);');
