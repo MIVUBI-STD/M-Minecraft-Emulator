@@ -105,10 +105,12 @@ where
         let data = bytes.to_vec();
         let (tx, rx) = mpsc::sync_channel(1);
         let slot = slots.next().expect("reserved stdin worker slot");
-        thread::spawn(move || {
-            let _slot = slot;
-            let _ = tx.send(writer.write_all(&data));
-        });
+        spawn_worker_or_reap(&mut child, program, || {
+            thread::Builder::new().spawn(move || {
+                let _slot = slot;
+                let _ = tx.send(writer.write_all(&data));
+            })
+        })?;
         Some(rx)
     } else {
         None
@@ -133,14 +135,18 @@ where
     let stderr_overflow = Arc::clone(&oversized_output);
     let stdout_slot = slots.next().expect("reserved stdout worker slot");
     let stderr_slot = slots.next().expect("reserved stderr worker slot");
-    thread::spawn(move || {
-        let _slot = stdout_slot;
-        let _ = stdout_sender.send(drain_output(stdout, &stdout_overflow));
-    });
-    thread::spawn(move || {
-        let _slot = stderr_slot;
-        let _ = stderr_sender.send(drain_output(stderr, &stderr_overflow));
-    });
+    spawn_worker_or_reap(&mut child, program, || {
+        thread::Builder::new().spawn(move || {
+            let _slot = stdout_slot;
+            let _ = stdout_sender.send(drain_output(stdout, &stdout_overflow));
+        })
+    })?;
+    spawn_worker_or_reap(&mut child, program, || {
+        thread::Builder::new().spawn(move || {
+            let _slot = stderr_slot;
+            let _ = stderr_sender.send(drain_output(stderr, &stderr_overflow));
+        })
+    })?;
 
     let started = Instant::now();
     loop {
@@ -189,6 +195,36 @@ where
             ));
         }
         thread::sleep(Duration::from_millis(100));
+    }
+}
+
+// Thread creation can fail under resource pressure. Convert allocation
+// failures into ordinary errors and reap only the directly owned helper.
+// Dropped successful JoinHandles detach; IoWorkerSlot stays owned by the thread.
+fn spawn_worker_or_reap(
+    child: &mut Child,
+    program: &Path,
+    spawn: impl FnOnce() -> io::Result<thread::JoinHandle<()>>,
+) -> io::Result<()> {
+    match spawn() {
+        Ok(handle) => {
+            drop(handle);
+            Ok(())
+        }
+        Err(error) => {
+            terminate_direct_child(child, program, "I/O worker allocation failure")
+                .map_err(|cleanup| io::Error::new(
+                    cleanup.kind(),
+                    format!(
+                        "{} could not create an I/O worker ({error}); helper cleanup failed: {cleanup}",
+                        program.display()
+                    ),
+                ))?;
+            Err(io::Error::new(
+                error.kind(),
+                format!("{} could not create an I/O worker: {error}", program.display()),
+            ))
+        }
     }
 }
 
@@ -336,6 +372,32 @@ mod tests {
     use super::{command_output_with_timeout, terminate_direct_child};
     use std::process::{Command, Stdio};
     use std::{io, path::Path, time::Duration};
+
+    #[test]
+    fn worker_allocation_failure_reaps_only_direct_helper() {
+        #[cfg(windows)]
+        let (program, args): (&Path, &[&str]) =
+            (Path::new("cmd.exe"), &["/C", "ping -n 10 127.0.0.1 >NUL"]);
+        #[cfg(not(windows))]
+        let (program, args): (&Path, &[&str]) =
+            (Path::new("sh"), &["-c", "sleep 5"]);
+
+        let mut child = Command::new(program)
+            .args(args)
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .expect("start a disposable, directly owned test helper");
+
+        // Inject thread allocation failure without exhausting host resources.
+        let error = super::spawn_worker_or_reap(&mut child, program, || {
+            Err(io::Error::new(io::ErrorKind::WouldBlock, "synthetic thread quota"))
+        }).expect_err("worker allocation failure must return, not panic");
+        assert_eq!(error.kind(), io::ErrorKind::WouldBlock);
+        assert!(error.to_string().contains("could not create an I/O worker"));
+        assert!(child.try_wait().unwrap().is_some(), "direct helper must be reaped");
+    }
 
     #[test]
     fn bounded_stdin_command_delivers_data_without_command_line_embedding() {

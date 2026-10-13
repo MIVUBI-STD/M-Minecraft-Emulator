@@ -4,7 +4,15 @@
 **Current work:** `emulator/source-hardening` (additional source-only audit and corrections; local testing explicitly deferred).
 **Engineering state:** source prototype / **exact-HEAD Node/Svelte/Rust/PowerShell execution, Windows build and two-account gameplay NOT_EXECUTED**.
 
-## Latest source-hardening batch — cooperative peer-reader stop
+## Latest source-hardening batch — fallible I/O worker startup
+
+- **First wrong owner:** `engine/runtime-core/src/provider/process.rs` started stdin/stdout/stderr workers using `std::thread::spawn`, which panics when thread creation fails under resource pressure. Because the direct helper already exists, this could abandon cleanup instead of returning an ordinary I/O error.
+- **Source correction:** All three paths now use fallible `std::thread::Builder::spawn` under one `spawn_worker_or_reap` owner. An allocation failure terminates and reaps **only the directly owned helper**. If direct cleanup fails, both the allocation and cleanup errors are reported. Existing output bounds, shared overflow signal, 24-worker limit and legacy VM protections are unchanged.
+- **Behavioral regression authored:** `worker_allocation_failure_reaps_only_direct_helper` simulates thread creation failure without exhausting machine resources and checks the direct child was reaped. This is not a Windows low-memory or descendant-inherited pipe result.
+- **Proof ceiling:** Exact-source and caller review only. Rust, Windows, Svelte, Sandboxie and Minecraft execution remain **NOT_EXECUTED**. Previously started worker threads can still remain blocked on inherited pipes; their existing capacity limit remains the only bound.
+- **Next bounded action:** Execute exact-HEAD Rust/Windows source verification when an actual compiler/runtime is available, then repair any demonstrated failure before adding another lifecycle manager.
+
+## Previous source-hardening batch — cooperative peer-reader stop
 
 - **First wrong owner:** `engine/runtime-core/src/provider/process.rs`. When stdout exceeded its cap, the peer stderr reader was informed indirectly via an atomic flag, but `drain_output` did not inspect that flag and could continue consuming unneeded output until its own EOF or size cap. The same applied with stdout/stderr reversed.
 - **Source correction:** Check the existing shared overflow flag **before each subsequent read** in both output workers. A peer already invalidated by overflow now stops consuming additional bytes as soon as its current `read` returns. This reuses the existing signal and 24-worker ceiling; it adds no threads, polling processes, public IPC, new dependencies or VM/guest mutations.
