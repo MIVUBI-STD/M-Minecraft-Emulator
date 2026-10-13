@@ -454,7 +454,10 @@ function Get-EducationImageCandidate {
 }
 # Do not confuse an incomplete process snapshot with an empty box.
 # Reconcile every Sandboxie-reported PID, including windowless and helper PIDs.
+# Keep its validated metadata for this ONE collector invocation. Do not
+# re-query fragile getters to decide if an already observed box is empty.
 $allProcesses = @()
+$boxedIdentityByPid = @{}
 $processInventoryComplete = $true
 try {
   $allProcesses = @(Get-Process -ErrorAction Stop)
@@ -495,9 +498,16 @@ if ($membershipStatus -eq 'OBSERVED') {
             break
           }
           $processSession = [int]$rawSession
-          if ([string]::IsNullOrWhiteSpace($processName) -or $processSession -lt 0) {
+          if ([string]::IsNullOrWhiteSpace($processName) -or
+              $processSession -lt 0 -or $processSession -ne $session) {
+            # A process in another Windows session is NOT evidence of an
+            # empty box in this session. Refuse automatic launch.
             $processInventoryComplete = $false
             break
+          }
+          $boxedIdentityByPid[$key] = [pscustomobject]@{
+            Name = $processName
+            SessionId = $processSession
           }
         } catch {
           $processInventoryComplete = $false
@@ -515,11 +525,20 @@ $gameCandidates = @(
   $allProcesses |
   Where-Object {
     try {
-      $_.SessionId -eq $session -and
-      $_.ProcessName -match '^(Minecraft\.Windows|Minecraft.*Education.*|Education.*Minecraft.*)$'
+      $candidateKey = [string]$_.Id
+      if ($membershipStatus -eq 'OBSERVED' -and
+          $boxedIdentityByPid.ContainsKey($candidateKey)) {
+        # Reuse the name/session already checked for this boxed PID. The
+        # getter can fail later if the process exits during enumeration.
+        $boxedIdentityByPid[$candidateKey].Name -match
+          '^(Minecraft\.Windows|Minecraft.*Education.*|Education.*Minecraft.*)$'
+      } else {
+        $_.SessionId -eq $session -and
+        $_.ProcessName -match '^(Minecraft\.Windows|Minecraft.*Education.*|Education.*Minecraft.*)$'
+      }
     } catch {
-      # Boxed process attributes are separately validated above. A failed
-      # property access cannot be interpreted as a safe empty box.
+      # UNKNOWN attribution already rejects launch; never use a failed
+      # getter as proof that a boxed game has disappeared.
       $false
     }
   } |
