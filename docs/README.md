@@ -13,7 +13,7 @@ This is the **single documentation entrypoint**. Load only the domain needed for
 
 | Task | Domain route | Canonical source where applicable |
 | --- | --- | --- |
-| Product goal: four logged-in Minecraft Education clients on one PC | [Four-account definition](./product/four-concurrent-accounts.md) | One native + one Sandboxie Plus client is selected; concurrent gameplay unverified |
+| Product goal: four logged-in Minecraft Education clients on one PC | [Four-account definition](./product/four-concurrent-accounts.md) | Implemented two-client pilot; [first gameplay/crash report](./validation/two-client-first-success-2026-10-14.md) and [selected fork investigation](../planning/development.md) have separate evidence boundaries |
 | Paused VMware, App Sandbox and Guest Agent routes | [Legacy Retirement](./system/legacy-retirement.md) | Mutations blocked and account-bearing data preserved |
 | Paused VMware Base and guest setup (historical reference only) | [Base image](./product/base-image.md) | `engine/runtime-core/`, `engine/guest/windows/` (inactive) |
 | Architecture, ownership, naming, developer commands | [System](./system/README.md) | `apps/desktop/`, `engine/runtime-core/`, `tooling/` |

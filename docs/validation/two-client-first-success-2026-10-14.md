@@ -124,6 +124,13 @@ file, identities, worlds, raw authentication events or crash dumps.
 
 ## Integration discussion — proposals, not implementation approval
 
+**Subsequent user decision:** the user chose the fork/owned-engine direction,
+requested REA assistance and moved continuation to ChatGPT + GitHub.
+The official-tools recommendation below records the earlier discussion, not
+the selected future direction. The [current development handoff](../../planning/development.md)
+owns the selected research scope, prerequisites and next source task.
+No replacement engine or distribution was implemented by that decision.
+
 The existing backend already launches through official Start.exe and
 inspects through the canonical collector. A smoother setup can extend this
 existing owner: detect a supported signed installation, check prerequisites,

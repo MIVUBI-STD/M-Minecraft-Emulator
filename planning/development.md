@@ -1,5 +1,161 @@
 # Current Development Handoff
 
+## ChatGPT continuation: selected fork direction — 2026-10-14
+
+**Work:** two-client isolation fork investigation. **Source work ACTIVE;
+local runtime campaign deferred.** The user chose "Fork atau engine isolasi
+sendiri", requested REA (`morluto/rea`) to help, then requested a complete
+repository handoff to continue in ChatGPT. This section is the current intent;
+older Next entries below are historical and do not authorize automatic tests.
+
+### User decision and current implementation
+
+- Desired result: an isolation system integrated with the app, more stable,
+  efficient and economical in resource/AI usage. Start with two clients;
+  eventual four-client product ambition is unchanged, not implemented.
+- The previous recommendation to integrate only the external official tools
+  was not the user's chosen development direction. A narrowly scoped fork
+  of Sandboxie core was subsequently proposed as the starting basis; exact
+  component selection, repository layout and distribution design remain to
+  be decided from source/license evidence. A complete rewrite from zero is
+  not an established implementation requirement.
+- The implemented app still uses official signed Sandboxie tools. No GitHub
+  fork, imported upstream source, replacement driver/service/DLL, bundled
+  dependency, REA installation or new engine was created in this session.
+- Continue design and bounded source work in **ChatGPT + GitHub Local**.
+  Do not require the operator's PC, new environment, installs or incremental
+  machine tests to finish independently useful source analysis. Unavailable
+  execution stays NOT_EXECUTED. The earlier Windows session does not imply
+  the next ChatGPT session has Windows, local logs or REA tools.
+- `main`, legacy VMware/App Sandbox/Guest Agent operations, existing
+  account-bearing data, installer identity and public schemas remain protected.
+  Fork research does not authorize a driver replacement, security-policy
+  bypass, release publication, account automation or scaling to Client 03–04.
+
+### Read order and exact references
+
+1. Pin latest GitHub `Local`; read `AGENTS.md`, `GITHUB_RULES.md`, the
+   [implementation map](../docs/system/implementation-map.md), then this section.
+2. Read the [first-success and idle-crash report](../docs/validation/two-client-first-success-2026-10-14.md).
+3. Inspect only the current backend/collector consumers identified below.
+4. Inspect upstream licensing, component/build source and REA instructions
+   at pinned references; recheck upstream HEAD before choosing a new baseline.
+
+Handoff parent: `0152a5fa68543d28e8a01f82af481758afe65214`.
+Upstream references observed on 14 October 2026:
+
+| Reference | Pinned identity | Qualification |
+| --- | --- | --- |
+| Sandboxie source master | `43b629be6c17628e6298befccfec279774895ba5` | Source-analysis reference, not the installed binary identity |
+| Sandboxie installed release tag v1.18.5 | `abd4c240031cfb46666daa74ca47ed4e48b561e4` | Remote tag ref; do not claim local build equivalence |
+| REA main | `9630c8ff46533fe63ec0e06212d01545070d17f0` | Documentation/source reference, not an installed CLI version |
+
+### Session reconstruction and proof boundaries
+
+| Event / change | Exact source revision or evidence | Outcome |
+| --- | --- | --- |
+| Clean baseline fast-forward on Local | `2a5552518179e9c8fe6a4b27fb09a19457ad0f9d` | First preflight failed at two stale Compact Manager test assertions; startup stopped until corrected |
+| Correct stale source assertions | `a8f4aa1bd6c4a3f3bdcaf37e3b68cc839b58270b` | Full pinned Windows preflight PASS, 115 desktop tests; one symlink test skipped |
+| Fix Desktop x64 installation admission | `588046b3e989e6c1aa4a0737a085600b25b2a098` | Shared Registry32/64 preflight, constrained official Start AppID, quoted native launch; full preflight PASS, 116 desktop tests; one symlink test skipped |
+| Official prerequisites | Operator actions + signed-file observations | Store Education removed manually after world-export decision; official Desktop 1.26.3200.0 and Sandboxie Plus 1.18.5 installed; entitlements operator-confirmed |
+| Persistent Client 02 setup | Explicit official Sandboxie tools and Manager UI | MinecraftClient02 created; existing boxes/data preserved; initial dual responsive windows observed |
+| Initial Microsoft login failure | User screenshot and manual differential | Boxed 7q6ch / 0x80070424 after email before password; same second account succeeds outside box, Client 01 playable |
+| Broker diagnosis | Ignored native C++/WinRT probes | Host provider discovery/TokenBrokerInternal activation succeed; standard box returns 0x80070424 despite host service present/running |
+| Approved compatibility configuration | Applied at `ef214ff60239ce88c02a479cc62afd43b8d015b8` | App Compartment + OpenCOM + DropAdminRights; actual game-box native provider probe exit 0; one manager launch, password stage observed |
+| First basic gameplay success | Operator reports; recorded through `54654eca6d9c74d2c21ac3098e3cae89b71cb85e` | Distinct accounts, simultaneous playable worlds, permitted multiplayer and distinct accounts after Client 02 reopen: PASS by operator report |
+| Sustained observation | Operator started manual observation | Client 02 later crashed while idle; only previous native process remained at inspection; no matching Minecraft Application event in queried window |
+| First-success/crash report | `0152a5fa68543d28e8a01f82af481758afe65214` | Redacted report published; crash owner UNKNOWN, stability FAIL by operator report |
+
+Working workaround remains `NoSecurityIsolation=y`, appended `Template=OpenCOM`
+and `DropAdminRights=y`. AutoDelete, AutoRemove, OpenCredentials and
+OpenProtectedStorage were verified OFF. Existing templates were retained.
+The operator explicitly accepted the reduced isolation/host COM access for
+this two-account test. That consent is not a blanket future security exception.
+An account-free MinecraftBrokerDiagnostic box was preserved; no game or
+account was launched there. Host credentials/tokens were never copied.
+
+The report owns detailed software/hardware observations and screenshot
+numbers. The screenshot lacks PIDs/headers; CPU-bound rendering, inefficient
+GPU use and Sandboxie overhead are hypotheses, not diagnosed causes. The
+two-hour Application query found no matching Minecraft record, not proof
+that the crash did not happen. Windows restart was explicitly deferred.
+A complete 30–60-minute resource profile is NOT_EXECUTED: the proposed
+background recorder had not started when the turn was interrupted. Basic
+success is not full two-client acceptance, and never four-client acceptance.
+Full source preflight is scoped to the two tested commits above, not this
+documentation revision, an upstream fork or any later source change.
+
+### REA use and economical investigation
+
+- REA CLI was not found on PATH and no REA MCP analysis result was produced.
+  The [older REA-aligned audit](../docs/validation/rea-source-audit-2026-10-13.md)
+  was source comparison, not executed REA decompilation/runtime evidence.
+- Read the [pinned REA skill](https://github.com/morluto/rea/blob/9630c8ff46533fe63ec0e06212d01545070d17f0/.agents/skills/reverse-engineer-anything/SKILL.md).
+  Its route is ordinary source tools for a complete source repository; REA
+  for shipped-artifact, binary or supported runtime claims. Use the actual
+  connected tool schemas, not names assumed from newer documentation.
+- REA is a development tool, not a game dependency or resident authority.
+  Native analysis requires an actually available provider such as Ghidra,
+  Hopper or IDA; provider/tool availability in the next environment is UNKNOWN.
+  Installing a skill alone does not connect MCP or supply those engines.
+- For an artifact task: bind one explicit binary and its SHA-256, ask one
+  question, request summaries first, follow one function/call path, retain
+  Evidence IDs/digests and reuse results. Do not repeat broad decompilation
+  or read entire repos to manufacture certainty. Record coverage and UNKNOWNs.
+- Prefer source plus symbols/build artifacts we own when sufficient. No
+  arbitrary instrumentation/injection into Minecraft, authentication capture,
+  game patching or token-store analysis is part of this handoff.
+
+### First source batch and subsequent requirements
+
+**Next concrete source task:** produce a pinned Sandboxie component/license/
+build/dependency inventory and select the smallest coherent fork boundary.
+Complete this remotely; do not wait for Windows or REA installation.
+
+| Batch | Required result | Evidence / dependency |
+| --- | --- | --- |
+| 1 — source inventory | Trace SbieDrv, SbieSvc, SbieDll/LowLevel, Start/SbieIni, COM helpers and consumers; identify the necessary core and preserve upstream provenance | Inspect `Sandboxie/core/{drv,svc,dll,low}`, `Sandboxie/apps/`, `Sandboxie/common`, project files and per-component licenses at one SHA |
+| 2 — bounded design | Define app-to-engine control boundary, persistence/rollback, failure semantics and chosen fork repository/layout; trace existing owners before proposing a new module | Core GPLv3, QSbieAPI LGPL, SandMan custom terms require actual selected-file review; host-project/distribution compatibility remains UNKNOWN; no wholesale rebrand/relicense assumption |
+| 3 — reproducible build | Document and later build an unchanged upstream baseline, with version/hash/symbol provenance before behavioral patches | Upstream MSBuild projects/CI are authority; VS2022, v143/MFC, matching SDK/WDK and Win32-before-x64 build dependencies need verification for the selected SHA; WDK/MFC availability was not established by app preflight |
+| 4 — crash attribution | Define manual idle/native/boxed and foreground/background/minimized comparisons; when execution is available, identify first exception/module and affected owner | No attributed crash or replayable automatic reproducer exists yet; private dump/ETW data stays local and requires redaction before any shared metadata |
+| 5 — one correction | Change one justified owner, retain account/world data, test affected consumers and compare against unchanged baseline | Measure matched scene/settings/resolution/frame pacing; CPU/thread work, frame time, RAM/commit, GPU engine/VRAM and crashes; no invented FPS/RAM target |
+| 6 — integration/release review | Integrate proven engine behavior with existing app owner; later review installer coexistence, signed driver/service deployment, update and uninstall preservation | Compile success is not driver-load, login or performance proof; production signing, packaging and publication are separate decisions and remain NOT_EXECUTED |
+
+Upstream build references:
+[component guide](https://github.com/sandboxie-plus/Sandboxie/blob/43b629be6c17628e6298befccfec279774895ba5/AGENTS.md),
+[core build guide](https://github.com/sandboxie-plus/Sandboxie/blob/43b629be6c17628e6298befccfec279774895ba5/Sandboxie/ReadMe.md).
+Cross-check exact project/CI source because prose can lag. Do not import
+upstream workflows into this repo or enable the protected main branch.
+
+Existing integration owner is `apps/desktop/src-tauri/src/engine/native_clients.rs`,
+with `tooling/acceptance/windows/collect-sandboxie-feasibility.ps1` and the
+typed frontend bridge as consumers. Runtime/VM resource policy remains a
+different inactive route; do not apply its VM CPU/RAM limits to this pilot.
+Keep source investigation outputs under docs/validation and current intent
+here; do not create another lifecycle authority or duplicate task ledger.
+
+### Evidence portability and restart prompt
+
+Ignored local metadata/probes remain under `workspace/runs/` and
+`workspace/scratch/` on the earlier Windows checkout. They are not uploaded
+or guaranteed accessible to ChatGPT. The report and this handoff are the
+portable redacted record. No names, emails, account/world identifiers,
+tokens, license codes, raw configuration or crash dumps belong in Git.
+
+Use this prompt in the next ChatGPT conversation:
+
+> Lanjutkan MIVUBI-STD/M-Minecraft-Emulator branch Local. Pin HEAD terbaru,
+> baca AGENTS.md, GITHUB_RULES.md, implementation-map dan bagian paling atas
+> planning/development.md. Saya memilih arah fork/engine isolasi sendiri,
+> dengan REA sebagai alat investigasi bila relevan. Mulai dari inventaris
+> komponen, lisensi dan build Sandboxie pada SHA yang dipin, lalu usulkan
+> batas fork terkecil. Kerjakan source lewat ChatGPT + GitHub; jangan meminta
+> localtest sebagai prasyarat analisis. Pertahankan pilot dua client dan semua
+> data akun/world; basic gameplay sudah berhasil menurut operator tetapi
+> Client 02 crash saat idle. Penyebab crash UNKNOWN, restart dan profil
+> 30–60 menit NOT_EXECUTED. Jangan ubah main atau mengklaim fork/REA sudah
+> dijalankan. Catat hasil pada pemilik dokumentasi yang ada.
+
 ## First success reported; idle crash and integration discussion — 2026-10-14
 
 - **Current request:** publish the redacted first-success report to Local, then discuss simpler Sandboxie integration and performance/crash causes before implementing further changes. See [full runtime report](../docs/validation/two-client-first-success-2026-10-14.md).
