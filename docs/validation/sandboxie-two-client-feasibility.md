@@ -47,6 +47,15 @@ Sandboxie Plus provides:
   stays UNKNOWN and Client 02 launch is rejected. No game data, identities
   or sign-in tokens are accessed.
 
+  The collector also requires every Sandboxie-reported PID to be present in
+  the current Windows process snapshot **with a readable process name and
+  integer SessionId**. Missing, unreadable, duplicate or unclassifiable boxed
+  process identity downgrades membership to `UNKNOWN` even if Sandboxie
+  originally reported the PID. Optional window-handle access failures retain
+  a name-matched candidate without a window; they do **not** make the box
+  empty. A Windows/Sandboxie enumeration remains a time-bounded observation,
+  not an atomic guarantee against another launch or exit.
+
 These calls remain **read-only** in the collector. The active desktop adds
 one separate, explicitly requested launch action via the official
 `Start.exe /box:MinecraftClient02 <installed Education EXE>` command, without
