@@ -6,6 +6,37 @@ for an explicitly requested observation; the desktop uses its read-only
 `-SummaryOnly` option. PID/window counts cannot prove licensed login,
 Minecraft rendering or multiplayer.
 
+## Active two-client process performance sampling (manual, read-only)
+
+`collect-native-performance.ps1` is an **optional on-demand** Windows
+sampler for the current native + Sandboxie experiment. It does not launch games,
+inspect accounts/worlds, certify which process belongs to Minecraft, or test FPS.
+The operator must first identify two existing game PIDs via the approved
+Sandboxie inspection and verify them in the actual Windows session. Example:
+
+```powershell
+powershell.exe -NoProfile -File .\tooling\acceptance\windows\collect-native-performance.ps1 `
+  -NativePid <NATIVE_PID> -IsolatedPid <BOXED_PID> `
+  -DurationSeconds 3600 -SampleIntervalSeconds 5
+```
+
+The command is **not executable until real client processes are available**.
+It captures relative elapsed times, per-process working set and process CPU
+percentage normalized to the logical CPU count, into a timestamped JSON file
+under the user's local TEMP folder. Output intentionally excludes PIDs,
+process paths, user/account names, world data and credentials. An inaccessible,
+terminated or replaced PID becomes UNKNOWN for the remainder of that capture.
+No thresholds are declared; `automaticVerdict=NOT_PROVIDED` and the result is
+**PROCESS_TELEMETRY_ONLY**. Do not upload raw private device captures to Git.
+
+For the actual 60-minute acceptance review, pair the process sample with
+independently recorded PresentMon frametimes (if supported by the real renderer),
+GPU/VRAM telemetry, user-observed input responsiveness, independent licensed
+worlds and multiplayer evidence. Compare single versus two-client runs on the
+same PC, resolution and game settings. No performance sample alone promotes
+G0–G4 or proves account separation. Windows/PowerShell execution of the sampler
+is currently **NOT_EXECUTED**.
+
 ## Historical VMware-only G0–G4 campaign (paused)
 
 The stages and procedures below document the retained Windows-guest

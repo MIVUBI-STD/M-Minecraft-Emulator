@@ -116,6 +116,19 @@ The manager does **not** rename, erase, or import data from it. Prepare a
 new, clean, persistent `MinecraftClient02` box manually in Sandboxie Plus;
 never clone saved Microsoft login data into the new box.
 
+## Performance without process-count shortcuts
+
+The active source includes a read-only, opt-in process sampler at
+[`tooling/acceptance/windows/collect-native-performance.ps1`](../../tooling/acceptance/windows/collect-native-performance.ps1).
+It accepts two **manually verified** existing PIDs and records bounded
+CPU/working-set observations for up to two hours. Missing/reused PIDs stay
+UNKNOWN, not zero; the report includes no credentials, process IDs or world
+content. Because operator-selected PIDs are not independently attested by
+this sampler, results are diagnostic only. Use separate PresentMon/Windows
+Performance Recorder observation and real player input to judge smoothness,
+including frame-time spikes and recovery. A full 60-minute run and all
+real-device performance proof remain **NOT_EXECUTED**.
+
 ## Single desktop experiment — Client 01 + Client 02
 
 In a clean `Local` checkout, run `npm run setup`, `npm run

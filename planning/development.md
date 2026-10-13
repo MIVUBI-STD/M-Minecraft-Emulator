@@ -1,5 +1,12 @@
 # Current Development Handoff
 
+## Remote-only native performance evidence preparation — 2026-10-13
+
+- **Scope:** add one opt-in read-only PowerShell sampler under the existing Windows acceptance owner, document its limits and its connection to the current two-client pilot.
+- **Mechanism:** caller supplies two existing distinct PIDs; capture bounded elapsed time, CPU share and process working set; pin process creation identities, mark missing/reused PIDs UNKNOWN; write local-only JSON without PID/account/world data; provide no automatic performance/gameplay verdict.
+- **Proof:** REMOTE_GITHUB source and static contract inspection only. No Windows process, PowerShell runner, PresentMon, game rendering, account isolation, stress benchmark, or installer was executed.
+- **Next:** run one real two-client acceptance and 60-minute process/frame-time capture only after runtime access is available and explicitly resumed; do not reinterpret process telemetry as gameplay readiness.
+
 ## Remote-only UI hardening — 2026-10-13
 
 - **Scope:** one active Compact Manager Svelte owner, its source-contract tests, and existing product specification.
