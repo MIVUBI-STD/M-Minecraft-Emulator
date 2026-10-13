@@ -55,6 +55,14 @@ test('refuses symlinked storage instead of escaping to unrelated directories', (
   const root = fixture(t);
   const external = mkdtempSync(join(tmpdir(), 'emulator-external-'));
   t.after(() => rmSync(external, { recursive: true, force: true }));
-  symlinkSync(external, join(root, 'workspace', 'runs'), 'dir');
+  try {
+    symlinkSync(external, join(root, 'workspace', 'runs'), 'dir');
+  } catch (error) {
+    if (process.platform === 'win32' && ['EPERM', 'EACCES'].includes(error.code)) {
+      t.skip('Windows symlink privilege is unavailable; storage code still rejects links.');
+      return;
+    }
+    throw error;
+  }
   assert.throws(() => beginPreflight(root, commit), /real directories/);
 });
