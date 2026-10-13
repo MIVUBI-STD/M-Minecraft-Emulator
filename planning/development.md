@@ -6,6 +6,13 @@
 
 ## Windows preflight assertion correction (2026-10-13)
 
+The subsequent exact-SHA Windows preflight at
+`83e1a978c3d9d920bf4331a5d1a75537f9f77fd6` passed desktop and runtime
+checks/tests and frontend build, then failed at runtime `cargo fmt --check`.
+Applied Rust 1.98.1 rustfmt to the two reported runtime files (`command.rs`
+and `provider/process.rs`); only formatter layout and trailing commas changed.
+Next: execute clean-commit `DEV.cmd preflight` on the formatting correction.
+
 Actual Windows preflight at `9da075fd6b89d9c5ca8dac0b6461a366913c0998`
 failed in desktop Vitest because the collector stdin guard searched the entire
 native engine, including the separate launch script. The guard now checks only

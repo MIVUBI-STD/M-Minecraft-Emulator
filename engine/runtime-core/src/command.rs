@@ -72,8 +72,7 @@ const PAUSED_VM_COMMANDS: &[&str] = &[
 
 fn legacy_operation_paused(command: &str, args: &[String]) -> bool {
     PAUSED_VM_COMMANDS.contains(&command)
-        || (command == "app-sandbox-pilot"
-            && args.first().map(String::as_str) != Some("inspect"))
+        || (command == "app-sandbox-pilot" && args.first().map(String::as_str) != Some("inspect"))
 }
 
 fn execute_value(command: &str, args: &[String]) -> io::Result<Value> {
@@ -322,11 +321,23 @@ mod tests {
     #[test]
     fn all_legacy_vm_mutations_fail_closed_before_touching_provider() {
         let commands = [
-            "actions", "stage-update", "register-base",
-            "open-base-finalization", "provision", "reprovision",
-            "verify-identities", "start", "start-setup", "start-client",
-            "suspend", "stop", "restart", "set-ready", "reset", "open",
-            "launch-minecraft"
+            "actions",
+            "stage-update",
+            "register-base",
+            "open-base-finalization",
+            "provision",
+            "reprovision",
+            "verify-identities",
+            "start",
+            "start-setup",
+            "start-client",
+            "suspend",
+            "stop",
+            "restart",
+            "set-ready",
+            "reset",
+            "open",
+            "launch-minecraft",
         ];
         for command in commands {
             let result = execute_public_command(command, &[]);
