@@ -12,8 +12,8 @@ lifecycle: ACTIVE
 **Current product target:** four separately licensed, concurrently playable Minecraft Education **Windows Desktop** clients on one PC. The only selected engineering approach is **Client 01 native + Client 02 isolated through Sandboxie Plus** (`MinecraftClient02`) until two real game sessions are demonstrated.
 
 - [Four-account product contract](./four-concurrent-accounts.md) — goal, limits and preserved historical implementation.
-- [Compact Manager UX specification (DRAFT)](./compact-manager-ux-spec.md) — everyday Instances, truthful status/action mapping, safe interaction states, adaptive UI, and acceptance criteria; **not implemented**.
-- [Compact Manager Screen Design (DRAFT)](./compact-manager-screen-design.md) — clean visual system, Instances, detail/setup sheets, Window Layout, Settings, error wording and component acceptance; **design only**.
+- **[Compact Manager Implementation Specification — ACTIVE DESIGN](./compact-manager-implementation.md)** — single English-only, no-sidebar, instance-first UX/interaction blueprint; **design frozen, not implemented**.
+- Historical only: [original UX draft](./compact-manager-ux-spec.md) and [screen design draft](./compact-manager-screen-design.md) (SUPERSEDED; do not use to implement).
 - [Lightweight Windows architecture](../system/architecture.md) — source ownership, one Sandboxie engine and resource-efficiency strategy.
 - [Active two-client procedure](../validation/sandboxie-two-client-feasibility.md) — official Desktop executable, sandbox evidence and manual licensed login.
 

@@ -7,6 +7,9 @@ authority: WORKING
 lifecycle: DRAFT
 ---
 
+
+> **STATUS: SUPERSEDED DESIGN DRAFT.** Historical reference only; do not implement this document. The sole active design specification is [Compact Manager Implementation Specification](./compact-manager-implementation.md). It supersedes older navigation, language, sidebar, setup, layout and action-label decisions. Runtime safety contracts are unchanged.
+
 # Minecraft Instance Manager — Clean Compact Screen Design
 
 **Status:** DRAFT / DESIGN ONLY, 2026-10-13. Not implemented in Tauri, no local Minecraft testing resumed.

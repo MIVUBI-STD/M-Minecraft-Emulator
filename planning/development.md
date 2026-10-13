@@ -4,6 +4,15 @@
 **Current work:** `emulator/pre-local-cleanup`; **PAUSED at user request on 2026-10-13**. User will continue repository discussion in ChatGPT; do not resume local runtime tests without explicit instruction.
 **Execution ceiling:** Windows source preflight **PASS** at `e6e9ad22625cf0c5928ee6cf5ee6efb2e503e598`; developer binary/window observed; Refresh confirmation observed in user-supplied screenshot. Sandboxie membership, account isolation, Minecraft gameplay, package and four-client acceptance remain **NOT_EXECUTED / UNKNOWN**. Later documentation commits do not inherit exact-HEAD execution PASS.
 
+## Compact Manager consolidated design baseline — 2026-10-13
+
+- **Decision:** UX design frozen for the current two-client UI; no runtime implementation or local Windows tests resumed.
+- **SOLE ACTIVE UI DESIGN AUTHORITY:** [Compact Manager Implementation Specification](../docs/product/compact-manager-implementation.md). It supersedes the earlier UX and screen drafts (historical only), including Indonesian labels, sidebar, a separate Window Layout screen, side drawers, unsupported buttons and stale mock states.
+- **English-only, no sidebar:** native title bar; Instances (home) + Settings; one Check status; compact flat list; instance-specific inline setup/issue/window-placement; advanced diagnostics collapsed.
+- **Truthfulness:** request ≠ observed window ≠ independent licensed playable session. Client 01 supports official app Open only; Client 02 supports conditional isolated Open, validated Switch to and Left/Right placement. No 03/04, Stop, Start All, native Focus or global Arrange until backend exists and is proven.
+- **Design versus implementation:** source currently still mounts `NativeFeasibilityApp.svelte`; the canonical specification is a future implementation contract, not proof of new Svelte components, package success or gameplay. Preserve exact current Rust/IPC security logic and legacy compatibility.
+- **Next design-approved task:** implement the complete UI refactor in reviewed phases from the sole specification, then source/UI verification. Real Windows localtest stays **PAUSED** pending explicit user instruction.
+
 ## Compact Manager clean UI revision v2 — 2026-10-13
 
 - **User requirement:** concise, clear, familiar wording and clean everyday application; no tester/developer dashboard on the user-facing home.

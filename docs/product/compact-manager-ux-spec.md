@@ -7,6 +7,9 @@ authority: WORKING
 lifecycle: DRAFT
 ---
 
+
+> **STATUS: SUPERSEDED DESIGN DRAFT.** Historical reference only; do not implement this document. The sole active design specification is [Compact Manager Implementation Specification](./compact-manager-implementation.md). It supersedes older navigation, language, sidebar, setup, layout and action-label decisions. Runtime safety contracts are unchanged.
+
 # Minecraft Instance Manager — Compact Manager UX Specification
 
 **State:** DESIGN DRAFT; not implemented and not a verification record.
