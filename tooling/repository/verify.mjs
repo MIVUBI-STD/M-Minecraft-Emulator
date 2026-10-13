@@ -13,6 +13,7 @@ const required = [
   "README.md", "AGENTS.md", "GITHUB_RULES.md", "CONTEXT.md", "CONTRIBUTING.md",
   "SECURITY.md", "VERSION", "DEV.cmd", ".agents/skills/emulator-development/SKILL.md",
   "planning/development.md", "docs/README.md", "docs/system/implementation-map.md",
+  "tooling/local-test/session.mjs", "tooling/local-test/session.test.mjs",
   "apps/desktop/package.json", "apps/desktop/package-lock.json",
   "apps/desktop/src-tauri/Cargo.toml", "apps/desktop/src-tauri/tauri.conf.json",
   "engine/runtime-core/Cargo.toml", "engine/distribution/release-channel.json",
@@ -408,6 +409,20 @@ for (const path of markdownFiles("docs")) {
   }
 }
 
+const scripts = json("package.json").scripts;
+requireFact(scripts["test:localtest"] === "node --test tooling/local-test/session.test.mjs" &&
+  scripts["verify:source"].includes("npm run test:localtest"),
+  "Source verification must execute local-test storage regressions");
+const nativePreflight = read("tooling/windows-toolchain/dev.ps1");
+for (const marker of [
+  'session.mjs" start preflight $sha',
+  'session.mjs" finish $recordDir PASS complete',
+  'session.mjs" finish $recordDir FAIL $stage',
+  'Assert-CleanSourceAtHead -ExpectedSha $sha'
+]) {
+  requireFact(nativePreflight.includes(marker),
+    "Native preflight lost run recording or exact-source binding: " + marker);
+}
 const storagePolicy = read("docs/system/artifact-storage.md");
 requireFact(storagePolicy.startsWith("---\nid: document.system.artifact-storage\n"),
   "Canonical artifact storage policy is missing");

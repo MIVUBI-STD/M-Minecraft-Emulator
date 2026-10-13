@@ -61,7 +61,15 @@ workspace/runs/<UTC>-<shortSHA>-<scenario>/
   sanitized/
 ```
 
-Suggested `manifest.json` fields: schema version, complete 40-character
+The current `DEV.cmd preflight` creates a **metadata-only** `manifest.json`
+after Windows, branch, pinned toolchain and lockfile checks succeed. It
+records exact commit, UTC timestamps, source-only result and failing phase.
+No console output, account information or host fingerprint is captured
+automatically. Earlier failures may leave no report. An interrupted
+`RUNNING` record is **not a PASS**. This manifest is not an additional
+product acceptance gate or remote telemetry store.
+
+Future manually curated evidence may use these additional fields: schema version, complete 40-character
 source commit, branch, UTC start/end, scenario, executed command/manual steps,
 relevant environment/tool versions, evidence filenames and SHA-256 hashes,
 package SHA-256 if applicable, actual exit status, explicit operator-only
@@ -103,9 +111,12 @@ only reviewed sanitized excerpts.
 
 ## Enforcement and proof ceiling
 
-The existing `npm run verify:repository` now checks effective ignore behavior
+The existing `npm run verify:repository` checks effective ignore behavior
 and rejects unexpected Git-tracked paths under machine-output roots.
-This is a **source-layout guard**, not proof of actual installer behavior,
+The `npm run test:localtest` suite exercises manifest lifecycle using
+disposable directories. Windows/PowerShell integration still requires
+actual execution. These are **source-layout and unit guards**, not proof
+of actual installer behavior,
 Windows execution, Minecraft sign-in, GPU performance or REA analysis.
 Use [native pilot local-test procedure](../validation/native-pilot-localtest.md)
 for actual operator testing when authorized.

@@ -33,13 +33,18 @@ This follows the same desktop architecture as `M-LazyBuilder-Plugin/apps/launche
 ## Layer boundary
 
 ```text
-Svelte product surfaces
-        ↓
-typed runtime facade
-        ↓
-thin Tauri command adapters
-        ↓
-Virtual Clients Rust backend
+ACTIVE: NativeFeasibilityApp.svelte (presentation + transient UI state)
+            ↓
+        app/bridge/nativeFeasibilityApi.ts (typed, fail-closed IPC)
+            ↓
+        src-tauri/src/commands/native_clients.rs (thin Tauri adapters)
+            ↓
+        src-tauri/src/engine/native_clients.rs (Windows/Sandboxie owner)
+            ↓
+        read-only collector / official vendor launchers
+
+INACTIVE: App.svelte, virtualClientsApi.ts, VMware Rust routes
+          are retained for compatibility, but not registered.
 ```
 
 Ownership:

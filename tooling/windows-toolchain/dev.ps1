@@ -206,12 +206,40 @@ function Invoke-NativeSourcePreflight {
         throw "Native source preflight requires a tracked desktop Cargo.lock at the committed Local HEAD."
     }
     Write-Host "Native source preflight SHA: $sha"
-
-    Write-Host "[3/4] Installing locked developer npm dependencies..."
-    Invoke-RepositoryNpm -NpmArguments @("run", "setup")
-    Write-Host "[4/4] Executing all source checks, without packaging or launching games..."
-    Invoke-RepositoryNpm -NpmArguments @("run", "verify:source")
-    Assert-CleanSourceAtHead -ExpectedSha $sha
+    # Begin metadata-only recording after pinned Node and clean commit checks.
+    # Never capture raw console output, credentials or Minecraft game data.
+    $recordDir = (& node "tooling/local-test/session.mjs" start preflight $sha)
+    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($recordDir)) {
+        throw "Cannot create a safe local-test record. Source checks were not started."
+    }
+    Write-Host "Local-test record: $(Join-Path $recordDir 'manifest.json')"
+    $stage = "setup"
+    try {
+        Write-Host "[3/4] Installing locked developer npm dependencies..."
+        Invoke-RepositoryNpm -NpmArguments @("run", "setup")
+        $stage = "verify-source"
+        Write-Host "[4/4] Executing all source checks, without packaging or launching games..."
+        Invoke-RepositoryNpm -NpmArguments @("run", "verify:source")
+        $stage = "source-integrity"
+        Assert-CleanSourceAtHead -ExpectedSha $sha
+        & node "tooling/local-test/session.mjs" finish $recordDir PASS complete
+        if ($LASTEXITCODE -ne 0) {
+            throw "Source checks finished but the local-test manifest could not be finalized."
+        }
+    }
+    catch {
+        # Preserve the original source error even if recording fails separately.
+        try {
+            & node "tooling/local-test/session.mjs" finish $recordDir FAIL $stage
+            if ($LASTEXITCODE -ne 0) {
+                Write-Warning "Local-test failure record could not be finalized."
+            }
+        } catch {
+            Write-Warning "Local-test recorder failed; preserve the original console error."
+        }
+        Write-Host "Local-test record: $(Join-Path $recordDir 'manifest.json')"
+        throw
+    }
 
     Write-Host "SOURCE PREFLIGHT COMPLETE for $sha (not Minecraft acceptance)."
     Write-Host "NEXT: .\DEV.cmd dev  (manual UI test; no legacy installer)"

@@ -7,7 +7,7 @@ versioned. See the canonical [Artifact and Local-Test Storage Policy](../docs/sy
 | --- | --- |
 | `downloads/` | External installer/prerequisite staging; note publisher URL, version and SHA-256 |
 | `packages/` | Copies of future **approved** package candidates; not a publishing channel |
-| `runs/<UTC>-<shortSHA>-<scenario>/` | Separate per-attempt manifests, logs, raw evidence and sanitized summaries |
+| `runs/<UTC>-<shortSHA>-<scenario>/` | `DEV.cmd preflight` writes a metadata-only `manifest.json` after pinned toolchain checks; raw evidence is opt-in only |
 | `scratch/` | Disposable research and experiments |
 | `private/` | Operator-controlled sensitive material, never publish |
 | `evidence/`, `captures/`, `images/`, `runtime/`, `diagnostics/` | Historical local paths: preserve until producers and consumers are reviewed |

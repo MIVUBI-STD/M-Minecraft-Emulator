@@ -36,6 +36,18 @@ Use [implementation ownership](../docs/system/implementation-map.md) for older V
 
 The historical source-hardening history, evidence qualifications and per-batch details are retained in [pre-compaction development handoff](https://github.com/MIVUBI-STD/M-Minecraft-Emulator/blob/38aafe6817814b3f25e202d6ff8140d8be5b595f/planning/development.md) and the [REA-aligned baseline](../docs/validation/rea-source-audit-2026-10-13.md). Treat those as pinned history, **not** the present HEAD acceptance verdict.
 
+## Local-test recording and application ownership (2026-10-13)
+
+`tooling/local-test/session.mjs` now provides one metadata-only
+exact-SHA source-preflight record under ignored `workspace/runs/` after
+validating the pinned Windows toolchain. `DEV.cmd preflight` finalizes
+the attempted source check as PASS/FAIL without raw terminal logs.
+The source verifier requires the recorder regressions and launcher wiring.
+The active UI root diagnostic was renamed for clarity; no other native
+process or IPC behavior was intentionally changed. Pure Node recorder
+tests passed in a separate analysis environment. Pinned Windows PowerShell,
+Tauri, Sandboxie and Minecraft execution remain NOT_EXECUTED.
+
 ## Local test storage governance (source policy, not runtime proof)
 
 The canonical [Artifact and Local-Test Storage Policy](../docs/system/artifact-storage.md) now classifies downloaded prerequisites, package candidates, compiler output and per-session evidence. `workspace/` is Git-ignored except its README; the existing verifier enforces that boundary. Build output and historical runtime/evidence paths were **not moved or deleted**, and the native pilot's old NSIS release hold remains intact. This is a source-policy update: node/Rust/Windows/installer/Minecraft/REA execution is **NOT_EXECUTED**.

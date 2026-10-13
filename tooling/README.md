@@ -6,6 +6,7 @@ not implement a second Minecraft runtime or background service.**
 | Owner | Current use |
 | --- | --- |
 | [`repository/verify.mjs`](./repository/verify.mjs) | Static repository/source ownership invariants |
+| [`local-test/session.mjs`](./local-test/session.mjs) | Metadata-only exact-SHA source-preflight records; never captures raw logs or Minecraft profiles |
 | [`windows-toolchain/dev.ps1`](./windows-toolchain/dev.ps1) | Optional developer commands on an authorized Windows setup |
 | [`acceptance/windows/collect-sandboxie-feasibility.ps1`](./acceptance/windows/collect-sandboxie-feasibility.ps1) | **Active** fixed `MinecraftClient02` candidate and box inspection; desktop calls `-SummaryOnly` without writing a report |
 | [`acceptance/evaluate-sandboxie-feasibility.mjs`](./acceptance/evaluate-sandboxie-feasibility.mjs) | Interprets collected account/gameplay claims **only as operator-attributed evidence**, not automatic login proof |

@@ -367,3 +367,28 @@ Use [Validation](../validation/README.md) for source, package, VM and game proof
 ## Provenance
 
 Product source was separated from `MIVUBI-STD/M-Lazy-Developer` `Experimental` at commit `89cb8691f6757d287707bb8cae2d0d810b751404`. This history is not an active runtime dependency.
+
+## Maintenance boundaries for the active desktop
+
+The active entry is `apps/desktop/src/main.ts`, which mounts
+`NativeFeasibilityApp.svelte`. Svelte owns transient interaction state and
+presentation, **not** Windows process identity, sandbox membership or licensed
+account status. `app/bridge/nativeFeasibilityApi.ts` owns strict IPC input
+validation; `src-tauri/src/commands/native_clients.rs` owns thin Tauri
+adapters; `src-tauri/src/engine/native_clients.rs` owns Windows launch,
+process identity rechecks, focus/placement and Sandboxie operations. The
+canonical read-only membership collector remains
+`tooling/acceptance/windows/collect-sandboxie-feasibility.ps1`.
+
+The active Rust implementation is relatively large. Future refactoring must
+first isolate bounded units along **proven** responsibilities (e.g., launch
+admission, process identity, subprocess execution, window operations), retain
+the canonical collector, and run targeted behavioral regressions. Splitting
+folders mechanically risks duplicated sources of truth and inadvertent
+changes to launch security. Unmounted VMware UI, Rust commands and runtime
+providers are **retained for compatibility analysis**, not presumed safe
+to delete. The four-client provider architecture remains undecided.
+
+Development-only preflight data is owned by `tooling/local-test/`, and stored
+under ignored `workspace/runs/`. It neither installs an app nor adds a
+runtime manager, telemetry daemon, installer, or product acceptance gate.

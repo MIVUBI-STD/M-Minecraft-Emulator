@@ -44,6 +44,15 @@ This developer mode does not install/replace the old VMware manager.
 .\DEV.cmd preflight
 ```
 
+For runs that reach pinned Node/toolchain checks, preflight automatically creates
+a metadata-only report at `workspace/runs/<UTC>-<shortSHA>-preflight-<suffix>/manifest.json`.
+The console prints its location. The report records the complete Git commit
+and whether source checks passed or which phase failed. Raw terminal output,
+account information and Minecraft worlds are **never captured automatically**.
+Earlier Windows/Git/toolchain failures may not create a report. An interrupted
+`RUNNING` report is not a PASS. Keep reports local and share only redacted
+details; see [Artifact Storage Policy](../system/artifact-storage.md).
+
 **Stop if this command fails.** `DEV.cmd preflight` prints four numbered stages, rejects unsupported Windows hosts, and confirms a clean committed `Local` SHA, checks pinned developer tools and the tracked Cargo lockfile, installs locked desktop npm dependencies, runs root `npm run verify:source`, and rechecks that tracked source/HEAD did not change. It does not open the desktop or package the application. If a stage fails, keep the first error and SHA; do not retry by disabling checks. The source verifier runs repository rules, evidence evaluator tests, frontend Svelte/TypeScript/Vitest/build checks, Rust checks/tests/format. A Git commit or an authored test is *not* evidence of a passing command. A clean verification result does not prove Minecraft playability.
 
 **Do not use** `npm run package:windows`, `npm run build:app`, `DEV.cmd package` or `DEV.cmd g0` to obtain an installer: those legacy VMware packaging paths are deliberately blocked while this native pilot is active.
