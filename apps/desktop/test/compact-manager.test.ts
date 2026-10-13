@@ -234,7 +234,8 @@ describe("Compact Manager app source and command boundary", () => {
   it("restores keyboard focus when a panel closes and allows Escape to close it", () => {
     expect(app).toContain('import { tick } from "svelte"');
     expect(app).toContain("origin?.isConnected && !origin.disabled");
-    expect(app).toContain("checkStatusButton?.focus()");
+    const close = app.split("function closeDetails()")[1]?.split("function showSettings()")[0] ?? "";
+    expect(close).toContain("else if (checkStatusButton?.isConnected && !checkStatusButton.disabled) checkStatusButton.focus();");
     expect(app).toContain('<svelte:window on:keydown={handleWindowKeydown} />');
     expect(app).toContain('event.key !== "Escape"');
     expect(app.match(/on:click={closeDetails}>Close details/g)).toHaveLength(2);
@@ -251,7 +252,7 @@ describe("Compact Manager app source and command boundary", () => {
     expect(app).toContain("let notices: Partial<Record<InstanceId, UiNotice>> = {}");
     expect(app).toContain('clearFeedback("01");');
     expect(app.match(/clearFeedback\("02"\);/g)).toHaveLength(4);
-    expect(app).toContain('issues = { ...issues, [instance]: { instance, title, message');
+    expect(app).toMatch(/issues = \{ \.\.\.issues, \[instance\]: \{\s+instance, title, message,/);
     expect(app).toContain('notices = { ...notices, [instance]: undefined }');
     expect(app).toContain('rowPresentation("01", observation !== undefined, base02, busy, issue01, notice01)');
     expect(app).toContain('rowPresentation("02", observation !== undefined, base02, busy, issue02, notice02)');

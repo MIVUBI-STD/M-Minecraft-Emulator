@@ -1,5 +1,14 @@
 # Current Development Handoff
 
+## Windows localtest resumed — 2026-10-14
+
+- **Authorization:** user resumed localtest through two licensed playable sessions, native Client 01 plus persistent Sandboxie Client 02; sign-in and Windows restart remain manual. User reports both Education accounts and applicable Sandboxie licensing available.
+- **Baseline:** clean Windows `Local` at `2a5552518179e9c8fe6a4b27fb09a19457ad0f9d`. `DEV.cmd preflight` executed and recorded FAIL at desktop Vitest before Rust/build completion. The metadata-only manifest remains in ignored workspace storage.
+- **First wrong owner:** two stale assertions in `apps/desktop/test/compact-manager.test.ts`: optional-call text no longer matched guarded focus restoration, and an issue-object assertion required obsolete single-line formatting. Correct the assertions to require the current guarded fallback and tolerate object whitespace; product behavior is unchanged.
+- **Executed evidence:** all 115 desktop Vitest tests passed on Windows with Node 24.21.0/npm 11.19.0 after this test correction in the working tree. This is not a committed-SHA full preflight or gameplay verdict.
+- **Next:** run `DEV.cmd preflight` on the clean correction commit, then developer startup only after PASS. Minecraft/Sandboxie installation, two windows, account isolation, worlds, multiplayer and reboot persistence remain NOT_EXECUTED for the resumed test.
+- This active resumption supersedes historical PAUSED localtest entries below; their prior evidence remains revision-scoped history.
+
 ## Pre-localtest operator-guide and ownership reconciliation — 2026-10-14
 
 - **Scope:** source/docs-only correction for the approved native + Sandboxie two-client pilot. The mounted entry point is `apps/desktop/src/main.ts` → `CompactManagerApp.svelte`; sandbox inspection cannot authenticate Client 01.
