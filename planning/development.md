@@ -1,5 +1,14 @@
 # Current Development Handoff
 
+## TokenBroker activation differential — 2026-10-14
+
+- **User-approved continuation:** narrow diagnosis of the existing Client 02 sign-in failure; no account/configuration mutation or new provider implementation.
+- **Executed decisive probe:** a machine-local Windows SDK/native WinRT probe requests only factory activation and Microsoft provider discovery, never account enumeration, login or tokens. `FindAccountProviderAsync` succeeds on the host but its asynchronous operation fails in `MinecraftClient02` with `0x80070424`. Factory acquisition itself succeeds. A separate `RoActivateInstance` probe for `Windows.Internal.Security.Authentication.Web.TokenBrokerInternal` succeeds on the host and fails in the box with the identical HRESULT.
+- **Service attribution:** installed Windows runtime registration maps TokenBrokerInternal to runtime server `TokenBroker`, whose ServiceName is `TokenBroker`; that host service is running. This identifies failed broker activation across this Sandboxie boundary, rather than an absent host service. It does not identify the exact internal Sandboxie call or establish a compatible independent-account workaround.
+- **Probe validity:** initial PowerShell projection crashed inside the box; an initial native harness used an incorrect IAsyncInfo slot. Those results are excluded. Corrected native ABI matched the installed Windows SDK IInspectable/IAsyncInfo layout and reproduced the actual HRESULT without credentials. Probe source/binaries and metadata remain ignored machine-local artifacts, not product code or uploaded account data.
+- **Outcome:** the login-stage pilot remains unsuccessful on Sandboxie Plus 1.18.5 / Education Desktop 1.26.3200.0. No safe verified fix is claimed; OpenCredentials/OpenProtectedStorage, host broker registration, sandbox data and games were not changed. Higher gameplay/network/persistence/four-client acceptance remains unproven.
+- **Next:** assess a documented vendor compatibility fix against this credential-free activation reproducer before another manual sign-in; opening host account resources or selecting a different isolation architecture needs a separate explicit decision.
+
 ## Client 02 Microsoft sign-in failure — 2026-10-14
 
 - **Current acceptance outcome:** two process/window candidates were observed, but the user reports Client 02 sign-in fails after email submission and before password with tag `7q6ch`, HRESULT `0x80070424` (`ERROR_SERVICE_DOES_NOT_EXIST`). The same second account signs in successfully outside Sandboxie; Client 01 login and a playable world are operator-reported successful. Independent concurrent licensed gameplay is NOT ACCEPTED; multiplayer, persistence and sustained-use acceptance remain NOT_EXECUTED.
