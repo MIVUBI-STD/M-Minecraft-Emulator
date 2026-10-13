@@ -4,7 +4,16 @@
 **Current work:** `emulator/source-hardening` (additional source-only audit and corrections; local testing explicitly deferred).
 **Engineering state:** source prototype / **exact-HEAD Node/Svelte/Rust/PowerShell execution, Windows build and two-account gameplay NOT_EXECUTED**.
 
-## Latest source-only batch — REA-aligned producer/consumer reconciliation and worker bounds
+## Latest source-only batch — fail-closed boxed PID identity and UNKNOWN guidance
+
+- **First wrong owner:** `tooling/acceptance/windows/collect-sandboxie-feasibility.ps1`. A Sandboxie-reported boxed PID was previously required only to occur in the global `Get-Process` snapshot. Presence alone did not prove that its `ProcessName` and `SessionId` could be read. If a boxed Minecraft process failed to classify, the launch preflight might report zero named candidates despite its PID existing. This is a source-level false-empty risk, not an observed duplicate launch.
+- **Correction:** A failed global enumeration discards any partial list; duplicate/missing boxed PIDs, an empty process name, an unavailable/non-integer/invalid boxed `SessionId`, or a denied getter all downgrade `membershipStatus` to `UNKNOWN` with no inferred box attribution. The existing Rust admission rule refuses `UNKNOWN`. An inaccessible optional `MainWindowHandle` remains a null HWND on a name-matched process rather than deleting that candidate, so a windowless Client 02 still blocks another launch.
+- **User guidance:** Rust launch refusal and the active Svelte UI now acknowledge both unknown Sandboxie membership **and** unknown Windows process identity instead of naming only `Start.exe /listpids`. No new public fields, provider manager, background poller or credentials handling were introduced.
+- **Source regression:** Strengthened `apps/desktop/test/native-feasibility.test.ts` and `tooling/acceptance/evaluate-sandboxie-feasibility.test.mjs`. Performed a bounded GitHub-source consistency scan: **12/12 hand-authored invariants matched**, along with literal source-assertion matches for **30 desktop**, **72 evaluator**, and **21 repository-verifier** occurrences (negative assertions excluded from positive checks). These are inspection results, **not** executed Node/Vitest/PowerShell tests. `npm run verify:source` still NOT_EXECUTED.
+- **Residuals:** A Windows/Sandboxie process inventory is never atomic; the game can launch/exit between snapshots and admission. `Get-Process` access/edition differences, signed PID attribution, WAM login separation, client rendering, start-app localization, resource behavior and the inherited pipe lifetime require higher proof. All local machine and game tests remain deferred by the user.
+- **Next bounded source-only task:** inspect whether the process enumeration's per-property failures and out-of-box candidates can be diagnosed without overloading IPC/schema, and whether the first meaningful operator action is communicated without replacing UNKNOWN with invented PASS. Do not proceed to localtest or release packaging without a new request.
+
+## Previous source-only batch — REA-aligned producer/consumer reconciliation and worker bounds
 
 - **Discovered a concrete source-contract defect (P0):** the collector's
   `$signedOutside` filter previously counted every signed Education image,
