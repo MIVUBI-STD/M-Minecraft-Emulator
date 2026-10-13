@@ -58,6 +58,16 @@ test("no process observations preserve null metrics, not artificial zeros", () =
   assert.equal(result.native.maxWorkingSetMb, null);
 });
 
+test("reject impossible process reappearance and mismatched identity flags", () => {
+  const falseFlag = sample();
+  falseFlag.samples[1].native = {status: "UNKNOWN", cpuPercentOfHost: null, workingSetMb: null};
+  assert.throws(() => evaluateNativePerformance(falseFlag), TypeError);
+  const impossibleResurrection = sample();
+  impossibleResurrection.nativeProcessIdentityLost = true;
+  impossibleResurrection.samples[0].native = {status: "UNKNOWN", cpuPercentOfHost: null, workingSetMb: null};
+  assert.throws(() => evaluateNativePerformance(impossibleResurrection), TypeError);
+});
+
 test("reject PID/account injection, fabricated verdict, and invalid schema", () => {
   for (const mutate of [
     r => r.PID = 100,

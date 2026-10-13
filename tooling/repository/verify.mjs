@@ -18,6 +18,9 @@ const required = [
   "apps/desktop/src-tauri/Cargo.toml", "apps/desktop/src-tauri/tauri.conf.json",
   "engine/runtime-core/Cargo.toml", "engine/distribution/release-channel.json",
   "tooling/acceptance/windows/collect-acceptance.ps1",
+  "tooling/acceptance/windows/collect-native-performance.ps1",
+  "tooling/acceptance/evaluate-native-performance.mjs",
+  "tooling/acceptance/evaluate-native-performance.test.mjs",
   "engine/guest/windows/prepare-base.ps1",
   ".github/workflows/verify.yml", ".github/workflows/package-smoke.yml",
   "docs/validation/client-feasibility.md",
@@ -194,7 +197,22 @@ for (const operation of [
   requireFact(rustCommandBoundary.includes('"' + operation + '",'),
     "VM command pause list dropped: " + operation);
 }
-for (const command of ["test:native-feasibility", "test:sandboxie-feasibility"]) {
+requireFact(rootPackage.scripts["test:native-performance"] ===
+  "node --test tooling/acceptance/evaluate-native-performance.test.mjs" &&
+  rootPackage.scripts["native-performance:review"] ===
+  "node tooling/acceptance/evaluate-native-performance.mjs",
+  "Native performance review and regression command drift");
+const nativePerformanceSampler = read("tooling/acceptance/windows/collect-native-performance.ps1");
+const nativePerformanceEvaluator = read("tooling/acceptance/evaluate-native-performance.mjs");
+requireFact(
+  nativePerformanceSampler.includes("automaticVerdict = 'NOT_PROVIDED'") &&
+  nativePerformanceSampler.includes("OPERATOR_SELECTED_UNVERIFIED_PIDS") &&
+  nativePerformanceEvaluator.includes('automaticGameplayProof: false') &&
+  nativePerformanceEvaluator.includes('fourClientReady: false') &&
+  !nativePerformanceSampler.includes("Stop-Process") &&
+  !nativePerformanceSampler.includes("Start-Process"),
+  "Native performance evidence must remain opt-in, non-mutating and never imply gameplay proof");
+for (const command of ["test:native-feasibility", "test:sandboxie-feasibility", "test:native-performance"]) {
   requireFact(rootPackage.scripts["verify:source"].includes("npm run " + command),
     "Native-first source checks omit " + command);
 }

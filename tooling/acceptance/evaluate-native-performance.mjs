@@ -68,6 +68,8 @@ export function evaluateNativePerformance(report) {
     throw new TypeError("Unrecognized or inconsistent native performance report.");
   }
   let lastTime = -1;
+  let nativeLostInSamples = false;
+  let isolatedLostInSamples = false;
   for (const sample of report.samples) {
     if (!exactly(sample, ["elapsedSeconds", "native", "isolated"]) ||
         !finite(sample.elapsedSeconds) || sample.elapsedSeconds <= lastTime ||
@@ -78,14 +80,18 @@ export function evaluateNativePerformance(report) {
     lastTime = sample.elapsedSeconds;
     sampleMetrics(sample.native);
     sampleMetrics(sample.isolated);
+    // The process collector pins creation time and never follows a reused PID.
+    // Once identity is lost, a later OBSERVED sample would be contradictory.
+    if ((nativeLostInSamples && sample.native.status === "OBSERVED") ||
+        (isolatedLostInSamples && sample.isolated.status === "OBSERVED")) {
+      throw new TypeError("A lost process identity cannot resume within one capture.");
+    }
+    nativeLostInSamples ||= sample.native.status === "UNKNOWN";
+    isolatedLostInSamples ||= sample.isolated.status === "UNKNOWN";
   }
-  if (report.nativeProcessIdentityLost &&
-      !report.samples.some(sample => sample.native.status === "UNKNOWN")) {
-    throw new TypeError("Reported native identity loss is missing from samples.");
-  }
-  if (report.isolatedProcessIdentityLost &&
-      !report.samples.some(sample => sample.isolated.status === "UNKNOWN")) {
-    throw new TypeError("Reported isolated identity loss is missing from samples.");
+  if (nativeLostInSamples !== report.nativeProcessIdentityLost ||
+      isolatedLostInSamples !== report.isolatedProcessIdentityLost) {
+    throw new TypeError("Process identity-loss flags contradict the observed samples.");
   }
   const native = metrics(report.samples, "native");
   const isolated = metrics(report.samples, "isolated");

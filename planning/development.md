@@ -1,5 +1,13 @@
 # Current Development Handoff
 
+## Exact-source verification route correction — 2026-10-13
+
+- **First wrong owner:** `apps/desktop/test/verification-routing.test.ts` expected the previous aggregate `verify:source` sequence and omitted the newly installed `test:native-performance` step. This was a deterministic source/test contradiction, not a Windows/Minecraft issue.
+- **Repair:** align the exact expected route with `package.json`, require the performance reviewer/sampler at the existing repository verifier, and reject internally contradictory identity loss/reappearance in the performance evaluator plus a targeted regression test.
+- **Proof:** source contracts inspected on GitHub and the evaluator's authored JS tests executed in a V8 adapter (Node test imports shimmed). Node 24, Vitest/Svelte and Cargo/Rust source suites on the new exact HEAD remain **NOT_EXECUTED**, since no matching toolchain is available; no Windows localtest was resumed.
+- **Next:** once a supported source-execution environment exists, run the unchanged `npm run verify:source` route at a pinned HEAD, then perform the withheld Windows/gameplay campaign separately.
+
+
 ## Mac/Android architecture hypothesis and REA evidence plan — 2026-10-13
 
 - **Research owner:** `experiments/minecraft-education-platform-research.md`; not a provider, engine, additional product gate or acceptance database.

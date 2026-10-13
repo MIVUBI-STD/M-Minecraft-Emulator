@@ -13,6 +13,7 @@ describe("Emulator source verification routing", () => {
       "npm run test:feasibility",
       "npm run test:native-feasibility",
       "npm run test:sandboxie-feasibility",
+      "npm run test:native-performance",
       "npm run check:desktop",
       "npm run check:runtime",
       "npm run test:runtime",
