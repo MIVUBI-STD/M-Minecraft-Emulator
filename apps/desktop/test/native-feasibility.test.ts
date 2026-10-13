@@ -187,6 +187,12 @@ describe("Native candidate IPC evidence", () => {
     expect(sandboxList).toContain("$second = Read-BoxPidList");
     expect(sandboxList).toContain("(($first.Pids -join ',') -ceq ($second.Pids -join ','))");
     expect(sandboxList).toContain("if ($gameCandidates.Count -gt 16)");
+    expect(sandboxList).toContain("$rawSession = $process.SessionId");
+    expect(sandboxList).toContain("if ($null -eq $rawSession -or $rawSession -isnot [int])");
+    expect(sandboxList).toContain("if (-not $observedByPid.ContainsKey($key))");
+    expect(sandboxList).toContain("$handle = $null");
+    expect(engine).toContain("Sandboxie PID membership or Windows process identity is UNKNOWN");
+    expect(active).toContain("Sandboxie membership or Windows process identity is unknown");
     expect(active).toContain('typeof reason === "string"');
     expect(commands).toContain("fn desktop_request_sandbox_client_02(");
     expect(engine).toContain("pub fn request_sandbox_client_02(");
