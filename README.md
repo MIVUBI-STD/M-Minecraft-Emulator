@@ -99,7 +99,7 @@ npm run test:runtime             # Rust canonical runtime tests
 npm run format:runtime           # Rust format check
 npm run verify:source            # complete source checkpoint
 npm run dev                      # Tauri desktop development
-npm run package:windows          # explicit Windows NSIS build, not signed publication
+npm run package:windows          # BLOCKED for native pilot: old VMware bundle still attached
 ```
 
 For the native Windows pilot, use `DEV.cmd preflight` to run the exact-SHA toolchain, locked setup and complete source checks in one non-destructive sequence; only after it succeeds use `DEV.cmd dev` for the manual two-client experiment. `DEV.cmd g0` and packaging remain blocked legacy routes. Windows developers can also use `DEV.cmd help`; it delegates to the existing PowerShell development script. GitHub workflows are **manual-only**. A committed test or valid static check is not proof of a passing Windows package or working four-client Minecraft session.

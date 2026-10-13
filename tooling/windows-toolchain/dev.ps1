@@ -251,12 +251,12 @@ try {
             Write-Host "  DEV.cmd lock     # resolve missing Tauri Cargo.lock (no automatic commit)"
             Write-Host "  DEV.cmd doctor   # pinned toolchain checks"
             Write-Host "  DEV.cmd preflight # native pilot exact-SHA setup + full source verification (NO package/game)"
-            Write-Host "  DEV.cmd g0       # one exact-SHA source + unsigned NSIS build batch"
+            Write-Host "  DEV.cmd g0       # LEGACY VMware packaging, BLOCKED for native pilot"
             Write-Host "  DEV.cmd setup    # install pinned npm dependencies"
             Write-Host "  DEV.cmd check    # full source verification"
             Write-Host "  DEV.cmd test     # desktop and runtime tests"
             Write-Host "  DEV.cmd dev      # Tauri desktop development"
-            Write-Host "  DEV.cmd package  # unsigned Windows NSIS package (not a release)"
+            Write-Host "  DEV.cmd package  # LEGACY VMware packaging, BLOCKED for native pilot"
         }
     }
 }

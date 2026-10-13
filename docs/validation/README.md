@@ -36,10 +36,10 @@ returns **no-write SummaryOnly** evidence to the desktop; a separately invoked f
 | Can one native Minecraft and one sandboxed Windows Minecraft run independently? | [Sandboxie Client 02 feasibility](./sandboxie-two-client-feasibility.md) — single active experiment, not game-proof |
 | What is the current REA-aligned repository audit and prioritized closure plan? | [REA-aligned source audit, 13 Oct 2026](./rea-source-audit-2026-10-13.md) — read-only source evidence, conditional risks and pending real artifact/runtime proof |
 | What was the earlier native-only experiment? | [Native two-client feasibility](./native-multi-instance-feasibility.md) — historical evidence route; not active architecture |
-| What are the only product-test progress gates and their exit criteria? | [Acceptance G0–G4](./acceptance.md) — one canonical five-gate campaign |
-| What comprises the first source/package integrity gate? | [G0 Source & Package Readiness](./pre-local-test-readiness.md) — four mandatory checks within G0 |
+| What were the historical VMware-only product gates? | [Legacy VMware G0–G4](./acceptance.md) — preserved five-gate VMware campaign, **not** the active native acceptance procedure |
+| What did historical VMware G0 require? | [Legacy VMware G0 Source & Package Readiness](./pre-local-test-readiness.md) — old package route remains blocked for native pilot |
 | Can one Windows VMware guest boot, install/sign in and play Minecraft Education responsively? | [Client Feasibility Gate](./client-feasibility.md) — before Base cloning |
-| What real tests must pass? | [Target-machine Acceptance](./acceptance.md) |
+| Where is the old VMware target-machine acceptance? | [Historical VMware Acceptance](./acceptance.md) — not needed to start the selected native two-client experiment |
 | What is statically covered versus unproven? | [Static Readiness](./static-readiness.md) |
 | What specific four-client failures must be exercised? | [Four-Client Failure Matrix](./four-client-failure-matrix.md) |
 | What does the Minecraft/VMware platform officially require? | [Platform Prerequisites](./platform-prerequisites.md) |

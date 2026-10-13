@@ -16,9 +16,9 @@ lifecycle: ACTIVE
 > Active procedure: [Sandboxie two-client feasibility](./sandboxie-two-client-feasibility.md).
 > Its signed-in gameplay and resource measurements are still unverified.
 
-## G0–G4 — the only product-test progress gates
+## Historical VMware G0–G4 — five gates of the retired campaign
 
-These five **sequential, outcome-based gates** are the sole indicators of product-test progress. Existing Cargo/Rust tests, Vitest, `verify:source`, package inspections, and Windows acceptance stages are **supporting evidence**, not additional product gates. No new runner, score, stored status schema, or readiness database is authorized.
+These five **sequential, outcome-based gates** are the sole indicators of progress **for the preserved VMware implementation**, not for the active native + Sandboxie experiment. Existing Cargo/Rust tests, Vitest, `verify:source`, package inspections, and Windows acceptance stages are **supporting evidence**, not additional product gates. No new runner, score, stored status schema, or readiness database is authorized.
 
 | Gate | Product question / exit criteria | Evidence boundary | Stop / decision |
 | --- | --- | --- | --- |
