@@ -32,6 +32,7 @@ returns **no-write SummaryOnly** evidence to the desktop; a separately invoked f
 
 | Question | Authoritative reference |
 | --- | --- |
+| What Sandboxie source/components/licenses are needed for an app-owned engine? | [Pinned upstream isolation inventory](./owned-isolation-upstream-inventory.md) — source review, no fork binaries/build run |
 | What passed in the first two-client run, and what remains unstable? | [First success and subsequent crash, 14 Oct 2026](./two-client-first-success-2026-10-14.md) — operator-confirmed gameplay, observed compatibility probes and unresolved idle crash |
 | How do I prepare and execute the current Windows local test safely? | [Native + Sandboxie local test](./native-pilot-localtest.md) — exact-HEAD build, manual two-client steps, failure handling and evidence limits |
 | Can one native Minecraft and one sandboxed Windows Minecraft run independently? | [Sandboxie Client 02 feasibility](./sandboxie-two-client-feasibility.md) — single active experiment, not game-proof |

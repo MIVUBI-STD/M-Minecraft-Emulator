@@ -1,5 +1,19 @@
 # Current Development Handoff
 
+## Initial owned-isolation source batch — 2026-10-14
+
+**Work:** app-owned isolation independent of an external Sandboxie-Plus installation, intended only for personal noncommercial educational use. **State:** ACTIVE. **Latest bounded result:** source-level inventory and design documents authored at current baseline; NO native engine code, signed driver, fork repository, host installation or Windows/Minecraft test executed in this batch.
+
+**Decision:** Start by preserving official two-client pilot and extracting a Rust internal `IsolationBackend` boundary from the active `native_clients.rs` owner; initially only the official adapter is live. Fork remains Sandboxie-derived/GPL and is not independent source code. Goal is app-controlled deployment independent of official SandMan/installed Sandboxie only AFTER reproducible fork build, compatible signed driver, independent test, legal review and data-preserving cutover.
+
+**Source anchors:** [Upstream component/license/build inventory](../docs/validation/owned-isolation-upstream-inventory.md) (Sandboxie v1.18.5 `abd4c240031cfb46666daa74ca47ed4e48b561e4`); [app-owned engine design](../docs/system/owned-isolation-design.md). Source baseline before this batch: `8f58f26b800fcd89188224efb862930b6f2e0ec9`.
+
+**Proof:** reviewed pinned upstream tag, `Sandbox.sln`, `SandboxDll.sln`, `SandboxDrv.sln`, project dependencies, `LICENSE.Plus` / GPL / LGPL, and existing app owners via remote GitHub. No actual core build, REA binary execution, driver signing/loading, stable Minecraft reproduction or four-client result.
+
+**Unresolved:** Current Client 02 idle-crash owner UNKNOWN; Windows reboot and continuous resource profile NOT_EXECUTED; private compiled source distribution and future commercial use require their own review; owned engine deployment, isolation semantics and coexistence/migration unproven. Upstream source-for-source capability is NOT runtime equivalence.
+
+**Next ONE task:** Add a strictly internal read-only isolation adapter boundary in the current Rust desktop owner with official adapter parity and behavior-level source tests, without touching the live box or changing Tauri public schemas. Then stop and review the exact diff.
+
 ## ChatGPT continuation: selected fork direction — 2026-10-14
 
 **Work:** two-client isolation fork investigation. **Source work ACTIVE;

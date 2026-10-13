@@ -14,6 +14,7 @@ Choose one document based on the requested concern:
 | Concern | Canonical document |
 | --- | --- |
 | Layering, source authority and architecture | [Architecture](./architecture.md) |
+| Future app-owned isolation backend, compatibility and cutover gates | [Owned Isolation Design](./owned-isolation-design.md) — design only, not active runtime |
 | Paused VM pathways and safe future deletion | [Legacy Retirement](./legacy-retirement.md) |
 | Locate Rust/Tauri/Guest Agent owner from an issue | [Implementation Map](./implementation-map.md) |
 | VM states, provenance, parity, readiness and resource policies | [Runtime Core](./runtime-core.md) |
