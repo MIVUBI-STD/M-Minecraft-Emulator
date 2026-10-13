@@ -1,0 +1,81 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { evaluateNativePerformance } from "./evaluate-native-performance.mjs";
+
+const sample = () => ({
+  schema: 1,
+  scope: "NATIVE_SANDBOXIE_PROCESS_PERFORMANCE",
+  evidenceOrigin: "WINDOWS_HOST",
+  attribution: "OPERATOR_SELECTED_UNVERIFIED_PIDS",
+  automaticVerdict: "NOT_PROVIDED",
+  capturedAtUtc: "2026-10-13T12:00:00Z",
+  durationRequestedSeconds: 60,
+  durationObservedSeconds: 60,
+  sampleIntervalSeconds: 5,
+  hostLogicalCpus: 8,
+  sampleCount: 2,
+  nativeProcessIdentityLost: false,
+  isolatedProcessIdentityLost: false,
+  samples: [
+    { elapsedSeconds: 5, native: {status: "OBSERVED", cpuPercentOfHost: 5, workingSetMb: 100},
+      isolated: {status: "OBSERVED", cpuPercentOfHost: 10, workingSetMb: 220} },
+    { elapsedSeconds: 10, native: {status: "OBSERVED", cpuPercentOfHost: 7, workingSetMb: 120},
+      isolated: {status: "OBSERVED", cpuPercentOfHost: 20, workingSetMb: 240} },
+  ],
+  missingEvidence: ["ACCOUNT_ISOLATION", "GAMEPLAY_RENDERING", "FRAME_TIMES",
+    "GPU_VRAM", "MULTIPLAYER", "INPUT_RESPONSIVENESS"],
+});
+
+test("complete CPU/RAM values still never create gameplay or performance PASS", () => {
+  const result = evaluateNativePerformance(sample());
+  assert.equal(result.interpretation, "PROCESS_TELEMETRY_ONLY");
+  assert.equal(result.automaticGameplayProof, false);
+  assert.equal(result.automaticPerformanceVerdict, "NOT_PROVIDED");
+  assert.equal(result.fourClientReady, false);
+  assert.deepEqual(result.native, {
+    observedSamples: 2, missingSamples: 0, meanHostCpuPercent: 6, maxWorkingSetMb: 120,
+  });
+  assert.equal(result.isolated.maxWorkingSetMb, 240);
+});
+
+test("inaccessible/restarted process stays unknown instead of fabricating 0 samples", () => {
+  const r = sample();
+  r.isolatedProcessIdentityLost = true;
+  r.samples[1].isolated = {status: "UNKNOWN", cpuPercentOfHost: null, workingSetMb: null};
+  const result = evaluateNativePerformance(r);
+  assert.equal(result.identityDiscontinuityObserved, true);
+  assert.equal(result.isolated.observedSamples, 1);
+  assert.equal(result.isolated.missingSamples, 1);
+  assert.equal(result.isolated.meanHostCpuPercent, 10);
+});
+
+test("no process observations preserve null metrics, not artificial zeros", () => {
+  const r = sample();
+  r.nativeProcessIdentityLost = true;
+  r.samples.forEach(s => s.native = {status: "UNKNOWN", cpuPercentOfHost: null, workingSetMb: null});
+  const result = evaluateNativePerformance(r);
+  assert.equal(result.native.meanHostCpuPercent, null);
+  assert.equal(result.native.maxWorkingSetMb, null);
+});
+
+test("reject PID/account injection, fabricated verdict, and invalid schema", () => {
+  for (const mutate of [
+    r => r.PID = 100,
+    r => r.samples[0].native.pid = 100,
+    r => r.accountEmail = "hidden@example.com",
+    r => r.automaticVerdict = "PASS",
+    r => r.scope = "FOUR_CLIENT_READY",
+    r => r.samples[0].native.cpuPercentOfHost = Number.NaN,
+    r => r.samples[0].native.workingSetMb = -3,
+    r => r.samples[0].isolated.status = "GAMEPLAY_VERIFIED",
+    r => r.samples[0].isolated.workingSetMb = null,
+    r => r.samples[1].elapsedSeconds = 5,
+    r => r.sampleCount = 20,
+    r => r.missingEvidence = [],
+    r => r.nativeProcessIdentityLost = true
+  ]) {
+    const r = sample();
+    mutate(r);
+    assert.throws(() => evaluateNativePerformance(r), TypeError);
+  }
+});

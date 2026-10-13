@@ -1,5 +1,12 @@
 # Current Development Handoff
 
+## Offline native process-performance report interpretation — 2026-10-13
+
+- **Scope:** reuse the existing Node evidence-evaluator pattern; read the JSON produced by the native process sampler.
+- **Behavior:** reject foreign schemas, extra fields (including PID/account data), false PASS, invalid/missing measurements and contradictory sample counts; aggregate observed CPU/working set with nullable unknowns, never assert gameplay or performance success.
+- **Verification:** Node tests authored and wired into the existing source verification command; executable Node and PowerShell checks on the new exact HEAD are **NOT_EXECUTED** in this GitHub-only session.
+- **Next:** only actual Windows/PresentMon and interactive Minecraft observations can close the two-client performance and account-separation unknowns.
+
 ## Remote-only native performance evidence preparation — 2026-10-13
 
 - **Scope:** add one opt-in read-only PowerShell sampler under the existing Windows acceptance owner, document its limits and its connection to the current two-client pilot.

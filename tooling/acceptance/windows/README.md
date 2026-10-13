@@ -20,6 +20,16 @@ powershell.exe -NoProfile -File .\tooling\acceptance\windows\collect-native-perf
   -DurationSeconds 3600 -SampleIntervalSeconds 5
 ```
 
+To review the generated JSON without declaring gameplay PASS:
+
+```powershell
+npm run native-performance:review -- "C:\path\to\native-process-performance-....json"
+```
+
+`npm run test:native-performance` checks the offline reviewer's schema,
+privacy, missing-data and false-PASS constraints. Authored tests do not prove
+that the Windows sampler has actually executed.
+
 The command is **not executable until real client processes are available**.
 It captures relative elapsed times, per-process working set and process CPU
 percentage normalized to the logical CPU count, into a timestamped JSON file
