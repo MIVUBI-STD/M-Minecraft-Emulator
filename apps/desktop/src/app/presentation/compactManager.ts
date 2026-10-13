@@ -122,12 +122,16 @@ export function rowPresentation(
   return base;
 }
 
-// Technical text is never sent to logs or uploaded by this layer.
+// The UI must not expose user profiles or authentication values in advanced
+// errors. Keep non-sensitive context while redacting both Windows slash styles,
+// macOS-style home paths and common header/credential representations.
 export function safeErrorDetails(value: unknown): string {
   const raw = value instanceof Error ? value.message : typeof value === "string" ? value : "No additional details available.";
   return raw
-    .replace(/[A-Za-z]:\\Users\\[^\\\r\n]+/gi, "[user directory]")
+    .replace(/\b[A-Za-z]:[\\/]Users[\\/][^\\/\r\n]+/gi, "[user directory]")
+    .replace(/\/Users\/[^/\r\n]+/g, "[user directory]")
     .replace(/[^\s@]+@[^\s@]+\.[A-Za-z]{2,}/g, "[account]")
-    .replace(/(password|token|secret)\s*[:=]\s*[^\s,;]+/gi, "$1=[redacted]")
+    .replace(/\bBearer\s+[^\s,;]+/gi, "Bearer [redacted]")
+    .replace(/\b(access[_-]?token|refresh[_-]?token|api[_-]?key|password|token|secret)\s*[:=]\s*(?:"[^"]*"|'[^']*'|[^\s,;&]+)/gi, "$1=[redacted]")
     .slice(0, 450);
 }

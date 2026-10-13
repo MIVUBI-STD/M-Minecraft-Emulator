@@ -1,5 +1,14 @@
 # Current Development Handoff
 
+## Compact Manager advanced-error privacy hardening — 2026-10-13
+
+- **Reproduced source defect:** `safeErrorDetails` redacted backslash-form Windows home paths but exposed names in forward-slash `C:/Users/...` or `/Users/...` paths and did not redact `Authorization: Bearer <value>`.
+- **Repair:** keep the single existing presentation helper; redact Windows/Mac home directory prefixes, bearer credentials, quoted/unquoted credential assignments and email values; preserve the 450-character display limit. No backend IPC, account or filesystem operations changed.
+- **Proof:** exact-HEAD GitHub source inspection plus eight executable V8 redaction probes (not Vitest or Node24).
+- **Unresolved:** full source verification on compatible toolchain, Windows UI/accessibility and real Minecraft accounts/gameplay NOT_EXECUTED. Windows localtest remains paused.
+- **Next:** run `npm run verify:source` on exact HEAD only when supported execution is available.
+
+
 ## Exact-source verification route correction — 2026-10-13
 
 - **First wrong owner:** `apps/desktop/test/verification-routing.test.ts` expected the previous aggregate `verify:source` sequence and omitted the newly installed `test:native-performance` step. This was a deterministic source/test contradiction, not a Windows/Minecraft issue.

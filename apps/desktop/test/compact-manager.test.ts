@@ -77,9 +77,41 @@ describe("Compact Manager projections", () => {
     expect(setupInstruction({ ...inspected(), boxConfigured: "NO", boxSettingsSource: "UNKNOWN", credentialHostAccess: "UNKNOWN" }).text).toContain("Sandboxie Plus");
     expect(setupInstruction({ ...inspected(), autoDelete: "ON" }).title).toContain("sandbox data");
   });
-  it("redacts common sensitive details", () => {
-    expect(safeErrorDetails("C:\\Users\\Alex\\Secret and alex@example.com token=abc")).not.toContain("Alex");
-    expect(safeErrorDetails("password=123")).not.toContain("123");
+  it("redacts Windows, forward-slash and macOS-style user directories", () => {
+    for (const path of [
+      "C:\\\\Users\\\\PersonalName\\\\Documents\\\\file.exe failed",
+      "C:/Users/PersonalName/Documents/file.exe failed",
+      "/Users/PersonalName/Library/file.exe failed",
+    ]) {
+      const result = safeErrorDetails(path);
+      expect(result).not.toContain("PersonalName");
+      expect(result).toContain("[user directory]");
+      expect(result).toContain("file.exe failed");
+    }
+  });
+  it("redacts common authentication details before truncating errors", () => {
+    const sensitive = [
+      "Authorization: Bearer topSecretAccessValue",
+      'api_key="credential with spaces"',
+      "access_token=highlySensitive",
+      "refresh-token=keepprivate",
+      "password=123",
+      "token=abc",
+      "secret=hidden",
+      "alex@example.com",
+    ];
+    for (const value of sensitive) {
+      const result = safeErrorDetails(value);
+      expect(result).not.toContain("topSecretAccessValue");
+      expect(result).not.toContain("credential with spaces");
+      expect(result).not.toContain("highlySensitive");
+      expect(result).not.toContain("keepprivate");
+      expect(result).not.toContain("password=123");
+      expect(result).not.toContain("token=abc");
+      expect(result).not.toContain("secret=hidden");
+      expect(result).not.toContain("alex@example.com");
+    }
+    expect(safeErrorDetails("a".repeat(700)).length).toBe(450);
   });
 });
 
