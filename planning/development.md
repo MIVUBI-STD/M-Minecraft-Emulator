@@ -1,5 +1,17 @@
 # Current Development Handoff
 
+## Read-only rollback reconciliation from canonical journal — 2026-10-14
+
+**Work:** diagnose recovery from partial, interrupted or conflicting owned-isolation provisioning without enabling Windows service deletion. **State:** DONE for source and isolated logic tests; full Node/Windows acceptance NOT_EXECUTED.
+
+**Decision:** extend the existing `tooling/isolation-source/windows/reconcile-ownership.mjs`, not a second manager, with `reportRollbackReconciliation`. It compares current read-only `SbieDrv`/`SbieSvc` SCM registration/image metadata to earlier ledger observations, exact v1.18.5 plan, simulated step 03/05 outcomes, machine fingerprint and the actual durable journal's SHA-256. Explicitly separate `NOT_RECORDED`, `UNKNOWN`, `FAILED` and `CONFIRMED` simulated creation steps. Every report denies installation, stop/delete, automatic retry and rollback, including apparently matching simulated steps. Add `--rollback-report` to the existing read-only CLI and seven targeted Node tests. No Tauri/launcher, credential, disk/world or active Sandboxie changes.
+
+**Proof:** eight isolated pure-V8 logic scenarios executed against exact GitHub source SHA `a50ce015a7e808947e8bb95b1b2c897fd3d5bb1f` and passed (unattributed registration, historical drift, changed image path, uncertain creation, fully confirmed simulation still nonowning, unknown SCM, missing inputs, differing host fingerprints). Existing Node integration tests and the seven newly authored Node cases NOT_EXECUTED on this revision; complete Tauri/Windows/Minecraft acceptance also NOT_EXECUTED. Source/consumer Git tree reviewed before commit.
+
+**Unresolved:** the journal is simulation-only, not Windows service creation evidence; SHA-256 chains are not signed ownership attestations. No compiled owned driver, independently tested disposable Windows guest, Microsoft-acceptable signing, privileged service lifecycle, Minecraft dual-account acceptance or four-instance proof. Client 02 idle crash root cause still UNKNOWN.
+
+**Next ONE task:** source-first evaluate driver/service ABI and runtime packaging closure, identifying genuine engine work remaining after the current diagnostics, rather than continuing non-actionable validation layers.
+
 ## Persisted journal and signed lab SCM reconciliation — 2026-10-14
 
 **Work:** source-first reconciliation of the one durable ownership journal with live Windows SCM evidence and Ed25519 lab-binding contract. **State:** DONE for source and fixture-level Node execution; full repository native tests and Windows acceptance NOT_EXECUTED.

@@ -4,6 +4,7 @@
 import { createHash } from 'node:crypto';
 import { lstatSync, readFileSync } from 'node:fs';
 import { inspectOwnershipReview } from './ownership-ledger.mjs';
+import { inspectTransactionJournal } from '../execute-disposable.mjs';
 import { compileTransportStep } from './transport-commands.mjs';
 import { verifyProductionLabAttestation, PINNED_UPSTREAM } from './attestation-gate.mjs';
 
@@ -117,5 +118,125 @@ export function reconcileSignedStoredEvidence({plan, journal, payloadRoot,
     independentWindowsHostAttested: false, windowsServiceOwnershipVerified: false,
     installationPermitted: false, canStopService: false,
     canDeleteService: false, rollbackPermitted: false,
+  });
+}
+
+
+/**
+ * Read-only rollback diagnosis for partial/failed transactions.
+ *
+ * A simulated receipt cannot prove a real driver/service was created. This
+ * report compares the recorded creation step, previous SCM observation and
+ * a fresh caller-provided SCM observation; it NEVER returns deletion authority.
+ */
+export function reportRollbackReconciliation({plan, journal, payloadRoot, serviceObservations}) {
+  inspectTransactionJournal(plan, journal); // validates sequence and pinned plan
+  inspectOwnershipReview({plan, journal});  // validates operator intent + hash chain
+  const {stored, sha256: journalSha256} = journalFileBytes(journal);
+
+  if (!Array.isArray(serviceObservations) || serviceObservations.length !== 2 ||
+      new Set(serviceObservations.map(v => v?.serviceName)).size !== 2 ||
+      COMPONENTS.some(name => !serviceObservations.some(v => v.serviceName === name)) ||
+      !Array.isArray(stored.records) || !Array.isArray(stored.serviceEvidence ?? []) ||
+      stored.upstreamCommit !== PINNED_UPSTREAM ||
+      stored.actualDriverInstalled !== false ||
+      stored.providerSelected !== false || stored.rollbackAuthorized !== false) {
+    fail('two component observations and an unprivileged journal are mandatory');
+  }
+  const observations = [];
+  let fingerprint = null;
+  for (const component of COMPONENTS) {
+    const actual = serviceObservations.find(v => v.serviceName === component);
+    const keys = ['schema', 'evidenceClass', 'serviceName', 'registration',
+      'imagePath', 'expectedImagePath', 'registeredImagePathMatches',
+      'imageSha256', 'imageSignatureStatus', 'hostFingerprintSha256'];
+    if (!exact(actual, keys) || actual.schema !== 1 ||
+        actual.evidenceClass !== 'WINDOWS_READ_ONLY_SCM_IMAGE_PROBE' ||
+        !['PRESENT','ABSENT','UNKNOWN'].includes(actual.registration) ||
+        typeof actual.imagePath !== 'string' || typeof actual.expectedImagePath !== 'string' ||
+        typeof actual.registeredImagePathMatches !== 'boolean' ||
+        typeof actual.imageSha256 !== 'string' ||
+        !['Valid','NotSigned','Unknown'].includes(actual.imageSignatureStatus) ||
+        typeof actual.hostFingerprintSha256 !== 'string' ||
+        (actual.hostFingerprintSha256 !== '' && !SHA.test(actual.hostFingerprintSha256)) ||
+        (actual.imageSha256 !== '' && !SHA.test(actual.imageSha256))) {
+      fail('untrusted Windows SCM observation shape');
+    }
+    // Two observations must belong to one hashed machine. An unavailable
+    // identity is reported as UNKNOWN, never replaced with a dummy ID.
+    if (fingerprint !== null && actual.hostFingerprintSha256 !== fingerprint) {
+      fail('driver and service host fingerprints disagree');
+    }
+    fingerprint = actual.hostFingerprintSha256;
+    const imageStepId = component === 'SbieDrv' ? '02' : '04';
+    const creationId = component === 'SbieDrv' ? '03' : '05';
+    const spec = compileTransportStep({plan,payloadRoot,stepId:imageStepId});
+    if (spec.executionAllowed !== false || spec.component !== component) {
+      fail('transport specification claims privileged authority');
+    }
+    const recorded = stored.records.find(v => v.id === creationId);
+    const previous = (stored.serviceEvidence ?? []).find(v => v.component === component);
+    const matchesImage = actual.registration === 'PRESENT' &&
+      actual.registeredImagePathMatches === true &&
+      actual.expectedImagePath === spec.requiredImagePath &&
+      [spec.requiredImagePath, '"' + spec.requiredImagePath + '"'].includes(actual.imagePath) &&
+      actual.imageSha256 === spec.requiredImageSha256 &&
+      actual.imageSignatureStatus === 'Valid';
+    const matchesPrevious = previous === undefined ? null :
+      previous.registration === actual.registration &&
+      previous.registeredImagePathMatches === actual.registeredImagePathMatches &&
+      previous.observedImageSha256 === (actual.imageSha256 || null) &&
+      previous.signatureStatus === actual.imageSignatureStatus;
+    observations.push(Object.freeze({
+      component,
+      creationStepId: creationId,
+      recordedCreationOutcome: recorded?.outcome ?? 'NOT_RECORDED',
+      scmRegistration: actual.registration,
+      pinnedImageMetadataMatches: matchesImage,
+      historicalObservationMatches: matchesPrevious,
+      // SOURCE simulation journal does not establish creation ownership.
+      provenCreatedByThisTransaction: false,
+      serviceStopPermitted: false,
+      serviceDeletePermitted: false,
+    }));
+  }
+  const states = observations.map(x => x.scmRegistration);
+  let state;
+  if (states.includes('UNKNOWN') || !fingerprint) {
+    state = 'MANUAL_REVIEW_UNKNOWN_SCM_OR_HOST';
+  } else if (observations.some(x =>
+    x.recordedCreationOutcome === 'FAILED' ||
+    x.recordedCreationOutcome === 'UNKNOWN')) {
+    state = 'MANUAL_REVIEW_AMBIGUOUS_CREATION_RECORD';
+  } else if (observations.some(x => x.historicalObservationMatches === false)) {
+    state = 'MANUAL_REVIEW_CHANGED_SINCE_JOURNAL_OBSERVATION';
+  } else if (observations.some(x =>
+    x.scmRegistration === 'PRESENT' && !x.pinnedImageMetadataMatches)) {
+    state = 'MANUAL_REVIEW_IMAGE_MISMATCH';
+  } else if (observations.some(x =>
+    x.scmRegistration === 'PRESENT' &&
+    x.recordedCreationOutcome !== 'CONFIRMED')) {
+    state = 'MANUAL_REVIEW_UNATTRIBUTED_SERVICE_NAME';
+  } else if (states.every(x => x === 'ABSENT')) {
+    state = 'NO_SCM_REGISTRATIONS_OBSERVED_NO_RUNTIME_PROOF';
+  } else if (states.every(x => x === 'PRESENT')) {
+    state = 'MATCHED_SIMULATION_ONLY_NOT_SERVICE_OWNERSHIP';
+  } else {
+    state = 'MANUAL_REVIEW_PARTIAL_SERVICE_REGISTRATION';
+  }
+  return Object.freeze({
+    schema: 1, state,
+    transactionId: stored.transactionId,
+    upstreamCommit: PINNED_UPSTREAM,
+    journalSha256, planSha256: DIGEST(JSON.stringify(plan)),
+    observations: Object.freeze(observations),
+    journalIsSimulationOnly: true,
+    ownershipIndependentlyProven: false,
+    verifiedWindowsHost: false,
+    rollbackPermitted: false,
+    canStopService: false,
+    canDeleteService: false,
+    canInstallDriver: false,
+    canResumeAutomatically: false,
   });
 }

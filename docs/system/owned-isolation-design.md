@@ -71,6 +71,12 @@ The production-signed variant binds the transaction ID, actual plan SHA-256, cur
 
 The evidence chain remains audit continuity, not Windows kernel trust or proof the service was created by MIVUBI. A disposable-host attestation, signed native driver, verified service ownership and safe recovery require actual Windows evidence before privilege can be considered.
 
+## Rollback diagnosis without Windows mutations (source-first, 2026-10-14)
+
+The canonical `reconcile-ownership.mjs` now also classifies the current `SbieDrv` and `SbieSvc` registrations against the recorded creation steps and previous read-only SCM observations in the existing journal. A simulated creation step marked `CONFIRMED` is explicitly **not** treated as proof that a real Windows service was created. Unknown results, partial service registration, changed image paths/hashes and conflicting host fingerprints are detected or rejected for manual reconciliation.
+
+The same CLI accepts `--rollback-report`; it is entirely read-only, preserves the official Sandboxie Client 02 setup, and emits no executable stop/delete commands or rollback authority. This is diagnostic source, not a privileged lifecycle manager. Signed-driver loading, verified ownership and independent engine operation remain blocked until Windows-specific proof exists.
+
 ## The two distinct independence goals
 
 1. **Deployment independence (approved target):** our app can install, diagnose, manage and update an appropriately licensed and signed app-owned isolation backend without external SandMan/official Sandboxie installation. This still contains appropriately credited Sandboxie-derived GPL components.

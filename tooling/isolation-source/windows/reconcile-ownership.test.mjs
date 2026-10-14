@@ -5,9 +5,9 @@ import { mkdtempSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createDisposableProvisionPlan } from '../provision-disposable.mjs';
-import { createTransactionJournal } from '../execute-disposable.mjs';
+import { createTransactionJournal, simulateProvisionTransaction } from '../execute-disposable.mjs';
 import { appendServiceObservation, recordOperatorReviewIntent } from './ownership-ledger.mjs';
-import { correlateStoredServiceEvidence, reconcileSignedStoredEvidence } from './reconcile-ownership.mjs';
+import { correlateStoredServiceEvidence, reconcileSignedStoredEvidence, reportRollbackReconciliation } from './reconcile-ownership.mjs';
 
 const hash = letter => letter.repeat(64);
 const root = 'D:\\MIVUBI\\LabPayload';
@@ -111,5 +111,82 @@ test('invalid challenge and snapshot IDs fail before signed approval',()=>{
     assert.throws(()=>reconcileSignedStoredEvidence({plan:f.plan,journal:f.journal,payloadRoot:root,
       serviceObservations:[observation('SbieDrv'),observation('SbieSvc')],
       nonceSha256:'INVALID',snapshotId:'bad',signedLabEnvelope:{}}),/missing signed challenge/);
+  }finally{f.cleanup()}
+});
+
+test('rollback report identifies service names that were not created by this simulation journal',()=>{
+  const f=fixture();try {
+    const report=reportRollbackReconciliation({plan:f.plan,journal:f.journal,
+      payloadRoot:root,serviceObservations:[observation('SbieDrv'),observation('SbieSvc')]});
+    assert.equal(report.state,'MANUAL_REVIEW_UNATTRIBUTED_SERVICE_NAME');
+    assert.deepEqual(report.observations.map(x=>x.recordedCreationOutcome),['NOT_RECORDED','NOT_RECORDED']);
+    assert.equal(report.ownershipIndependentlyProven,false);
+    assert.equal(report.canStopService,false);
+    assert.equal(report.canDeleteService,false);
+  }finally{f.cleanup()}
+});
+test('rollback report detects SCM registration removed since recorded observation',()=>{
+  const f=fixture();try {
+    const current=[observation('SbieDrv'),observation('SbieSvc',{
+      registration:'ABSENT',registeredImagePathMatches:false,
+      imagePath:'',imageSha256:'',imageSignatureStatus:'Unknown',
+    })];
+    const out=reportRollbackReconciliation({plan:f.plan,journal:f.journal,
+      payloadRoot:root,serviceObservations:current});
+    assert.equal(out.state,'MANUAL_REVIEW_CHANGED_SINCE_JOURNAL_OBSERVATION');
+    assert.equal(out.canDeleteService,false);
+  }finally{f.cleanup()}
+});
+test('rollback report refuses mismatched path even if hash and journal name are unchanged',()=>{
+  const f=fixture();try {
+    const current=[observation('SbieDrv',{imagePath:'C:\\Other\\SbieDrv.sys'}),observation('SbieSvc')];
+    const report=reportRollbackReconciliation({plan:f.plan,journal:f.journal,
+      payloadRoot:root,serviceObservations:current});
+    assert.equal(report.state,'MANUAL_REVIEW_IMAGE_MISMATCH');
+    assert.equal(report.observations[0].pinnedImageMetadataMatches,false);
+  }finally{f.cleanup()}
+});
+test('rollback report identifies ambiguous simulated creation without retry',async()=>{
+  const f=fixture();try {
+    let count=0;
+    await simulateProvisionTransaction(f.plan,f.journal,{kind:'IN_MEMORY_SIMULATION',
+      execute:async()=>({outcome:++count===3?'UNKNOWN':'CONFIRMED'})});
+    const report=reportRollbackReconciliation({plan:f.plan,journal:f.journal,
+      payloadRoot:root,serviceObservations:[observation('SbieDrv'),observation('SbieSvc')]});
+    assert.equal(report.state,'MANUAL_REVIEW_AMBIGUOUS_CREATION_RECORD');
+    assert.equal(report.observations[0].recordedCreationOutcome,'UNKNOWN');
+    assert.equal(report.canResumeAutomatically,false);
+  }finally{f.cleanup()}
+});
+test('successful simulated stages still cannot establish ownership of Windows services',async()=>{
+  const f=fixture();try {
+    await simulateProvisionTransaction(f.plan,f.journal,{kind:'IN_MEMORY_SIMULATION',
+      execute:async()=>({outcome:'CONFIRMED'})});
+    const report=reportRollbackReconciliation({plan:f.plan,journal:f.journal,
+      payloadRoot:root,serviceObservations:[observation('SbieDrv'),observation('SbieSvc')]});
+    assert.equal(report.state,'MATCHED_SIMULATION_ONLY_NOT_SERVICE_OWNERSHIP');
+    assert.equal(report.observations[0].provenCreatedByThisTransaction,false);
+    assert.equal(report.canInstallDriver,false);
+    assert.equal(report.canDeleteService,false);
+  }finally{f.cleanup()}
+});
+test('rollback report rejects missing or duplicated service observations',()=>{
+  const f=fixture();try {
+    const one=[observation('SbieDrv')];
+    assert.throws(()=>reportRollbackReconciliation({plan:f.plan,journal:f.journal,
+      payloadRoot:root,serviceObservations:one}),/two component observations/);
+    const duplicate=[observation('SbieDrv'),observation('SbieDrv')];
+    assert.throws(()=>reportRollbackReconciliation({plan:f.plan,journal:f.journal,
+      payloadRoot:root,serviceObservations:duplicate}),/two component observations/);
+  }finally{f.cleanup()}
+});
+test('rollback report rejects different host identities or malformed source evidence',()=>{
+  const f=fixture();try {
+    const differentHost=[observation('SbieDrv'),observation('SbieSvc',{hostFingerprintSha256:hash('c')})];
+    assert.throws(()=>reportRollbackReconciliation({plan:f.plan,journal:f.journal,
+      payloadRoot:root,serviceObservations:differentHost}),/host fingerprints disagree/);
+    const fake=[observation('SbieDrv',{unrecognizedMetadata:true}),observation('SbieSvc')];
+    assert.throws(()=>reportRollbackReconciliation({plan:f.plan,journal:f.journal,
+      payloadRoot:root,serviceObservations:fake}),/untrusted Windows SCM observation/);
   }finally{f.cleanup()}
 });

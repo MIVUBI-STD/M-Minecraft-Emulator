@@ -184,6 +184,20 @@ The output is strictly `LOCAL_EVIDENCE_CORRELATED_NOT_AUTHORIZED` when all local
 
 Seven new Node 22 filesystem tests were executed with lightweight stand-ins for upstream dependency modules and the exact new reconciliation module bytes (7/7 PASS); the full repository version with actual dependencies remains NOT_EXECUTED on this revision. Neither an existing standalone upstream source checkout nor signed-driver/Windows service/gameplay acceptance is proven.
 
+## Read-only rollback reconciliation report
+
+The existing `windows/reconcile-ownership.mjs` now also produces a **non-authorizing rollback report**. Unlike strict two-service correlation, it diagnoses partial registrations, missing or unknown SCM results, image/path drift, absent creation steps, and ambiguous simulated operations. It checks the existing operator/ownership ledger, exact pinned binary hashes, the host fingerprint and the actual bytes of the canonical transaction journal. No additional lifecycle database or service controller was created.
+
+The existing CLI supports `--rollback-report`:
+
+~~~text
+node tooling/isolation-source/windows/reconcile-ownership-cli.mjs --rollback-report --plan <plan.json> --journal-directory <existing-journal-directory> --payload-root <Windows-payload-root> --driver-scm <read-only-driver.json> --service-scm <read-only-service.json>
+~~~
+
+A result such as `MANUAL_REVIEW_UNATTRIBUTED_SERVICE_NAME`, `MANUAL_REVIEW_AMBIGUOUS_CREATION_RECORD`, or `MATCHED_SIMULATION_ONLY_NOT_SERVICE_OWNERSHIP` is diagnostic information—not proof that the service belongs to MIVUBI. Every result has `canInstallDriver=false`, `canStopService=false`, `canDeleteService=false`, and `rollbackPermitted=false`. No KmdUtil, SCM mutation, or Tauri path is invoked.
+
+Eight pure JavaScript decision scenarios were executed against the new GitHub source blob in the available V8 runtime. Seven additional Node integration tests were authored but **NOT_EXECUTED** with actual filesystem, PowerShell or Minecraft processes in this revision.
+
 ## Product separation, attribution and acceptance
 
 Raw outputs remain in the upstream checkout; a private candidate may be staged into an explicitly requested separate folder. Neither is committed to `Local`, merged into Rust, or installed under the existing `M-Bedrock Virtual Clients` identity. Do not try a custom driver next to the official Sandboxie service/driver in the same account-bearing Windows installation: device/service/IPC namespaces may collide. The future cutover needs a dedicated disposable Windows environment, signing and crash-attribution evidence, game compatibility, persist/reboot and rollback tests, plus a new license/distribution decision. A fork is **deployment independence** once proved, not source independence from Sandboxie.
