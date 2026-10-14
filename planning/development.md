@@ -1,5 +1,17 @@
 # Current Development Handoff
 
+## Pinned full-history fork bootstrap — 2026-10-14
+
+**Work:** replace the manual-only source-fork step with a tested, safe checkout bootstrap. **State:** DONE for local Git source bootstrap and tests; upstream clone/GitHub fork/native build NOT_EXECUTED.
+
+**Decision:** `tooling/isolation-source/bootstrap-fork.mjs` pins public Sandboxie v1.18.5 SHA `abd4c240031cfb46666daa74ca47ed4e48b561e4`, clones full Git history to an isolated temporary sibling, refuses shallow history/wrong tag, creates branch `isolation/baseline-v1.18.5`, renames clone origin to upstream, and atomically promotes only into a missing destination. No existing folder overwrite, no automatic GitHub push, no driver install, no game or account mutation. CLI source/SHA are pinned; test-only injectable source/pin allows disposable local Git fixture execution.
+
+**Proof:** actual Git 2.47 and Node 22 on Linux: five executable local-Git tests PASS, including history preservation and wrong pin/destination/symlink refusals. Exact tested script and test file were written to Git objects whose SHAs match `git hash-object`. Real `github.com` git clone from this execution environment fails DNS resolution, so an upstream checkout and remote fork have **NOT_EXECUTED** status. Rust/MSBuild/WDK absent; no Windows build, signed driver, Minecraft gameplay or stable soak proof.
+
+**Unresolved:** creating a GitHub fork remote requires an available fork/create-repository operation (none connected currently). Fresh pinned upstream build, signing and crash attribution still outstanding. A reproducible private checkout is not a deployed independent engine and a Sandboxie-derived fork is not clean-room source independence.
+
+**Next ONE task:** obtain an actual complete pinned upstream source checkout/fork using the new verified bootstrap route when repository access is available, then build the unchanged source in a trusted Windows development environment; do not mutate the official Client 02 box.
+
 ## Build artifact dangling-symlink regression — 2026-10-14
 
 **Work:** correct a real filesystem-evidence bug in the owned isolation artifact verifier. **State:** DONE for the bounded fix.

@@ -13,7 +13,17 @@
 
 ## Independent source checkout — full history preserved
 
-Create an independent source checkout **outside** the existing app/source folders (these commands are an operator procedure, **not executed by ChatGPT**):
+The new bootstrap tool creates a complete, non-shallow Git checkout **outside** the application source and points an independent working branch at the pinned v1.18.5 commit. It verifies the tag, commit, clean working tree and history before promoting a temporary checkout into the chosen empty destination. It does **not** publish a GitHub fork or install a driver.
+
+From the M-Minecraft-Emulator repository root, where Git and Node.js are available:
+
+~~~powershell
+node tooling/isolation-source/bootstrap-fork.mjs --destination 'D:\Source\M-Isolation-Engine'
+~~~
+
+The parent directory must already exist, and the requested destination must not exist yet. A failed clone refuses a partial result, cleans only its own temporary staging folder and leaves existing directories alone. It does not invoke game tools or touch `MinecraftClient02`. An upstream network connection is required for a real run; only the Git-local tests have executed here.
+
+Equivalent manual full-history checkout (alternative operator route, **not executed by ChatGPT**):
 
 ~~~powershell
 git clone https://github.com/sandboxie-plus/Sandboxie.git M-Isolation-Engine
@@ -23,6 +33,8 @@ git rev-parse HEAD
 git status --porcelain=v1 --untracked-files=all
 git remote -v
 ~~~
+
+Five local Git regression tests are included in [bootstrap-fork.test.mjs](./bootstrap-fork.test.mjs); they prove successful full-history cloning, wrong pin/missing tag refusal, existing destination preservation, and dangling-symlink refusal using disposable repositories. Tests do not download Sandboxie.
 
 **Do not** use GitHub's "Download ZIP" as your eventual fork provenance: it loses Git history. Creating a **new GitHub fork** requires a repository-fork operation not available through this session's connected GitHub actions. Do not claim that a fork has been published or that a local independent checkout is already a GitHub fork. A later approved remote fork must preserve the upstream history and its notices; pin this tag as the base of its working branch. Never delete/rename upstream GPL license notices.
 
@@ -50,4 +62,4 @@ The build outputs stay in the upstream checkout. They are not committed to `Loca
 
 Source references and license findings: [inventory](../../docs/validation/owned-isolation-upstream-inventory.md); product isolation/rollback design: [owned isolation design](../../docs/system/owned-isolation-design.md). Store local logs/manifests under ignored `workspace/`; never commit credentials, Minecraft worlds, machine-specific paths or raw dumps.
 
-**Current evidence ceiling (2026-10-14):** pinned upstream source and build recipe reviewed; unmodified upstream build, custom driver signing/loading, and new-gameplay acceptance **NOT_EXECUTED**.
+**Current evidence ceiling (2026-10-14):** checkout bootstrap tests 5/5 executed using local Git fixtures on Linux Node 22; actual Sandboxie GitHub clone, separate published fork, unmodified upstream build, custom driver signing/loading and new-gameplay acceptance **NOT_EXECUTED**.

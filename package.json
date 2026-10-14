@@ -28,7 +28,8 @@
     "native-performance:review": "node tooling/acceptance/evaluate-native-performance.mjs",
     "sandboxie-feasibility:review": "node tooling/acceptance/evaluate-sandboxie-feasibility.mjs",
     "test:localtest": "node --test tooling/local-test/session.test.mjs",
-    "test:isolation-source": "node --test tooling/isolation-source/validate-baseline.test.mjs tooling/isolation-source/verify-artifact-files.test.mjs",
-    "isolation-source:verify": "node tooling/isolation-source/validate-baseline.mjs tooling/isolation-source/upstream-baseline.json"
+    "test:isolation-source": "node --test tooling/isolation-source/validate-baseline.test.mjs tooling/isolation-source/verify-artifact-files.test.mjs tooling/isolation-source/bootstrap-fork.test.mjs",
+    "isolation-source:verify": "node tooling/isolation-source/validate-baseline.mjs tooling/isolation-source/upstream-baseline.json",
+    "isolation-source:bootstrap": "node tooling/isolation-source/bootstrap-fork.mjs"
   }
 }
