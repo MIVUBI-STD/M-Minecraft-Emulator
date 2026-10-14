@@ -21,8 +21,12 @@ if ($spec.schema -ne 1 -or $spec.purpose -ne 'SOURCE_ONLY_UNMODIFIED_UPSTREAM_BU
 $root = (Resolve-Path -LiteralPath $SourceRoot -ErrorAction Stop).ProviderPath.TrimEnd('\')
 $reportFull = [IO.Path]::GetFullPath($ReportPath)
 $prefix = $root + [IO.Path]::DirectorySeparatorChar
-if ($reportFull.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)) {
+if ($reportFull.Equals($root, [StringComparison]::OrdinalIgnoreCase) -or
+    $reportFull.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)) {
     throw 'ReportPath must be OUTSIDE the upstream source/build tree.'
+}
+if (Test-Path -LiteralPath $reportFull) {
+    throw 'Baseline build report already exists; preserve the previous evidence.'
 }
 if (-not (Test-Path -LiteralPath (Join-Path $root 'Sandboxie\Sandbox.sln') -PathType Leaf)) {
     throw 'SourceRoot is not a complete Sandboxie checkout.'
@@ -44,6 +48,32 @@ if ($LASTEXITCODE -ne 0 -or $tagCommit -cne $actualCommit) {
 
 $parent = Split-Path -Parent $reportFull
 [IO.Directory]::CreateDirectory($parent) | Out-Null
+# Validate the destination before native compilation, not after the build
+# succeeds. The assembler itself will also refuse symlinks/existing paths.
+if ($StageOutput) {
+    $stageDestination = [IO.Path]::GetFullPath($StageOutput)
+    if ($stageDestination.Equals($root, [StringComparison]::OrdinalIgnoreCase) -or
+        $stageDestination.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase) -or
+        $root.StartsWith($stageDestination.TrimEnd('\') + '\',
+            [StringComparison]::OrdinalIgnoreCase)) {
+        throw 'Baseline payload cannot overlap upstream source checkout.'
+    }
+    if (Test-Path -LiteralPath $stageDestination) {
+        throw 'Baseline stage output already exists; refusing overwrite.'
+    }
+    $stageParent = Split-Path -Parent $stageDestination
+    if (-not (Test-Path -LiteralPath $stageParent -PathType Container)) {
+        throw 'Baseline stage parent directory must exist before compilation.'
+    }
+}
+if ($Build) {
+    foreach ($stage in @($spec.buildStages)) {
+        $logPath = Join-Path $parent ("baseline-" + [string]$stage.id + ".log")
+        if (Test-Path -LiteralPath $logPath) {
+            throw "Baseline build log already exists; preserve evidence: $logPath"
+        }
+    }
+}
 $stages = @()
 $nodeCmd = Get-Command node.exe -ErrorAction SilentlyContinue
 if ($null -eq $nodeCmd) {
@@ -96,7 +126,7 @@ foreach ($stage in @($spec.buildStages)) {
         Push-Location -LiteralPath $root
         try {
             & $msbuildCmd.Source /t:build $solutionPath /p:Configuration=SbieRelease ("/p:Platform=" + [string]$stage.platform) /maxcpucount:8 2>&1 |
-                Out-File -FilePath $logPath -Encoding UTF8
+                Out-File -LiteralPath $logPath -Encoding UTF8 -NoClobber
             $code = $LASTEXITCODE
         } finally {
             Pop-Location
@@ -169,7 +199,7 @@ $report = [pscustomobject][ordered]@{
     distributionApproval = 'NOT_APPROVED'
 }
 # Never write success claims about driver loading, game sign-in or resource savings.
-$report | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $reportFull -Encoding UTF8
+$report | ConvertTo-Json -Depth 10 | Out-File -LiteralPath $reportFull -Encoding UTF8 -NoClobber
 # The report is not accepted merely because the PowerShell collector produced JSON.
 # The standalone validator checks ordered stage evidence, hashes, and disallows
 # any claim of signed/loaded kernel driver or successful Minecraft gameplay.

@@ -295,3 +295,19 @@ validator closure, consumer payload map, tests and licensing together.
 Optional symbol files may remain absent, but their declared locations are
 immutable for the pinned version. This is only source/build provenance:
 compiler output, signing and native driver functionality remain untested.
+
+## Baseline/private evidence preservation (2026-10-14)
+
+Before launching MSBuild, both Windows source build scripts now refuse
+pre-existing required binaries **and optional PDB symbols**. Existing
+`baseline-*.log` / `private-*.log`, existing JSON report paths and existing
+payload destinations are refused before the expensive compilation begins.
+Log and report writes additionally use PowerShell `Out-File -NoClobber`.
+Staging to an ancestor/descendant of the source checkout is rejected.
+The builder does **not** delete or overwrite a previous run to make a new
+attempt appear clean.
+
+This protects previous diagnostic evidence and reduces wasted compilation,
+but is not an atomic cross-process reservation or a substitute for testing
+against an actual Windows filesystem. Native MSBuild/PowerShell execution
+remains NOT_EXECUTED from the ChatGPT/GitHub context.

@@ -31,7 +31,8 @@ if ($StageOutput) {
     throw 'Private stage destination may not overlap the private source checkout.'
   }
 }
-if ($report.StartsWith($root + '\', [StringComparison]::OrdinalIgnoreCase)) {
+if ($report.Equals($root, [StringComparison]::OrdinalIgnoreCase) -or
+    $report.StartsWith($root + '\', [StringComparison]::OrdinalIgnoreCase)) {
   throw 'Report must be outside private checkout.'
 }
 $manifestPath = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../../tooling/isolation-source/upstream-baseline.json'))
@@ -59,10 +60,12 @@ foreach ($resource in @($manifest.sourceResources) + @($manifest.upstream.source
     throw "Missing required private packaging resource: $resource"
   }
 }
-foreach ($rel in @($manifest.requiredArtifacts)) {
+# Required binaries and optional PDBs must be newly produced by this
+# build. Ignored debug symbols from an older build must not be repackaged.
+foreach ($rel in @($manifest.requiredArtifacts) + @($manifest.optionalSymbols)) {
   $binary = Join-Path $root ([string]$rel -replace '/','\')
   if (Test-Path -LiteralPath $binary -PathType Leaf) {
-    throw 'Stale artifact detected; use a clean private checkout.'
+    throw 'Stale binary or debug symbol detected; use a clean private checkout.'
   }
 }
 $parent = Split-Path -Parent $report
@@ -84,7 +87,7 @@ foreach ($stage in @($manifest.buildStages)) {
   $log = Join-Path $parent ("private-" + [string]$stage.id + ".log")
   Push-Location -LiteralPath $root
   try {
-    & $msbuild /t:build $solution /p:Configuration=SbieRelease ("/p:Platform=" + [string]$stage.platform) /maxcpucount:8 2>&1 | Out-File -FilePath $log -Encoding UTF8
+    & $msbuild /t:build $solution /p:Configuration=SbieRelease ("/p:Platform=" + [string]$stage.platform) /maxcpucount:8 2>&1 | Out-File -LiteralPath $log -Encoding UTF8 -NoClobber
     $code = $LASTEXITCODE
   } finally { Pop-Location }
   $stages += [pscustomobject]@{
@@ -135,7 +138,7 @@ $proof = [pscustomobject]@{
   minecraftGameplayVerified = $false
   distributionApproved = $false
 }
-$proof | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $report -Encoding UTF8
+$proof | ConvertTo-Json -Depth 10 | Out-File -LiteralPath $report -Encoding UTF8 -NoClobber
 Write-Output "Private core build report: $report"
 
 if ($StageOutput) {

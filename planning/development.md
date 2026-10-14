@@ -1,5 +1,27 @@
 # Current Development Handoff — M-Minecraft-Emulator
 
+## Latest source batch — protect Windows build evidence (2026-10-14)
+
+**Done in GitHub source:** `build-baseline.ps1` and `build-private.ps1`
+now reject pre-existing report/log/stage destinations *before MSBuild*;
+the private build additionally rejects stale optional PDB symbols, matching
+the upstream baseline's required+optional artifact preflight. Both keep
+existing noninstalling behavior, use no-clobber writes, and refuse
+source/output overlap. The repo's existing Node source tests contain
+new build safety assertions.
+
+**Executed evidence:** two authored JavaScript build-script contract tests
+were run against the updated exact candidate files in ChatGPT V8 and
+passed. Full pinned Node24 test runner, PowerShell parser, Rust, CMake,
+MSBuild, WDK, REA native and Minecraft tests remain NOT_EXECUTED.
+No private binaries were compiled and no active service or accounts
+changed. No claim is made about cross-process atomic filesystem locks.
+
+**Next:** only substantive remaining source blockers should prompt a new
+source patch. Otherwise stop expanding static gates and proceed to
+separately authorized disposable Windows native build/proof.
+
+
 **Authority:** GitHub `MIVUBI-STD/M-Minecraft-Emulator`, branch `Local`. Never
 change `main` or the active Windows user environment to satisfy source tests.
 This is the current work queue, not a second implementation database.
@@ -67,7 +89,7 @@ authoritative state.
    interval starting **after** the Start.exe helper finishes or errors. It
    still requires a fresh sandbox membership check. External process races
    remain unproven.
-5. **Current patch:** `validate-baseline.mjs` is being changed to reject
+5. **Most recent completed source closure:** `validate-baseline.mjs` is being changed to reject
    reduced/reordered/injected artifact, optional-symbol, resource and license
    lists; the private assembler and private MSBuild script now share that
    complete inventory validation. New negative-case tests use the actual

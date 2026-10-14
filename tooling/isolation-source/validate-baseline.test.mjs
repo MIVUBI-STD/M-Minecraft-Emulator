@@ -106,3 +106,20 @@ test("pins COMPLETE binary, helper, optional symbol, resource and license closur
     assert.throws(() => verifyManifest(missing), /complete license inventory/);
   }
 });
+
+test("baseline Windows build preserves reports, logs and existing staging paths", () => {
+  const script = readFileSync(new URL("./build-baseline.ps1", import.meta.url), "utf8");
+  assert.match(script, /Set-StrictMode -Version Latest/);
+  assert.match(script, /Baseline build report already exists/);
+  assert.match(script, /Baseline stage output already exists/);
+  assert.match(script, /Baseline build log already exists/);
+  assert.match(script, /Baseline payload cannot overlap upstream source checkout/);
+  assert.match(script, /Baseline stage parent directory must exist before compilation/);
+  assert.match(script, /@\(\$spec\.requiredArtifacts\) \+ @\(\$spec\.optionalSymbols\)/);
+  assert.match(script, /Out-File -LiteralPath \$logPath -Encoding UTF8 -NoClobber/);
+  assert.match(script, /Out-File -LiteralPath \$reportFull -Encoding UTF8 -NoClobber/);
+  assert.ok(script.indexOf("Baseline build log already exists") <
+    script.indexOf("foreach ($stage in @($spec.buildStages)) {\n    $stageResult"),
+    "prior logs must be rejected before any MSBuild invocation");
+  assert.doesNotMatch(script, /\b(?:Start-Service|Stop-Service|sc\.exe)\b/i);
+});
