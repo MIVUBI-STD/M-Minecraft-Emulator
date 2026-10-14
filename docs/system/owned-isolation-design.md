@@ -21,6 +21,26 @@ The application repository now contains a Git **submodule pointer** to the authe
 
 A new private assembler combines the pinned upstream kernel driver, service, DLL, Win32 companions and required helpers into a coherent isolated directory, preserving original licensing and hashing copied bytes. This is deliberately marked `ARTIFACTS_STAGED_NOT_INSTALLABLE`. No actual Windows artifacts, driver installation, runtime selection or gameplay validation exists in this ChatGPT session; production signing and coexistence remain separate gates.
 
+## Read-only staged candidate provenance tightening (2026-10-14)
+
+The existing Rust-owned candidate inspector now accepts only the exact
+packaging-owner output-to-source path mapping for required binaries, helpers,
+resources, three upstream licenses and the pinned optional debug symbol
+locations. A copied file with a matching checksum but a swapped or invented
+upstream `source` path is rejected. The QSbieAPI LGPL notice is mandatory.
+The `NOT-INSTALLABLE.txt` marker must match the canonical message for the
+upstream or private exclusive state, not merely exist. Both metadata files
+are read with bounded input lengths before allocation. Existing Tauri,
+TypeScript and UI continue to report integrity only, never authorization.
+
+**Important limit:** these checks show that staged bytes agree with the
+user-selected manifest and expected layout. They do NOT establish
+independent signature trust, authenticity of compiled upstream code,
+kernel-driver loadability, safety of the selected directory or Minecraft
+compatibility. The official Sandboxie Client 02 provider remains active.
+Rust and Windows executable tests remain unexecuted in the GitHub-only
+source review context.
+
 ## Source-first owned candidate inspection (2026-10-14)
 
 The desktop now includes `apps/desktop/src-tauri/src/engine/owned_isolation.rs`, a private, read-only Rust module validating the staged engine payload's complete required x64/Win32 driver, service, DLL, COM helpers, manifests and license files against SHA-256. It exposes `desktop_inspect_owned_engine_candidate` through an isolated Tauri command, strict TypeScript parser, and an explicit read-only candidate-selection control in Settings. The result **always** declares `providerSelected=false`, `driverLoadVerified=false`, `gameplayVerified=false`, and `installPermitted=false`. The official Sandboxie backend remains selected. The candidate inspection prepares the application's native source while Windows compilation/signing and actual activation are validated only later.

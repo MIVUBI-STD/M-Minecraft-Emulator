@@ -34,6 +34,7 @@ const REQUIRED_FILES: &[&str] = &[
     "Templates.ini", "SbieSettings.ini",
     "Manifest0.txt", "Manifest1.txt", "Manifest2.txt",
     "LICENSES/LICENSE.Plus", "LICENSES/Sandboxie/COPYING",
+    "LICENSES/SandboxiePlus/QSbieAPI/LICENSE",
 ];
 
 #[derive(Debug, Deserialize)]
@@ -92,8 +93,65 @@ pub struct OwnedCandidateInspection {
     pub install_permitted: bool,
 }
 
+/// Staged payload entries must come from the exact source layout owned by
+/// assemble-engine.mjs, never an arbitrary manifest-supplied path. This binds
+/// names to source attribution but does NOT authenticate the build report.
+fn expected_source_for_payload(path: &str) -> Option<String> {
+    match path {
+        "32/SbieSvc.exe" => Some("Sandboxie/Bin/Win32/SbieRelease/SbieSvc.exe".into()),
+        "32/SbieDll.dll" => Some("Sandboxie/Bin/Win32/SbieRelease/SbieDll.dll".into()),
+        "Templates.ini" | "SbieSettings.ini" | "Manifest0.txt"
+            | "Manifest1.txt" | "Manifest2.txt" => {
+            Some(format!("Sandboxie/install/{path}"))
+        }
+        "LICENSES/LICENSE.Plus" => Some("LICENSE.Plus".into()),
+        "LICENSES/Sandboxie/COPYING" => Some("Sandboxie/COPYING".into()),
+        "LICENSES/SandboxiePlus/QSbieAPI/LICENSE" => {
+            Some("SandboxiePlus/QSbieAPI/LICENSE".into())
+        }
+        "_debug/Win32/SbieSvc.pdb" | "_debug/Win32/SbieDll.pdb" => {
+            Some(format!("Sandboxie/Bin/Win32/SbieRelease/{}",
+                path.rsplit('/').next()?))
+        }
+        "_debug/x64/SbieDrv.pdb" | "_debug/x64/SbieSvc.pdb"
+            | "_debug/x64/SbieDll.pdb" | "_debug/x64/Start.pdb"
+            | "_debug/x64/SbieIni.pdb" | "_debug/x64/kmdutil.pdb"
+            | "_debug/x64/SboxHostDll.pdb" => {
+            Some(format!("Sandboxie/Bin/x64/SbieRelease/{}",
+                path.rsplit('/').next()?))
+        }
+        _ if REQUIRED_FILES.contains(&path) => {
+            Some(format!("Sandboxie/Bin/x64/SbieRelease/{path}"))
+        }
+        _ => None,
+    }
+}
+
+fn expected_not_installable_marker(private: bool) -> &'static str {
+    if private {
+        "Private exclusive fork candidate, NOT installable or co-installable with official Sandboxie. Do not install SbieDrv.sys or replace Client 02. See LICENSES and engine-provenance.json.\n"
+    } else {
+        "Unmodified upstream candidate, not a signed or tested engine. Do not install SbieDrv.sys or replace Client 02. See LICENSES and engine-provenance.json.\n"
+    }
+}
+
 fn rejected(message: &'static str) -> io::Error {
     io::Error::new(io::ErrorKind::InvalidData, message)
+}
+
+// Manifest/marker paths are user-selected and untrusted. Bound allocation
+// BEFORE parsing/inspection; checking fs::read().len() after allocation is late.
+fn read_bounded_file(path: &Path, limit: usize) -> io::Result<Vec<u8>> {
+    let meta = fs::symlink_metadata(path)?;
+    if !meta.is_file() || meta.len() > limit as u64 {
+        return Err(rejected("owned-engine metadata is not a bounded regular file"));
+    }
+    let mut bytes = Vec::with_capacity(meta.len() as usize);
+    File::open(path)?.take(limit as u64 + 1).read_to_end(&mut bytes)?;
+    if bytes.len() > limit {
+        return Err(rejected("owned-engine metadata exceeds bounded size"));
+    }
+    Ok(bytes)
 }
 
 fn safe_relative_file(root: &Path, relative: &str) -> io::Result<PathBuf> {
@@ -178,10 +236,7 @@ pub fn inspect_candidate(root: &Path) -> io::Result<OwnedCandidateInspection> {
         return Err(rejected("owned-engine candidate root must be an ordinary directory"));
     }
     let manifest_path = safe_relative_file(root, "engine-provenance.json")?;
-    let raw = fs::read(&manifest_path)?;
-    if raw.len() > 256 * 1024 {
-        return Err(rejected("owned-engine manifest exceeds bounded size"));
-    }
+    let raw = read_bounded_file(&manifest_path, 256 * 1024)?;
     let manifest: StagedManifest = serde_json::from_slice(&raw)
         .map_err(|_| rejected("invalid owned-engine provenance schema"))?;
     let private = manifest.state == PRIVATE_STATE;
@@ -236,12 +291,10 @@ pub fn inspect_candidate(root: &Path) -> io::Result<OwnedCandidateInspection> {
         if !seen.insert(artifact.path.as_str()) {
             return Err(rejected("duplicate owned-engine artifact path"));
         }
-        if artifact.source.is_empty() || artifact.source.len() > 256
-            || !artifact.source.starts_with("Sandboxie/")
-                && !artifact.source.starts_with("LICENSE.Plus")
-                && !artifact.source.starts_with("SandboxiePlus/")
+        if expected_source_for_payload(&artifact.path).as_deref()
+            != Some(artifact.source.as_str())
         {
-            return Err(rejected("unrecognized upstream artifact provenance"));
+            return Err(rejected("owned-engine artifact path/source provenance mismatch"));
         }
         if artifact.sha256.len() != 64 || !artifact.sha256.bytes().all(|b|
             b.is_ascii_hexdigit() && !b.is_ascii_uppercase())
@@ -258,8 +311,9 @@ pub fn inspect_candidate(root: &Path) -> io::Result<OwnedCandidateInspection> {
     }
     // Explicit staging marker must accompany the purported uninstalled bundle.
     let marker = safe_relative_file(root, "NOT-INSTALLABLE.txt")?;
-    if !fs::metadata(marker)?.is_file() {
-        return Err(rejected("owned-engine safety marker missing"));
+    let marker_bytes = read_bounded_file(&marker, 1024)?;
+    if marker_bytes != expected_not_installable_marker(private).as_bytes() {
+        return Err(rejected("owned-engine safety marker is missing or modified"));
     }
     Ok(OwnedCandidateInspection {
         schema: 1,
@@ -401,8 +455,7 @@ mod tests {
             hash.update(content);
             serde_json::json!({
                 "path": path,
-                "source": if path == "LICENSES/LICENSE.Plus" { "LICENSE.Plus".to_string() }
-                    else { format!("Sandboxie/{}", path) },
+                "source": expected_source_for_payload(path).expect("canonical fixture path"),
                 "sizeBytes": content.len(),
                 "sha256": format!("{:x}", hash.finalize()),
             })
@@ -412,7 +465,8 @@ mod tests {
             for path in REQUIRED_FILES {
                 files.push(self.add_file(path, format!("fixture:{path}").as_bytes()));
             }
-            fs::write(self.0.join("NOT-INSTALLABLE.txt"), b"NOT INSTALLABLE").unwrap();
+            fs::write(self.0.join("NOT-INSTALLABLE.txt"),
+                expected_not_installable_marker(false)).unwrap();
             let provenance = serde_json::json!({
                 "schema": 1, "state": EXPECTED_STATE, "upstreamRepository": "sandboxie-plus/Sandboxie",
                 "upstreamTag": "v1.18.5", "upstreamCommit": PINNED_UPSTREAM,
@@ -509,6 +563,8 @@ mod tests {
         let mut data: serde_json::Value =
             serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
         data["state"] = serde_json::json!(PRIVATE_STATE);
+        fs::write(c.0.join("NOT-INSTALLABLE.txt"),
+            expected_not_installable_marker(true)).unwrap();
         data["privateCoreBuild"] = serde_json::json!(true);
         data["privateForkHead"] = serde_json::json!("a".repeat(40));
         data["privateForkTree"] = serde_json::json!("b".repeat(40));
@@ -559,6 +615,86 @@ mod tests {
         assert_eq!(result.verified_artifact_count, REQUIRED_FILES.len() as u32);
         assert!(!result.provider_selected && !result.driver_load_verified
             && !result.gameplay_verified && !result.install_permitted);
+    }
+
+    #[test]
+    fn candidate_rejects_swapped_source_attribution_even_when_bytes_match() {
+        let c = TempCandidate::new();
+        c.populate();
+        let path = c.0.join("engine-provenance.json");
+        let mut data: serde_json::Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+        let artifacts = data["artifacts"].as_array_mut().unwrap();
+        let row = artifacts.iter_mut().find(|row| row["path"] == "SbieDrv.sys").unwrap();
+        row["source"] = serde_json::json!("Sandboxie/Bin/x64/SbieRelease/Start.exe");
+        fs::write(&path, serde_json::to_vec(&data).unwrap()).unwrap();
+        assert!(inspect_candidate(&c.0).is_err());
+    }
+
+    #[test]
+    fn candidate_rejects_unexpected_payload_entry_even_with_matching_checksum() {
+        let c = TempCandidate::new();
+        c.populate();
+        let bytes = b"unknown fixture file";
+        fs::write(c.0.join("unexpected.exe"), bytes).unwrap();
+        let mut hasher = Sha256::new();
+        hasher.update(bytes);
+        let unexpected = serde_json::json!({
+            "path": "unexpected.exe",
+            "source": "Sandboxie/Bin/x64/SbieRelease/unexpected.exe",
+            "sizeBytes": bytes.len(),
+            "sha256": format!("{:x}", hasher.finalize()),
+        });
+        let path = c.0.join("engine-provenance.json");
+        let mut data: serde_json::Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+        data["artifacts"].as_array_mut().unwrap().push(unexpected);
+        fs::write(&path, serde_json::to_vec(&data).unwrap()).unwrap();
+        assert!(inspect_candidate(&c.0).is_err());
+    }
+
+    #[test]
+    fn candidate_safety_marker_content_must_match_exact_payload_state() {
+        let c = TempCandidate::new();
+        c.populate();
+        fs::write(c.0.join("NOT-INSTALLABLE.txt"), b"not an installation marker").unwrap();
+        assert!(inspect_candidate(&c.0).is_err());
+    }
+
+    #[test]
+    fn candidate_must_include_qsbieapi_license_attribution() {
+        let c = TempCandidate::new();
+        c.populate();
+        fs::remove_file(c.0.join("LICENSES/SandboxiePlus/QSbieAPI/LICENSE")).unwrap();
+        assert!(inspect_candidate(&c.0).is_err());
+    }
+
+    #[test]
+    fn optional_debug_symbols_preserve_expected_source_provenance() {
+        let c = TempCandidate::new();
+        c.populate();
+        let extra = c.add_file("_debug/x64/SbieDrv.pdb", b"synthetic symbol file");
+        let path = c.0.join("engine-provenance.json");
+        let mut data: serde_json::Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+        data["artifacts"].as_array_mut().unwrap().push(extra);
+        fs::write(&path, serde_json::to_vec(&data).unwrap()).unwrap();
+        let valid = inspect_candidate(&c.0).unwrap();
+        assert_eq!(valid.verified_artifact_count, (REQUIRED_FILES.len() + 1) as u32);
+        assert!(!valid.install_permitted);
+    }
+
+    #[test]
+    fn oversized_manifest_is_refused_before_deserializing() {
+        let c = TempCandidate::new();
+        c.populate();
+        fs::write(c.0.join("engine-provenance.json"), vec![b'X'; 256 * 1024 + 1]).unwrap();
+        assert!(inspect_candidate(&c.0).is_err());
+    }
+
+    #[test]
+    fn oversized_safety_marker_is_refused_without_unbounded_allocation() {
+        let c = TempCandidate::new();
+        c.populate();
+        fs::write(c.0.join("NOT-INSTALLABLE.txt"), vec![b'X'; 1025]).unwrap();
+        assert!(inspect_candidate(&c.0).is_err());
     }
 
     #[test]

@@ -7,7 +7,7 @@ const candidate = () => ({
   state: "CANDIDATE_INTEGRITY_VERIFIED_NOT_INSTALLABLE",
   upstreamCommit: "abd4c240031cfb46666daa74ca47ed4e48b561e4",
   verifiedArtifactCount: 24,
-  requiredArtifactCount: 23,
+  requiredArtifactCount: 24,
   providerSelected: false,
   driverLoadVerified: false,
   gameplayVerified: false,
@@ -23,7 +23,8 @@ describe("Owned isolation candidate — strictly read-only", () => {
     const overrides = [
       { providerSelected: true }, { driverLoadVerified: true },
       { gameplayVerified: true }, { installPermitted: true },
-      { verifiedArtifactCount: 22 }, { verifiedArtifactCount: 49 },
+      { verifiedArtifactCount: 23 }, { verifiedArtifactCount: 49 },
+      { requiredArtifactCount: 23 },
       { requiredArtifactCount: 16 }, { schema: 2 },
       { state: "INSTALLED_AND_READY" }, { upstreamCommit: "0".repeat(40) },
       { surpriseEmail: "private@example.invalid" },
@@ -44,6 +45,9 @@ describe("Owned isolation candidate — strictly read-only", () => {
     expect(owned).toContain("CANDIDATE_INTEGRITY_VERIFIED_NOT_INSTALLABLE");
     expect(owned).toContain("driver_load_verified: false");
     expect(owned).toContain("install_permitted: false");
+    expect(owned).toContain("LICENSES/SandboxiePlus/QSbieAPI/LICENSE");
+    expect(owned).toContain("expected_source_for_payload");
+    expect(owned).toContain("expected_not_installable_marker");
     expect(bootstrap).toContain("commands::native_clients::desktop_inspect_owned_engine_candidate,");
     expect(bootstrap).toContain("commands::native_clients::desktop_select_owned_engine_candidate_directory,");
     expect(commands).toContain("fn desktop_inspect_owned_engine_candidate(");

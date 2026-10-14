@@ -1,5 +1,45 @@
 # Current Development Handoff
 
+## Private payload read-only inspection closure — 2026-10-14
+
+**Work:** tighten the existing owned candidate inspector without exposing
+an executable provider or adding a second package/metadata manager.
+**State:** DONE for source changes; Rust/Windows execution NOT_EXECUTED.
+
+**Observed risks:** the Rust inspector trusted manifest-supplied upstream
+source prefixes rather than the exact output-to-source mapping, accepted a
+mere existence check for the NOT-INSTALLABLE marker, required two of three
+upstream license files, and used unbounded fs::read before checking the
+manifest size. A forged self-consistent payload could therefore receive the
+candidate-integrity status without matching the intended package layout.
+
+**Decision:** enforce the existing assembler's exact 16 binary, five
+resource, three license and nine optional PDB path/source relationships.
+Require the QSbieAPI LGPL license entry, match the canonical state-specific
+NOT-INSTALLABLE text exactly, and bound manifest (256 KiB) and marker
+(1 KiB) reads before allocation. Update the existing TypeScript parser's
+required artifact count to 24, the candidate tests, Rust negative cases and
+Settings wording to emphasize that self-consistent checksums are not source
+authenticity, signing or compatibility proof. No Tauri command or launch route
+is activated. Official Sandboxie remains selected.
+
+**Proof:** exact GitHub source/manifest/static consumer crosscheck:
+11/11 path, marker, optional-symbol, bound, UI contract checks passed in
+V8; seven additional Rust regression cases authored but NOT_EXECUTED.
+No full Node24 test, Rust build/test, Windows signed driver/ABI, REA native
+binary or Minecraft runtime proof.
+
+**Unresolved:** the manifest and its hashes remain self-reported bytes:
+this inspection does not authenticate a vendor signature or MIVUBI signer,
+prove kernel load safety, or permit installing a service. Private fork
+binaries and real two-client stability remain unproven.
+
+**Next ONE task:** audit remaining read-only admission and path/trust
+boundaries for source-only correctness; stop when no additional actionable
+source defect remains, then hand off real Windows MSBuild/WDK and REA binary
+testing as explicit NOT_EXECUTED evidence.
+
+
 ## Private native ABI probe admission consistency — 2026-10-14
 
 **Work:** remove an inconsistent native CMake shortcut for MIVUBI

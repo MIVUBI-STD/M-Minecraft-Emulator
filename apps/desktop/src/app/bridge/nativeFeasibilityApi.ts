@@ -258,9 +258,9 @@ export function parseOwnedCandidateInspection(value: unknown): OwnedCandidateIns
     value.upstreamCommit !== "abd4c240031cfb46666daa74ca47ed4e48b561e4" ||
     typeof value.verifiedArtifactCount !== "number" ||
     !Number.isSafeInteger(value.verifiedArtifactCount) ||
-    (value.verifiedArtifactCount as number) < 23 ||
+    (value.verifiedArtifactCount as number) < 24 ||
     (value.verifiedArtifactCount as number) > 48 ||
-    value.requiredArtifactCount !== 23 ||
+    value.requiredArtifactCount !== 24 ||
     value.providerSelected !== false || value.driverLoadVerified !== false ||
     value.gameplayVerified !== false || value.installPermitted !== false) {
     throw new TypeError("Untrusted owned isolation candidate observation.");
