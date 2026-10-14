@@ -215,6 +215,41 @@ route creates a new source-specific report rather than asserting the modified
 fork binaries are unmodified v1.18.5. No signed driver or deployed runtime
 exists yet. See [native README](../../engine/isolation-native/README.md).
 
+## Private fork runtime package handoff
+
+After the **exclusive** private core build succeeds, the same payload layout owner
+(`assemble-engine.mjs`) now supports an explicitly separate private-build route
+through [assemble-private-engine.mjs](./assemble-private-engine.mjs). This does
+**not** mislabel modified fork binaries as an unmodified upstream build.
+It validates the exact seven source changes and Git ancestry, stage ordering,
+source-specific build report, actual binary SHA-256/size, upstream resource files
+and copyright/licenses before staging an atomic, new-folder payload.
+
+Run the private build and request staging explicitly with:
+
+~~~powershell
+.\engine\isolation-native\fork-overlay\build-private.ps1 -ForkRoot 'D:\Source\M-Isolation-Engine' -ReportPath '.\workspace\private-build.json' -StageOutput 'D:\Source\M-Isolation-Payload'
+~~~
+
+Or stage an existing genuine private build report without recompilation:
+
+~~~powershell
+node tooling/isolation-source/assemble-private-engine.mjs --fork-root 'D:\Source\M-Isolation-Engine' --manifest tooling/isolation-source/upstream-baseline.json --private-report '.\workspace\private-build.json' --output 'D:\Source\M-Isolation-Payload'
+~~~
+
+The result uses `PRIVATE_CORE_STAGED_NOT_INSTALLABLE`, contains
+`privateCoreBuild=true`, the fork HEAD and the seven source owners,
+and explicitly sets `canCoexistWithOfficialSandboxie=false`. The existing
+Rust read-only candidate inspector accepts this provenance only when its
+full file SHA-256 checks and private marker expectations match.
+It returns the **same NOT_INSTALLABLE status** to the UI; no provider
+switch, service command, driver loading or account migration occurs.
+
+Seven private-assembly Node tests are authored; the source-level private
+report acceptance/rejection contract was evaluated in V8 (8/8 cases),
+but the complete file-copy and Rust test suites are NOT_EXECUTED for
+the new revision. Windows build, driver signing and gameplay remain unproven.
+
 ## Product separation, attribution and acceptance
 
 Raw outputs remain in the upstream checkout; a private candidate may be staged into an explicitly requested separate folder. Neither is committed to `Local`, merged into Rust, or installed under the existing `M-Bedrock Virtual Clients` identity. Do not try a custom driver next to the official Sandboxie service/driver in the same account-bearing Windows installation: device/service/IPC namespaces may collide. The future cutover needs a dedicated disposable Windows environment, signing and crash-attribution evidence, game compatibility, persist/reboot and rollback tests, plus a new license/distribution decision. A fork is **deployment independence** once proved, not source independence from Sandboxie.

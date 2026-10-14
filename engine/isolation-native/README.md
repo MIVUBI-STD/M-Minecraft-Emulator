@@ -44,6 +44,16 @@ These Windows scripts are authored source, **not executed** here.
 No proprietary/private credentials, world files or copied original Sandboxie
 binary builds are committed to `Local`.
 
+## Hand off a private core build to the existing package owner
+
+`build-private.ps1` now accepts optional `-StageOutput`. Once Win32,
+x64 and kernel source compilation succeeds it invokes the sole private payload
+assembler, which verifies the private binary hashes and puts both architectures,
+templates, and upstream licenses in an exclusive `PRIVATE_CORE_STAGED_NOT_INSTALLABLE`
+bundle. It is NOT safe to co-install with the official Sandboxie driver/service.
+The app's existing candidate inspector can read this bundle but cannot activate
+it. See [private package source](../../tooling/isolation-source/assemble-private-engine.mjs).
+
 ## Build source
 
 After initializing the `engine/isolation-upstream/Sandboxie` Git submodule,

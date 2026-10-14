@@ -14,6 +14,16 @@ use std::{
 
 const PINNED_UPSTREAM: &str = "abd4c240031cfb46666daa74ca47ed4e48b561e4";
 const EXPECTED_STATE: &str = "ARTIFACTS_STAGED_NOT_INSTALLABLE";
+const PRIVATE_STATE: &str = "PRIVATE_CORE_STAGED_NOT_INSTALLABLE";
+const PRIVATE_SOURCE_FILES: &[&str] = &[
+    "Sandboxie/common/my_version.h",
+    "Sandboxie/core/drv/api.c",
+    "Sandboxie/core/dll/sbieapi.c",
+    "Sandboxie/core/svc/DriverAssist.cpp",
+    "Sandboxie/apps/start/start.cpp",
+    "Sandboxie/apps/ini/main.c",
+    "Sandboxie/install/kmdutil/kmdutil.c",
+];
 const REQUIRED_FILES: &[&str] = &[
     "SbieDrv.sys", "SbieSvc.exe", "SbieDll.dll",
     "Start.exe", "SbieIni.exe", "kmdutil.exe", "SbieMsg.dll",
@@ -57,6 +67,13 @@ struct StagedManifest {
     minecraft_gameplay_verified: bool,
     sandboxie_external_dependency_removed: bool,
     public_distribution_approved: bool,
+    // Optional ONLY on the private exclusive source build. The original
+    // upstream payload must not claim the new fork identity.
+    private_core_build: Option<bool>,
+    private_fork_head: Option<String>,
+    source_build_marker: Option<String>,
+    source_files_modified: Option<Vec<String>>,
+    can_coexist_with_official_sandboxie: Option<bool>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -165,7 +182,29 @@ pub fn inspect_candidate(root: &Path) -> io::Result<OwnedCandidateInspection> {
     }
     let manifest: StagedManifest = serde_json::from_slice(&raw)
         .map_err(|_| rejected("invalid owned-engine provenance schema"))?;
-    if manifest.schema != 1 || manifest.state != EXPECTED_STATE
+    let private = manifest.state == PRIVATE_STATE;
+    let private_provenance_correct = if private {
+        manifest.private_core_build == Some(true)
+            && manifest.private_fork_head.as_ref().is_some_and(|sha| {
+                sha.len() == 40 && sha.bytes().all(|b| b.is_ascii_hexdigit()
+                    && !b.is_ascii_uppercase())
+            })
+            && manifest.source_build_marker.as_deref() == Some("MIVUBI_PRIVATE_ISOLATION_BUILD")
+            && manifest.can_coexist_with_official_sandboxie == Some(false)
+            && manifest.source_files_modified.as_ref().is_some_and(|files| {
+                files.len() == PRIVATE_SOURCE_FILES.len() &&
+                files.iter().zip(PRIVATE_SOURCE_FILES.iter())
+                    .all(|(actual, expected)| actual.as_str() == *expected)
+            })
+    } else {
+        manifest.private_core_build.is_none()
+            && manifest.private_fork_head.is_none()
+            && manifest.source_build_marker.is_none()
+            && manifest.source_files_modified.is_none()
+            && manifest.can_coexist_with_official_sandboxie.is_none()
+    };
+    if manifest.schema != 1 || !(manifest.state == EXPECTED_STATE || private)
+        || !private_provenance_correct
         || manifest.upstream_repository != "sandboxie-plus/Sandboxie"
         || manifest.upstream_tag != "v1.18.5"
         || manifest.upstream_commit != PINNED_UPSTREAM
@@ -446,6 +485,43 @@ mod tests {
         data["inspectionStatus"] = serde_json::json!("OBSERVED");
         data["serviceRegistration"] = serde_json::json!("RUNNING");
         assert!(parse_host_probe(&data.to_string()).is_err());
+    }
+
+
+    #[test]
+    fn private_exclusive_candidate_is_inspected_but_never_selected_or_installable() {
+        let c = TempCandidate::new();
+        c.populate();
+        let path = c.0.join("engine-provenance.json");
+        let mut data: serde_json::Value =
+            serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+        data["state"] = serde_json::json!(PRIVATE_STATE);
+        data["privateCoreBuild"] = serde_json::json!(true);
+        data["privateForkHead"] = serde_json::json!(PINNED_UPSTREAM);
+        data["sourceBuildMarker"] =
+            serde_json::json!("MIVUBI_PRIVATE_ISOLATION_BUILD");
+        data["sourceFilesModified"] = serde_json::json!(PRIVATE_SOURCE_FILES);
+        data["canCoexistWithOfficialSandboxie"] = serde_json::json!(false);
+        fs::write(&path, serde_json::to_vec(&data).unwrap()).unwrap();
+        let valid = inspect_candidate(&c.0).unwrap();
+        assert_eq!(valid.state, "CANDIDATE_INTEGRITY_VERIFIED_NOT_INSTALLABLE");
+        assert!(!valid.provider_selected && !valid.install_permitted
+            && !valid.driver_load_verified);
+        data["canCoexistWithOfficialSandboxie"] = serde_json::json!(true);
+        fs::write(path, serde_json::to_vec(&data).unwrap()).unwrap();
+        assert!(inspect_candidate(&c.0).is_err());
+    }
+
+    #[test]
+    fn original_upstream_candidate_must_not_claim_private_fork_identity() {
+        let c = TempCandidate::new();
+        c.populate();
+        let path = c.0.join("engine-provenance.json");
+        let mut data: serde_json::Value =
+            serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+        data["privateCoreBuild"] = serde_json::json!(true);
+        fs::write(path, serde_json::to_vec(&data).unwrap()).unwrap();
+        assert!(inspect_candidate(&c.0).is_err());
     }
 
     #[test]

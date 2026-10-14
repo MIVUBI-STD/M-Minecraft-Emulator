@@ -3,7 +3,8 @@
 [CmdletBinding()]
 param(
   [Parameter(Mandatory=$true)][string]$ForkRoot,
-  [Parameter(Mandatory=$true)][string]$ReportPath
+  [Parameter(Mandatory=$true)][string]$ReportPath,
+  [string]$StageOutput
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -122,3 +123,14 @@ $proof = [pscustomobject]@{
 }
 $proof | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $report -Encoding UTF8
 Write-Output "Private core build report: $report"
+
+if ($StageOutput) {
+  # Optional source-first staging. Does not sign/install/load SbieDrv or touch
+  # the installed Client 02. Private source identity is revalidated in Node.
+  $node = (Get-Command node.exe -ErrorAction Stop).Source
+  $assemble = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../../tooling/isolation-source/assemble-private-engine.mjs'))
+  & $node $assemble --fork-root $root --manifest $manifestPath --private-report $report --output $StageOutput
+  if ($LASTEXITCODE -ne 0) {
+    throw 'Private payload assembly failed; no driver was installed.'
+  }
+}

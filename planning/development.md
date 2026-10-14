@@ -1,5 +1,17 @@
 # Current Development Handoff
 
+## Private core binary staging and desktop inspection contract — 2026-10-14
+
+**Work:** close the missing runtime package handoff from a modified upstream-derived core build to the existing app-owned candidate inspector. **State:** DONE for source integration; target Windows build and runtime remain NOT_EXECUTED.
+
+**Decision:** extend the *existing* `tooling/isolation-source/assemble-engine.mjs` owner to accept an explicitly typed private-exclusive source identity; add `assemble-private-engine.mjs` as a thin private build-report adapter (not a second package manager). Verify pinned Git fork ancestry, one dedicated working branch, seven authorized source changes, staged build guards, exact 16 mandatory private binary hashes and 5 source resources, plus original license files. Stage the single atomic payload layout with distinct `PRIVATE_CORE_STAGED_NOT_INSTALLABLE` provenance and `canCoexistWithOfficialSandboxie=false`. Update the existing `owned_isolation.rs` read-only inspector to accept private payloads only when private marker, fork SHA, exact source files and noncoexistence are present; preserve the original upstream manifest behavior. Extend `build-private.ps1` with opt-in `-StageOutput` to call this path only after a genuine successful Windows build. No service install, Tauri selector, account/world change or new lifecycle manager.
+
+**Proof:** 8/8 pure-V8 private build report schema/boundary scenarios PASS against exact GitHub source. Seven Node filesystem staging regression tests plus two Rust read-only private-provenance regression tests authored but NOT_EXECUTED on the complete source/toolchain. Staged Git tree/source consumer checks performed before commit. No Windows MSI/MSBuild, Microsoft-signed minifilter, native ABI handshake, or Minecraft gameplay executed.
+
+**Unresolved:** standalone fork bytes have not been fully fetched and compiled in this environment. The private core binaries do not yet exist, and the app's active provider remains official Sandboxie with Client 02 idle crash UNKNOWN.
+
+**Next ONE task:** source-first implement an *inactive* owned-runtime provider control surface that can discover and inspect this private package without ever switching Client 02 or installing a kernel driver until Windows acceptance gates are met.
+
 ## Private-exclusive upstream-derived core source route — 2026-10-14
 
 **Work:** implement the first actual source patch for a separately checked-out

@@ -27,6 +27,8 @@ const required = [
   "tooling/isolation-source/verify-checkout.test.mjs",
   "tooling/isolation-source/assemble-engine.mjs",
   "tooling/isolation-source/assemble-engine.test.mjs",
+  "tooling/isolation-source/assemble-private-engine.mjs",
+  "tooling/isolation-source/assemble-private-engine.test.mjs",
   "tooling/isolation-source/provision-disposable.mjs",
   "tooling/isolation-source/provision-disposable.test.mjs",
   "tooling/isolation-source/plan-disposable.mjs",
@@ -237,6 +239,19 @@ requireFact(
   nativeProbeBuild.includes("abd4c240031cfb46666daa74ca47ed4e48b561e4") &&
   nativeProbeBuild.includes('source_abi_contract_selftest'),
   "The native owned-engine ABI probe must remain pinned and non-installing");
+const privateAssembly = read("tooling/isolation-source/assemble-private-engine.mjs");
+const privateAssembler = read("tooling/isolation-source/assemble-engine.mjs");
+const ownedCandidate = read("apps/desktop/src-tauri/src/engine/owned_isolation.rs");
+requireFact(
+  privateAssembly.includes("PRIVATE_CORE_BINARIES_BUILT_NOT_SIGNED_OR_RUN") &&
+  privateAssembly.includes("return assembleEngine(") &&
+  privateAssembly.includes("checkReport(manifest,report)") &&
+  privateAssembler.includes("PRIVATE_CORE_STAGED_NOT_INSTALLABLE") &&
+  ownedCandidate.includes("PRIVATE_CORE_STAGED_NOT_INSTALLABLE") &&
+  ownedCandidate.includes("can_coexist_with_official_sandboxie == Some(false)") &&
+  ownedCandidate.includes("provider_selected: false") &&
+  read("engine/isolation-native/fork-overlay/build-private.ps1").includes("--private-report $report"),
+  "Private source binaries must stage through the sole assembler, remain exclusively noninstallable and be inspectable by the desktop");
 const privateForkPatch = read("engine/isolation-native/fork-overlay/apply-private-source.mjs");
 const privateForkBuild = read("engine/isolation-native/fork-overlay/build-private.ps1");
 requireFact(

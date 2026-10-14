@@ -65,12 +65,22 @@ function targetPathForArtifact(row) {
  * invokes the actual checkout and artifact-byte verifiers.
  */
 export async function assembleEngine(
-  { sourceRoot, manifest, report, outputDirectory },
+  { sourceRoot, manifest, report, outputDirectory, privateBuild = null },
   { checkSource = verifyCheckout, checkFiles = verifyArtifactFiles } = {},
 ) {
   refuseUnless(typeof sourceRoot === 'string' && sourceRoot.trim(), 'missing source checkout');
   refuseUnless(typeof outputDirectory === 'string' && outputDirectory.trim(), 'missing output directory');
   refuseUnless(manifest?.upstream?.commit === UPSTREAM_COMMIT, 'unexpected upstream revision');
+  if (privateBuild !== null) {
+    refuseUnless(privateBuild?.kind === 'PRIVATE_EXCLUSIVE_SOURCE' &&
+      typeof privateBuild.privateForkHead === 'string' &&
+      /^[a-f0-9]{40}$/.test(privateBuild.privateForkHead) &&
+      privateBuild.canCoexistWithOfficialSandboxie === false &&
+      privateBuild.sourceBuildMarker === 'MIVUBI_PRIVATE_ISOLATION_BUILD' &&
+      Array.isArray(privateBuild.sourceFilesModified) &&
+      privateBuild.sourceFilesModified.length === 7,
+      'invalid or coinstallable private fork provenance');
+  }
   const root = realpathSync(resolve(sourceRoot));
   refuseUnless(lstatSync(root).isDirectory(), 'source is not a directory');
   const target = resolve(outputDirectory);
@@ -129,7 +139,15 @@ export async function assembleEngine(
       await copyChecked(license, `LICENSES/${license}`);
     }
     const provenance = {
-      schema: 1, state: 'ARTIFACTS_STAGED_NOT_INSTALLABLE',
+      schema: 1, state: privateBuild === null
+        ? 'ARTIFACTS_STAGED_NOT_INSTALLABLE' : 'PRIVATE_CORE_STAGED_NOT_INSTALLABLE',
+      ...(privateBuild === null ? {} : {
+        privateCoreBuild: true,
+        privateForkHead: privateBuild.privateForkHead,
+        sourceBuildMarker: privateBuild.sourceBuildMarker,
+        sourceFilesModified: privateBuild.sourceFilesModified,
+        canCoexistWithOfficialSandboxie: false,
+      }),
       upstreamRepository: manifest.upstream.repository,
       upstreamTag: manifest.upstream.tag,
       upstreamCommit: UPSTREAM_COMMIT,
@@ -143,7 +161,10 @@ export async function assembleEngine(
     writeFileSync(join(payload, 'engine-provenance.json'),
       JSON.stringify(provenance, null, 2) + '\n', { encoding: 'utf8', flag: 'wx' });
     writeFileSync(join(payload, 'NOT-INSTALLABLE.txt'),
-      'Private, unmodified Sandboxie upstream artifact staging. NOT a signed, loadable or independently accepted engine. Do not install SbieDrv.sys or replace official Client 02. See LICENSES and engine-provenance.json.\n',
+      (privateBuild === null
+        ? 'Unmodified upstream candidate, not a signed or tested engine.'
+        : 'Private exclusive fork candidate, NOT installable or co-installable with official Sandboxie.') +
+      ' Do not install SbieDrv.sys or replace Client 02. See LICENSES and engine-provenance.json.\n',
       { encoding: 'utf8', flag: 'wx' });
     // Never replace a populated destination, including dangling symlinks.
     refuseUnless(!entryExists(target), 'output appeared during staging');

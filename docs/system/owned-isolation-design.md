@@ -107,6 +107,26 @@ Any future simultaneous coexistence with official Sandboxie requires
 separate complete kernel, service, DLL, device, IPC, install and signing
 namespace migration, not a partial header rename.
 
+## Private core binaries -> owned desktop inspection (2026-10-14)
+
+The native private-core builder's distinct output report is now consumable
+through `tooling/isolation-source/assemble-private-engine.mjs`, which
+reuses the **single existing** binary staging owner. Its contract checks the
+pinned upstream ancestor and seven source files, validates the private
+Win32/x64/kernel build report and rehashes binary file contents.
+The resulting payload is labeled `PRIVATE_CORE_STAGED_NOT_INSTALLABLE`;
+the manifest retains original upstream attribution and includes the private
+fork revision, source marker and `canCoexistWithOfficialSandboxie=false`.
+
+`apps/desktop/src-tauri/src/engine/owned_isolation.rs` now recognizes
+this private identity as a **candidate inspection only**, with the full
+required runtime closure and checksum checks. Its existing Tauri and typed
+frontend return states and official Sandboxie launch remain unchanged:
+`providerSelected=false`, `driverLoadVerified=false`,
+`installPermitted=false`. No parallel provider registry, driver
+installation or migration is added. Windows compiler/kernel signing,
+source-of-trust and Minecraft acceptance remain separately unexecuted.
+
 ## The two distinct independence goals
 
 1. **Deployment independence (approved target):** our app can install, diagnose, manage and update an appropriately licensed and signed app-owned isolation backend without external SandMan/official Sandboxie installation. This still contains appropriately credited Sandboxie-derived GPL components.
