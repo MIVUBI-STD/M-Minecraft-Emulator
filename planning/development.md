@@ -1,5 +1,37 @@
 # Current Development Handoff — M-Minecraft-Emulator
 
+## Private DLL atomic handle-verification cache — 15 October 2026
+
+**Primary goal:** MIVUBI's own functioning Sandboxie-derived native
+engine. **State:** source implemented; portable pointer type probe
+compiled; full native Windows core, signing, driver load and gameplay
+still NOT_EXECUTED.
+
+**Actual implementation:** in the private `SbieDll` source, replace
+unsynchronized reads/writes of `MivubiVerifiedDeviceHandle` with
+`InterlockedCompareExchangePointer` and
+`InterlockedExchangePointer`. Verification remains per opened handle
+with explicit invalidation on close/reopen. All modifications stay in
+the canonical eight-file fork overlay, not a separate runtime wrapper.
+The changed code was checked against Microsoft Win32 pointer-atomic
+signatures. The relevant small native C type probe compiled through
+`clang-cl` to Windows COFF. Eight authored source regression
+test bodies passed in ChatGPT V8, including tampering with cache
+admission, reset and atomic operations. Exact eight-file upstream
+overlay generated 16 nonoverlapping hunks and matched expected bytes.
+
+**Not established:** thread-safe lifetime of upstream
+`SbieApi_DeviceHandle` itself. Atomically storing an approved handle
+does not serialize concurrent handle close/reopen or the kernel ioctl
+that may already be in progress. No claim of full multi-threaded
+correctness, co-installability, authenticated kernel signing or
+four-account acceptance is made.
+
+**Next:** prioritize a full native MSVC/WDK build and runtime tests on
+an approved disposable Windows environment; fix observed driver,
+service and DLL issues before replacing the official backend.
+
+
 ## First valid native Release policy regression — 15 October 2026
 
 **Primary objective remains:** an actual functioning Sandboxie-derived

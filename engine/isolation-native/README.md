@@ -153,6 +153,30 @@ atomically in the source checkout; no real Windows binary build, driver
 load or account data was involved. Real upstream patch application remains
 an additional integration obligation on the exact v1.18.5 source checkout.
 
+## Private SbieDll atomic verified-handle state — 15 October 2026
+
+**Implemented source change:** private SbieDll now keeps its
+verified-device-handle cache in a `PVOID volatile` variable. It uses
+`InterlockedCompareExchangePointer` to read and
+`InterlockedExchangePointer` to approve, close, or invalidate a handle.
+These operations remove ordinary unsynchronized accesses to this shared
+cache across threads. The existing driver identity and ioctl ABI are
+unchanged.
+
+**Evidence:** eight authored pure source regression bodies passed against
+the candidate in ChatGPT V8. Eight actual pinned upstream files generated
+16 nonoverlapping Git hunks and passed exact expected-byte comparison.
+The pointer Interlocked type-contract compiled with `clang-cl /TC /W4
+/WX /c` to a Windows COFF object. Actual full MSVC/WDK Sandboxie
+DLL/service/driver builds remain NOT_EXECUTED.
+
+**Important limitation:** the atomics synchronize this private *cache
+variable*, not the pre-existing upstream
+`SbieApi_DeviceHandle` open/close lifecycle. In-flight ioctl versus
+close/reopen races require actual Windows testing and may need a
+broader core-lifecycle correction. This is not complete driver
+authentication or proof of four Minecraft clients.
+
 ## Native Start policy Release-test integrity — 15 October 2026
 
 **Confirmed failure:** the native `mivubi_owned_start_policy.test.cpp`

@@ -98,6 +98,10 @@ test("generated patch includes DLL and service startup in exact core closure and
   assert.match(patch, /^@@ -\d+,(?:5|7) \+\d+,\d+ @@$/m);
   assert.match(patch, /MivubiVerifyOpenedDevice/);
   assert.match(patch, /MivubiVerifiedDeviceHandle/);
+  assert.match(patch, /InterlockedCompareExchangePointer/);
+  assert.match(patch, /InterlockedExchangePointer/);
+  assert.match(patch, /MivubiReadVerifiedDeviceHandle/);
+  assert.match(patch, /MivubiResetVerifiedDeviceHandle/);
   assert.match(patch, /Reopening even with a reused HANDLE value revokes prior trust/);
   assert.match(patch, /AbortServer\(\)/);
   // Every patch hunk must be ordered and NONOVERLAPPING on old source.
@@ -165,7 +169,10 @@ test("entire patch applies atomically to a disposable Git checkout without renam
     assert.match(dll, /MivubiOwnedDriverMatches\(mivubiVersion, 16, mivubiAbi\)/);
     assert.match(dll, /MivubiVerifyOpenedDevice/);
     assert.match(dll, /parms\[0\] != API_GET_VERSION/);
-    assert.match(dll, /MivubiVerifiedDeviceHandle = INVALID_HANDLE_VALUE/);
+    assert.match(dll, /MivubiReadVerifiedDeviceHandle\(\) != SbieApi_DeviceHandle/);
+    assert.match(dll, /InterlockedCompareExchangePointer/);
+    assert.match(dll, /InterlockedExchangePointer/);
+    assert.match(dll, /MivubiResetVerifiedDeviceHandle\(\)/);
     const service = readFileSync(join(root, "Sandboxie/core/svc/DriverAssistStart.cpp"), "utf8");
     assert.match(service, /rc == STATUS_REVISION_MISMATCH/);
     assert.match(service, /AbortServer\(\);/);
@@ -246,6 +253,30 @@ test("private DLL per-handle ioctl and service abort cannot be bypassed", () => 
   assert.throws(() => verifyExactPrivateSourceBytes(original, {
     ...edited, [svc]: edited[svc].replace("        AbortServer();", "        // no abort")
   }), /unexpected modified source bytes/);
+});
+
+test("DLL verification cache uses atomic reads, stores and invalidation", () => {
+  const original = sources();
+  const edited = buildExpectedPrivateSources(original);
+  const dll = "Sandboxie/core/dll/sbieapi.c";
+  const candidate = edited[dll];
+  assert.match(candidate, /PVOID volatile MivubiVerifiedDeviceHandle/);
+  assert.match(candidate, /InterlockedCompareExchangePointer/);
+  assert.match(candidate, /InterlockedExchangePointer/);
+  assert.match(candidate, /MivubiReadVerifiedDeviceHandle\(\) != SbieApi_DeviceHandle/);
+  assert.match(candidate, /MivubiResetVerifiedDeviceHandle\(\)/);
+  assert.doesNotMatch(candidate, /MivubiVerifiedDeviceHandle = SbieApi_DeviceHandle;/);
+  assert.doesNotMatch(candidate, /^\s*MivubiVerifiedDeviceHandle = INVALID_HANDLE_VALUE;/m);
+  for (const [needle, replacement] of [
+    ["MivubiReadVerifiedDeviceHandle() != SbieApi_DeviceHandle",
+      "MivubiReadVerifiedDeviceHandle() == SbieApi_DeviceHandle"],
+    ["InterlockedExchangePointer(", "FakeNoAtomicExchange("],
+    ["MivubiResetVerifiedDeviceHandle();", "/* cache not reset */"],
+  ]) {
+    const tampered = {...edited, [dll]: candidate.replace(needle, replacement)};
+    assert.throws(() => verifyExactPrivateSourceBytes(original, tampered),
+      /unexpected modified source bytes/);
+  }
 });
 
 test("wrong ABI, unexpected service identity and duplicate compiler anchors fail closed", () => {
