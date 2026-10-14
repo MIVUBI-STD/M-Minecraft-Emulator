@@ -1,5 +1,51 @@
 # Current Development Handoff — M-Minecraft-Emulator
 
+## Native DLL/service/driver core identity — 15 October 2026
+
+**Primary goal:** MIVUBI's own *functioning Sandboxie-derived isolation
+runtime*, not merely a launcher wrapper or audit machinery.
+**This batch:** the pinned private fork now modifies eight actual upstream
+source files. Coded and statically reviewed, but **not compiled or loaded
+using Windows MSVC/WDK**.
+
+**Concrete native changes:** kernel `api.c` continues responding with its
+private `5.73.5-MIVU` version marker and pinned ABI `0x57230`. Private
+`SbieApi_GetVersionEx` in `core/dll/sbieapi.c` always queries both the
+driver version and ABI—even when its caller asks for `NULL` output—and
+returns `STATUS_REVISION_MISMATCH` when the connected kernel is not the
+MIVUBI fork. Original API signatures, IOCTL values and argument structures
+remain intact. In the correct asynchronous service owner,
+`core/svc/DriverAssistStart.cpp`, an early mismatch result aborts the
+startup path **before** it tries `NtLoadDriver` against an already present
+official Sandboxie driver. If no driver is present, the original driver
+load/retry flow is preserved. The opt-in MIVUBI Start.exe path still
+requires the private identity/ABI.
+
+**Proof:** eight real pinned upstream files at
+`abd4c240031cfb46666daa74ca47ed4e48b561e4` were passed through
+the updated patch and strict expected-byte verifier in ChatGPT's JS runtime:
+8 source paths, 14 patch hunks, exact bytes PASS. Six authored pure
+JavaScript source tests were executed in ChatGPT V8 and passed, including
+tamper rejection on service/DLL version admission. Portable C/C++ identity
+tests from previous batch passed under GCC and Clang. Exact Windows
+service startup and SbieDll binary behavior remain **NOT_EXECUTED**.
+
+**Source ownership changes:** eight path names must be kept aligned between
+the patch producer's SOURCE_FILES, Rust inspector's PRIVATE_SOURCE_FILES,
+and build assembly's source closure. The existing service name `SbieSvc`,
+driver name `SbieDrv` and minifilter registration still conflict with
+official Sandboxie. This is a fail-closed *version-path* integration, not
+total ioctl-channel attestation, cryptographic code-signing proof or
+service/kernel installation success.
+
+**Next ONE task:** when a disposable Windows environment with the pinned
+MSVC/WDK is available, compile full upstream and private core and verify
+SbieApi_GetVersionEx/StartDriverAsync behavior with real driver artifacts,
+using REA to guide any actual binary mismatch correction. Before that,
+continue only implementation improvements whose source failure can be
+demonstrated. Do not install private drivers into the active account host.
+
+
 ## Core driver version identity — source batch 2026-10-14
 
 **Goal:** build an independently functional MIVUBI Sandboxie-derived

@@ -317,3 +317,23 @@ This protects previous diagnostic evidence and reduces wasted compilation,
 but is not an atomic cross-process reservation or a substitute for testing
 against an actual Windows filesystem. Native MSBuild/PowerShell execution
 remains NOT_EXECUTED from the ChatGPT/GitHub context.
+
+## MIVUBI private core DLL/service startup identity — 15 October 2026
+
+The current private-fork overlay modifies **eight** pinned source files,
+now including `Sandboxie/core/svc/DriverAssistStart.cpp` in addition to
+the existing `DriverAssist.cpp`. The private kernel version marker is
+checked by the existing `SbieApi_GetVersionEx` DLL path even for callers
+passing `NULL` output pointers. The service's asynchronous driver startup
+rejects a specific foreign-driver revision mismatch *before* any
+`NtLoadDriver` attempt; absence of a driver follows the original
+Windows startup route. The existing 32-bit/64-bit private build and
+assembler use the new exact eight-file source contract, matching the
+Rust read-only inspector.
+
+This behavior is source-implemented, **NOT Windows compiled, signed or
+runtime verified**. It cannot coexist with an installed official
+`SbieSvc`/`SbieDrv` namespace. Do not activate private service/driver
+against the active Client 02 environment. The shared version/ABI guard
+does not constitute cryptographic driver attestation or prove that all
+other DLL ioctl paths are individually authenticated.

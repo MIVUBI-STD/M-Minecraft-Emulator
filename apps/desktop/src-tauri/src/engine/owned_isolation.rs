@@ -20,6 +20,7 @@ const PRIVATE_SOURCE_FILES: &[&str] = &[
     "Sandboxie/core/drv/api.c",
     "Sandboxie/core/dll/sbieapi.c",
     "Sandboxie/core/svc/DriverAssist.cpp",
+    "Sandboxie/core/svc/DriverAssistStart.cpp",
     "Sandboxie/apps/start/start.cpp",
     "Sandboxie/apps/ini/main.c",
     "Sandboxie/install/kmdutil/kmdutil.c",

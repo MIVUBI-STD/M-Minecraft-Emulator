@@ -32,6 +32,28 @@ function sources() {
       "    return STATUS_SUCCESS;",
       "}",
       "",
+    ].join("\n") : path === "Sandboxie/core/dll/sbieapi.c" ? [
+      "// isolated fixture component: " + path,
+      '#include "common/my_version.h"',
+      "NTSTATUS SbieApi_GetVersionEx() {",
+      "    args->string.val = version_string;",
+      "    args->abi_ver.val = abi_version;",
+      "    status = SbieApi_Ioctl(parms);",
+      "    if (! NT_SUCCESS(status)){",
+      "        return status;",
+      "    }",
+      "}",
+      "",
+    ].join("\n") : path === "Sandboxie/core/svc/DriverAssistStart.cpp" ? [
+      "// isolated fixture component: " + path,
+      '#include "core/drv/verify.h"',
+      "ULONG DriverAssist::StartDriverAsync(void *arg) {",
+      "    LONG rc = SbieApi_GetVersionEx(NULL, NULL);",
+      "    if (rc == 0) {",
+      "        return 1;",
+      "    }",
+      "}",
+      "",
     ].join("\n") : [
       "// isolated fixture component: " + path,
       '#include "common/my_version.h"',
@@ -48,20 +70,23 @@ function git(root, args, input) {
   return result.stdout.trim();
 }
 
-test("generated patch touches exactly seven core build owners and preserves kernel names", () => {
+test("generated patch includes DLL and service startup in exact core closure and preserves kernel names", () => {
   const patch = buildPrivateSourcePatch(sources());
-  assert.equal((patch.match(/^diff --git/gm) ?? []).length, 7);
-  assert.equal((patch.match(/^@@ /gm) ?? []).length, 9);
+  assert.equal((patch.match(/^diff --git/gm) ?? []).length, 8);
+  assert.equal((patch.match(/^@@ /gm) ?? []).length, 14);
   // Git apply rejects the earlier anchor-only hunks even when the line
   // matches. Every insertion must retain a following source context line.
   assert.match(patch, /@@ -\d+,2 \+\d+,4 @@/);
   assert.match(patch, /\+#define MIVUBI_PRIVATE_ISOLATION_ABI   0x57230\n #define SBIEDRV/);
   assert.match(patch, /\+#endif\n int test_function\(void\)/);
-  assert.equal((patch.match(/^@@ -\d+,2 \+\d+,\d+ @@$/gm) ?? []).length, 9);
+  assert.equal((patch.match(/^@@ -\d+,2 \+\d+,\d+ @@$/gm) ?? []).length, 14);
   assert.match(patch, /MIVUBI_PRIVATE_DRIVER_ID/);
   assert.match(patch, /const WCHAR \*Driver_Version = MIVUBI_PRIVATE_DRIVER_ID/);
   assert.match(patch, /SbieApi_GetVersionEx\(observedVersion, &observedAbi\)/);
   assert.match(patch, /MivubiOwnedDriverMatches\(observedVersion, observedAbi\)/);
+  assert.match(patch, /MivubiOwnedDriverMatches\(mivubiVersion, mivubiAbi\)/);
+  assert.match(patch, /STATUS_REVISION_MISMATCH/);
+  assert.match(patch, /DriverAssistStart\.cpp/);
   assert.ok(patch.includes("mivubi_client:"));
   assert.ok(patch.includes("MivubiEdu02"));
   assert.ok(patch.includes("MinecraftEducationEdition.exe"));
@@ -105,6 +130,10 @@ test("entire patch applies atomically to a disposable Git checkout without renam
     assert.match(feature, /MivubiParseOwnedStart/);
     assert.match(feature, /SbieApi_GetVersionEx\(observedVersion, &observedAbi\)/);
     assert.match(feature, /MivubiOwnedDriverMatches\(observedVersion, observedAbi\)/);
+    const dll = readFileSync(join(root, "Sandboxie/core/dll/sbieapi.c"), "utf8");
+    assert.match(dll, /MivubiOwnedDriverMatches\(mivubiVersion, mivubiAbi\)/);
+    const service = readFileSync(join(root, "Sandboxie/core/svc/DriverAssistStart.cpp"), "utf8");
+    assert.match(service, /rc == STATUS_REVISION_MISMATCH/);
     const driver = readFileSync(join(root, "Sandboxie/core/drv/api.c"), "utf8");
     assert.match(driver, /const WCHAR \*Driver_Version = MIVUBI_PRIVATE_DRIVER_ID/);
     assert.match(feature, /end\[1\] != L'/);
@@ -146,6 +175,24 @@ test("private launcher and driver reject unreviewed runtime-identity edits", () 
     edited[launcher].replace("!MivubiOwnedDriverMatches(observedVersion, observedAbi)",
       "MivubiOwnedDriverMatches(observedVersion, observedAbi)")};
   assert.throws(() => verifyExactPrivateSourceBytes(original, launcherEdited),
+    /unexpected modified source bytes/);
+});
+
+test("DLL and service refuse unreviewed private startup bypasses", () => {
+  const before = sources();
+  const after = buildExpectedPrivateSources(before);
+  assert.equal(verifyExactPrivateSourceBytes(before, after), true);
+  const dll = "Sandboxie/core/dll/sbieapi.c";
+  const svc = "Sandboxie/core/svc/DriverAssistStart.cpp";
+  const modifiedDll = {...after, [dll]:
+    after[dll].replace("!MivubiOwnedDriverMatches(mivubiVersion, mivubiAbi)",
+      "MivubiOwnedDriverMatches(mivubiVersion, mivubiAbi)")};
+  assert.throws(() => verifyExactPrivateSourceBytes(before, modifiedDll),
+    /unexpected modified source bytes/);
+  const modifiedSvc = {...after, [svc]:
+    after[svc].replace("if (rc == STATUS_REVISION_MISMATCH)",
+      "if (rc != STATUS_REVISION_MISMATCH)")};
+  assert.throws(() => verifyExactPrivateSourceBytes(before, modifiedSvc),
     /unexpected modified source bytes/);
 });
 

@@ -33,6 +33,49 @@ const MARKERS = [
 // The private core still uses upstream SbieSvc/SbieDrv and cannot co-install.
 const START_PATH = "Sandboxie/apps/start/start.cpp";
 const DRIVER_PATH = "Sandboxie/core/drv/api.c";
+const DLL_PATH = "Sandboxie/core/dll/sbieapi.c";
+const SVC_START_PATH = "Sandboxie/core/svc/DriverAssistStart.cpp";
+const DLL_ARG_ANCHOR = "    args->string.val = version_string;";
+const DLL_ERROR_ANCHOR = "    if (! NT_SUCCESS(status)){";
+const DLL_ABI_ANCHOR = "    args->abi_ver.val = abi_version;";
+const SVC_INCLUDE_ANCHOR = '#include "core/drv/verify.h"';
+const SVC_START_ANCHOR = "    LONG rc = SbieApi_GetVersionEx(NULL, NULL);";
+const SVC_START_INCLUDE = ['#include "common/my_version.h"', ...GUARD];
+const DLL_PRIVATE_ARGS = [
+  "#if defined(MIVUBI_PRIVATE_ISOLATION_BUILD)",
+  "    WCHAR mivubiVersion[16] = {0};",
+  "    ULONG mivubiAbi = 0;",
+  "    args->string.val = mivubiVersion;",
+  "    args->abi_ver.val = &mivubiAbi;",
+  "#else",
+];
+const DLL_PRIVATE_ARGS_END = [
+  "#endif",
+];
+const DLL_CHECK = [
+  "#if defined(MIVUBI_PRIVATE_ISOLATION_BUILD)",
+  "    // Gate GetVersionEx even when the caller requested NULL outputs.",
+  "    if (NT_SUCCESS(status)) {",
+  "        if (!MivubiOwnedDriverMatches(mivubiVersion, mivubiAbi))",
+  "            status = STATUS_REVISION_MISMATCH;",
+  "        else {",
+  "            if (version_string) wcscpy(version_string, mivubiVersion);",
+  "            if (abi_version) *abi_version = mivubiAbi;",
+  "        }",
+  "    }",
+  "#endif",
+];
+const SERVICE_FOREIGN_DRIVER = [
+  "#if defined(MIVUBI_PRIVATE_ISOLATION_BUILD)",
+  "    // Do not attempt NtLoadDriver when another Sandboxie driver is alive.",
+  "    // The private DLL returns REVISION_MISMATCH for an official kernel.",
+  "    if (rc == STATUS_REVISION_MISMATCH) {",
+  "        LogEvent(MSG_9234, 0x9154, rc);",
+  "        return 1;",
+  "    }",
+  "#endif",
+];
+
 const DRIVER_VERSION_ANCHOR =
   "    API_GET_VERSION_ARGS *args = (API_GET_VERSION_ARGS *)parms;";
 // This portable identity is inlined into BOTH kernel API and private Start.
@@ -78,6 +121,7 @@ export const SOURCE_FILES = Object.freeze([
   "Sandboxie/core/drv/api.c",
   "Sandboxie/core/dll/sbieapi.c",
   "Sandboxie/core/svc/DriverAssist.cpp",
+  "Sandboxie/core/svc/DriverAssistStart.cpp",
   "Sandboxie/apps/start/start.cpp",
   "Sandboxie/apps/ini/main.c",
   "Sandboxie/install/kmdutil/kmdutil.c",
@@ -122,7 +166,7 @@ export function buildPrivateSourcePatch(files) {
     "source file collection required");
   assert(Object.keys(files).length === SOURCE_FILES.length &&
     SOURCE_FILES.every(path => typeof files[path] === "string"),
-    "the seven exact pinned source files are required");
+    "the exact pinned source-file closure is required");
   const header = files[SOURCE_FILES[0]];
   onlyOnce(header, VERSION_ANCHOR, SOURCE_FILES[0]);
   for (const original of [
@@ -139,16 +183,40 @@ export function buildPrivateSourcePatch(files) {
   for (const path of SOURCE_FILES.slice(1)) {
     assert(!files[path].includes("MIVUBI_PRIVATE_ISOLATION_BUILD"),
       "private marker already present: " + path);
+    const includeAnchor = path === SVC_START_PATH ? SVC_INCLUDE_ANCHOR : ANCHOR;
     const additions = path === START_PATH
       ? [...GUARD, "", ...CORE_IDENTITY, "", ...START_POLICY]
-      : path === DRIVER_PATH ? [...GUARD, "", ...CORE_IDENTITY] : GUARD;
-    parts.push(hunk(files[path], path, ANCHOR, additions));
+      : path === DRIVER_PATH || path === DLL_PATH
+        ? [...GUARD, "", ...CORE_IDENTITY]
+      : path === SVC_START_PATH ? SVC_START_INCLUDE : GUARD;
+    parts.push(hunk(files[path], path, includeAnchor, additions,
+      path === SVC_START_PATH));
     if (path === DRIVER_PATH) {
       // Kernel returns a private runtime identity through the EXISTING
       // API_GET_VERSION response. No ioctl or argument-structure change.
       onlyOnce(files[path], DRIVER_VERSION_ANCHOR, path);
       parts.push(hunk(files[path], path, DRIVER_VERSION_ANCHOR,
         DRIVER_IDENTITY_OVERRIDE, true, additions.length, false));
+    }
+    if (path === DLL_PATH) {
+      // Preserve the original ABI while querying identity even for callers
+      // that supplied NULL pointers (notably the service startup sequence).
+      onlyOnce(files[path], DLL_ARG_ANCHOR, path);
+      onlyOnce(files[path], DLL_ERROR_ANCHOR, path);
+      onlyOnce(files[path], DLL_ABI_ANCHOR, path);
+      parts.push(hunk(files[path], path, DLL_ARG_ANCHOR,
+        DLL_PRIVATE_ARGS, true, additions.length, false));
+      parts.push(hunk(files[path], path, DLL_ABI_ANCHOR,
+        DLL_PRIVATE_ARGS_END, false,
+        additions.length + DLL_PRIVATE_ARGS.length, false));
+      parts.push(hunk(files[path], path, DLL_ERROR_ANCHOR,
+        DLL_CHECK, true, additions.length +
+        DLL_PRIVATE_ARGS.length + DLL_PRIVATE_ARGS_END.length, false));
+    }
+    if (path === SVC_START_PATH) {
+      onlyOnce(files[path], SVC_START_ANCHOR, path);
+      parts.push(hunk(files[path], path, SVC_START_ANCHOR,
+        SERVICE_FOREIGN_DRIVER, false, additions.length, false));
     }
     if (path === START_PATH) {
       // Functional C++ admission is shared with native regression tests.
@@ -167,17 +235,37 @@ export function buildExpectedPrivateSources(original) {
   buildPrivateSourcePatch(original);
   const expected = {};
   for (const [index, path] of SOURCE_FILES.entries()) {
-    const anchor = index === 0 ? VERSION_ANCHOR : ANCHOR;
+    const anchor = index === 0 ? VERSION_ANCHOR
+      : path === SVC_START_PATH ? SVC_INCLUDE_ANCHOR : ANCHOR;
     const additions = index === 0 ? MARKERS
       : path === START_PATH ? [...GUARD, "", ...CORE_IDENTITY, "", ...START_POLICY]
-      : path === DRIVER_PATH ? [...GUARD, "", ...CORE_IDENTITY] : GUARD;
+      : path === DRIVER_PATH || path === DLL_PATH
+        ? [...GUARD, "", ...CORE_IDENTITY]
+      : path === SVC_START_PATH ? SVC_START_INCLUDE : GUARD;
     const newline = original[path].includes("\r\n") ? "\r\n" : "\n";
     let value = original[path].replace(anchor,
-      [anchor, ...additions].join(newline));
+      (path === SVC_START_PATH ? [...additions, anchor] : [anchor, ...additions])
+        .join(newline));
     if (path === DRIVER_PATH) {
       onlyOnce(original[path], DRIVER_VERSION_ANCHOR, path);
       value = value.replace(DRIVER_VERSION_ANCHOR,
         [...DRIVER_IDENTITY_OVERRIDE, DRIVER_VERSION_ANCHOR].join(newline));
+    }
+    if (path === DLL_PATH) {
+      onlyOnce(original[path], DLL_ARG_ANCHOR, path);
+      onlyOnce(original[path], DLL_ABI_ANCHOR, path);
+      onlyOnce(original[path], DLL_ERROR_ANCHOR, path);
+      value = value.replace(DLL_ARG_ANCHOR,
+        [...DLL_PRIVATE_ARGS, DLL_ARG_ANCHOR].join(newline));
+      value = value.replace(DLL_ABI_ANCHOR,
+        [DLL_ABI_ANCHOR, ...DLL_PRIVATE_ARGS_END].join(newline));
+      value = value.replace(DLL_ERROR_ANCHOR,
+        [...DLL_CHECK, DLL_ERROR_ANCHOR].join(newline));
+    }
+    if (path === SVC_START_PATH) {
+      onlyOnce(original[path], SVC_START_ANCHOR, path);
+      value = value.replace(SVC_START_ANCHOR,
+        [SVC_START_ANCHOR, ...SERVICE_FOREIGN_DRIVER].join(newline));
     }
     if (path === START_PATH) {
       onlyOnce(original[path], START_PARSE_ANCHOR, path);
@@ -237,7 +325,7 @@ export function verifyCommittedPrivateFork(rootDirectory) {
     .split("\n").filter(Boolean);
   assert(changed.length === SOURCE_FILES.length &&
     SOURCE_FILES.every(path => changed.includes(path)),
-    "private commit must modify exactly seven authorized source files");
+    "private commit must modify the entire approved source-file closure");
   const original = Object.fromEntries(SOURCE_FILES.map(path => [
     path, gitRaw(root, ["show", PIN + ":" + path]),
   ]));

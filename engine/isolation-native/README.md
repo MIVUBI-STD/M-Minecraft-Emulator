@@ -14,9 +14,9 @@ coinstallable with official Sandboxie. Independent deployment is a different
 target from simultaneous namespace coexistence.
 
 The source transformation under [fork-overlay](./fork-overlay/apply-private-source.mjs)
-uses a single exact-context Git patch against seven upstream source owners:
+uses a single exact-context Git patch against eight upstream source owners:
 the common version/ABI header plus driver API, DLL API, service driver assist,
-launcher, SbieIni and KmdUtil. It installs compile-time private-build/ABI guards
+launcher, the separate asynchronous DriverAssistStart owner, SbieIni and KmdUtil. It installs compile-time private-build/ABI guards
 **and a functional, opt-in MIVUBI Client 02–04 launch mode inside Start.exe**,
 but **does not modify upstream copyright, licensed attribution, kernel service
 names, device/IPC names or signing requirements**. It only accepts a separate
@@ -41,7 +41,7 @@ cmake -S engine/isolation-native -B workspace/isolation-native-private -G "Visua
 cmake --build workspace/isolation-native-private --config Release
 ~~~
 
-The source patch stages seven modified files (nine Git hunks) in the fork Git index for review. The
+The source patch stages eight modified files (14 Git hunks) in the fork Git index for review. The
 private build script only permits these exact source modifications and uses
 upstream's Win32 -> x64 -> kernel build order. It does not sign, install,
 load, stop, launch or migrate anything. A private source build is **not**
@@ -153,10 +153,41 @@ atomically in the source checkout; no real Windows binary build, driver
 load or account data was involved. Real upstream patch application remains
 an additional integration obligation on the exact v1.18.5 source checkout.
 
+## Private DLL ↔ service ↔ driver identity (15 October 2026)
+
+The private C++ launcher version check is now extended to the **existing
+SbieDll version API and the correct asynchronous service startup owner**:
+
+- `Sandboxie/core/dll/sbieapi.c`: private `SbieApi_GetVersionEx` ALWAYS
+  requests the full driver marker and ABI, even if a caller passes
+  `NULL, NULL`. It rejects a non-MIVUBI kernel with
+  `STATUS_REVISION_MISMATCH`, and copies version/ABI back to the caller only
+  after the private core identity matches. The original public two-argument
+  API, ioctl and buffer layout remain unchanged.
+- `Sandboxie/core/svc/DriverAssistStart.cpp`: the asynchronous driver
+  startup checks this specific mismatch before attempting `NtLoadDriver`.
+  With an already active official Sandboxie driver, it refuses the private
+  startup instead of trying to load another driver under the same service
+  identity. Driver startup after a genuinely absent kernel follows the
+  existing upstream sequence.
+- `Sandboxie/core/drv/api.c`: retains the private version marker
+  `5.73.5-MIVU` and pinned ABI `0x57230` on its existing version API.
+  Private `Start.exe` still checks both before accepting an owned launch.
+
+The approved fork closure now changes **eight** exact upstream files,
+including `DriverAssistStart.cpp`, with **14** Git hunks. This is
+significant source functionality—not just metadata—but it is not yet
+a compiled/signed service, DLL, or kernel runtime. It is a
+**version-path fail-closed check**, not cryptographic runtime attestation
+or a blanket restriction on every DLL ioctl. A complete Windows
+MSVC/WDK build and disposable service/driver execution remain mandatory
+before any app cutover. Never install this fork beside the official
+Sandboxie with identical `SbieSvc`/`SbieDrv` names.
+
 ## Private kernel–launcher runtime identity (2026-10-14)
 
 The first **kernel-facing functional source change** is now included in
-the seven-file MIVUBI private overlay. The pinned upstream kernel
+the eight-file MIVUBI private overlay. The pinned upstream kernel
 `Sandboxie/core/drv/api.c` replies to its EXISTING `API_GET_VERSION`
 request with the MIVUBI-specific version string `5.73.5-MIVU`,
 preserving the original driver ABI `0x57230`, ioctl ID, buffer layout,
