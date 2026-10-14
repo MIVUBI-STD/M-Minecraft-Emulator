@@ -31,6 +31,12 @@ Source-first policy: continue implementing provider management and disposable-en
 
 The pinned upstream kernel/service source still defines `SbieDrv`/`SbieSvc` service identities. This is not independent enough to coexist safely with the official installation. The app now includes a read-only Windows SCM namespace probe and a fail-closed capability decision: present names block, unknown states block, an empty namespace also blocks pending signed driver/service, IPC and disposable-host evidence. The result cannot enable the owned provider and cannot infer Microsoft account or gameplay readiness. This is a **source-first activation prerequisite**, not an installed new isolation engine.
 
+## Disposable Windows deployment transaction — source-first (2026-10-14)
+
+The standalone `tooling/isolation-source/provision-disposable.mjs` source now models a bounded provisioning transaction using the **actual upstream KmdUtil** service/driver semantics, including minifilter altitude `86900`. It requires a staged pinned v1.18.5 payload, the read-only host assessment showing both `SbieSvc` and `SbieDrv` absent, and a target declaration excluding account-bearing boxes and the official Sandboxie installation. It emits explicit operations for kernel/service installation, signature checks, readback/ABI acceptance and reverse-order rollback with receipt/path ownership requirements.
+
+**No Windows mutation is possible from this module:** it only constructs a noninstallable transaction plan with `installationPermitted=false`; a self-reported target type is not proof of a disposable VM. No Tauri or UI command invokes it. Partial/ambiguous receipts stop for manual reconciliation rather than automatically stopping/deleting any service. An independently reviewed executor, Windows signing and actual ownership checks remain required before this plan can ever become actionable.
+
 ## The two distinct independence goals
 
 1. **Deployment independence (approved target):** our app can install, diagnose, manage and update an appropriately licensed and signed app-owned isolation backend without external SandMan/official Sandboxie installation. This still contains appropriately credited Sandboxie-derived GPL components.

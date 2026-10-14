@@ -90,6 +90,20 @@ Optional Windows build-and-stage command, **NOT_EXECUTED here**:
 
 The destination's parent must exist and the destination must not exist yet. The result is labeled `ARTIFACTS_STAGED_NOT_INSTALLABLE`: it is **not** a signed, installed, loadable or gameplay-tested independent isolation engine. Seven executable assembly tests passed with disposable fixture binaries and injected source/byte-verification dependencies. Actual upstream build, staging of genuine binaries, signing and Minecraft acceptance remain NOT_EXECUTED.
 
+## Source-first disposable Windows driver/service transaction
+
+The [provision-disposable.mjs](./provision-disposable.mjs) module now defines an **offline source-only** provisioning and rollback contract. It uses the pinned upstream's actual `KmdUtil` semantics (`SbieDrv` kernel minifilter, altitude `86900`; `SbieSvc` user service, `UIGroup`) and produces seven sequenced installation checks/actions and five reverse-order rollback checks/actions. It requires an empty `SbieSvc`/`SbieDrv` namespace in an interactive session, a correct noninstallable payload manifest and an operator-declared dedicated disposable VM without accounts or official Sandboxie.
+
+The CLI can generate a plan without touching Windows services:
+
+~~~text
+node tooling/isolation-source/plan-disposable.mjs --payload <engine-provenance.json> --host <read-only-host.json> --target <disposable-target.json>
+~~~
+
+**Important:** the output always declares `SOURCE_PLAN_ONLY_DRIVER_INSTALL_BLOCKED`, `installationPermitted=false`, and `codeSignatureVerified=false`. Merely declaring a VM disposable does not attest that it is one. The script cannot load/start/delete services, does not turn off driver signing, and is deliberately disconnected from the active Tauri/Client 02 routes. An actual privileged Windows executor will be a separate later source batch with signed artifact verification and ownership-protected rollback. The 9 pure transaction tests have run in the available V8 context; full Node24/PowerShell/kernel execution remains NOT_EXECUTED.
+
+Upstream anchors used for correct semantics: `Sandboxie/common/my_version.h` (driver/service names and `FILTER_ALTITUDE=86900`), `Sandboxie/install/SandboxieVS.nsi` (KmdUtil install/start/delete ordering), and `Sandboxie/install/kmdutil/kmdutil.c` (supported options), all from pinned tag v1.18.5.
+
 ## Product separation, attribution and acceptance
 
 Raw outputs remain in the upstream checkout; a private candidate may be staged into an explicitly requested separate folder. Neither is committed to `Local`, merged into Rust, or installed under the existing `M-Bedrock Virtual Clients` identity. Do not try a custom driver next to the official Sandboxie service/driver in the same account-bearing Windows installation: device/service/IPC namespaces may collide. The future cutover needs a dedicated disposable Windows environment, signing and crash-attribution evidence, game compatibility, persist/reboot and rollback tests, plus a new license/distribution decision. A fork is **deployment independence** once proved, not source independence from Sandboxie.

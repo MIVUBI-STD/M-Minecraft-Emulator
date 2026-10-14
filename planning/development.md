@@ -1,5 +1,17 @@
 # Current Development Handoff
 
+## Disposable owned-engine provisioning transaction source — 2026-10-14
+
+**Work:** begin the Windows Driver & Service Controller without waiting for a Windows SDK/WDK runtime. **State:** DONE for deterministic transaction planning/receipt model; actual privileged executor NOT_IMPLEMENTED and Windows validation NOT_EXECUTED.
+
+**Decision:** `tooling/isolation-source/provision-disposable.mjs` is the canonical *offline deployment planner*, not a second application lifecycle manager. It references upstream v1.18.5 service names (`SbieDrv`, `SbieSvc`), minifilter altitude `86900` and KmdUtil semantics directly from upstream `SandboxieVS.nsi`/`my_version.h`/`kmdutil.c`. Planner requires pinned candidate payload, both SCM names ABSENT under interactive read-only host evidence, and a declared dedicated disposable Windows VM without account-bearing boxes or official Sandboxie. Output models seven installation stages, five receipt/path-guarded rollback stages and default `installationPermitted=false`. Ambiguous/failed receipts stop for manual reconciliation, no retries or service deletion from name-only evidence. CLI read-only and no Tauri/Client02 invocation.
+
+**Proof:** nine pure Node-style JavaScript tests executed directly against GitHub source in the available V8 runtime and PASSED (9/9); fixture tests cover kernel/service order, blocked hosts, source integrity, target scope, partial failure, and prevention of false runtime acceptance. Full repository Node24 test runner, Windows PowerShell, signing, driver/service installation, rollback and Minecraft gameplay NOT_EXECUTED.
+
+**Unresolved:** no Microsoft-signed custom driver, independently proved disposable VM, executable Windows provisioning adapter, service ownership ledger, active fork or crash attribution. Source-first continues; no blocking request for operator PC.
+
+**Next ONE task:** implement the Windows-only, explicit-operator provisioning executor with signature/provenance preflight, durable per-step ownership receipts, and fail-closed rollback on a verified disposable test environment, keeping current Sandboxie and Minecraft 02 completely untouched.
+
 ## Owned engine Windows service namespace preflight — 2026-10-14
 
 **Work:** prepare host-side activation admission source for the future app-owned Sandboxie-derived runtime. **State:** DONE for read-only source and authored tests; Windows observation NOT_EXECUTED.
