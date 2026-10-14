@@ -43,6 +43,14 @@ if ($LASTEXITCODE -ne 0 -or $tagCommit -cne $actualCommit) {
 $parent = Split-Path -Parent $reportFull
 [IO.Directory]::CreateDirectory($parent) | Out-Null
 $stages = @()
+$nodeCmd = Get-Command node.exe -ErrorAction SilentlyContinue
+if ($null -eq $nodeCmd) {
+    throw 'Node.js is required to independently validate the pinned manifest and artifact report.'
+}
+& $nodeCmd.Source (Join-Path $PSScriptRoot 'validate-baseline.mjs') $specPath
+if ($LASTEXITCODE -ne 0) {
+    throw 'Pinned upstream manifest failed independent verification; no build performed.'
+}
 $msbuildCmd = Get-Command msbuild.exe -ErrorAction SilentlyContinue
 if ($Build -and $null -eq $msbuildCmd) {
     throw 'msbuild.exe unavailable. Use a VS2022 Developer PowerShell with v143, MFC, Windows SDK and WDK.'
@@ -153,6 +161,13 @@ $report = [pscustomobject][ordered]@{
 }
 # Never write success claims about driver loading, game sign-in or resource savings.
 $report | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $reportFull -Encoding UTF8
+# The report is not accepted merely because the PowerShell collector produced JSON.
+# The standalone validator checks ordered stage evidence, hashes, and disallows
+# any claim of signed/loaded kernel driver or successful Minecraft gameplay.
+& $nodeCmd.Source (Join-Path $PSScriptRoot 'validate-baseline.mjs') $specPath $reportFull
+if ($LASTEXITCODE -ne 0) {
+    throw 'Isolation artifact report is inconsistent. Do not use these binaries.'
+}
 Write-Output ("Artifact inventory written: " + $reportFull)
 Write-Output ("Result: " + $status + " / required missing: " + $missingRequired.Count)
 if ($Build -and ($missingRequired.Count -gt 0 -or $missingResources.Count -gt 0)) {

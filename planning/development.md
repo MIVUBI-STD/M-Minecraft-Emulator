@@ -1,5 +1,17 @@
 # Current Development Handoff
 
+## Isolation source report validation — 2026-10-14
+
+**Work:** strict validation for pinned Sandboxie source/build evidence. **State:** DONE for source tooling and pure logic checks; native Windows build remains NOT_EXECUTED.
+
+**Decision:** add an independent, side-effect-free `validate-baseline.mjs` manifest/report validator and six Node regression cases. Pin upstream commit, exact stage identities/order, critical Win32/x64 driver/service/DLL outputs, file hashes and per-stage outcomes. Missing required artifacts cannot be reported as a complete build; all outcomes keep driver loading, Minecraft gameplay and installer cutover explicitly unverified. The existing build script invokes the validator before opt-in compilation and after report output; missing Node fails before build. No driver/service/account changes.
+
+**Proof:** source fetched from GitHub blobs and executed in the available V8 logic runtime: six pure validator regression scenarios PASS; actual `Local` upstream-baseline.json validates. An equivalent earlier prototype test suite also ran under available Node 22, but **new committed Node test file itself has not been run under Node 24**. Windows PowerShell, upstream MSBuild, artifact generation, driver signature/load and Minecraft gameplay remain NOT_EXECUTED.
+
+**Unresolved:** complete Windows build proof, fork creation, driver signing, and Client 02 idle crash attribution. The fork source has not been produced or installed.
+
+**Next ONE task:** execute the pinned, unchanged Win32/x64 Sandboxie source build when compatible build execution is available, preserving hashes, stage logs, and failed evidence; do not install a custom driver until an isolated acceptance plan is approved.
+
 ## Upstream baseline build preparation — 2026-10-14
 
 **Work:** independently reproducible unmodified source baseline for planned `M-Isolation-Engine`. **State:** DONE for pinned build-only source tooling; GitHub fork creation and actual Windows compilation NOT_EXECUTED.

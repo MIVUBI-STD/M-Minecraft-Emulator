@@ -5,7 +5,7 @@ not implement a second Minecraft runtime or background service.**
 
 | Owner | Current use |
 | --- | --- |
-| [`isolation-source/README.md`](./isolation-source/README.md) | Pinned unmodified Sandboxie v1.18.5 source checkout, build-only recipe and SHA-256 artifact inventory (not installed) |
+| [`isolation-source/README.md`](./isolation-source/README.md) | Pinned unmodified Sandboxie v1.18.5 build recipe, SHA-256 report validator and pure Node regression tests; no driver install |
 | [`repository/verify.mjs`](./repository/verify.mjs) | Static repository/source ownership invariants |
 | [`local-test/session.mjs`](./local-test/session.mjs) | Metadata-only exact-SHA source-preflight records; never captures raw logs or Minecraft profiles |
 | [`windows-toolchain/dev.ps1`](./windows-toolchain/dev.ps1) | Optional developer commands on an authorized Windows setup |
