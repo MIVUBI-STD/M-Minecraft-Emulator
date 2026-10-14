@@ -1,5 +1,31 @@
 # Current Development Handoff
 
+## Official Client 02 launch admission recheck — 2026-10-14
+
+**Work:** inspect source-only whether recent owned candidate hardening
+changed official Sandboxie launch admission. **State:** DONE for bounded
+review; no code mutation was warranted.
+
+**Proof:** checked the active backend selection, read-only Tauri
+registration, in-process launch Mutex, fresh fast membership preflight,
+UNKNOWN membership rejection, PID reconciliation, ambiguous helper
+no-auto-retry rule and UI inspection invalidation. All nine current
+source-contract checks match the existing code at `27a296bcb6c6`.
+These are static findings, not a Windows launch or Microsoft
+authentication acceptance.
+
+**Boundary:** the in-process lock cannot make an external user's
+SandMan/Windows actions atomic with the later Start.exe request.
+A snapshot can become stale across processes. Do not claim a universal
+race-free guarantee or introduce an unproven second launcher; determine
+any real failure using bounded Windows evidence.
+
+**Next ONE task:** complete exact-HEAD Node24/Rust/CMake source execution
+when supported; otherwise move to authorized disposable Windows
+MSBuild/WDK, REA native binary and Minecraft compatibility gates.
+Never use account-bearing Client 02 as the first private-driver lab.
+
+
 ## Closed candidate-folder snapshot and opened-file metadata — 2026-10-14
 
 **Work:** address bounded read-only filesystem inventory and path consistency
