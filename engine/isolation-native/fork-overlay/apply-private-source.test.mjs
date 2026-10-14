@@ -35,6 +35,19 @@ function sources() {
     ].join("\n") : path === "Sandboxie/core/dll/sbieapi.c" ? [
       "// isolated fixture component: " + path,
       '#include "common/my_version.h"',
+      "// Original upstream headers/helpers between include and handle.",
+      "HANDLE SbieApi_DeviceHandle = INVALID_HANDLE_VALUE;",
+      "static NTSTATUS SbieApi_Ioctl(ULONG64 *parms) {",
+      "    if (parms == NULL) { // close request as used by kmdutil",
+      "        return STATUS_SUCCESS;",
+      "    if (SbieApi_DeviceHandle == INVALID_HANDLE_VALUE) {",
+      "        SbieApi_DeviceHandle = 1;",
+      "    } else {",
+      "        //",
+      "        // note that all requests are synchronous which means",
+      "        return STATUS_SUCCESS;",
+      "    }",
+      "}",
       "NTSTATUS SbieApi_GetVersionEx() {",
       "    args->string.val = version_string;",
       "    args->abi_ver.val = abi_version;",
@@ -73,13 +86,30 @@ function git(root, args, input) {
 test("generated patch includes DLL and service startup in exact core closure and preserves kernel names", () => {
   const patch = buildPrivateSourcePatch(sources());
   assert.equal((patch.match(/^diff --git/gm) ?? []).length, 8);
-  assert.equal((patch.match(/^@@ /gm) ?? []).length, 14);
+  assert.equal((patch.match(/^@@ /gm) ?? []).length, 16);
   // Git apply rejects the earlier anchor-only hunks even when the line
   // matches. Every insertion must retain a following source context line.
   assert.match(patch, /@@ -\d+,2 \+\d+,4 @@/);
   assert.match(patch, /\+#define MIVUBI_PRIVATE_ISOLATION_ABI   0x57230\n #define SBIEDRV/);
   assert.match(patch, /\+#endif\n int test_function\(void\)/);
-  assert.equal((patch.match(/^@@ -\d+,2 \+\d+,\d+ @@$/gm) ?? []).length, 14);
+  assert.equal((patch.match(/^@@ -\d+,2 \+\d+,\d+ @@$/gm) ?? []).length, 15);
+  // Real upstream has seven context lines; the synthetic fixture packs
+  // the same three source anchors into five. Both must be one Git hunk.
+  assert.match(patch, /^@@ -\d+,(?:5|7) \+\d+,\d+ @@$/m);
+  assert.match(patch, /MivubiVerifyOpenedDevice/);
+  assert.match(patch, /MivubiVerifiedDeviceHandle/);
+  assert.match(patch, /Reopening even with a reused HANDLE value revokes prior trust/);
+  assert.match(patch, /AbortServer\(\)/);
+  // Every patch hunk must be ordered and NONOVERLAPPING on old source.
+  // Adjacent GetVersionEx edits previously generated overlapping Git hunks.
+  for (const fileDiff of patch.split(/^diff --git /m).filter(Boolean)) {
+    const ranges = [...fileDiff.matchAll(/^@@ -(\d+),(\d+) \+(\d+),(\d+) @@$/gm)]
+      .map(m => ({start: Number(m[1]), end: Number(m[1]) + Number(m[2]) - 1}));
+    for (let index = 1; index < ranges.length; index++) {
+      assert.ok(ranges[index - 1].end < ranges[index].start,
+        "Git source hunks must never share context lines");
+    }
+  }
   assert.match(patch, /MIVUBI_PRIVATE_DRIVER_ID/);
   assert.match(patch, /const WCHAR \*Driver_Version = MIVUBI_PRIVATE_DRIVER_ID/);
   assert.match(patch, /SbieApi_GetVersionEx\(observedVersion, &observedAbi\)/);
@@ -132,8 +162,12 @@ test("entire patch applies atomically to a disposable Git checkout without renam
     assert.match(feature, /MivubiOwnedDriverMatches\(observedVersion, observedAbi\)/);
     const dll = readFileSync(join(root, "Sandboxie/core/dll/sbieapi.c"), "utf8");
     assert.match(dll, /MivubiOwnedDriverMatches\(mivubiVersion, mivubiAbi\)/);
+    assert.match(dll, /MivubiVerifyOpenedDevice/);
+    assert.match(dll, /parms\[0\] != API_GET_VERSION/);
+    assert.match(dll, /MivubiVerifiedDeviceHandle = INVALID_HANDLE_VALUE/);
     const service = readFileSync(join(root, "Sandboxie/core/svc/DriverAssistStart.cpp"), "utf8");
     assert.match(service, /rc == STATUS_REVISION_MISMATCH/);
+    assert.match(service, /AbortServer\(\);/);
     const driver = readFileSync(join(root, "Sandboxie/core/drv/api.c"), "utf8");
     assert.match(driver, /const WCHAR \*Driver_Version = MIVUBI_PRIVATE_DRIVER_ID/);
     assert.match(feature, /end\[1\] != L'/);
@@ -194,6 +228,23 @@ test("DLL and service refuse unreviewed private startup bypasses", () => {
       "if (rc != STATUS_REVISION_MISMATCH)")};
   assert.throws(() => verifyExactPrivateSourceBytes(before, modifiedSvc),
     /unexpected modified source bytes/);
+});
+
+test("private DLL per-handle ioctl and service abort cannot be bypassed", () => {
+  const original = sources();
+  const edited = buildExpectedPrivateSources(original);
+  const dll = "Sandboxie/core/dll/sbieapi.c";
+  const svc = "Sandboxie/core/svc/DriverAssistStart.cpp";
+  assert.match(edited[dll], /if \(parms\[0\] != API_GET_VERSION &&/);
+  assert.match(edited[dll], /status = MivubiVerifyOpenedDevice\(\)/);
+  assert.match(edited[svc], /AbortServer\(\);/);
+  assert.throws(() => verifyExactPrivateSourceBytes(original, {
+    ...edited, [dll]: edited[dll].replace(
+      "status = MivubiVerifyOpenedDevice();", "status = STATUS_SUCCESS;")
+  }), /unexpected modified source bytes/);
+  assert.throws(() => verifyExactPrivateSourceBytes(original, {
+    ...edited, [svc]: edited[svc].replace("        AbortServer();", "        // no abort")
+  }), /unexpected modified source bytes/);
 });
 
 test("wrong ABI, unexpected service identity and duplicate compiler anchors fail closed", () => {

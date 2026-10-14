@@ -1,5 +1,47 @@
 # Current Development Handoff — M-Minecraft-Emulator
 
+## Private DLL ordinary-ioctl ownership and service shutdown — 15 October 2026
+
+**Goal remains:** working MIVUBI-owned Sandboxie-derived core, not a
+wrapper, demo dashboard or documentation project. **State: SOURCE_CHANGED;
+Windows signed driver/service/DLL and Minecraft gameplay NOT_EXECUTED.**
+
+**Functional implementation:** `core/dll/sbieapi.c` now checks the
+MIVUBI driver version/ABI with an ordinary `API_GET_VERSION` on each
+newly opened device handle, before permitting non-version ioctls.
+It caches the verification per handle and resets when closing or
+reopening, including reused Windows handle values. This avoids
+requesting version on every normal game call. It continues to refuse
+an official driver with `STATUS_REVISION_MISMATCH`. Private
+`core/svc/DriverAssistStart.cpp` invokes the existing `AbortServer()`
+shutdown path when it sees the same foreign-driver status, instead of
+returning prematurely from the startup thread.
+
+**Patch correctness:** the GetVersionEx source lines changed in three
+adjacent places. Separate context hunks caused a reproducible Git
+`patch does not apply` failure. The source owner now emits one combined
+nonoverlapping 7-line hunk, rather than three overlapping hunks.
+A disposable local Git fixture verified the combined hunk using
+`git apply --check --index` and `git apply --index`. The exact eight
+pinned upstream v1.18.5 source blobs produced **16** nonoverlapping
+hunks and passed expected-byte verification in ChatGPT V8. Seven
+authored JS source test bodies passed with service/DLL tamper rejection.
+
+**Limits:** This is a source implementation, NOT a compiled Windows
+kernel minifilter, production signing, installed isolated service,
+authenticated kernel measurement, account separation, crash fix or
+four-client acceptance. The normal private DLL ioctl path is guarded;
+other external DLLs or kernel callers must not be assumed covered.
+The unchanged `SbieDrv`/`SbieSvc` system namespace still prevents
+coexistence with official Sandboxie.
+
+**Next SINGLE substantive task:** inspect actual ABI and source build
+failures in the complete Windows toolchain when available, then
+correct concrete driver/service/DLL incompatibilities and test on a
+separate disposable Windows host. Do not execute privileged engine
+cutover on the user's official account box.
+
+
 ## Native DLL/service/driver core identity — 15 October 2026
 
 **Primary goal:** MIVUBI's own *functioning Sandboxie-derived isolation

@@ -153,6 +153,44 @@ atomically in the source checkout; no real Windows binary build, driver
 load or account data was involved. Real upstream patch application remains
 an additional integration obligation on the exact v1.18.5 source checkout.
 
+## Private DLL ioctl admission and service failure shutdown — 15 October 2026
+
+**New functional core work:** the private SbieDll now verifies that the
+*opened device handle* belongs to the MIVUBI kernel before its first
+non-`API_GET_VERSION` ioctl. It sends the existing `API_GET_VERSION` ioctl
+directly on that handle using upstream's synchronous native ioctl path,
+checks the pinned ABI and `5.73.5-MIVU` identity, then caches approval
+for that handle only. Subsequent game/process ioctls do **not** pay for
+a version probe on every call. When the DLL closes or reopens the
+device handle, cached approval is explicitly reset—including handle-value
+reuse—and the next non-version ioctl must be checked again.
+`SbieApi_GetVersionEx` still independently checks its own outputs.
+No new ioctl code, driver object name or ABI layout is introduced.
+
+**Service lifecycle fix:** a foreign-driver mismatch in private
+`DriverAssistStart.cpp` now invokes upstream `AbortServer()` instead
+of returning early from the asynchronous thread. This preserves the
+existing failure shutdown path and prevents the private service from
+pretending that driver startup succeeded.
+
+**Actual source regression:** multiple insertions in `GetVersionEx`
+must be represented by ONE combined Git hunk; adjacent overlapping
+hunks were reproduced as `git apply --check` failures. The corrected
+patch generator emits one combined version hunk plus nonoverlapping
+handle-open, close and ioctl-admission hunks. A bounded local Git
+fixture for the combined-version hunk passed `git apply --check --index`
+and `git apply --index`. The exact pinned eight-file upstream source
+patch passed V8 byte verification, with 16 hunks in total; all seven
+eligible authored pure source regressions passed. The full pinned
+Windows source/driver integration remains **NOT_EXECUTED**.
+
+**Scope limit:** this is non-cryptographic identity admission for the
+private DLL's normal ioctl entry point; it is not a kernel security
+audit, Windows driver signing, replacement of all upstream clients, or
+a guarantee against an adversarial kernel spoofing the version response.
+No service/driver was installed, and the official account-bearing
+Sandboxie instance was not touched.
+
 ## Private DLL ↔ service ↔ driver identity (15 October 2026)
 
 The private C++ launcher version check is now extended to the **existing
@@ -175,11 +213,12 @@ SbieDll version API and the correct asynchronous service startup owner**:
   Private `Start.exe` still checks both before accepting an owned launch.
 
 The approved fork closure now changes **eight** exact upstream files,
-including `DriverAssistStart.cpp`, with **14** Git hunks. This is
+including `DriverAssistStart.cpp`, with **16** Git hunks. This is
 significant source functionality—not just metadata—but it is not yet
 a compiled/signed service, DLL, or kernel runtime. It is a
-**version-path fail-closed check**, not cryptographic runtime attestation
-or a blanket restriction on every DLL ioctl. A complete Windows
+**version/handle-based fail-closed check**, not cryptographic runtime
+attestation or a guarantee for alternate upstream clients bypassing the
+private DLL. A complete Windows
 MSVC/WDK build and disposable service/driver execution remain mandatory
 before any app cutover. Never install this fork beside the official
 Sandboxie with identical `SbieSvc`/`SbieDrv` names.

@@ -38,6 +38,70 @@ const SVC_START_PATH = "Sandboxie/core/svc/DriverAssistStart.cpp";
 const DLL_ARG_ANCHOR = "    args->string.val = version_string;";
 const DLL_ERROR_ANCHOR = "    if (! NT_SUCCESS(status)){";
 const DLL_ABI_ANCHOR = "    args->abi_ver.val = abi_version;";
+const DLL_HANDLE_ANCHOR = "HANDLE SbieApi_DeviceHandle = INVALID_HANDLE_VALUE;";
+const DLL_NULL_ANCHOR = "    if (parms == NULL) { // close request as used by kmdutil";
+const DLL_OPEN_ANCHOR = "    if (SbieApi_DeviceHandle == INVALID_HANDLE_VALUE) {";
+const DLL_HANDLE_RESET = [
+  "#if defined(MIVUBI_PRIVATE_ISOLATION_BUILD)",
+  "        // Reopening even with a reused HANDLE value revokes prior trust.",
+  "        MivubiVerifiedDeviceHandle = INVALID_HANDLE_VALUE;",
+  "#endif",
+];
+const DLL_DISPATCH_ANCHOR =
+  "        // note that all requests are synchronous which means";
+const DLL_HANDLE_PROBE = [
+  "#if defined(MIVUBI_PRIVATE_ISOLATION_BUILD)",
+  "// Bind ordinary private DLL calls to the opened driver BEFORE sending",
+  "// any non-version ioctl. Query once per opened handle, not per game call.",
+  "static HANDLE MivubiVerifiedDeviceHandle = INVALID_HANDLE_VALUE;",
+  "static NTSTATUS MivubiVerifyOpenedDevice(void)",
+  "{",
+  "    WCHAR version[16] = {0};",
+  "    ULONG abi = 0;",
+  "    __declspec(align(8)) ULONG64 args[API_NUM_ARGS];",
+  "    API_GET_VERSION_ARGS *versionArgs = (API_GET_VERSION_ARGS *)args;",
+  "    IO_STATUS_BLOCK ioStatus;",
+  "    NTSTATUS status;",
+  "    memzero(args, sizeof(args));",
+  "    versionArgs->func_code = API_GET_VERSION;",
+  "    versionArgs->string.val = version;",
+  "    versionArgs->abi_ver.val = &abi;",
+  "    if (__sys_NtDeviceIoControlFile)",
+  "        status = __sys_NtDeviceIoControlFile(",
+  "            SbieApi_DeviceHandle, NULL, NULL, NULL, &ioStatus,",
+  "            API_SBIEDRV_CTLCODE, args, sizeof(ULONG64) * 8, NULL, 0);",
+  "    else",
+  "        status = NtDeviceIoControlFile(",
+  "            SbieApi_DeviceHandle, NULL, NULL, NULL, &ioStatus,",
+  "            API_SBIEDRV_CTLCODE, args, sizeof(ULONG64) * 8, NULL, 0);",
+  "    if (!NT_SUCCESS(status)) return status;",
+  "    return MivubiOwnedDriverMatches(version, abi)",
+  "        ? STATUS_SUCCESS : STATUS_REVISION_MISMATCH;",
+  "}",
+  "#endif",
+];
+const DLL_EARLY_CLOSE = [
+  "#if defined(MIVUBI_PRIVATE_ISOLATION_BUILD)",
+  "    // Avoid the upstream close-path fallthrough to parms[0].",
+  "    if (parms == NULL) {",
+  "        if (SbieApi_DeviceHandle != INVALID_HANDLE_VALUE)",
+  "            NtClose(SbieApi_DeviceHandle);",
+  "        SbieApi_DeviceHandle = INVALID_HANDLE_VALUE;",
+  "        MivubiVerifiedDeviceHandle = INVALID_HANDLE_VALUE;",
+  "        return STATUS_SUCCESS;",
+  "    }",
+  "#endif",
+];
+const DLL_BEFORE_DISPATCH = [
+  "#if defined(MIVUBI_PRIVATE_ISOLATION_BUILD)",
+  "        if (parms[0] != API_GET_VERSION &&",
+  "                MivubiVerifiedDeviceHandle != SbieApi_DeviceHandle) {",
+  "            status = MivubiVerifyOpenedDevice();",
+  "            if (!NT_SUCCESS(status)) return status;",
+  "            MivubiVerifiedDeviceHandle = SbieApi_DeviceHandle;",
+  "        }",
+  "#endif",
+];
 const SVC_INCLUDE_ANCHOR = '#include "core/drv/verify.h"';
 const SVC_START_ANCHOR = "    LONG rc = SbieApi_GetVersionEx(NULL, NULL);";
 const SVC_START_INCLUDE = ['#include "common/my_version.h"', ...GUARD];
@@ -71,7 +135,8 @@ const SERVICE_FOREIGN_DRIVER = [
   "    // The private DLL returns REVISION_MISMATCH for an official kernel.",
   "    if (rc == STATUS_REVISION_MISMATCH) {",
   "        LogEvent(MSG_9234, 0x9154, rc);",
-  "        return 1;",
+  "        AbortServer();",
+  "        return 0;",
   "    }",
   "#endif",
 ];
@@ -160,6 +225,35 @@ function hunk(source, path, anchor, added, before = false, offset = 0, headers =
   ].join("\n");
 }
 
+// Three GetVersionEx edits touch adjacent original lines. Git refuses
+// overlapping unified-diff context hunks, even when each anchor matches.
+// Emit one coherent hunk spanning all three edits.
+function dllVersionHunk(source, path, offset) {
+  for (const anchor of [DLL_ARG_ANCHOR, DLL_ABI_ANCHOR, DLL_ERROR_ANCHOR])
+    onlyOnce(source, anchor, path);
+  const lines = source.split("\n");
+  const first = lines.indexOf(DLL_ARG_ANCHOR);
+  const last = lines.indexOf(DLL_ERROR_ANCHOR);
+  assert(first >= 0 && first < last && last + 1 < lines.length,
+    "upstream GetVersionEx body changed in " + path);
+  const original = lines.slice(first, last + 2);
+  const generated = [];
+  for (const line of original) {
+    if (line === DLL_ARG_ANCHOR)
+      generated.push(...DLL_PRIVATE_ARGS.map(value => "+" + value));
+    if (line === DLL_ERROR_ANCHOR)
+      generated.push(...DLL_CHECK.map(value => "+" + value));
+    generated.push(" " + line);
+    if (line === DLL_ABI_ANCHOR)
+      generated.push(...DLL_PRIVATE_ARGS_END.map(value => "+" + value));
+  }
+  const count = original.length + DLL_PRIVATE_ARGS.length +
+    DLL_PRIVATE_ARGS_END.length + DLL_CHECK.length;
+  return ["@@ -" + (first + 1) + "," + original.length +
+    " +" + (first + 1 + offset) + "," + count + " @@",
+    ...generated, ""].join("\n");
+}
+
 /** Pure transformation based on exact pinned upstream bytes. */
 export function buildPrivateSourcePatch(files) {
   assert(files && typeof files === "object" && !Array.isArray(files),
@@ -201,17 +295,25 @@ export function buildPrivateSourcePatch(files) {
     if (path === DLL_PATH) {
       // Preserve the original ABI while querying identity even for callers
       // that supplied NULL pointers (notably the service startup sequence).
-      onlyOnce(files[path], DLL_ARG_ANCHOR, path);
-      onlyOnce(files[path], DLL_ERROR_ANCHOR, path);
-      onlyOnce(files[path], DLL_ABI_ANCHOR, path);
-      parts.push(hunk(files[path], path, DLL_ARG_ANCHOR,
-        DLL_PRIVATE_ARGS, true, additions.length, false));
-      parts.push(hunk(files[path], path, DLL_ABI_ANCHOR,
-        DLL_PRIVATE_ARGS_END, false,
-        additions.length + DLL_PRIVATE_ARGS.length, false));
-      parts.push(hunk(files[path], path, DLL_ERROR_ANCHOR,
-        DLL_CHECK, true, additions.length +
-        DLL_PRIVATE_ARGS.length + DLL_PRIVATE_ARGS_END.length, false));
+      for (const anchor of [
+        DLL_HANDLE_ANCHOR, DLL_NULL_ANCHOR, DLL_OPEN_ANCHOR,
+        DLL_DISPATCH_ANCHOR, DLL_ARG_ANCHOR, DLL_ABI_ANCHOR,
+        DLL_ERROR_ANCHOR,
+      ]) onlyOnce(files[path], anchor, path);
+      let offset = additions.length;
+      parts.push(hunk(files[path], path, DLL_HANDLE_ANCHOR,
+        DLL_HANDLE_PROBE, false, offset, false));
+      offset += DLL_HANDLE_PROBE.length;
+      parts.push(hunk(files[path], path, DLL_NULL_ANCHOR,
+        DLL_EARLY_CLOSE, true, offset, false));
+      offset += DLL_EARLY_CLOSE.length;
+      parts.push(hunk(files[path], path, DLL_OPEN_ANCHOR,
+        DLL_HANDLE_RESET, false, offset, false));
+      offset += DLL_HANDLE_RESET.length;
+      parts.push(hunk(files[path], path, DLL_DISPATCH_ANCHOR,
+        DLL_BEFORE_DISPATCH, true, offset, false));
+      offset += DLL_BEFORE_DISPATCH.length;
+      parts.push(dllVersionHunk(files[path], path, offset));
     }
     if (path === SVC_START_PATH) {
       onlyOnce(files[path], SVC_START_ANCHOR, path);
@@ -252,9 +354,19 @@ export function buildExpectedPrivateSources(original) {
         [...DRIVER_IDENTITY_OVERRIDE, DRIVER_VERSION_ANCHOR].join(newline));
     }
     if (path === DLL_PATH) {
-      onlyOnce(original[path], DLL_ARG_ANCHOR, path);
-      onlyOnce(original[path], DLL_ABI_ANCHOR, path);
-      onlyOnce(original[path], DLL_ERROR_ANCHOR, path);
+      for (const anchor of [
+        DLL_HANDLE_ANCHOR, DLL_NULL_ANCHOR, DLL_OPEN_ANCHOR,
+        DLL_DISPATCH_ANCHOR, DLL_ARG_ANCHOR, DLL_ABI_ANCHOR,
+        DLL_ERROR_ANCHOR,
+      ]) onlyOnce(original[path], anchor, path);
+      value = value.replace(DLL_HANDLE_ANCHOR,
+        [DLL_HANDLE_ANCHOR, ...DLL_HANDLE_PROBE].join(newline));
+      value = value.replace(DLL_NULL_ANCHOR,
+        [...DLL_EARLY_CLOSE, DLL_NULL_ANCHOR].join(newline));
+      value = value.replace(DLL_OPEN_ANCHOR,
+        [DLL_OPEN_ANCHOR, ...DLL_HANDLE_RESET].join(newline));
+      value = value.replace(DLL_DISPATCH_ANCHOR,
+        [...DLL_BEFORE_DISPATCH, DLL_DISPATCH_ANCHOR].join(newline));
       value = value.replace(DLL_ARG_ANCHOR,
         [...DLL_PRIVATE_ARGS, DLL_ARG_ANCHOR].join(newline));
       value = value.replace(DLL_ABI_ANCHOR,
