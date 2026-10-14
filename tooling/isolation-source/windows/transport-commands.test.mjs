@@ -68,12 +68,17 @@ test("start, audit-only and rollback command semantics stay explicit", () => {
   assert.equal(compile("04").argv, null);
   assert.equal(compile("07").argv, null);
   assert.equal(compile("R5").argv, null);
-  assert.deepEqual(compile("R1", {ownershipReceipt: owner("SbieSvc","SbieSvc.exe")}).argv,
-    ["stop", "SbieSvc"]);
-  assert.deepEqual(compile("R2", {ownershipReceipt: owner("SbieSvc","SbieSvc.exe")}).argv,
-    ["delete", "SbieSvc"]);
-  assert.deepEqual(compile("R3", {ownershipReceipt: owner("SbieDrv","SbieDrv.sys")}).argv,
-    ["stop", "SbieDrv"]);
+  // Rollback transports cannot be generated merely from self-reported
+  // ownership booleans. A trusted lab key is not yet pinned.
+  for (const [id, component, image] of [
+    ["R1", "SbieSvc", "SbieSvc.exe"],
+    ["R2", "SbieSvc", "SbieSvc.exe"],
+    ["R3", "SbieDrv", "SbieDrv.sys"],
+    ["R4", "SbieDrv", "SbieDrv.sys"],
+  ]) {
+    assert.throws(() => compile(id, { ownershipReceipt: owner(component, image) }),
+      /rollback blocked: no pinned lab attestation key/);
+  }
 });
 
 test("rollback cannot be compiled without an ownership proof receipt", () => {

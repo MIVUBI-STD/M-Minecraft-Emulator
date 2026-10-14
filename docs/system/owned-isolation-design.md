@@ -49,6 +49,14 @@ The disposable provision plan can now be compiled into a pinned `KmdUtil` comman
 
 The command transport currently **cannot install, start, stop or delete** a service: no trusted signed disposable-lab attestation certificate is pinned, and service ownership needs independent evidence before any mutation. The transport never becomes active through Tauri, and the official Sandboxie Client 02 launch stays unchanged. This separation enables continued source work without falsely treating self-reported receipts or Authenticode `Valid` alone as trust or safe driver deployment.
 
+## Signed lab evidence and SCM ownership review (source-first)
+
+`tooling/isolation-source/windows/attestation-gate.mjs` validates Ed25519-signed, short-lived lab evidence bound to the exact upstream SHA, transaction ID, nonce digest, host fingerprint, snapshot UUID, plan hash and journal hash. It does not trust public keys supplied inside the signed JSON, and the *production trust key remains blank*: only test fixtures can exercise positive verification using generated ephemeral keys.
+
+`service-ownership.mjs` correlates that signed evidence with the matching Windows SCM service image/path, observed executable hash and a journal receipt that claims prior absence and a matching creation step. `probe-owned-service-image.ps1` performs read-only Windows queries without leaking the raw machine UUID. A positive correlation explicitly still returns `rollbackPermitted=false`, `installationPermitted=false`, and `windowsServiceOwnershipIndependentlyAttested=false`, because JSON/SCM correlation cannot establish safe ownership by itself.
+
+The KmdUtil command compiler is now tightened: self-declared `ownerProofVerified=true` and `signedReceiptAttested=true` cannot generate STOP/DELETE descriptors while there is no pinned lab attestation public key. The PowerShell transport is still sealed in Apply mode, and the app never selects or installs an owned driver.
+
 ## The two distinct independence goals
 
 1. **Deployment independence (approved target):** our app can install, diagnose, manage and update an appropriately licensed and signed app-owned isolation backend without external SandMan/official Sandboxie installation. This still contains appropriately credited Sandboxie-derived GPL components.

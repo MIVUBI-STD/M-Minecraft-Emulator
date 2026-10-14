@@ -130,6 +130,22 @@ Seven argument/rollback/unsafe-source scenarios passed against the exact GitHub 
 
 Do not confuse a parsed/validated command with approval to use it. Every emitted transport specification includes `executionAllowed=false`, `driverSigningVerified=false`, `disposableHostAttested=false`, and `rollbackAuthorized=false`. No code automatically deletes a registered Windows service.
 
+## Signed disposable-lab attestation and Windows service image ownership
+
+The source now contains [attestation-gate.mjs](./windows/attestation-gate.mjs), [service-ownership.mjs](./windows/service-ownership.mjs) and the read-only [probe-owned-service-image.ps1](./windows/probe-owned-service-image.ps1). Attestations use **Ed25519** signatures over exact bounded JSON bytes and expire within a ten-minute window. Signed claims are bound to an individual machine-fingerprint SHA-256, VM snapshot UUID, one transaction and the precise plan/journal hashes.
+
+The lab trust public key is intentionally **NOT configured**. A caller cannot provide an arbitrary certificate key to the production API; test-only source functions verify ephemeral keys without exposing private signing material in Git. Even a successful test signature and matching SCM ImagePath return *correlation only*, not independent Windows disposable-host attestation, service ownership, driver-signing approval or permission to delete/stop a service.
+
+The KmdUtil command compiler no longer accepts merely self-reported rollback booleans as sufficient to emit STOP/DELETE descriptors. `kmdutil-transport.ps1 -Mode Probe` also reports the observed SCM path and whether it exactly matches the expected binary root (still untrusted as ownership proof). `Apply` remains sealed.
+
+To collect a read-only Windows service-image observation (source written, Windows execution **NOT_EXECUTED**):
+
+~~~powershell
+.\tooling\isolation-source\windows\probe-owned-service-image.ps1 -ServiceName SbieSvc -ExpectedImagePath 'D:\Lab\M-Isolation-Payload\SbieSvc.exe'
+~~~
+
+Seven Node tests for Ed25519 evidence and six for ownership correlation are authored. The KmdUtil compiler's seven pure scenarios and eight ownership-logic scenarios were checked against exact source blobs in the available JavaScript runtime; full Node cryptographic test, PowerShell Windows execution and actual signer provisioning remain NOT_EXECUTED.
+
 ## Product separation, attribution and acceptance
 
 Raw outputs remain in the upstream checkout; a private candidate may be staged into an explicitly requested separate folder. Neither is committed to `Local`, merged into Rust, or installed under the existing `M-Bedrock Virtual Clients` identity. Do not try a custom driver next to the official Sandboxie service/driver in the same account-bearing Windows installation: device/service/IPC namespaces may collide. The future cutover needs a dedicated disposable Windows environment, signing and crash-attribution evidence, game compatibility, persist/reboot and rollback tests, plus a new license/distribution decision. A fork is **deployment independence** once proved, not source independence from Sandboxie.

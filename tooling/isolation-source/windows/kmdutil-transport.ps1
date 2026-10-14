@@ -115,6 +115,13 @@ $imageInfo = Get-BinaryObservation $validated.image
 $helperInfo = Get-BinaryObservation $validated.helper
 $matchedSha = $imageInfo.exists -and $imageInfo.sha256 -ceq [string]$spec.requiredImageSha256
 $signaturesObserved = ($imageInfo.signature -eq 'Valid' -and $helperInfo.signature -eq 'Valid')
+# Exact read-only SCM ImagePath corroboration. A matching name/path is
+# still NOT cryptographic ownership and never authorizes rollback.
+$registered = if ($validated.component -eq 'SbieSvc') { $service } else { $driver }
+$scmImagePath = [string]$registered.path
+$scmPathMatches = ($registered.state -eq 'PRESENT') -and
+    (($scmImagePath -ceq $validated.image) -or
+     ($scmImagePath -ceq ('"' + $validated.image + '"')))
 $result = [ordered]@{
     schema = 1
     mode = $Mode
@@ -125,6 +132,8 @@ $result = [ordered]@{
     signaturesValid = [bool]$signaturesObserved
     serviceRegistration = $service.state
     driverRegistration = $driver.state
+    registeredImagePathMatches = [bool]$scmPathMatches
+    registeredImagePathObserved = $scmImagePath
     namespaceOwnershipVerified = $false
     disposableHostVerified = $false
     driverLoadVerified = $false

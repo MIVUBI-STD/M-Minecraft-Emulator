@@ -1,5 +1,17 @@
 # Current Development Handoff
 
+## Signed lab binding and service-image ownership source — 2026-10-14
+
+**Work:** close the self-reported boolean rollback loophole in the Windows KmdUtil contract and prepare cryptographic host/source evidence. **State:** DONE for source changes; Windows and Ed25519 Node test suite execution pending.
+
+**Decision:** add `windows/attestation-gate.mjs` (strict Ed25519 signature over bounded signed lab record, expiry and binding to upstream SHA, transaction, nonce, host fingerprint, snapshot, plan hash and journal hash), `windows/service-ownership.mjs` (read-only SCM image/path and journal correlation with explicit non-authorization), and `windows/probe-owned-service-image.ps1` (read-only SCM image/path, actual file SHA-256/AuthentiCode and hashed machine UUID only). Production trust anchor `PRODUCTION_LAB_TRUST_KEY_PEM` intentionally stays EMPTY until a reviewed disposable lab key is approved. Harden `transport-commands.mjs`: even plausible self-reported ownership flags no longer produce STOP/DELETE descriptors without the pinned trust anchor and a later independent ownership gate. `kmdutil-transport.ps1` exposes only read-only SCM image path comparison; Apply remains sealed, no active Tauri route.
+
+**Proof:** exact GitHub blobs reviewed; 7/7 V8 pure KmdUtil command contract tests PASS with rollback now sealed, 8/8 service-ownership decision tests PASS with an injected stand-in signature verifier and the production API blocked. Ed25519 Node cryptographic tests (7 cases) and service-ownership Node tests (6 cases) authored, **NOT_EXECUTED**; Rust, PowerShell, Windows driver install, official-Sandboxie coexistence, Minecraft gameplay NOT_EXECUTED. No compiled or signed owned driver exists.
+
+**Unresolved:** no pinned MIVUBI lab signer, no independently attested disposable Windows VM or trusted SCM ownership record, no privileged transport, no successful owned runtime and Client 02 idle-crash owner UNKNOWN. A signed lab claim alone is not platform attestation.
+
+**Next ONE task:** source-first design and implement the Windows transport ownership ledger and explicit operator authorization mechanism within an independently attested disposable host, while preserving the sealed default and never calling from active Client 02.
+
 ## KmdUtil native Windows transport contract — 2026-10-14
 
 **Work:** author concrete v1.18.5 driver/service command transport source while preserving the active Minecraft pilot. **State:** DONE for typed argv source and read-only Windows probe; privileged Windows transport activation is still BLOCKED.

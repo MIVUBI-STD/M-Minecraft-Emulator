@@ -2,6 +2,7 @@
 // This module returns data, NOT an executable authorization. No OS calls.
 import { win32 } from "node:path";
 import { UPSTREAM_SHA } from "../provision-disposable.mjs";
+import { PRODUCTION_LAB_TRUST_KEY_PEM } from "../attestation-gate.mjs";
 
 const DRIVER = "SbieDrv";
 const SERVICE = "SbieSvc";
@@ -67,8 +68,13 @@ function validateReceipt(receipt, component, relativeImagePath, expectedSha) {
       receipt.signedReceiptAttested !== true) {
     fail("rollback lacks independently verified service ownership");
   }
-  // This is only an interface-level claim. An actual Windows adapter must
-  // independently verify signature, transaction journal and SCM ImagePath.
+  // These boolean fields are caller-controlled and therefore NOT evidence.
+  // Until a reviewed lab key and independently corroborated SCM/journal proof
+  // are wired into the transport, no stop/delete descriptor can be emitted.
+  if (!PRODUCTION_LAB_TRUST_KEY_PEM.trim()) {
+    fail("rollback blocked: no pinned lab attestation key");
+  }
+  fail("rollback blocked: independent SCM and journal ownership gate not activated");
 }
 const SHA256 = /^[a-f0-9]{64}$/;
 
