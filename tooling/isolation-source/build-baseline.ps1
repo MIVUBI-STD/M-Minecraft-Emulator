@@ -51,6 +51,13 @@ if ($null -eq $nodeCmd) {
 if ($LASTEXITCODE -ne 0) {
     throw 'Pinned upstream manifest failed independent verification; no build performed.'
 }
+# Pin provenance of the actual local source checkout, not just HEAD SHA and
+# a copied tag. Refuse changed upstream remote, detached branch, shallow
+# history, nested worktrees and dirty local source before native compilation.
+& $nodeCmd.Source (Join-Path $PSScriptRoot 'verify-checkout.mjs') --source-root $root
+if ($LASTEXITCODE -ne 0) {
+    throw 'Isolation source checkout provenance failed; no build performed.'
+}
 $msbuildCmd = Get-Command msbuild.exe -ErrorAction SilentlyContinue
 if ($Build -and $null -eq $msbuildCmd) {
     throw 'msbuild.exe unavailable. Use a VS2022 Developer PowerShell with v143, MFC, Windows SDK and WDK.'

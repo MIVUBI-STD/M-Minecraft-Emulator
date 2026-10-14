@@ -8,6 +8,7 @@
 - Tag: `v1.18.5` → commit `abd4c240031cfb46666daa74ca47ed4e48b561e4`
 - Main source contracts: `Sandboxie/{SandboxDll.sln,Sandbox.sln,SandboxDrv.sln}`, `Installer/copy_build.cmd`, `Sandboxie/ReadMe.md`, upstream `.github/workflows/main.yml`, `LICENSE.Plus`, `Sandboxie/COPYING`.
 - File/build contract: [upstream-baseline.json](./upstream-baseline.json). One source of truth for required artifacts and stage order.
+- Read-only pre-build checkout verification: [verify-checkout.mjs](./verify-checkout.mjs) and [six Git tests](./verify-checkout.test.mjs). It rejects changed upstream remotes, shallow clones, missing/retargeted tags, detached/wrong branches, untracked modifications and symlinked checkout paths; a SHA string alone is not enough.
 - Metadata validator: [validate-baseline.mjs](./validate-baseline.mjs) with [six tests](./validate-baseline.test.mjs). Checks source revision, stage order and report consistency.
 - File-byte verifier: [verify-artifact-files.mjs](./verify-artifact-files.mjs) with [five tests](./verify-artifact-files.test.mjs). Independently rehashes every `PRESENT` file and confirms every `MISSING` file is absent; refuses symlinked and dangling-symlink file paths and changed files. Read-only; still **not** proof of signing, driver load or Minecraft gameplay. PowerShell invokes both verifiers after collection; Node.js is required.
 
@@ -28,7 +29,8 @@ Equivalent manual full-history checkout (alternative operator route, **not execu
 ~~~powershell
 git clone https://github.com/sandboxie-plus/Sandboxie.git M-Isolation-Engine
 cd M-Isolation-Engine
-git switch --detach abd4c240031cfb46666daa74ca47ed4e48b561e4
+git switch --create isolation/baseline-v1.18.5 abd4c240031cfb46666daa74ca47ed4e48b561e4
+git remote rename origin upstream
 git rev-parse HEAD
 git status --porcelain=v1 --untracked-files=all
 git remote -v
@@ -50,7 +52,7 @@ On a Windows build environment with Visual Studio 2022 C++, MSVC v143, MFC, Wind
 .\tooling\isolation-source\build-baseline.ps1 -SourceRoot 'D:\Source\M-Isolation-Engine' -ReportPath '.\workspace\isolation-baseline.json' -Build
 ~~~
 
-For source-only verification on any platform, run `npm run isolation-source:verify` and `npm run test:isolation-source` from the app repository root. These checks are read-only and have no build or Windows dependencies. The real file-byte verifier is invoked during `build-baseline.ps1` on the actual Windows checkout after artifact collection; metadata validation alone is insufficient.
+For source-only verification on any platform, run `npm run isolation-source:verify` and `npm run test:isolation-source` from the app repository root. To check an existing independent checkout before the Windows build, run `node tooling/isolation-source/verify-checkout.mjs --source-root 'D:\Source\M-Isolation-Engine'`. The PowerShell build procedure now requires that exact verification, too. These checks are read-only and have no build or Windows dependencies. The real file-byte verifier is invoked during `build-baseline.ps1` on the actual Windows checkout after artifact collection; metadata validation alone is insufficient.
 
 A clean source tree with HEAD and tag identical to the manifest is mandatory. **Build mode also refuses pre-existing required binaries or symbols**, preventing stale output from being attributed to the new build; it never deletes them. Use a separate clean source checkout for another build. The script refuses modified source or an evidence report inside the upstream source checkout. It invokes upstream's **Win32 DLL/service → x64 core → x64 driver** MSBuild stages in the order of its v1.18.5 CI, logs each stage locally, hashes expected files, and records their signatures. It **never installs, starts, stops or replaces a service/driver**, launches Minecraft, reads account tokens, or copies a box. Unmodified locally compiled kernel binaries are normally **not** production-signed or guaranteed loadable. Report status `BUILD_ARTIFACTS_COLLECTED` means build outputs were found after these commands; it does **not** imply a loadable signed driver, working Sandboxie, successful Microsoft login or Minecraft gameplay.
 

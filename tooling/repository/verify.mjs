@@ -22,6 +22,8 @@ const required = [
   "tooling/isolation-source/verify-artifact-files.test.mjs",
   "tooling/isolation-source/bootstrap-fork.mjs",
   "tooling/isolation-source/bootstrap-fork.test.mjs",
+  "tooling/isolation-source/verify-checkout.mjs",
+  "tooling/isolation-source/verify-checkout.test.mjs",
   "apps/desktop/package.json", "apps/desktop/package-lock.json",
   "apps/desktop/src-tauri/Cargo.toml", "apps/desktop/src-tauri/tauri.conf.json",
   "engine/runtime-core/Cargo.toml", "engine/distribution/release-channel.json",

@@ -1,5 +1,17 @@
 # Current Development Handoff
 
+## Pre-build checkout provenance verification — 2026-10-14
+
+**Work:** read-only verification of the actual pinned isolation source checkout before any native build. **State:** DONE for source and Git-fixture checks; authentic Sandboxie clone and Windows compilation still NOT_EXECUTED.
+
+**Decision:** add `tooling/isolation-source/verify-checkout.mjs` and tests, then require it from `build-baseline.ps1` after manifest validation and before MSBuild. The preflight rejects missing/symlinked or redirected paths, non-root worktrees, shallow history, HEAD/tag/branch changes, modified upstream remote and tracked/untracked changes. Bootstrap and preflight both retain the exact Sandboxie v1.18.5 commit `abd4c240031cfb46666daa74ca47ed4e48b561e4`. The documented manual checkout was updated to preserve the same baseline branch/upstream remote expected by the guard; no driver installation, box mutation, Microsoft login or schema change occurs.
+
+**Proof:** six real disposable Git-history tests executed on Linux Git 2.47 / Node 22 and PASSED (6/6). Exact tested source and test SHA match newly authored Git blobs `0ef6781c4d28653a06a2def6c24aa6ea4b9ea44f` and `ccb86a8ff518f4fd7dfee59881aa15d75827ff2c`. Full Windows PowerShell, Node24, Rust, native SDK/WDK and Minecraft tests NOT_EXECUTED; GitHub direct clone remains blocked by DNS.
+
+**Unresolved:** no published fork remote or actual upstream source checkout, no compiler-ready signed driver, no observed custom isolation runtime or resolved Client 02 idle crash.
+
+**Next ONE task:** once genuine upstream Git access and a trusted Windows toolchain are available, perform pinned baseline checkout/build with preflight and artifact SHA-256 attestation. Keep installed official Sandboxie and account-bearing Client 02 untouched.
+
 ## Pinned full-history fork bootstrap — 2026-10-14
 
 **Work:** replace the manual-only source-fork step with a tested, safe checkout bootstrap. **State:** DONE for local Git source bootstrap and tests; upstream clone/GitHub fork/native build NOT_EXECUTED.
