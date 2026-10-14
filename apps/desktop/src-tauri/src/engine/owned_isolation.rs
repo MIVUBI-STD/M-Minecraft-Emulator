@@ -18,6 +18,7 @@ const PRIVATE_STATE: &str = "PRIVATE_CORE_STAGED_NOT_INSTALLABLE";
 const PRIVATE_SOURCE_FILES: &[&str] = &[
     "Sandboxie/common/my_version.h",
     "Sandboxie/core/drv/api.c",
+    "Sandboxie/core/drv/box.c",
     "Sandboxie/core/dll/sbieapi.c",
     "Sandboxie/core/svc/DriverAssist.cpp",
     "Sandboxie/core/svc/DriverAssistStart.cpp",

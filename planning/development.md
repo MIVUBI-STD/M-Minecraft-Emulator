@@ -1,5 +1,34 @@
 # Current Development Handoff — M-Minecraft-Emulator
 
+## New native kernel function: whitelist BOX creation — 15 October 2026
+
+**Work:** substantive MIVUBI-owned Sandboxie engine implementation,
+not a launcher/UI/report-only milestone. The private pinned v1.18.5
+fork now changes `Sandboxie/core/drv/box.c`, placing one canonical
+`mivubi_kernel_box_policy.h` C gate immediately before `Box_Alloc`
+allocates a kernel sandbox object. Both new boxes and cloned child
+contexts go through this function. Only the three exact MIVUBI names
+(02/03/04; ASCII case-insensitive) are permitted; unowned box names
+are denied with `STATUS_ACCESS_DENIED`, before allocation. No new
+Windows driver API, ioctl, or service namespace is introduced.
+The approved canonical source closure becomes **nine source files**,
+**18 source hunks**; Rust inspector and private assembler follow it.
+
+**Executed:** 35 native allow/deny test cases, each run in GCC Release,
+Clang Release, GCC ASan/UBSan and Clang ASan/UBSan (all PASS).
+Candidate source/test Git SHA matched bytes in the ChatGPT container.
+Nine eligible authored JavaScript source regression bodies PASS.
+Actual nine pinned Sandboxie source blobs produce 18 nonoverlapping
+hunks and pass the byte-exact private fork transform. Whole-driver
+MSVC/WDK compilation/signing, REA binary analysis, service/kernel
+loading and Minecraft account proof are **NOT_EXECUTED**.
+
+**Next:** actual private full-core compilation with Windows toolchain
+in an approved disposable lab, then test kernel box enforcement,
+parent/child process isolation and service startup. No active
+official Sandboxie installation, accounts, or world files changed.
+
+
 ## Private fork Windows Git CRLF compatibility — 15 October 2026
 
 **Goal:** actual native MIVUBI-owned Sandboxie core binaries that compile

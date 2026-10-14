@@ -5,6 +5,28 @@ It consumes the original Sandboxie-Plus v1.18.5 `Sandboxie/common/my_version.h`
 from pinned upstream commit `abd4c240031cfb46666daa74ca47ed4e48b561e4`.
 Driver ABI: `0x57230`; driver version: `5.73.5`.
 
+## MIVUBI kernel-enforced sandbox namespace — 15 October 2026
+
+The private fork now modifies `Sandboxie/core/drv/box.c` itself.
+Immediately before `Box_Alloc` allocates an actual kernel `BOX`
+object, its C policy `mivubi_kernel_box_policy.h` allows only
+`MivubiEdu02`, `MivubiEdu03`, `MivubiEdu04`
+(case-insensitive ASCII) and returns `STATUS_ACCESS_DENIED` for
+all other names. The restriction also applies when sandbox contexts
+are cloned for descendant processes, since both paths use
+`Box_Alloc`. Official upstream builds are untouched. The private
+fork closure now has nine source files (18 Git hunks).
+
+The **actual header source** was compiled and tested in 35 native C
+accept/reject cases: GCC and Clang, Release and ASan/UBSan, all passed.
+The nine pinned upstream C/C++ source files were passed through the
+fork's exact-content source transform in ChatGPT V8; nine targeted
+source regression bodies passed. This DOES NOT yet establish a
+loadable Windows `SbieDrv.sys`, actual box provisioning, or licensed
+Minecraft sign-in. Because `SbieSvc`/`SbieDrv` names remain exclusive,
+never install this private fork alongside the official account-bearing
+Sandboxie installation.
+
 ## Windows CRLF private checkout compatibility — 15 October 2026
 
 **Concrete Windows-source fix:** the upstream Sandboxie .gitattributes

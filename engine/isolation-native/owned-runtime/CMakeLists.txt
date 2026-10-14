@@ -30,3 +30,17 @@ else()
     -Wall -Wextra -Werror -pedantic)
 endif()
 add_test(NAME owned_core_identity_native COMMAND mivubi-core-identity-test)
+
+# The same C policy is inserted into the real private Sandboxie kernel's
+# Box_Alloc path. Keep this native test active in Release (not assert()).
+add_executable(mivubi-kernel-box-policy-test mivubi_kernel_box_policy.test.c)
+set_target_properties(mivubi-kernel-box-policy-test PROPERTIES
+  C_STANDARD 11 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+if(MSVC)
+  target_compile_options(mivubi-kernel-box-policy-test PRIVATE /W4 /WX)
+else()
+  target_compile_options(mivubi-kernel-box-policy-test PRIVATE
+    -Wall -Wextra -Werror -pedantic)
+endif()
+add_test(NAME owned_kernel_box_policy_native
+  COMMAND mivubi-kernel-box-policy-test)

@@ -32,6 +32,15 @@ function sources() {
       "    return STATUS_SUCCESS;",
       "}",
       "",
+    ].join("\n") : path === "Sandboxie/core/drv/box.c" ? [
+      "// isolated kernel box fixture",
+      '#include "box.h"',
+      "static BOX *Box_Alloc(POOL *pool, const WCHAR *boxname, ULONG session_id) {",
+      "    BOX *box = Mem_Alloc(pool, sizeof(BOX));",
+      "    if (!box) return NULL;",
+      "    return box;",
+      "}",
+      "",
     ].join("\n") : path === "Sandboxie/core/dll/sbieapi.c" ? [
       "// isolated fixture component: " + path,
       '#include "common/my_version.h"',
@@ -85,18 +94,21 @@ function git(root, args, input) {
 
 test("generated patch includes DLL and service startup in exact core closure and preserves kernel names", () => {
   const patch = buildPrivateSourcePatch(sources());
-  assert.equal((patch.match(/^diff --git/gm) ?? []).length, 8);
-  assert.equal((patch.match(/^@@ /gm) ?? []).length, 16);
+  assert.equal((patch.match(/^diff --git/gm) ?? []).length, 9);
+  assert.equal((patch.match(/^@@ /gm) ?? []).length, 18);
   // Git apply rejects the earlier anchor-only hunks even when the line
   // matches. Every insertion must retain a following source context line.
   assert.match(patch, /@@ -\d+,2 \+\d+,4 @@/);
   assert.match(patch, /\+#define MIVUBI_PRIVATE_ISOLATION_ABI   0x57230\n #define SBIEDRV/);
   assert.match(patch, /\+#endif\n int test_function\(void\)/);
-  assert.equal((patch.match(/^@@ -\d+,2 \+\d+,\d+ @@$/gm) ?? []).length, 15);
+  assert.equal((patch.match(/^@@ -\d+,2 \+\d+,\d+ @@$/gm) ?? []).length, 17);
   // Real upstream has seven context lines; the synthetic fixture packs
   // the same three source anchors into five. Both must be one Git hunk.
   assert.match(patch, /^@@ -\d+,(?:5|7) \+\d+,\d+ @@$/m);
   assert.match(patch, /MivubiVerifyOpenedDevice/);
+  assert.match(patch, /Sandboxie\/core\/drv\/box.c/);
+  assert.match(patch, /MivubiBoxNameAllowed\(boxname\)/);
+  assert.match(patch, /STATUS_ACCESS_DENIED/);
   assert.match(patch, /MivubiVerifiedDeviceHandle/);
   assert.match(patch, /InterlockedCompareExchangePointer/);
   assert.match(patch, /InterlockedExchangePointer/);
@@ -165,6 +177,11 @@ test("entire patch applies atomically to a disposable Git checkout without renam
     assert.match(feature, /MivubiParseOwnedStart/);
     assert.match(feature, /SbieApi_GetVersionEx\(observedVersion, &observedAbi\)/);
     assert.match(feature, /MivubiOwnedDriverMatches\(observedVersion, 16, observedAbi\)/);
+    const boxed = readFileSync(join(root, "Sandboxie/core/drv/box.c"), "utf8");
+    assert.match(boxed, /MivubiBoxNameAllowed\(boxname\)/);
+    assert.match(boxed, /STATUS_ACCESS_DENIED/);
+    assert.ok(boxed.indexOf("if (!MivubiBoxNameAllowed(boxname))") <
+      boxed.indexOf("BOX *box = Mem_Alloc"));
     const dll = readFileSync(join(root, "Sandboxie/core/dll/sbieapi.c"), "utf8");
     assert.match(dll, /MivubiOwnedDriverMatches\(mivubiVersion, 16, mivubiAbi\)/);
     assert.match(dll, /MivubiVerifyOpenedDevice/);
@@ -329,6 +346,22 @@ test("DLL verification cache uses atomic reads, stores and invalidation", () => 
     assert.throws(() => verifyExactPrivateSourceBytes(original, tampered),
       /unexpected modified source bytes/);
   }
+});
+
+test("kernel Box_Alloc rejects unowned names before BOX allocation", () => {
+  const original = sources();
+  const expected = buildExpectedPrivateSources(original);
+  const driver = "Sandboxie/core/drv/box.c";
+  const src = expected[driver];
+  assert.match(src, /static int MivubiBoxNameAllowed\(/);
+  assert.match(src, /if \(!MivubiBoxNameAllowed\(boxname\)\)/);
+  assert.ok(src.indexOf("return NULL;") < src.indexOf("BOX *box = Mem_Alloc"));
+  assert.match(src, /STATUS_ACCESS_DENIED/);
+  const replaced = {...expected, [driver]: src.replace(
+    "if (!MivubiBoxNameAllowed(boxname))",
+    "if (MivubiBoxNameAllowed(boxname))")};
+  assert.throws(() => verifyExactPrivateSourceBytes(original, replaced),
+    /unexpected modified source bytes/);
 });
 
 test("wrong ABI, unexpected service identity and duplicate compiler anchors fail closed", () => {

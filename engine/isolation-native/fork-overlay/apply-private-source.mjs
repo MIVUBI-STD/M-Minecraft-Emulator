@@ -33,6 +33,24 @@ const MARKERS = [
 // The private core still uses upstream SbieSvc/SbieDrv and cannot co-install.
 const START_PATH = "Sandboxie/apps/start/start.cpp";
 const DRIVER_PATH = "Sandboxie/core/drv/api.c";
+const BOX_PATH = "Sandboxie/core/drv/box.c";
+const BOX_INCLUDE_ANCHOR = '#include "box.h"';
+const BOX_ALLOC_ANCHOR = "    BOX *box = Mem_Alloc(pool, sizeof(BOX));";
+const BOX_POLICY = readFileSync(
+  new URL("../owned-runtime/mivubi_kernel_box_policy.h", import.meta.url),
+  "utf8").trimEnd().split("\n");
+const BOX_ADMISSION = [
+  "#if defined(MIVUBI_PRIVATE_ISOLATION_BUILD)",
+  "    // Kernel admission applies to both new boxes and cloned descendants.",
+  "    // Deny before allocating a BOX; no unowned sandbox is instantiated.",
+  "    if (!MivubiBoxNameAllowed(boxname)) {",
+  "        Log_Status_Ex_Session(",
+  "            MSG_BOX_CREATE, 0x40, STATUS_ACCESS_DENIED,",
+  "            boxname, session_id);",
+  "        return NULL;",
+  "    }",
+  "#endif",
+];
 const DLL_PATH = "Sandboxie/core/dll/sbieapi.c";
 const SVC_START_PATH = "Sandboxie/core/svc/DriverAssistStart.cpp";
 const DLL_ARG_ANCHOR = "    args->string.val = version_string;";
@@ -198,6 +216,7 @@ const START_DISPATCH = [
 export const SOURCE_FILES = Object.freeze([
   "Sandboxie/common/my_version.h",
   "Sandboxie/core/drv/api.c",
+  "Sandboxie/core/drv/box.c",
   "Sandboxie/core/dll/sbieapi.c",
   "Sandboxie/core/svc/DriverAssist.cpp",
   "Sandboxie/core/svc/DriverAssistStart.cpp",
@@ -311,14 +330,22 @@ export function buildPrivateSourcePatch(files) {
   for (const path of SOURCE_FILES.slice(1)) {
     assert(!files[path].includes("MIVUBI_PRIVATE_ISOLATION_BUILD"),
       "private marker already present: " + path);
-    const includeAnchor = path === SVC_START_PATH ? SVC_INCLUDE_ANCHOR : ANCHOR;
+    const includeAnchor = path === SVC_START_PATH ? SVC_INCLUDE_ANCHOR :
+      path === BOX_PATH ? BOX_INCLUDE_ANCHOR : ANCHOR;
     const additions = path === START_PATH
       ? [...GUARD, "", ...CORE_IDENTITY, "", ...START_POLICY]
+      : path === BOX_PATH
+        ? ['#include "common/my_version.h"', ...GUARD, "", ...BOX_POLICY]
       : path === DRIVER_PATH || path === DLL_PATH
         ? [...GUARD, "", ...CORE_IDENTITY]
       : path === SVC_START_PATH ? SVC_START_INCLUDE : GUARD;
     parts.push(hunk(files[path], path, includeAnchor, additions,
       path === SVC_START_PATH));
+    if (path === BOX_PATH) {
+      onlyOnce(files[path], BOX_ALLOC_ANCHOR, path);
+      parts.push(hunk(files[path], path, BOX_ALLOC_ANCHOR,
+        BOX_ADMISSION, true, additions.length, false));
+    }
     if (path === DRIVER_PATH) {
       // Kernel returns a private runtime identity through the EXISTING
       // API_GET_VERSION response. No ioctl or argument-structure change.
@@ -372,9 +399,12 @@ export function buildExpectedPrivateSources(original) {
   const expected = {};
   for (const [index, path] of SOURCE_FILES.entries()) {
     const anchor = index === 0 ? VERSION_ANCHOR
-      : path === SVC_START_PATH ? SVC_INCLUDE_ANCHOR : ANCHOR;
+      : path === SVC_START_PATH ? SVC_INCLUDE_ANCHOR
+      : path === BOX_PATH ? BOX_INCLUDE_ANCHOR : ANCHOR;
     const additions = index === 0 ? MARKERS
       : path === START_PATH ? [...GUARD, "", ...CORE_IDENTITY, "", ...START_POLICY]
+      : path === BOX_PATH
+        ? ['#include "common/my_version.h"', ...GUARD, "", ...BOX_POLICY]
       : path === DRIVER_PATH || path === DLL_PATH
         ? [...GUARD, "", ...CORE_IDENTITY]
       : path === SVC_START_PATH ? SVC_START_INCLUDE : GUARD;
@@ -382,6 +412,11 @@ export function buildExpectedPrivateSources(original) {
     let value = original[path].replace(anchor,
       (path === SVC_START_PATH ? [...additions, anchor] : [anchor, ...additions])
         .join(newline));
+    if (path === BOX_PATH) {
+      onlyOnce(original[path], BOX_ALLOC_ANCHOR, path);
+      value = value.replace(BOX_ALLOC_ANCHOR,
+        [...BOX_ADMISSION, BOX_ALLOC_ANCHOR].join(newline));
+    }
     if (path === DRIVER_PATH) {
       onlyOnce(original[path], DRIVER_VERSION_ANCHOR, path);
       value = value.replace(DRIVER_VERSION_ANCHOR,
