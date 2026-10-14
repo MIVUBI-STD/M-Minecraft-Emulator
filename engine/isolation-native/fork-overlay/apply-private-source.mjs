@@ -4,6 +4,7 @@
 // with the official Sandboxie service. Changes apply only to a separately
 // cloned, clean, full-history working checkout (never the app submodule).
 import {spawnSync} from "node:child_process";
+import {createHash} from "node:crypto";
 import {readFileSync} from "node:fs";
 import {resolve} from "node:path";
 import {fileURLToPath} from "node:url";
@@ -84,6 +85,80 @@ export function buildPrivateSourcePatch(files) {
   return parts.join("\n");
 }
 
+/** Verify every edited Git blob against the sole approved seven-file patch. */
+export function verifyExactPrivateSourceBytes(original, edited) {
+  buildPrivateSourcePatch(original);
+  assert(edited && Object.keys(edited).length === SOURCE_FILES.length,
+    "modified source closure incomplete");
+  for (const [index, path] of SOURCE_FILES.entries()) {
+    const anchor = index === 0 ? VERSION_ANCHOR : ANCHOR;
+    const additions = index === 0 ? MARKERS : GUARD;
+    const newline = original[path].includes("\r\n") ? "\r\n" : "\n";
+    const expected = original[path].replace(anchor,
+      [anchor, ...additions].join(newline));
+    assert(edited[path] === expected, "unexpected modified source bytes: " + path);
+  }
+  return true;
+}
+
+function gitRaw(root, args) {
+  const result = spawnSync("git", ["-C", root, ...args], {
+    encoding: "utf8", timeout: 60000, windowsHide: true,
+    maxBuffer: 8 * 1024 * 1024,
+  });
+  if (result.error || result.status !== 0) {
+    throw new Error("Private fork Git read failed: " + args[0] +
+      ": " + (result.error?.message ?? (result.stderr || "").slice(0, 650)));
+  }
+  return result.stdout || "";
+}
+
+/** Bind a private build to one clean, committed, exact upstream-derived patch. */
+export function verifyCommittedPrivateFork(rootDirectory) {
+  assert(typeof rootDirectory === "string" && rootDirectory.trim(),
+    "checkout location required");
+  const root = resolve(rootDirectory);
+  assert(git(root, ["rev-parse", "--is-shallow-repository"]) === "false",
+    "shallow private fork refused");
+  assert(git(root, ["remote", "get-url", "upstream"]) ===
+    "https://github.com/sandboxie-plus/Sandboxie.git",
+    "unexpected upstream remote");
+  assert(git(root, ["branch", "--show-current"]) === "isolation/baseline-v1.18.5",
+    "unexpected private branch");
+  assert(git(root, ["status", "--porcelain=v1", "--untracked-files=all"]) === "",
+    "private fork must have a clean committed index and worktree");
+  const head = git(root, ["rev-parse", "HEAD"]);
+  assert(head !== PIN && /^[a-f0-9]{40}$/.test(head),
+    "a distinct private fork commit is required");
+  const parents = git(root, ["rev-list", "--parents", "-n", "1", "HEAD"]).split(" ");
+  assert(parents.length === 2 && parents[0] === head && parents[1] === PIN,
+    "private commit must be a single direct child of pinned upstream");
+  const changed = git(root, ["diff", "--name-only", PIN, head])
+    .split("\n").filter(Boolean);
+  assert(changed.length === SOURCE_FILES.length &&
+    SOURCE_FILES.every(path => changed.includes(path)),
+    "private commit must modify exactly seven authorized source files");
+  const original = Object.fromEntries(SOURCE_FILES.map(path => [
+    path, gitRaw(root, ["show", PIN + ":" + path]),
+  ]));
+  const edited = Object.fromEntries(SOURCE_FILES.map(path => [
+    path, gitRaw(root, ["show", head + ":" + path]),
+  ]));
+  verifyExactPrivateSourceBytes(original, edited);
+  const privateForkTree = git(root, ["rev-parse", "HEAD^{tree}"]);
+  const diff = gitRaw(root, ["diff", "--no-ext-diff", "--no-textconv",
+    "--no-renames", "--full-index", "--binary", "--no-color", PIN, head]);
+  assert(diff.length > 0 && /^[a-f0-9]{40}$/.test(privateForkTree),
+    "private patch or tree missing");
+  return {
+    state: "PRIVATE_COMMITTED_SOURCE_VERIFIED_NOT_BUILT",
+    privateForkHead: head,
+    privateForkTree,
+    privatePatchSha256: createHash("sha256").update(diff, "utf8").digest("hex"),
+    sourceFilesModified: [...SOURCE_FILES],
+  };
+}
+
 function git(root, args, input) {
   const result = spawnSync("git", ["-C", root, ...args], {
     encoding: "utf8", input, timeout: 60000, windowsHide: true,
@@ -134,10 +209,15 @@ export function preparePrivateForkSource(rootDirectory) {
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
     const args = process.argv.slice(2);
-    if (args.length !== 2 || args[0] !== "--fork-root") {
-      throw new Error("Usage: node apply-private-source.mjs --fork-root <separate-clean-fork-checkout>");
+    const verify = args.length === 3 &&
+      args[0] === "--verify-committed" && args[1] === "--fork-root";
+    const prepare = args.length === 2 && args[0] === "--fork-root";
+    if (!verify && !prepare) {
+      throw new Error("Usage: node apply-private-source.mjs [--verify-committed] --fork-root <separate-private-checkout>");
     }
-    process.stdout.write(JSON.stringify(preparePrivateForkSource(args[1]), null, 2) + "\n");
+    const result = verify ? verifyCommittedPrivateFork(args[2])
+      : preparePrivateForkSource(args[1]);
+    process.stdout.write(JSON.stringify(result, null, 2) + "\n");
   } catch (error) {
     process.stderr.write(error.message + "\n");
     process.exitCode = 1;

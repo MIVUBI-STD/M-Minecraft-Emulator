@@ -91,3 +91,24 @@ The utility does not rename `SbieDrv`, `SbieSvc`, IPC names, binaries,
 or inject hooks into Minecraft. Renaming files alone cannot create an
 independent fork. The complete native driver/service/DLL remains sourced
 from upstream, with licenses and attributions preserved.
+
+## Required committed-source identity before private build (2026-10-14)
+
+Patch preparation intentionally stages seven files in a separate full-history
+checkout for human review. **A staged patch with HEAD still at upstream is not
+a private Git commit.** Review the staged changes and commit exactly those seven
+files on `isolation/baseline-v1.18.5`. The commit must be one direct child of the
+pinned v1.18.5 source, with a clean index and worktree. Then verify:
+
+~~~powershell
+node engine/isolation-native/fork-overlay/apply-private-source.mjs --verify-committed --fork-root 'D:\Source\M-Isolation-Engine'
+~~~
+
+The verifier reconstructs the exact authorized source insertions from original
+upstream Git blobs and refuses any extra changes. It returns
+`privateForkHead`, `privateForkTree` and `privatePatchSha256`; these must
+match the Windows build report, private payload and Rust read-only inspector.
+`build-private.ps1` checks the identity both before and after compilation.
+
+Source hashes ensure traceability, **not** repeatable binary compilation,
+Authenticode trust, driver load approval or Minecraft gameplay.

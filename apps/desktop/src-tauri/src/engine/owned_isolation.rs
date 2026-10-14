@@ -71,6 +71,8 @@ struct StagedManifest {
     // upstream payload must not claim the new fork identity.
     private_core_build: Option<bool>,
     private_fork_head: Option<String>,
+    private_fork_tree: Option<String>,
+    private_patch_sha256: Option<String>,
     source_build_marker: Option<String>,
     source_files_modified: Option<Vec<String>>,
     can_coexist_with_official_sandboxie: Option<bool>,
@@ -186,7 +188,16 @@ pub fn inspect_candidate(root: &Path) -> io::Result<OwnedCandidateInspection> {
     let private_provenance_correct = if private {
         manifest.private_core_build == Some(true)
             && manifest.private_fork_head.as_ref().is_some_and(|sha| {
+                sha.len() == 40 && sha != PINNED_UPSTREAM
+                    && sha.bytes().all(|b| b.is_ascii_hexdigit()
+                        && !b.is_ascii_uppercase())
+            })
+            && manifest.private_fork_tree.as_ref().is_some_and(|sha| {
                 sha.len() == 40 && sha.bytes().all(|b| b.is_ascii_hexdigit()
+                    && !b.is_ascii_uppercase())
+            })
+            && manifest.private_patch_sha256.as_ref().is_some_and(|sha| {
+                sha.len() == 64 && sha.bytes().all(|b| b.is_ascii_hexdigit()
                     && !b.is_ascii_uppercase())
             })
             && manifest.source_build_marker.as_deref() == Some("MIVUBI_PRIVATE_ISOLATION_BUILD")
@@ -199,6 +210,8 @@ pub fn inspect_candidate(root: &Path) -> io::Result<OwnedCandidateInspection> {
     } else {
         manifest.private_core_build.is_none()
             && manifest.private_fork_head.is_none()
+            && manifest.private_fork_tree.is_none()
+            && manifest.private_patch_sha256.is_none()
             && manifest.source_build_marker.is_none()
             && manifest.source_files_modified.is_none()
             && manifest.can_coexist_with_official_sandboxie.is_none()
@@ -497,7 +510,9 @@ mod tests {
             serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
         data["state"] = serde_json::json!(PRIVATE_STATE);
         data["privateCoreBuild"] = serde_json::json!(true);
-        data["privateForkHead"] = serde_json::json!(PINNED_UPSTREAM);
+        data["privateForkHead"] = serde_json::json!("a".repeat(40));
+        data["privateForkTree"] = serde_json::json!("b".repeat(40));
+        data["privatePatchSha256"] = serde_json::json!("c".repeat(64));
         data["sourceBuildMarker"] =
             serde_json::json!("MIVUBI_PRIVATE_ISOLATION_BUILD");
         data["sourceFilesModified"] = serde_json::json!(PRIVATE_SOURCE_FILES);
@@ -507,6 +522,10 @@ mod tests {
         assert_eq!(valid.state, "CANDIDATE_INTEGRITY_VERIFIED_NOT_INSTALLABLE");
         assert!(!valid.provider_selected && !valid.install_permitted
             && !valid.driver_load_verified);
+        data["privatePatchSha256"] = serde_json::json!("not-a-digest");
+        fs::write(&path, serde_json::to_vec(&data).unwrap()).unwrap();
+        assert!(inspect_candidate(&c.0).is_err());
+        data["privatePatchSha256"] = serde_json::json!("c".repeat(64));
         data["canCoexistWithOfficialSandboxie"] = serde_json::json!(true);
         fs::write(path, serde_json::to_vec(&data).unwrap()).unwrap();
         assert!(inspect_candidate(&c.0).is_err());

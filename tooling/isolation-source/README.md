@@ -257,3 +257,24 @@ Raw outputs remain in the upstream checkout; a private candidate may be staged i
 Source references and license findings: [inventory](../../docs/validation/owned-isolation-upstream-inventory.md); product isolation/rollback design: [owned isolation design](../../docs/system/owned-isolation-design.md). Store local logs/manifests under ignored `workspace/`; never commit credentials, Minecraft worlds, machine-specific paths or raw dumps.
 
 **Current evidence ceiling (2026-10-14):** GitHub accepted a pinned upstream v1.18.5 Gitlink. Bootstrap/local-seed tests 8/8 PASS, and private-payload assembly tests 7/7 PASS on disposable fixtures using Node22. Real upstream source checkout, Windows driver build, payload staging from genuine binaries, driver loading and Minecraft gameplay are NOT_EXECUTED.
+
+## Committed private-fork source identity — mandatory before compilation
+
+The first seven-file overlay is intentionally **staged but not committed**.
+Before running `build-private.ps1`, review and commit it in the **separate**
+fork checkout, never in this app repository:
+
+~~~powershell
+git -C 'D:\Source\M-Isolation-Engine' diff --cached --check
+git -C 'D:\Source\M-Isolation-Engine' diff --cached --stat
+git -C 'D:\Source\M-Isolation-Engine' commit -m "build: mark MIVUBI private isolation core ABI"
+node engine/isolation-native/fork-overlay/apply-private-source.mjs --verify-committed --fork-root 'D:\Source\M-Isolation-Engine'
+~~~
+
+The canonical source verifier requires one clean direct-child commit from
+upstream v1.18.5, exactly seven source files, and exact expected modified blob
+bytes. The source identity is carried as Git HEAD, Git tree and SHA-256 patch
+digest through the Windows build report, staging assembler and read-only Rust
+candidate inspector. A marker-only match or HEAD still equal to upstream is
+refused. These checks never touch installed Sandboxie, Microsoft accounts or
+Minecraft worlds; no Windows kernel driver is installed or started.

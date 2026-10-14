@@ -7,27 +7,24 @@ import { createReadStream, existsSync, lstatSync, readFileSync, realpathSync } f
 import { resolve, join, relative, isAbsolute, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { assembleEngine } from './assemble-engine.mjs';
-import { SOURCE_FILES } from '../../engine/isolation-native/fork-overlay/apply-private-source.mjs';
+import { SOURCE_FILES, verifyCommittedPrivateFork } from '../../engine/isolation-native/fork-overlay/apply-private-source.mjs';
 
 const PIN = 'abd4c240031cfb46666daa74ca47ed4e48b561e4';
 const SHA = /^[a-f0-9]{64}$/;
 const SHA_COMMIT = /^[a-f0-9]{40}$/;
-const UPSTREAM = 'https://github.com/sandboxie-plus/Sandboxie.git';
-const BRANCH = 'isolation/baseline-v1.18.5';
+const SHA_TREE = /^[a-f0-9]{40}$/;
 const STATUS = 'PRIVATE_CORE_BINARIES_BUILT_NOT_SIGNED_OR_RUN';
-
 const refuse = (yes, message) => {
   if (!yes) throw new Error('Private core staging refused: ' + message);
 };
-function same(a,b) {
-  return process.platform === 'win32' ? a.toLowerCase() === b.toLowerCase() : a === b;
-}
-function command(root, args) {
-  const p = spawnSync('git', ['-C', root, ...args], {
-    encoding:'utf8', timeout: 15000, maxBuffer: 1024 * 1024, windowsHide: true,
-  });
-  refuse(!p.error && p.status === 0, 'source git verification failed: ' + args[0]);
-  return p.stdout.trim();
+/** One committed-source verifier shared with the Windows build. */
+export function verifyPrivateForkCheckout(root, report) {
+  const observed = verifyCommittedPrivateFork(root);
+  refuse(observed.privateForkHead === report.privateForkHead &&
+    observed.privateForkTree === report.privateForkTree &&
+    observed.privatePatchSha256 === report.privatePatchSha256,
+    'committed source identity differs from build report');
+  return observed;
 }
 function safeFile(root, rel) {
   refuse(typeof rel === 'string' && /^[A-Za-z0-9._/-]+$/.test(rel) &&
@@ -55,40 +52,12 @@ async function sizeAndHash(path) {
   refuse(Number.isSafeInteger(size) && size > 0, 'source file size invalid');
   return {sizeBytes:size, sha256:hash.digest('hex')};
 }
-/** True source identity checks, not the unmodified-upstream verifier. */
-export function verifyPrivateForkCheckout(root, report) {
-  const real = realpathSync(root);
-  refuse(same(real, root) && lstatSync(root).isDirectory(), 'redirected source root');
-  refuse(command(root, ['rev-parse','--is-shallow-repository']) === 'false', 'shallow source');
-  refuse(command(root, ['remote','get-url','upstream']) === UPSTREAM, 'unexpected source remote');
-  refuse(command(root, ['branch','--show-current']) === BRANCH, 'wrong private branch');
-  refuse(command(root, ['merge-base','--is-ancestor', PIN, 'HEAD']) === '', 'wrong ancestry');
-  refuse(command(root, ['rev-parse','HEAD']) === report.privateForkHead, 'private fork SHA mismatch');
-  const changed = new Set([
-    ...command(root, ['diff','--name-only',PIN,'HEAD']).split('\n').filter(Boolean),
-    ...command(root, ['diff','--cached','--name-only']).split('\n').filter(Boolean),
-  ]);
-  refuse(changed.size === SOURCE_FILES.length &&
-    SOURCE_FILES.every(path=>changed.has(path)), 'unexpected patched source closure');
-  const status = command(root, ['status','--porcelain=v1','--untracked-files=all'])
-    .split('\n').filter(Boolean);
-  refuse(status.every(row=>/^M  /.test(row) &&
-    SOURCE_FILES.includes(row.slice(3))), 'unstaged or unrelated source changes');
-  const header = readFileSync(safeFile(root, SOURCE_FILES[0]),'utf8');
-  refuse(header.includes('#define MIVUBI_PRIVATE_ISOLATION_BUILD 0x4D495655') &&
-    header.includes('#define MIVUBI_PRIVATE_ISOLATION_ABI   0x57230') &&
-    header.includes('#define MY_ABI_VERSION  0x57230'), 'private fork ABI marker absent');
-  for (const file of SOURCE_FILES.slice(1)) {
-    refuse(readFileSync(safeFile(root,file),'utf8')
-      .includes('#error MIVUBI_isolation_build_requires_matching_pinned_core'),
-      'missing core translation-unit guard');
-  }
-  return {privateForkHead:report.privateForkHead,sourceFilesModified:[...SOURCE_FILES]};
-}
 function checkReport(manifest, report) {
   refuse(manifest?.upstream?.commit === PIN &&
     report?.schema === 1 && report.state === STATUS &&
     report.upstreamCommit === PIN && SHA_COMMIT.test(report.privateForkHead) &&
+    report.privateForkHead !== PIN && SHA_TREE.test(report.privateForkTree) &&
+    SHA.test(report.privatePatchSha256) &&
     report.sourceBuildMarker === 'MIVUBI_PRIVATE_ISOLATION_BUILD' &&
     JSON.stringify(report.sourceFilesModified) === JSON.stringify(SOURCE_FILES) &&
     report.driverSigningPolicyAccepted === false &&
@@ -159,7 +128,11 @@ export async function stagePrivateCore({
   refuse(typeof sourceRoot === 'string' && sourceRoot.trim(), 'source directory required');
   const root = realpathSync(resolve(sourceRoot));
   checkReport(manifest,report);
-  await checkSource(root,report);
+  const source = await checkSource(root,report);
+  refuse(source?.privateForkHead === report.privateForkHead &&
+    source?.privateForkTree === report.privateForkTree &&
+    source?.privatePatchSha256 === report.privatePatchSha256,
+    'committed source proof did not match build report');
   const data = await inspectPrivateArtifacts(root,manifest,report);
   const normalized = {
     compiledInThisInvocation:true,
@@ -172,6 +145,8 @@ export async function stagePrivateCore({
   const privateBuild = {
     kind:'PRIVATE_EXCLUSIVE_SOURCE',
     privateForkHead:report.privateForkHead,
+    privateForkTree:report.privateForkTree,
+    privatePatchSha256:report.privatePatchSha256,
     sourceBuildMarker:report.sourceBuildMarker,
     sourceFilesModified:[...SOURCE_FILES],
     canCoexistWithOfficialSandboxie:false,

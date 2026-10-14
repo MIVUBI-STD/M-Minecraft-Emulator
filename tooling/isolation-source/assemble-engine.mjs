@@ -75,6 +75,9 @@ export async function assembleEngine(
     refuseUnless(privateBuild?.kind === 'PRIVATE_EXCLUSIVE_SOURCE' &&
       typeof privateBuild.privateForkHead === 'string' &&
       /^[a-f0-9]{40}$/.test(privateBuild.privateForkHead) &&
+      privateBuild.privateForkHead !== UPSTREAM_COMMIT &&
+      /^[a-f0-9]{40}$/.test(privateBuild.privateForkTree) &&
+      /^[a-f0-9]{64}$/.test(privateBuild.privatePatchSha256) &&
       privateBuild.canCoexistWithOfficialSandboxie === false &&
       privateBuild.sourceBuildMarker === 'MIVUBI_PRIVATE_ISOLATION_BUILD' &&
       Array.isArray(privateBuild.sourceFilesModified) &&
@@ -144,6 +147,8 @@ export async function assembleEngine(
       ...(privateBuild === null ? {} : {
         privateCoreBuild: true,
         privateForkHead: privateBuild.privateForkHead,
+        privateForkTree: privateBuild.privateForkTree,
+        privatePatchSha256: privateBuild.privatePatchSha256,
         sourceBuildMarker: privateBuild.sourceBuildMarker,
         sourceFilesModified: privateBuild.sourceFilesModified,
         canCoexistWithOfficialSandboxie: false,

@@ -1,5 +1,34 @@
 # Current Development Handoff
 
+## Private-fork committed source provenance — 2026-10-14
+
+**Work:** close a source provenance gap where a staged private patch could be
+reported under the unchanged upstream Git HEAD. **State:** DONE for source
+integration; exact Node/Rust and native Windows execution NOT_EXECUTED.
+
+**Decision:** a private build now requires a separate clean one-commit direct
+descendant of pinned Sandboxie v1.18.5. The canonical seven-file patch owner
+compares complete committed Git blobs to only approved insertions and returns
+`privateForkHead`, `privateForkTree`, and `privatePatchSha256`. Windows
+build verifies this both before and after MSBuild. Existing private assembler,
+payload provenance and Rust read-only candidate inspector require the same
+identity fields. An unmodified upstream candidate remains supported under its
+original non-private provenance. No new runtime owner, driver installation,
+provider switch or account/world changes.
+
+**Proof:** exact GitHub source and cross-consumer/static contract review;
+negative-case Node/Rust regression tests authored or extended but NOT_EXECUTED.
+Real Windows Git checkout/commit, MSBuild, WDK, kernel signing, REA binary
+analysis and Minecraft gameplay remain NOT_EXECUTED.
+
+**Unresolved:** private core binaries do not exist as an observed build in this
+session. Official Sandboxie Client 02 idle crash owner is still UNKNOWN.
+
+**Next ONE task:** compile and record the actual pinned *unmodified* upstream
+Windows baseline first, then build the committed private candidate; no driver
+installation or modification of the account-bearing Windows host.
+
+
 ## Private core binary staging and desktop inspection contract — 2026-10-14
 
 **Work:** close the missing runtime package handoff from a modified upstream-derived core build to the existing app-owned candidate inspector. **State:** DONE for source integration; target Windows build and runtime remain NOT_EXECUTED.

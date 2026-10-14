@@ -18,51 +18,15 @@ $manifestPath = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../../toolin
 $manifest = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
 $pin = 'abd4c240031cfb46666daa74ca47ed4e48b561e4'
 if ([string]$manifest.upstream.commit -cne $pin) { throw 'Upstream pin changed.' }
-$git = (Get-Command git.exe -ErrorAction Stop).Source
+# Do not independently reimplement source identity with marker-only checks.
+# The staged overlay must first be reviewed and committed as one direct child
+# of the pinned release; the canonical Node verifier checks exact Git blobs.
+$node = (Get-Command node.exe -ErrorAction Stop).Source
+$sourceVerifier = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot 'apply-private-source.mjs'))
+$verifiedJson = & $node $sourceVerifier --verify-committed --fork-root $root
+if ($LASTEXITCODE -ne 0) { throw 'Private source commit verification failed.' }
+$sourceProof = $verifiedJson | ConvertFrom-Json -ErrorAction Stop
 $msbuild = (Get-Command msbuild.exe -ErrorAction Stop).Source
-$remote = (& $git -C $root remote get-url upstream | Out-String).Trim()
-if ($LASTEXITCODE -ne 0 -or $remote -cne 'https://github.com/sandboxie-plus/Sandboxie.git') {
-  throw 'Unexpected fork upstream remote.'
-}
-& $git -C $root merge-base --is-ancestor $pin HEAD
-if ($LASTEXITCODE -ne 0) { throw 'Fork does not descend from pinned source.' }
-$branch = (& $git -C $root branch --show-current | Out-String).Trim()
-if ($branch -cne 'isolation/baseline-v1.18.5') { throw 'Unexpected source branch.' }
-$expected = @(
-  'Sandboxie/common/my_version.h',
-  'Sandboxie/core/drv/api.c',
-  'Sandboxie/core/dll/sbieapi.c',
-  'Sandboxie/core/svc/DriverAssist.cpp',
-  'Sandboxie/apps/start/start.cpp',
-  'Sandboxie/apps/ini/main.c',
-  'Sandboxie/install/kmdutil/kmdutil.c'
-)
-$changed = @(
-  & $git -C $root diff --name-only $pin HEAD
-  & $git -C $root diff --cached --name-only
-) | Where-Object { $_ } | Sort-Object -Unique
-if ($changed.Count -ne $expected.Count) { throw 'Unexpected modified source count.' }
-foreach ($sourceFile in $expected) {
-  if ($changed -cnotcontains $sourceFile) { throw "Missing fork modification $sourceFile" }
-}
-$dirty = @(& $git -C $root status --porcelain=v1 --untracked-files=all)
-if ($LASTEXITCODE -ne 0) { throw 'Cannot inspect checkout status.' }
-foreach ($entry in $dirty) {
-  if ($entry -notmatch '^M  (.+)$' -or $expected -cnotcontains $Matches[1]) {
-    throw 'Unstaged, untracked or unauthorized source files present.'
-  }
-}
-$header = Get-Content -LiteralPath (Join-Path $root 'Sandboxie/common/my_version.h') -Raw -Encoding UTF8
-if ($header -notmatch '(?m)^#define MIVUBI_PRIVATE_ISOLATION_BUILD 0x4D495655\r?$' -or
-    $header -notmatch '(?m)^#define MIVUBI_PRIVATE_ISOLATION_ABI   0x57230\r?$') {
-  throw 'Private fork header marker or ABI missing.'
-}
-foreach ($path in ($expected | Where-Object { $_ -ne 'Sandboxie/common/my_version.h' })) {
-  $body = Get-Content -LiteralPath (Join-Path $root ($path -replace '/','\')) -Raw -Encoding UTF8
-  if ($body -notmatch '#error MIVUBI_isolation_build_requires_matching_pinned_core') {
-    throw "Missing private source compiler guard: $path"
-  }
-}
 foreach ($rel in @($manifest.requiredArtifacts)) {
   $binary = Join-Path $root ([string]$rel -replace '/','\')
   if (Test-Path -LiteralPath $binary -PathType Leaf) {
@@ -103,12 +67,22 @@ foreach ($rel in @($manifest.requiredArtifacts)) {
     authenticode = [string](Get-AuthenticodeSignature -LiteralPath $file).Status
   }
 }
-$commit = (& $git -C $root rev-parse HEAD | Out-String).Trim()
+# Reject changes to the source revision while compilation was running.
+$afterJson = & $node $sourceVerifier --verify-committed --fork-root $root
+if ($LASTEXITCODE -ne 0) { throw 'Private source changed during compilation.' }
+$afterProof = $afterJson | ConvertFrom-Json -ErrorAction Stop
+if ($sourceProof.privateForkHead -cne $afterProof.privateForkHead -or
+    $sourceProof.privateForkTree -cne $afterProof.privateForkTree -or
+    $sourceProof.privatePatchSha256 -cne $afterProof.privatePatchSha256) {
+  throw 'Private source identity changed during compilation.'
+}
 $proof = [pscustomobject]@{
   schema = 1
   state = 'PRIVATE_CORE_BINARIES_BUILT_NOT_SIGNED_OR_RUN'
   upstreamCommit = $pin
-  privateForkHead = $commit
+  privateForkHead = [string]$sourceProof.privateForkHead
+  privateForkTree = [string]$sourceProof.privateForkTree
+  privatePatchSha256 = [string]$sourceProof.privatePatchSha256
   sourceFilesModified = $expected
   sourceBuildMarker = 'MIVUBI_PRIVATE_ISOLATION_BUILD'
   buildStages = $stages

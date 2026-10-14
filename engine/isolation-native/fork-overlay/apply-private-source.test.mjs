@@ -4,7 +4,7 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync, readFileSync } from "nod
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { spawnSync } from "node:child_process";
-import { buildPrivateSourcePatch, SOURCE_FILES } from "./apply-private-source.mjs";
+import { buildPrivateSourcePatch, verifyExactPrivateSourceBytes, SOURCE_FILES } from "./apply-private-source.mjs";
 
 const header = [
   "// Source fixture matching pinned upstream literal identifiers",
@@ -93,4 +93,32 @@ test("wrong ABI, unexpected service identity and duplicate compiler anchors fail
   const duplicate = sources();
   duplicate[SOURCE_FILES[1]] += '#include "common/my_version.h"\n';
   assert.throws(() => buildPrivateSourcePatch(duplicate), /upstream anchor changed/);
+});
+
+test("exact committed source comparison refuses extra code even with valid markers", () => {
+  const before = sources();
+  const after = {};
+  for (const [index, path] of SOURCE_FILES.entries()) {
+    const anchor = index === 0 ? "#define MY_ABI_VERSION  0x57230"
+      : '#include "common/my_version.h"';
+    const added = index === 0 ? [
+      "#define MIVUBI_PRIVATE_ISOLATION_BUILD 0x4D495655",
+      "#define MIVUBI_PRIVATE_ISOLATION_ABI   0x57230",
+    ] : [
+      "",
+      "// MIVUBI private source build: match core driver/service/DLL/launcher ABI.",
+      "#if !defined(MIVUBI_PRIVATE_ISOLATION_BUILD) || MIVUBI_PRIVATE_ISOLATION_BUILD != 0x4D495655 || MY_ABI_VERSION != MIVUBI_PRIVATE_ISOLATION_ABI",
+      "#error MIVUBI_isolation_build_requires_matching_pinned_core",
+      "#endif",
+    ];
+    after[path] = before[path].replace(anchor, [anchor, ...added].join("\n"));
+  }
+  assert.equal(verifyExactPrivateSourceBytes(before, after), true);
+  const target = SOURCE_FILES[3];
+  after[target] += "\nint invisible_unreviewed_change = 1;\n";
+  assert.throws(() => verifyExactPrivateSourceBytes(before, after),
+    /unexpected modified source bytes/);
+  after[target] = before[target];
+  assert.throws(() => verifyExactPrivateSourceBytes(before, after),
+    /unexpected modified source bytes/);
 });
