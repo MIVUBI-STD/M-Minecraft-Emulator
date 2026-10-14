@@ -17,6 +17,10 @@ The application repository now contains a Git **submodule pointer** to the authe
 
 **Non-claims:** a Git submodule is not a published MIVUBI fork; an independent checkout is not a custom signed driver; a compiled driver is not the same as a working, independently authenticated Minecraft Education session. The active official Sandboxie launch behavior and account-bearing profile remain unchanged.
 
+## First owned runtime payload layout — source only
+
+A new private assembler combines the pinned upstream kernel driver, service, DLL, Win32 companions and required helpers into a coherent isolated directory, preserving original licensing and hashing copied bytes. This is deliberately marked `ARTIFACTS_STAGED_NOT_INSTALLABLE`. No actual Windows artifacts, driver installation, runtime selection or gameplay validation exists in this ChatGPT session; production signing and coexistence remain separate gates.
+
 ## The two distinct independence goals
 
 1. **Deployment independence (approved target):** our app can install, diagnose, manage and update an appropriately licensed and signed app-owned isolation backend without external SandMan/official Sandboxie installation. This still contains appropriately credited Sandboxie-derived GPL components.

@@ -4,12 +4,14 @@
 param(
     [Parameter(Mandatory = $true)][string]$SourceRoot,
     [Parameter(Mandatory = $true)][string]$ReportPath,
-    [switch]$Build
+    [switch]$Build,
+    [string]$StageOutput
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 if ($env:OS -ne 'Windows_NT') { throw 'This source build requires Windows with VS2022 MSBuild and WDK.' }
+if ($StageOutput -and -not $Build) { throw 'StageOutput requires explicit -Build.' }
 
 $specPath = Join-Path $PSScriptRoot 'upstream-baseline.json'
 $spec = Get-Content -LiteralPath $specPath -Raw -Encoding UTF8 | ConvertFrom-Json
@@ -185,4 +187,11 @@ Write-Output ("Artifact inventory written: " + $reportFull)
 Write-Output ("Result: " + $status + " / required missing: " + $missingRequired.Count)
 if ($Build -and ($missingRequired.Count -gt 0 -or $missingResources.Count -gt 0)) {
     throw 'Upstream build output is incomplete; do not deploy or claim engine readiness.'
+}
+if ($Build -and $StageOutput) {
+    # A private noninstallable payload, never driver/service installation.
+    & $nodeCmd.Source (Join-Path $PSScriptRoot 'assemble-engine.mjs') --assemble --source-root $root --manifest $specPath --report $reportFull --output $StageOutput
+    if ($LASTEXITCODE -ne 0) {
+        throw 'Owned engine assembly failed. Never install an unverified payload.'
+    }
 }

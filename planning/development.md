@@ -1,5 +1,17 @@
 # Current Development Handoff
 
+## Private isolation engine artifact assembly — 2026-10-14
+
+**Work:** construct a candidate standalone upstream-runtime payload from an actual successful pinned build, not scattered binaries. **State:** DONE for source implementation and executable fixture tests; not a working engine.
+
+**Decision:** `tooling/isolation-source/assemble-engine.mjs` is the single payload-layout owner. It requires pinned Git checkout and real artifact-byte verification, checks each copied SHA-256, preserves x64/Win32 companions, helpers/config and upstream license files, and writes a `NOT-INSTALLABLE` provenance manifest in a new output directory. Optional `build-baseline.ps1 -Build -StageOutput` stages the payload only after successful compile and all validators; default behavior unchanged. No driver/service installation, user account/world access, custom kernel load or UI change.
+
+**Proof:** exact tested JS source/test Git blobs `204b7d56cee4bb62ad92e77e718effa8f1060b9c` and `65b845ec30594a63d715dbaa7881cf2970e9459d`; seven actual Node22 fixture tests PASS (source/file verifiers injected, real file copying and checks tested). Native Windows MSBuild, PowerShell, real upstream package, driver signature/load and Minecraft gameplay NOT_EXECUTED.
+
+**Unresolved:** source submodule not materialized here due Git DNS, separate fork remote not created, driver signing and idle crash diagnosis remain unproven.
+
+**Next ONE task:** obtain real upstream source and execute unchanged Win32/x64 build, then stage its actual binaries for a disposable Windows-driver acceptance phase; do not install on account-bearing host.
+
 ## Pinned upstream Git submodule and offline-seed bootstrap — 2026-10-14
 
 **Work:** materialize the genuine Sandboxie upstream revision as a Git tree dependency, ready for later independent engine source work. **State:** DONE for Gitlink/source acquisition route; actual submodule checkout, remote MIVUBI fork and native engine build NOT_EXECUTED.

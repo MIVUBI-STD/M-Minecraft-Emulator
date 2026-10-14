@@ -78,10 +78,22 @@ A clean source tree with HEAD and tag identical to the manifest is mandatory. **
 
 The companion Windows x86 binaries `SbieSvc.exe`/`SbieDll.dll` matter even for x64 packaging; `LowLevel` is embedded by upstream project resources. The source tree includes upstream Classic UI and optional helpers because the first build must verify **complete dependency closure before removing any targets**. Required artifact inventory is based on `Installer/copy_build.cmd`; missing optional PDBs do not masquerade as a successful debug-symbol capture.
 
+## Private binary payload assembly (no installation)
+
+The new [assemble-engine.mjs](./assemble-engine.mjs) assembles a **private, unmodified upstream engine candidate** only after the successful pinned Win32/x64 build and full file-byte checks. Its structure follows upstream runtime packaging: x64 driver/service/DLL and helpers in the root, 32-bit companions in `32/`, required templates/manifests and upstream copyright/licenses under `LICENSES/`, optional PDB symbols under `_debug/`. Each copied artifact is SHA-256 checked again and recorded in `engine-provenance.json`.
+
+Optional Windows build-and-stage command, **NOT_EXECUTED here**:
+
+~~~powershell
+.\tooling\isolation-source\build-baseline.ps1 -SourceRoot 'D:\Source\M-Isolation-Engine' -ReportPath '.\workspace\isolation-baseline.json' -Build -StageOutput 'D:\Source\M-Isolation-Payload'
+~~~
+
+The destination's parent must exist and the destination must not exist yet. The result is labeled `ARTIFACTS_STAGED_NOT_INSTALLABLE`: it is **not** a signed, installed, loadable or gameplay-tested independent isolation engine. Seven executable assembly tests passed with disposable fixture binaries and injected source/byte-verification dependencies. Actual upstream build, staging of genuine binaries, signing and Minecraft acceptance remain NOT_EXECUTED.
+
 ## Product separation, attribution and acceptance
 
-The build outputs stay in the upstream checkout. They are not committed to `Local`, merged into Rust, or packaged under the existing `M-Bedrock Virtual Clients` install identity. Do not try a custom driver next to the official Sandboxie service/driver in the same account-bearing Windows installation: device/service/IPC namespaces may collide. The future cutover needs a dedicated disposable Windows environment, signing and crash-attribution evidence, game compatibility, persist/reboot and rollback tests, plus a new license/distribution decision. A fork is **deployment independence** once proved, not source independence from Sandboxie.
+Raw outputs remain in the upstream checkout; a private candidate may be staged into an explicitly requested separate folder. Neither is committed to `Local`, merged into Rust, or installed under the existing `M-Bedrock Virtual Clients` identity. Do not try a custom driver next to the official Sandboxie service/driver in the same account-bearing Windows installation: device/service/IPC namespaces may collide. The future cutover needs a dedicated disposable Windows environment, signing and crash-attribution evidence, game compatibility, persist/reboot and rollback tests, plus a new license/distribution decision. A fork is **deployment independence** once proved, not source independence from Sandboxie.
 
 Source references and license findings: [inventory](../../docs/validation/owned-isolation-upstream-inventory.md); product isolation/rollback design: [owned isolation design](../../docs/system/owned-isolation-design.md). Store local logs/manifests under ignored `workspace/`; never commit credentials, Minecraft worlds, machine-specific paths or raw dumps.
 
-**Current evidence ceiling (2026-10-14):** GitHub accepted an actual gitlink to upstream v1.18.5, and 8/8 bootstrap/local-seed tests executed against disposable local Git fixtures on Linux Node 22. Populating the real upstream submodule, creating a remote fork, compiling a Windows driver, and proving Minecraft gameplay are **NOT_EXECUTED**.
+**Current evidence ceiling (2026-10-14):** GitHub accepted a pinned upstream v1.18.5 Gitlink. Bootstrap/local-seed tests 8/8 PASS, and private-payload assembly tests 7/7 PASS on disposable fixtures using Node22. Real upstream source checkout, Windows driver build, payload staging from genuine binaries, driver loading and Minecraft gameplay are NOT_EXECUTED.
