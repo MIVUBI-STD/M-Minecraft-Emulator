@@ -7,7 +7,7 @@ Driver ABI: `0x57230`; driver version: `5.73.5`.
 
 ## Private-exclusive MIVUBI source fork (source-first)
 
-The **first independently built runtime** preserves the pinned upstream's
+The **first planned private runtime** preserves the pinned upstream's
 `SbieDrv`, `SbieSvc`, `SbieDll`, IPC object names and minifilter altitude.
 This is intentional: the first MIVUBI distribution is **exclusive**, not
 coinstallable with official Sandboxie. Independent deployment is a different
@@ -17,6 +17,7 @@ The source transformation under [fork-overlay](./fork-overlay/apply-private-sour
 uses a single exact-context Git patch against seven upstream source owners:
 the common version/ABI header plus driver API, DLL API, service driver assist,
 launcher, SbieIni and KmdUtil. It installs compile-time private-build/ABI guards
+**and a functional, opt-in MIVUBI Client 02–04 launch mode inside Start.exe**,
 but **does not modify upstream copyright, licensed attribution, kernel service
 names, device/IPC names or signing requirements**. It only accepts a separate
 clean full-history checkout descending from pinned v1.18.5, not the application
@@ -25,6 +26,12 @@ submodule or official installation.
 ~~~powershell
 # From this application's root, after separately bootstrapping source:
 node engine/isolation-native/fork-overlay/apply-private-source.mjs --fork-root 'D:\Source\M-Isolation-Engine'
+# The overlay is STAGED. Review exactly seven files / nine hunks and commit
+# the standalone fork as one direct child of pinned v1.18.5:
+git -C 'D:\Source\M-Isolation-Engine' diff --cached --check
+git -C 'D:\Source\M-Isolation-Engine' diff --cached --stat
+git -C 'D:\Source\M-Isolation-Engine' commit -m "feat: MIVUBI controlled three-client launch"
+node engine/isolation-native/fork-overlay/apply-private-source.mjs --verify-committed --fork-root 'D:\Source\M-Isolation-Engine'
 
 # Produces private binaries and source-specific hashes; does NOT install:
 .\engine\isolation-native\fork-overlay\build-private.ps1 -ForkRoot 'D:\Source\M-Isolation-Engine' -ReportPath '.\workspace\isolation-private-build.json'
@@ -34,7 +41,7 @@ cmake -S engine/isolation-native -B workspace/isolation-native-private -G "Visua
 cmake --build workspace/isolation-native-private --config Release
 ~~~
 
-The source patch stages seven changes in the fork Git index for review. The
+The source patch stages seven modified files (nine Git hunks) in the fork Git index for review. The
 private build script only permits these exact source modifications and uses
 upstream's Win32 -> x64 -> kernel build order. It does not sign, install,
 load, stop, launch or migrate anything. A private source build is **not**
@@ -145,3 +152,41 @@ Git on the ChatGPT execution container. Seven fixture hunks now apply
 atomically in the source checkout; no real Windows binary build, driver
 load or account data was involved. Real upstream patch application remains
 an additional integration obligation on the exact v1.18.5 source checkout.
+
+## First functional MIVUBI source-fork feature — profile-restricted Start.exe
+
+The private overlay now modifies **the upstream C++ `Start.exe` parser**,
+in addition to the existing ABI guards. Its explicit opt-in command is:
+
+~~~text
+Start.exe /mivubi_client:02 "C:\Program Files\Microsoft Studios\Minecraft Education\Minecraft.Windows.exe"
+Start.exe /mivubi_client:03 "C:\Program Files\Microsoft Studios\Minecraft Education\Minecraft.Windows.exe"
+Start.exe /mivubi_client:04 "C:\Program Files\Microsoft Studios\Minecraft Education\Minecraft.Windows.exe"
+~~~
+
+These route to the distinct, private-fork box names `MivubiEdu02`,
+`MivubiEdu03` and `MivubiEdu04`. The new switch is restricted to
+Client IDs 02–04, a single quoted absolute local Windows Education EXE
+without extra arguments, and an exact matching box identity. Existing
+Sandboxie `/box` and ordinary `Start.exe` paths are unchanged unless
+the new option is explicitly requested. The original account-bearing
+official `MinecraftClient02` box is **not** reused or modified.
+
+`owned-runtime/minecraft-profiles.mjs` implements the matching application
+configuration/launch contract. It enumerates three stable owned profiles,
+constructs `SbieIni.exe set` commands for persistent enabled boxes with
+`AutoDelete=n`, `AutoRemove=n` and `OpenCredentials=n`, refuses
+existing owned box identities, and produces exact per-client fork Start
+invocations. **This module is not an executor and makes no configuration
+changes.** The test suite checks IDs, safe inputs, command identity,
+non-destructive planning and parser-contract alignment.
+
+**Important:** The new parser is an actual functional source modification,
+but has **NOT** been compiled into a private `Start.exe`. Its use requires
+a *separate* signed, verified MIVUBI-owned core on an authorized disposable
+Windows host. The current private fork still retains upstream
+`SbieSvc`/`SbieDrv` names and cannot coexist with official Sandboxie.
+`OpenCredentials=n` is merely a requested configuration value; Microsoft
+WAM/SSO and credential separation remain unproven. No driver signing,
+runtime start, independent account login or four-client gameplay is claimed.
+Public redistribution of modified upstream components requires license review.

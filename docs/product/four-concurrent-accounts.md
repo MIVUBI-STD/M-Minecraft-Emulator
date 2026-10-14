@@ -9,6 +9,25 @@ lifecycle: ACTIVE
 
 # Four concurrent Minecraft Education Windows desktop clients
 
+## First owned-fork feature — source only (14 October 2026)
+
+The MIVUBI private fork now includes a FUNCTIONAL change to upstream
+`Sandboxie/apps/start/start.cpp`: a deliberately opt-in
+`/mivubi_client:02`, `:03` or `:04` launch path maps three independent
+planned boxes `MivubiEdu02/03/04` and limits the selected child to one
+quoted Minecraft Education Windows executable. The accompanying
+[owned profile contract](../../engine/isolation-native/owned-runtime/minecraft-profiles.mjs)
+generates three persistent, non-auto-deleting sandbox configuration sections
+and exact corresponding launch arguments.
+
+This **does not** mean the private Sandboxie engine has compiled, the boxes
+were created, or Minecraft supports three isolated signed-in sessions.
+Source behavior and in-memory command planning have test coverage, but the
+active product still launches Client 02 via the separately installed
+official Sandboxie Plus provider. Signing, driver/service exclusivity,
+actual Microsoft WAM credential separation, REA native artifact evidence,
+and full four-client acceptance remain unexecuted.
+
 ## Approved product outcome — feasibility-first (2026-10-12)
 
 Four concurrent, independently playable **Minecraft Education Windows Desktop**

@@ -4,7 +4,7 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync, readFileSync } from "nod
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { spawnSync } from "node:child_process";
-import { buildPrivateSourcePatch, verifyExactPrivateSourceBytes, SOURCE_FILES } from "./apply-private-source.mjs";
+import { buildPrivateSourcePatch, buildExpectedPrivateSources, verifyExactPrivateSourceBytes, SOURCE_FILES } from "./apply-private-source.mjs";
 
 const header = [
   "// Source fixture matching pinned upstream literal identifiers",
@@ -17,7 +17,16 @@ const header = [
 ].join("\n");
 function sources() {
   return Object.fromEntries(SOURCE_FILES.map((path, i) => [
-    path, i === 0 ? header : [
+    path, i === 0 ? header : path === "Sandboxie/apps/start/start.cpp" ? [
+      "// isolated fixture component: " + path,
+      '#include "common/my_version.h"',
+      "int test_function(void) { return 0; }",
+      '        if (_wcsnicmp(cmd, L"box:", 4) == 0) {',
+      "            cmd += 4;",
+      '    if (wcsncmp(cmd, default_browser, wcslen(default_browser)) == 0 ||',
+      "            other_condition) {",
+      "",
+    ].join("\n") : [
       "// isolated fixture component: " + path,
       '#include "common/my_version.h"',
       "int test_function(void) { return 0; }",
@@ -36,13 +45,16 @@ function git(root, args, input) {
 test("generated patch touches exactly seven core build owners and preserves kernel names", () => {
   const patch = buildPrivateSourcePatch(sources());
   assert.equal((patch.match(/^diff --git/gm) ?? []).length, 7);
-  assert.equal((patch.match(/^@@ /gm) ?? []).length, 7);
+  assert.equal((patch.match(/^@@ /gm) ?? []).length, 9);
   // Git apply rejects the earlier anchor-only hunks even when the line
   // matches. Every insertion must retain a following source context line.
   assert.match(patch, /@@ -\d+,2 \+\d+,4 @@/);
   assert.match(patch, /\+#define MIVUBI_PRIVATE_ISOLATION_ABI   0x57230\n #define SBIEDRV/);
   assert.match(patch, /\+#endif\n int test_function\(void\)/);
-  assert.equal((patch.match(/^@@ -\d+,2 \+\d+,(?:4|7) @@$/gm) ?? []).length, 7);
+  assert.equal((patch.match(/^@@ -\d+,2 \+\d+,(?:4|7|10|21|25) @@$/gm) ?? []).length, 9);
+  assert.ok(patch.includes("mivubi_client:"));
+  assert.ok(patch.includes("MivubiEdu0%d"));
+  assert.ok(patch.includes("MinecraftEducationEdition.exe"));
   assert.ok(patch.includes("#define MIVUBI_PRIVATE_ISOLATION_BUILD 0x4D495655"));
   assert.ok(patch.includes("MY_ABI_VERSION != MIVUBI_PRIVATE_ISOLATION_ABI"));
   assert.ok(!patch.includes('-#define SBIEDRV'));
@@ -71,6 +83,14 @@ test("entire patch applies atomically to a disposable Git checkout without renam
     assert.equal(git(root, ["rev-parse", "HEAD"]), before);
     assert.deepEqual(git(root, ["diff", "--cached", "--name-only"]).split("\n"),
       [...SOURCE_FILES].sort());
+    const expected = buildExpectedPrivateSources(fixture);
+    for (const path of SOURCE_FILES) {
+      assert.equal(readFileSync(join(root, path), "utf8"), expected[path]);
+    }
+    const feature = readFileSync(join(root, "Sandboxie/apps/start/start.cpp"), "utf8");
+    assert.match(feature, /mivubi_client:/);
+    assert.match(feature, /MivubiEdu0%d/);
+    assert.match(feature, /if \(!end \|\| end\[1\] != L'/);
     const editedHeader = readFileSync(join(root, SOURCE_FILES[0]), "utf8");
     assert.ok(editedHeader.includes('L"SbieDrv"'));
     assert.ok(editedHeader.includes('L"SbieSvc"'));
@@ -109,22 +129,7 @@ test("wrong ABI, unexpected service identity and duplicate compiler anchors fail
 
 test("exact committed source comparison refuses extra code even with valid markers", () => {
   const before = sources();
-  const after = {};
-  for (const [index, path] of SOURCE_FILES.entries()) {
-    const anchor = index === 0 ? "#define MY_ABI_VERSION  0x57230"
-      : '#include "common/my_version.h"';
-    const added = index === 0 ? [
-      "#define MIVUBI_PRIVATE_ISOLATION_BUILD 0x4D495655",
-      "#define MIVUBI_PRIVATE_ISOLATION_ABI   0x57230",
-    ] : [
-      "",
-      "// MIVUBI private source build: match core driver/service/DLL/launcher ABI.",
-      "#if !defined(MIVUBI_PRIVATE_ISOLATION_BUILD) || MIVUBI_PRIVATE_ISOLATION_BUILD != 0x4D495655 || MY_ABI_VERSION != MIVUBI_PRIVATE_ISOLATION_ABI",
-      "#error MIVUBI_isolation_build_requires_matching_pinned_core",
-      "#endif",
-    ];
-    after[path] = before[path].replace(anchor, [anchor, ...added].join("\n"));
-  }
+  const after = buildExpectedPrivateSources(before);
   assert.equal(verifyExactPrivateSourceBytes(before, after), true);
   const target = SOURCE_FILES[3];
   after[target] += "\nint invisible_unreviewed_change = 1;\n";

@@ -1,5 +1,47 @@
 # Current Development Handoff — M-Minecraft-Emulator
 
+## First functional Sandboxie fork customization — 2026-10-14
+
+**Work:** move from ABI-marker-only overlay to real pinned upstream C++
+`Start.exe` command-line behavior plus deterministic MIVUBI three-box
+profile/launch control. **State:** SOURCE_IMPLEMENTED with bounded tests;
+native private binaries and Windows gameplay NOT_EXECUTED.
+
+**New real behavior in the seven-file direct-child private fork:** upstream
+`Sandboxie/apps/start/start.cpp` receives an opt-in
+`/mivubi_client:02|03|04` parser branch and validation that routes those
+three client IDs to separate `MivubiEdu02/03/04` box names. The managed
+switch rejects nonexistent IDs, second switches, mismatched box selection,
+non-absolute/UNC/URL targets, unexpected parameters and non-Education EXE
+names. Other upstream Start CLI paths remain unchanged when not opting
+into the new mode. The patch/verifier still approves EXACTLY seven source
+files; Start now contains three unified hunks (ABI, CLI dispatch and target
+restriction), making nine hunks total. The producer and verifier use one
+canonical expected-byte transformation.
+
+**New functional host contract:** `engine/isolation-native/owned-runtime/
+minecraft-profiles.mjs` generates a three-box persistent `SbieIni set`
+configuration command plan and strict per-client private `Start.exe`
+launch command line. Existing box names cannot be overwritten. Its six
+authored test bodies were executed in ChatGPT's JavaScript evaluator and
+passed (not full pinned Node24). A disposable-Git three-hunk fixture
+successfully accepted `git apply --check --index` and `git apply --index`;
+the exact updated private-source patch was also checked in V8 against the
+actual upstream seven-file corpus, yielding seven changed paths and nine
+hunks, with extra edits rejected.
+
+**Not claimed:** private fork compiled to a Windows Start.exe; actual
+SbieIni.exe execution; signed SbieDrv/SbieSvc; safe coexistence with official
+Sandboxie (NOT possible with unchanged service names); Microsoft WAM
+credential isolation; or independent Minecraft gameplay. No profile,
+account, official box, kernel driver or Windows installation was changed.
+
+**Next SINGLE implementation task:** integrate an owned runtime adapter
+behind a verified dedicated private-driver lab admission, *not* the active
+official Sandboxie backend, then test native Start/SbieIni binaries. Do
+not consider source implementation sufficient for four-client acceptance.
+
+
 ## Actual private-fork patch application defect fixed — 2026-10-14
 
 **Work:** make the seven-file private source overlay actually applicable by
