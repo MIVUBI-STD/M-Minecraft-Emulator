@@ -46,6 +46,16 @@ namespace {
 static_assert(MY_ABI_VERSION == 0x57230, "Unexpected pinned Sandboxie ABI");
 static_assert(VERSION_MJR == 5 && VERSION_MIN == 73 && VERSION_REV == 5,
               "Unexpected pinned Sandboxie release");
+#if defined(MIVUBI_EXPECT_PRIVATE_SOURCE) && !defined(MIVUBI_PRIVATE_ISOLATION_BUILD)
+#error A_private_source_probe_requires_the_owned_fork_header
+#endif
+#if defined(MIVUBI_PRIVATE_ISOLATION_BUILD)
+static_assert(MIVUBI_PRIVATE_ISOLATION_BUILD == 0x4D495655, "Unexpected fork marker");
+static_assert(MIVUBI_PRIVATE_ISOLATION_ABI == MY_ABI_VERSION, "Private fork ABI mismatch");
+constexpr bool kPrivateForkSource = true;
+#else
+constexpr bool kPrivateForkSource = false;
+#endif
 constexpr unsigned long kPinnedAbi = MY_ABI_VERSION;
 constexpr wchar_t kPinnedVersion[] = TEXT(MY_VERSION_STRING);
 constexpr wchar_t kLabDirectory[] = L"M-Isolation-Payload";
@@ -148,6 +158,7 @@ void Result(const char* state, bool layout, bool servicePaths, bool signatures,
         << ",\"driverServicePathsMatched\":" << (servicePaths ? "true" : "false")
         << ",\"validAuthenticodeObserved\":" << (signatures ? "true" : "false")
         << ",\"driverAbiMatchesPinned\":" << (abiMatch ? "true" : "false")
+        << ",\"privateForkSourceMarked\":" << (kPrivateForkSource ? "true" : "false")
         << ",\"driverSigningPolicyAccepted\":false"
         << ",\"installerReady\":false,\"gameplayVerified\":false"
         << ",\"providerSelected\":false}\n";

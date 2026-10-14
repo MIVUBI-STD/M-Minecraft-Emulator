@@ -198,6 +198,23 @@ A result such as `MANUAL_REVIEW_UNATTRIBUTED_SERVICE_NAME`, `MANUAL_REVIEW_AMBIG
 
 Eight pure JavaScript decision scenarios were executed against the new GitHub source blob in the available V8 runtime. Seven additional Node integration tests were authored but **NOT_EXECUTED** with actual filesystem, PowerShell or Minecraft processes in this revision.
 
+## Private fork source patch and native build
+
+The [engine source patch](../../engine/isolation-native/fork-overlay/apply-private-source.mjs)
+and separate [private core build script](../../engine/isolation-native/fork-overlay/build-private.ps1)
+now support a MIVUBI-specific source checkout that retains the pinned upstream
+kernel/service/DLL ABI and ensures the seven selected source owners are patched
+together. Only a **separate** Git checkout may be changed; the upstream Gitlink
+and running official Sandboxie installation are never modified.
+
+This is an **exclusive** private engine route: it does not attempt to
+coinstall alongside another `SbieDrv`/`SbieSvc` instance. ABI probe CMake
+now accepts `-DMIVUBI_PRIVATE_FORK_ROOT=<patched checkout>` and refuses a
+mismatched source marker or missing upstream ancestry. The private MSBuild
+route creates a new source-specific report rather than asserting the modified
+fork binaries are unmodified v1.18.5. No signed driver or deployed runtime
+exists yet. See [native README](../../engine/isolation-native/README.md).
+
 ## Product separation, attribution and acceptance
 
 Raw outputs remain in the upstream checkout; a private candidate may be staged into an explicitly requested separate folder. Neither is committed to `Local`, merged into Rust, or installed under the existing `M-Bedrock Virtual Clients` identity. Do not try a custom driver next to the official Sandboxie service/driver in the same account-bearing Windows installation: device/service/IPC namespaces may collide. The future cutover needs a dedicated disposable Windows environment, signing and crash-attribution evidence, game compatibility, persist/reboot and rollback tests, plus a new license/distribution decision. A fork is **deployment independence** once proved, not source independence from Sandboxie.

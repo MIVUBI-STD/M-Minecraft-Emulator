@@ -85,6 +85,28 @@ A first **native Win32 executable** now exists under `engine/isolation-native/`.
 
 This is core-runtime integration source, **not** a fork of the upstream driver. The original upstream service/driver/IPC namespace remains unmodified and conflicts with an official Sandboxie installation; a separately compiled, signed, correctly namespaced fork and disposable Windows validation are still required before the app can remove its external dependency.
 
+## First private-exclusive fork core source (2026-10-14)
+
+`engine/isolation-native/fork-overlay/apply-private-source.mjs` produces a real
+seven-file source patch for a separately checked-out Sandboxie fork, covering
+the common ABI header and direct translation-unit guards in driver API, DLL
+API, service driver assist, launcher, SbieIni and KmdUtil. The patch uses
+`git apply --check --index` before one Git-index application, preserving
+the original upstream ancestry/license notices. Source markers do not change
+the original `SbieDrv`, `SbieSvc` or `SbieDll` runtime identifiers,
+`MY_ABI_VERSION=0x57230` or minifilter altitude `86900`.
+
+This implements **build consistency and source ownership for a private,
+exclusive deployment**; it is not a complete co-installable namespace fork.
+The dedicated `build-private.ps1` builds Win32 support, x64 core and x64
+kernel from only the seven intentional fork source changes, then hashes
+artifacts under a private-build-specific report. The ABI probe CMake may now
+consume the patched checkout and reports whether the private marker is built.
+No actual signed/loaded driver or independent Minecraft gameplay is proven.
+Any future simultaneous coexistence with official Sandboxie requires
+separate complete kernel, service, DLL, device, IPC, install and signing
+namespace migration, not a partial header rename.
+
 ## The two distinct independence goals
 
 1. **Deployment independence (approved target):** our app can install, diagnose, manage and update an appropriately licensed and signed app-owned isolation backend without external SandMan/official Sandboxie installation. This still contains appropriately credited Sandboxie-derived GPL components.

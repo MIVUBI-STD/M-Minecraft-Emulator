@@ -1,5 +1,43 @@
 # Current Development Handoff
 
+## Private-exclusive upstream-derived core source route — 2026-10-14
+
+**Work:** implement the first actual source patch for a separately checked-out
+Sandboxie fork, focused on consistent build identity rather than speculative
+kernel IPC/service renaming. **State:** DONE for source overlay and build recipe;
+Windows compilation, installation and independent runtime remain NOT_EXECUTED.
+
+**Decision:** add `engine/isolation-native/fork-overlay/apply-private-source.mjs`
+and Git fixture tests, plus `build-private.ps1`. The patch modifies exactly
+seven known upstream v1.18.5 source units with `MIVUBI_PRIVATE_ISOLATION_BUILD`
+and shared `MY_ABI_VERSION=0x57230` compile guards: common header, driver,
+DLL, service, launcher, SbieIni and KmdUtil. Use only a separate full-history,
+clean private checkout and `git apply --check --index`; preserve copyright,
+vendor service/driver names, IPC, altitude and all account-bearing data.
+This is intentionally an **exclusive** future installation; installing beside
+official Sandboxie is NOT_SUPPORTED. The dedicated Windows script compiles
+three pinned upstream MSBuild stages and emits a private provenance report
+without driver/service mutation. Native CMake/ABI probe can target the patched
+private fork root with explicit build-source marker, not a false unmodified
+upstream SHA claim.
+
+**Proof:** remote GitHub v1.18.5 original contents for all seven files
+confirmed; exact pure patch builder evaluated against those bytes with seven
+anchored hunks. Git fixture tests authored (three cases; actual Node/git
+execution NOT_EXECUTED on the new source revision). Final staged-tree
+structural checks remain the available proof ceiling. No native MSVC/CMake,
+private driver signing, Windows driver/API live handshake, or Minecraft
+acceptance was executed.
+
+**Unresolved:** actual external private source checkout/fork publication and
+compile, signed Windows minifilter deployment, source-dependent service and
+DLL compatibility, Minecraft WAM tokens/dual-account soak, and four-client
+acceptance. Official pilot remains unchanged; idle Client 02 crash UNKNOWN.
+
+**Next ONE task:** finish a standalone private-binary staging and app-owned
+runtime control interface sourced from the private build report, with explicit
+non-coexistence and no automatic cutover to the official Client 02.
+
 ## Native pinned Sandboxie ABI probe source — 2026-10-14
 
 **Work:** prioritize genuine driver–service–DLL ABI integration source over repeated metadata/report layers. **State:** DONE for independent Windows-native C++/CMake source; compilation and runtime proof NOT_EXECUTED.

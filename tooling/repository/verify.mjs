@@ -50,6 +50,9 @@ const required = [
   "tooling/isolation-source/windows/reconcile-ownership-cli.mjs",
   "engine/isolation-native/CMakeLists.txt",
   "engine/isolation-native/src/abi_probe.cpp",
+  "engine/isolation-native/fork-overlay/apply-private-source.mjs",
+  "engine/isolation-native/fork-overlay/apply-private-source.test.mjs",
+  "engine/isolation-native/fork-overlay/build-private.ps1",
   "engine/isolation-native/README.md",
   "apps/desktop/package.json", "apps/desktop/package-lock.json",
   "apps/desktop/src-tauri/Cargo.toml", "apps/desktop/src-tauri/tauri.conf.json",
@@ -234,6 +237,17 @@ requireFact(
   nativeProbeBuild.includes("abd4c240031cfb46666daa74ca47ed4e48b561e4") &&
   nativeProbeBuild.includes('source_abi_contract_selftest'),
   "The native owned-engine ABI probe must remain pinned and non-installing");
+const privateForkPatch = read("engine/isolation-native/fork-overlay/apply-private-source.mjs");
+const privateForkBuild = read("engine/isolation-native/fork-overlay/build-private.ps1");
+requireFact(
+  privateForkPatch.includes("git(root, [\"apply\", \"--check\", \"--index\"") &&
+  privateForkPatch.includes("canCoexistWithOfficialSandboxie: false") &&
+  privateForkPatch.includes("MIVUBI_PRIVATE_ISOLATION_ABI") &&
+  privateForkBuild.includes("PRIVATE_CORE_BINARIES_BUILT_NOT_SIGNED_OR_RUN") &&
+  privateForkBuild.includes("canCoexistWithOfficialSandboxie = $false") &&
+  !privateForkBuild.includes("Start-Service") &&
+  !privateForkBuild.includes("New-Service"),
+  "Private fork source/build must be explicit, reviewed and non-installing");
 const nativeAdapter = read("apps/desktop/src-tauri/src/commands/native_clients.rs");
 requireFact(nativeBridge.includes('"desktop_inspect_native_candidates"') &&
   nativeBridge.includes("parseNativeObservation") &&
