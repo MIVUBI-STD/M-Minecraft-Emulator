@@ -226,6 +226,108 @@ pub fn inspect_candidate_path(path: String) -> io::Result<OwnedCandidateInspecti
     inspect_candidate(Path::new(&path))
 }
 
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct OwnedHostProbe {
+    schema: u32,
+    evidence_class: String,
+    interactive_session: bool,
+    inspection_status: String,
+    service_registration: String,
+    driver_registration: String,
+    provider_selected: bool,
+    trusted_driver_loaded: bool,
+    gameplay_verified: bool,
+}
+
+/// A read-only Windows SCM namespace observation. A service name is not
+/// trustworthy attribution to our payload; it may belong to official Sandboxie.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OwnedHostInspection {
+    pub schema: u32,
+    pub state: String,
+    pub interactive_session: bool,
+    pub service_registration: String,
+    pub driver_registration: String,
+    pub service_namespace_available: bool,
+    pub provider_selected: bool,
+    pub trusted_driver_loaded: bool,
+    pub gameplay_verified: bool,
+    pub activation_allowed: bool,
+}
+
+fn parse_host_probe(raw: &str) -> io::Result<OwnedHostInspection> {
+    if raw.len() > 4096 {
+        return Err(rejected("owned host service probe exceeded bounded size"));
+    }
+    let probe: OwnedHostProbe = serde_json::from_str(raw)
+        .map_err(|_| rejected("owned host service probe has invalid schema"))?;
+    let allowed = |s: &str| matches!(s, "PRESENT" | "ABSENT" | "UNKNOWN");
+    let unknown = probe.service_registration == "UNKNOWN"
+        || probe.driver_registration == "UNKNOWN";
+    if probe.schema != 1
+        || probe.evidence_class != "WINDOWS_SERVICE_NAME_ONLY_NO_OWNER_PROOF"
+        || !allowed(&probe.service_registration)
+        || !allowed(&probe.driver_registration)
+        || (probe.inspection_status == "PARTIAL_UNKNOWN") != unknown
+        || !matches!(probe.inspection_status.as_str(), "OBSERVED" | "PARTIAL_UNKNOWN")
+        || probe.provider_selected || probe.trusted_driver_loaded || probe.gameplay_verified
+    {
+        return Err(rejected("owned host service probe is contradictory or overclaims trust"));
+    }
+    // Even an empty SCM namespace has no signed driver, configured isolation
+    // profile, trusted IPC protocol or proved disposable-host provenance.
+    let empty_namespace = !unknown && probe.service_registration == "ABSENT"
+        && probe.driver_registration == "ABSENT";
+    let state = if !probe.interactive_session {
+        "BLOCKED_NON_INTERACTIVE_SESSION"
+    } else if probe.service_registration == "PRESENT" || probe.driver_registration == "PRESENT" {
+        "BLOCKED_SERVICE_NAMESPACE_IN_USE"
+    } else if unknown {
+        "BLOCKED_SERVICE_PROBE_UNKNOWN"
+    } else {
+        "BLOCKED_UNVERIFIED_OWNED_DRIVER"
+    };
+    Ok(OwnedHostInspection {
+        schema: 1,
+        state: state.into(),
+        interactive_session: probe.interactive_session,
+        service_registration: probe.service_registration,
+        driver_registration: probe.driver_registration,
+        service_namespace_available: empty_namespace,
+        provider_selected: false,
+        trusted_driver_loaded: false,
+        gameplay_verified: false,
+        activation_allowed: false,
+    })
+}
+
+#[cfg(windows)]
+pub fn inspect_host_service_namespace() -> io::Result<OwnedHostInspection> {
+    use std::time::Duration;
+    // Embedded source from our repository, no user-controlled executable path
+    // and no account, token, private box or world inspection.
+    const SCRIPT: &str = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../tooling/isolation-source/windows/probe-host-service-names.ps1"
+    ));
+    let output = virtual_clients_core::bounded_command_output(
+        &super::native_clients::system_powershell()?,
+        ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", SCRIPT],
+        Duration::from_secs(15),
+    )?;
+    parse_host_probe(&output)
+}
+
+#[cfg(not(windows))]
+pub fn inspect_host_service_namespace() -> io::Result<OwnedHostInspection> {
+    Err(io::Error::new(io::ErrorKind::Unsupported,
+        "Owned host service inspection requires interactive Windows"))
+}
+
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -279,6 +381,71 @@ mod tests {
     }
     impl Drop for TempCandidate {
         fn drop(&mut self) { let _ = fs::remove_dir_all(&self.0); }
+    }
+
+
+    fn host_probe(service: &str, driver: &str, interactive: bool) -> String {
+        let unknown = service == "UNKNOWN" || driver == "UNKNOWN";
+        serde_json::json!({
+            "schema": 1,
+            "evidenceClass": "WINDOWS_SERVICE_NAME_ONLY_NO_OWNER_PROOF",
+            "interactiveSession": interactive,
+            "inspectionStatus": if unknown { "PARTIAL_UNKNOWN" } else { "OBSERVED" },
+            "serviceRegistration": service,
+            "driverRegistration": driver,
+            "providerSelected": false,
+            "trustedDriverLoaded": false,
+            "gameplayVerified": false
+        }).to_string()
+    }
+
+    #[test]
+    fn no_service_names_still_does_not_authorize_install_or_launch() {
+        let result = parse_host_probe(&host_probe("ABSENT", "ABSENT", true)).unwrap();
+        assert_eq!(result.state, "BLOCKED_UNVERIFIED_OWNED_DRIVER");
+        assert!(result.service_namespace_available);
+        assert!(!result.activation_allowed && !result.provider_selected
+            && !result.trusted_driver_loaded && !result.gameplay_verified);
+    }
+
+    #[test]
+    fn service_and_driver_names_block_an_ambiguous_owned_runtime() {
+        for (service, driver) in [("PRESENT", "ABSENT"), ("ABSENT", "PRESENT"),
+            ("PRESENT", "PRESENT")]
+        {
+            let result = parse_host_probe(&host_probe(service, driver, true)).unwrap();
+            assert_eq!(result.state, "BLOCKED_SERVICE_NAMESPACE_IN_USE");
+            assert!(!result.activation_allowed);
+        }
+    }
+
+    #[test]
+    fn unknown_or_noninteractive_host_evidence_blocks_activation() {
+        let result = parse_host_probe(&host_probe("UNKNOWN", "ABSENT", true)).unwrap();
+        assert_eq!(result.state, "BLOCKED_SERVICE_PROBE_UNKNOWN");
+        assert!(!result.service_namespace_available);
+        let result = parse_host_probe(&host_probe("ABSENT", "ABSENT", false)).unwrap();
+        assert_eq!(result.state, "BLOCKED_NON_INTERACTIVE_SESSION");
+        assert!(!result.activation_allowed);
+    }
+
+    #[test]
+    fn rejects_fabricated_service_provenance_and_true_ready_fields() {
+        let raw = host_probe("ABSENT", "ABSENT", true);
+        for (field, value) in [
+            ("providerSelected", true), ("trustedDriverLoaded", true),
+            ("gameplayVerified", true),
+        ] {
+            let mut data: serde_json::Value = serde_json::from_str(&raw).unwrap();
+            data[field] = serde_json::json!(value);
+            assert!(parse_host_probe(&data.to_string()).is_err());
+        }
+        let mut data: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        data["inspectionStatus"] = serde_json::json!("PARTIAL_UNKNOWN");
+        assert!(parse_host_probe(&data.to_string()).is_err());
+        data["inspectionStatus"] = serde_json::json!("OBSERVED");
+        data["serviceRegistration"] = serde_json::json!("RUNNING");
+        assert!(parse_host_probe(&data.to_string()).is_err());
     }
 
     #[test]

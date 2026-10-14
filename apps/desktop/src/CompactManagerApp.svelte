@@ -5,6 +5,7 @@
     isSandboxieBoxPrepared,
     type IsolatedClientObservation,
     type OwnedCandidateInspection,
+    type OwnedHostInspection,
   } from "./app/bridge/nativeFeasibilityApi.js";
   import {
     client02Presentation,
@@ -35,6 +36,9 @@
   let ownedCandidate: OwnedCandidateInspection | null = null;
   let ownedInspectionError = "";
   let ownedInspectionBusy = false;
+  let ownedHostInspection: OwnedHostInspection | null = null;
+  let ownedHostBusy = false;
+  let ownedHostError = "";
   // Temporary UI feedback, isolated by supported instance identity.
   let issues: Partial<Record<InstanceId, UiIssue>> = {};
   let notices: Partial<Record<InstanceId, UiNotice>> = {};
@@ -297,6 +301,20 @@
     if (action === "setup") toggleDetails(id, "setup", origin);
   }
 
+  async function inspectOwnedServiceNames() {
+    if (busy || ownedHostBusy || ownedInspectionBusy) return;
+    ownedHostBusy = true;
+    ownedHostInspection = null;
+    ownedHostError = "";
+    try {
+      ownedHostInspection = await nativeFeasibility.inspectOwnedHost();
+    } catch {
+      ownedHostError = "Windows service name inspection was inconclusive; engine activation remains blocked.";
+    } finally {
+      ownedHostBusy = false;
+    }
+  }
+
   async function inspectStagedOwnedEngine() {
     if (busy || ownedInspectionBusy) return;
     ownedInspectionBusy = true;
@@ -471,7 +489,7 @@
           <h2>Owned isolation engine (source preview)</h2>
           <p>Inspect a staged engine folder without installing a driver or changing Minecraft 02. A matching checksum does not mean the engine is ready to run.</p>
           <button type="button" class="cm-button cm-secondary"
-            disabled={Boolean(busy) || ownedInspectionBusy}
+            disabled={Boolean(busy) || ownedInspectionBusy || ownedHostBusy}
             on:click={inspectStagedOwnedEngine}>
             {ownedInspectionBusy ? "Inspecting candidate…" : "Inspect engine candidate"}
           </button>
@@ -481,6 +499,15 @@
           {#if ownedInspectionError}
             <p class="cm-warning" role="alert">{ownedInspectionError}</p>
           {/if}
+          <button type="button" class="cm-button cm-secondary"
+            disabled={Boolean(busy) || ownedInspectionBusy || ownedHostBusy}
+            on:click={inspectOwnedServiceNames}>
+            {ownedHostBusy ? "Inspecting Windows…" : "Check engine service names"}
+          </button>
+          {#if ownedHostInspection}
+            <p aria-live="polite">Host: {ownedHostInspection.state.replaceAll("_", " ")}. Engine activation remains blocked.</p>
+          {/if}
+          {#if ownedHostError}<p class="cm-warning" role="alert">{ownedHostError}</p>{/if}
         </div>
         <div class="cm-setting-group">
           <h2>Window preferences</h2>

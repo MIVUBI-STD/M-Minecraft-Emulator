@@ -41,6 +41,7 @@ const required = [
   "docs/product/four-concurrent-accounts.md",
   "apps/desktop/src-tauri/src/engine/native_clients.rs",
   "apps/desktop/src-tauri/src/engine/owned_isolation.rs",
+  "tooling/isolation-source/windows/probe-host-service-names.ps1",
   "apps/desktop/test/owned-isolation.test.ts",
   "apps/desktop/src-tauri/src/commands/native_clients.rs",
   "apps/desktop/src/NativeFeasibilityApp.svelte",
@@ -188,6 +189,9 @@ requireFact(
   ownedEngine.includes("pub fn inspect_candidate(") &&
   ownedEngine.includes("CANDIDATE_INTEGRITY_VERIFIED_NOT_INSTALLABLE") &&
   ownedEngine.includes("install_permitted: false") &&
+  ownedEngine.includes("pub fn inspect_host_service_namespace()") &&
+  read("tooling/isolation-source/windows/probe-host-service-names.ps1").includes("Win32_SystemDriver") &&
+  ownedBridge.includes('"desktop_inspect_owned_engine_host"') &&
   nativeOwner.includes("const ACTIVE_ISOLATION_BACKEND: OfficialSandboxieBackend") &&
   ownedBridge.includes('"desktop_inspect_owned_engine_candidate"') &&
   read("apps/desktop/src-tauri/src/app_bootstrap.rs").includes(

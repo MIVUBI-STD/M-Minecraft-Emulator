@@ -74,3 +74,12 @@ pub async fn desktop_select_owned_engine_candidate_directory() -> Result<Option<
         .map_err(|error| format!("Owned candidate directory picker failed: {error}"))?
         .map_err(|error| error.to_string())
 }
+
+#[tauri::command]
+pub async fn desktop_inspect_owned_engine_host(
+) -> Result<crate::engine::owned_isolation::OwnedHostInspection, String> {
+    tauri::async_runtime::spawn_blocking(native_clients::inspect_owned_engine_host)
+        .await
+        .map_err(|error| format!("Owned runtime host inspection failed: {error}"))?
+        .map_err(|error| error.to_string())
+}

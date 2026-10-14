@@ -1,5 +1,17 @@
 # Current Development Handoff
 
+## Owned engine Windows service namespace preflight — 2026-10-14
+
+**Work:** prepare host-side activation admission source for the future app-owned Sandboxie-derived runtime. **State:** DONE for read-only source and authored tests; Windows observation NOT_EXECUTED.
+
+**Decision:** add an embedded, read-only Windows SCM/CIM probe for the original upstream `SbieSvc` and `SbieDrv` names, plus strict Rust + TypeScript assessment states. Any registered name blocks owned activation because a name does not prove owner and can collide with official Sandboxie. Unknown/probe failure, noninteractive session, and even two absent service names remain blocked until independently proven signed and owned driver, dedicated host, IPC, compatibility and rollback. The active `OfficialSandboxieBackend`, box `MinecraftClient02`, launch behavior and persisted world/accounts remain untouched. No new provisioning service, privileged operations or configurable backend switch is introduced.
+
+**Proof:** exact GitHub source review and strict backend/frontend contracts; four Rust host probe tests and three Vitest host parser tests added alongside previous candidate tests. No Rust compiler, Windows SCM, Node24 full suite or Minecraft execution for this revision: NOT_EXECUTED.
+
+**Unresolved:** no signed/loaded owned driver, confirmed Windows service ownership, disposable host guarantee, fork packaging integration or migration. Generic service names are source-level known to conflict, not proof that an installed service is official.
+
+**Next ONE task:** source-first implement an isolated Windows service/driver provisioning and rollback controller for an explicitly disposable environment, with version/source/signing validation and no activation route exposed to Client 02 until actual acceptance.
+
 ## Source-first development policy — active implementation, 2026-10-14
 
 **Work:** implement the native app's owned engine source ahead of future Windows-only validation. **State:** ACTIVE for complete owned-engine source program; this batch's read-only candidate API is DONE as source, not yet compiled/accepted.

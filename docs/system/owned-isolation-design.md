@@ -27,6 +27,10 @@ The desktop now includes `apps/desktop/src-tauri/src/engine/owned_isolation.rs`,
 
 Source-first policy: continue implementing provider management and disposable-environment lifecycle source regardless of absent WDK, but retain actual compilation, signing, driver loading, login, concurrency and rollback as separate evidence gates. No work in this source batch is an installed or live custom engine.
 
+## Windows service-name admission source (2026-10-14)
+
+The pinned upstream kernel/service source still defines `SbieDrv`/`SbieSvc` service identities. This is not independent enough to coexist safely with the official installation. The app now includes a read-only Windows SCM namespace probe and a fail-closed capability decision: present names block, unknown states block, an empty namespace also blocks pending signed driver/service, IPC and disposable-host evidence. The result cannot enable the owned provider and cannot infer Microsoft account or gameplay readiness. This is a **source-first activation prerequisite**, not an installed new isolation engine.
+
 ## The two distinct independence goals
 
 1. **Deployment independence (approved target):** our app can install, diagnose, manage and update an appropriately licensed and signed app-owned isolation backend without external SandMan/official Sandboxie installation. This still contains appropriately credited Sandboxie-derived GPL components.

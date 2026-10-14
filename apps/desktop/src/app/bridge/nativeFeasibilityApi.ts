@@ -268,6 +268,48 @@ export function parseOwnedCandidateInspection(value: unknown): OwnedCandidateIns
   return value as unknown as OwnedCandidateInspection;
 }
 
+
+export interface OwnedHostInspection {
+  schema: 1;
+  interactiveSession: boolean;
+  state: "BLOCKED_SERVICE_NAMESPACE_IN_USE" | "BLOCKED_SERVICE_PROBE_UNKNOWN" |
+    "BLOCKED_NON_INTERACTIVE_SESSION" | "BLOCKED_UNVERIFIED_OWNED_DRIVER";
+  serviceRegistration: "PRESENT" | "ABSENT" | "UNKNOWN";
+  driverRegistration: "PRESENT" | "ABSENT" | "UNKNOWN";
+  serviceNamespaceAvailable: boolean;
+  providerSelected: false;
+  trustedDriverLoaded: false;
+  gameplayVerified: false;
+  activationAllowed: false;
+}
+
+export function parseOwnedHostInspection(value: unknown): OwnedHostInspection {
+  if (!isRecord(value) || !hasOnly(value, [
+    "schema", "state", "interactiveSession", "serviceRegistration", "driverRegistration",
+    "serviceNamespaceAvailable", "providerSelected", "trustedDriverLoaded",
+    "gameplayVerified", "activationAllowed",
+  ]) || value.schema !== 1 || typeof value.interactiveSession !== "boolean" ||
+    !["PRESENT", "ABSENT", "UNKNOWN"].includes(value.serviceRegistration as string) ||
+    !["PRESENT", "ABSENT", "UNKNOWN"].includes(value.driverRegistration as string) ||
+    typeof value.serviceNamespaceAvailable !== "boolean" ||
+    value.providerSelected !== false || value.trustedDriverLoaded !== false ||
+    value.gameplayVerified !== false || value.activationAllowed !== false
+  ) {
+    throw new TypeError("Untrusted owned engine host collision evidence.");
+  }
+  const unknown = value.serviceRegistration === "UNKNOWN" || value.driverRegistration === "UNKNOWN";
+  const empty = value.serviceRegistration === "ABSENT" && value.driverRegistration === "ABSENT";
+  const status = value.interactiveSession === false
+    ? "BLOCKED_NON_INTERACTIVE_SESSION"
+    : (value.serviceRegistration === "PRESENT" || value.driverRegistration === "PRESENT")
+      ? "BLOCKED_SERVICE_NAMESPACE_IN_USE"
+      : unknown ? "BLOCKED_SERVICE_PROBE_UNKNOWN" : "BLOCKED_UNVERIFIED_OWNED_DRIVER";
+  if (value.serviceNamespaceAvailable !== empty || value.state !== status) {
+    throw new TypeError("Contradictory owned engine host service evidence.");
+  }
+  return value as unknown as OwnedHostInspection;
+}
+
 export const nativeFeasibility = {
   // Only the official registered Start app is requested, never a copied EXE.
   openOfficialMinecraft: () => invokeRuntime<void>("desktop_open_native_minecraft"),
@@ -289,4 +331,6 @@ export const nativeFeasibility = {
       "desktop_inspect_owned_engine_candidate", { directory })),
   selectOwnedCandidateDirectory: (): Promise<string | null> =>
     invokeRuntime<string | null>("desktop_select_owned_engine_candidate_directory"),
+  inspectOwnedHost: async (): Promise<OwnedHostInspection> =>
+    parseOwnedHostInspection(await invokeRuntime<unknown>("desktop_inspect_owned_engine_host")),
 };

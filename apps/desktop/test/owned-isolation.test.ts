@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
-import { parseOwnedCandidateInspection } from "../src/app/bridge/nativeFeasibilityApi.js";
+import { parseOwnedCandidateInspection, parseOwnedHostInspection } from "../src/app/bridge/nativeFeasibilityApi.js";
 
 const candidate = () => ({
   schema: 1,
@@ -49,5 +49,50 @@ describe("Owned isolation candidate — strictly read-only", () => {
     expect(commands).toContain("fn desktop_inspect_owned_engine_candidate(");
     expect(screen).toContain("Inspect engine candidate");
     expect(screen).toContain("No engine was activated.");
+  });
+});
+
+describe("Owned engine host service registration", () => {
+  const host = () => ({
+    schema: 1,
+    interactiveSession: true,
+    state: "BLOCKED_SERVICE_NAMESPACE_IN_USE",
+    serviceRegistration: "PRESENT",
+    driverRegistration: "PRESENT",
+    serviceNamespaceAvailable: false,
+    providerSelected: false,
+    trustedDriverLoaded: false,
+    gameplayVerified: false,
+    activationAllowed: false,
+  });
+  it("reports a service collision without authorizing launch", () => {
+    expect(parseOwnedHostInspection(host())).toEqual(host());
+  });
+  it("accepts free names only when still blocked for unverified driver", () => {
+    const empty = { ...host(), state: "BLOCKED_UNVERIFIED_OWNED_DRIVER",
+      serviceRegistration: "ABSENT", driverRegistration: "ABSENT",
+      serviceNamespaceAvailable: true };
+    expect(parseOwnedHostInspection(empty)).toEqual(empty);
+    expect(() => parseOwnedHostInspection({ ...empty, activationAllowed: true })).toThrow();
+  });
+  it("accepts a noninteractive result only with matching evidence", () => {
+    const blocked = { ...host(), interactiveSession: false,
+      state: "BLOCKED_NON_INTERACTIVE_SESSION" };
+    expect(parseOwnedHostInspection(blocked)).toEqual(blocked);
+  });
+  it("rejects contradictory and private runtime claims", () => {
+    for (const change of [
+      { serviceNamespaceAvailable: true },
+      { serviceRegistration: "RUNNING" },
+      { trustedDriverLoaded: true },
+      { providerSelected: true },
+      { gameplayVerified: true },
+      { state: "ACTIVE" },
+      { state: "BLOCKED_UNVERIFIED_OWNED_DRIVER" },
+      { interactiveSession: false },
+      { userAccount: "private@example.invalid" },
+    ]) {
+      expect(() => parseOwnedHostInspection({ ...host(), ...change })).toThrow();
+    }
   });
 });

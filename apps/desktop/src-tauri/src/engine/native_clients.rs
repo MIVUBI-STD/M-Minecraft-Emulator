@@ -25,7 +25,7 @@ fn acquire_client_02_launch() -> io::Result<MutexGuard<'static, Option<Instant>>
 
 
 #[cfg(windows)]
-fn system_powershell() -> io::Result<std::path::PathBuf> {
+pub(super) fn system_powershell() -> io::Result<std::path::PathBuf> {
     use std::{ffi::OsString, os::windows::ffi::OsStringExt, path::PathBuf};
     use windows_sys::Win32::System::SystemInformation::GetSystemDirectoryW;
 
@@ -830,6 +830,12 @@ pub fn inspect_owned_engine_candidate(
     directory: String,
 ) -> io::Result<crate::engine::owned_isolation::OwnedCandidateInspection> {
     crate::engine::owned_isolation::inspect_candidate_path(directory)
+}
+
+// Read-only SCM namespace probe: does not select or install an owned backend.
+pub fn inspect_owned_engine_host(
+) -> io::Result<crate::engine::owned_isolation::OwnedHostInspection> {
+    crate::engine::owned_isolation::inspect_host_service_namespace()
 }
 
 #[cfg(windows)]
