@@ -48,6 +48,9 @@ const required = [
   "tooling/isolation-source/windows/reconcile-ownership.mjs",
   "tooling/isolation-source/windows/reconcile-ownership.test.mjs",
   "tooling/isolation-source/windows/reconcile-ownership-cli.mjs",
+  "engine/isolation-native/CMakeLists.txt",
+  "engine/isolation-native/src/abi_probe.cpp",
+  "engine/isolation-native/README.md",
   "apps/desktop/package.json", "apps/desktop/package-lock.json",
   "apps/desktop/src-tauri/Cargo.toml", "apps/desktop/src-tauri/tauri.conf.json",
   "engine/runtime-core/Cargo.toml", "engine/distribution/release-channel.json",
@@ -218,6 +221,19 @@ requireFact(
   read("apps/desktop/src-tauri/src/app_bootstrap.rs").includes(
     "commands::native_clients::desktop_inspect_owned_engine_candidate,"),
   "Owned engine inspection must be candidate-only and never switch live provider");
+const nativeProbeSource = read("engine/isolation-native/src/abi_probe.cpp");
+const nativeProbeBuild = read("engine/isolation-native/CMakeLists.txt");
+requireFact(
+  nativeProbeSource.includes('#include "common/my_version.h"') &&
+  nativeProbeSource.includes('SbieApi_GetVersionEx') &&
+  nativeProbeSource.includes('ServiceImageMatches(L"SbieDrv"') &&
+  nativeProbeSource.includes('ServiceImageMatches(L"SbieSvc"') &&
+  nativeProbeSource.includes("driverSigningPolicyAccepted") &&
+  nativeProbeSource.includes("installerReady") &&
+  nativeProbeSource.includes("REJECTED_LOADED_DLL_PATH_MISMATCH") &&
+  nativeProbeBuild.includes("abd4c240031cfb46666daa74ca47ed4e48b561e4") &&
+  nativeProbeBuild.includes('source_abi_contract_selftest'),
+  "The native owned-engine ABI probe must remain pinned and non-installing");
 const nativeAdapter = read("apps/desktop/src-tauri/src/commands/native_clients.rs");
 requireFact(nativeBridge.includes('"desktop_inspect_native_candidates"') &&
   nativeBridge.includes("parseNativeObservation") &&

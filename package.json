@@ -37,6 +37,9 @@
     "isolation-source:simulate-disposable": "node tooling/isolation-source/simulate-disposable.mjs",
     "isolation-source:transport-probe": "powershell -NoProfile -NonInteractive -File tooling/isolation-source/windows/kmdutil-transport.ps1",
     "isolation-source:review-ownership": "node tooling/isolation-source/windows/review-ownership.mjs",
-    "isolation-source:reconcile-ownership": "node tooling/isolation-source/windows/reconcile-ownership-cli.mjs"
+    "isolation-source:reconcile-ownership": "node tooling/isolation-source/windows/reconcile-ownership-cli.mjs",
+    "isolation-native:configure": "cmake -S engine/isolation-native -B workspace/isolation-native-build -G \"Visual Studio 17 2022\" -A x64",
+    "isolation-native:build": "cmake --build workspace/isolation-native-build --config Release",
+    "isolation-native:test": "ctest --test-dir workspace/isolation-native-build -C Release --output-on-failure"
   }
 }

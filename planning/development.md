@@ -1,5 +1,17 @@
 # Current Development Handoff
 
+## Native pinned Sandboxie ABI probe source — 2026-10-14
+
+**Work:** prioritize genuine driver–service–DLL ABI integration source over repeated metadata/report layers. **State:** DONE for independent Windows-native C++/CMake source; compilation and runtime proof NOT_EXECUTED.
+
+**Decision:** add `engine/isolation-native/src/abi_probe.cpp`, `CMakeLists.txt`, `README.md` as a standalone x64 Windows executable. CMake requires exact upstream Git SHA `abd4c240031cfb46666daa74ca47ed4e48b561e4` and includes the vendor's actual `common/my_version.h`. Native logic checks `MY_ABI_VERSION == 0x57230`, release `5.73.5` at compile time, and provides explicit `--selftest`, side-effect-free `--offline` and manual lab-only `--abi` stages. Lab stage requires exact SCM ImagePath for both original services plus Authenticode on driver/service/DLL before loading a DLL from the candidate directory and querying `SbieApi_GetVersionEx`. It does not install services, enable a provider, accept account tokens or mutate Minecraft worlds; never call on the existing official Sandboxie host. Existing Rust/Tauri and official Client 02 launch remain unchanged.
+
+**Proof:** verified actual upstream `Sandboxie/common/my_version.h`, `core/drv/api.c::Api_GetVersion`, `core/dll/sbieapi.h/c::SbieApi_GetVersionEx` and upstream solution build sequence at pinned tag via connected GitHub. C++ source, CMake and contracts inspected statically; **Windows MSVC, CMake, CTest, WinVerifyTrust and SbieApi runtime NOT_EXECUTED**. Upstream Git submodule is still a pointer; the separate MIVUBI fork has not been published or built.
+
+**Unresolved:** kernel signing acceptance, actual source fork/ABI-compatible compiled driver, independent service namespace/IPC path, Microsoft WAM login and stable multi-account Minecraft remain unproven. Provider transition remains blocked and existing Client02 idle crash root cause UNKNOWN.
+
+**Next ONE task:** build the actual fork-specific native runtime control surface for a dedicated test host, including ABI handshake and namespace migration strategy based on matching upstream driver/service/DLL code, while leaving the official desktop launch untouched.
+
 ## Read-only rollback reconciliation from canonical journal — 2026-10-14
 
 **Work:** diagnose recovery from partial, interrupted or conflicting owned-isolation provisioning without enabling Windows service deletion. **State:** DONE for source and isolated logic tests; full Node/Windows acceptance NOT_EXECUTED.
