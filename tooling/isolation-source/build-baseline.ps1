@@ -58,6 +58,11 @@ if ($StageOutput) {
             [StringComparison]::OrdinalIgnoreCase)) {
         throw 'Baseline payload cannot overlap upstream source checkout.'
     }
+    if ($reportFull.Equals($stageDestination, [StringComparison]::OrdinalIgnoreCase) -or
+        $reportFull.StartsWith($stageDestination.TrimEnd('\') + '\',
+            [StringComparison]::OrdinalIgnoreCase)) {
+        throw 'Baseline build report must not be inside the staged payload directory.'
+    }
     if (Test-Path -LiteralPath $stageDestination) {
         throw 'Baseline stage output already exists; refusing overwrite.'
     }
@@ -69,6 +74,9 @@ if ($StageOutput) {
 if ($Build) {
     foreach ($stage in @($spec.buildStages)) {
         $logPath = Join-Path $parent ("baseline-" + [string]$stage.id + ".log")
+        if ($reportFull.Equals($logPath, [StringComparison]::OrdinalIgnoreCase)) {
+            throw 'Baseline build report path collides with a reserved stage log.'
+        }
         if (Test-Path -LiteralPath $logPath) {
             throw "Baseline build log already exists; preserve evidence: $logPath"
         }

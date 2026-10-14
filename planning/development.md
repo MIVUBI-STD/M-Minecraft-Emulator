@@ -1,5 +1,34 @@
 # Current Development Handoff — M-Minecraft-Emulator
 
+## Private build preflight syntax and path-collision repair — 2026-10-14
+
+**Work:** remove an actual PowerShell parse blocker in the private native
+builder and prevent report/stage/log path collisions before MSBuild.
+**State:** DONE for source changes; Windows/WDK execution NOT_EXECUTED.
+
+**Defect:** `engine/isolation-native/fork-overlay/build-private.ps1` had
+one unmatched opening parenthesis in the `-StageOutput` source-overlap
+`if` condition. The script could not enter native compilation as written.
+The conditional was corrected, preserving its same three overlap checks.
+Both private and upstream baseline builders now also reject report files
+inside the staged payload directory and report paths matching reserved
+MSBuild stage logs. This avoids expensive compilation before a predictable
+staging failure. No installation, signing, service, box, account or world
+mutation was added.
+
+**Evidence:** 2/2 existing authored source regression test bodies executed
+against the modified exact GitHub PowerShell candidate text and PASSED.
+Both modified PowerShell files additionally passed a quote/comment-aware
+balanced-delimiter scan, including parentheses, brackets and braces.
+This custom lexical scan is *not* a PowerShell AST parser; actual PowerShell,
+MSVC/WDK, complete Node24/Rust and Minecraft runtime remain NOT_EXECUTED.
+The regression explicitly refuses the old missing-parenthesis condition.
+
+**Next ONE task:** only address further demonstrable source blockers;
+full parser, build and REA native-binary proof belongs in an authorized
+disposable Windows lab after ChatGPT-first source work is complete.
+
+
 ## Latest source batch — protect Windows build evidence (2026-10-14)
 
 **Done in GitHub source:** `build-baseline.ps1` and `build-private.ps1`

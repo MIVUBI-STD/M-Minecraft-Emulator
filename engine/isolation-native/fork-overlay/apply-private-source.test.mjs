@@ -139,6 +139,19 @@ test("Windows private build report uses committed proof, never removed staged-va
   assert.match(script, /Existing build log must be preserved/);
   assert.match(script, /Private payload destination already exists/);
   assert.match(script, /Private stage destination may not overlap/);
+  assert.match(script, /Private build report must not be inside the staged payload directory/);
+  assert.match(script, /Private build report path collides with a reserved stage log/);
+  const stageIf = script.match(/if \(\$stageDestination\.Equals[\s\S]*?\{/);
+  assert.ok(stageIf, "stage-overlap PowerShell if must exist");
+  // Ignore PowerShell single-quoted literal substrings when counting parens.
+  const withoutStrings = stageIf[0].replace(/'(?:[^']|'')*'/g, "''");
+  let balance = 0;
+  for (const ch of withoutStrings) {
+    if (ch === "(") balance++;
+    if (ch === ")") balance--;
+    assert.ok(balance >= 0, "unexpected closing PowerShell parenthesis");
+  }
+  assert.equal(balance, 0, "stage-overlap PowerShell if has a missing closing parenthesis");
   assert.match(script, /Private payload destination parent is missing/);
   assert.match(script, /Missing required private packaging resource/);
   assert.match(script, /@\(\$manifest\.requiredArtifacts\) \+ @\(\$manifest\.optionalSymbols\)/);

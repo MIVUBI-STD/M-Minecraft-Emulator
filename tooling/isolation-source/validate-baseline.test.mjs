@@ -115,6 +115,8 @@ test("baseline Windows build preserves reports, logs and existing staging paths"
   assert.match(script, /Baseline build log already exists/);
   assert.match(script, /Baseline payload cannot overlap upstream source checkout/);
   assert.match(script, /Baseline stage parent directory must exist before compilation/);
+  assert.match(script, /Baseline build report must not be inside the staged payload directory/);
+  assert.match(script, /Baseline build report path collides with a reserved stage log/);
   assert.match(script, /@\(\$spec\.requiredArtifacts\) \+ @\(\$spec\.optionalSymbols\)/);
   assert.match(script, /Out-File -LiteralPath \$logPath -Encoding UTF8 -NoClobber/);
   assert.match(script, /Out-File -LiteralPath \$reportFull -Encoding UTF8 -NoClobber/);

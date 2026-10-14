@@ -26,9 +26,14 @@ if ($StageOutput) {
     throw 'Private payload destination parent is missing; create it before the build.'
   }
   if ($stageDestination.Equals($root, [StringComparison]::OrdinalIgnoreCase) -or
-      ($stageDestination.StartsWith($root + '\', [StringComparison]::OrdinalIgnoreCase) -or
+      $stageDestination.StartsWith($root + '\', [StringComparison]::OrdinalIgnoreCase) -or
       $root.StartsWith($stageDestination + '\', [StringComparison]::OrdinalIgnoreCase)) {
     throw 'Private stage destination may not overlap the private source checkout.'
+  }
+  if ($report.Equals($stageDestination, [StringComparison]::OrdinalIgnoreCase) -or
+      $report.StartsWith($stageDestination.TrimEnd('\') + '\',
+        [StringComparison]::OrdinalIgnoreCase)) {
+    throw 'Private build report must not be inside the staged payload directory.'
   }
 }
 if ($report.Equals($root, [StringComparison]::OrdinalIgnoreCase) -or
@@ -74,6 +79,9 @@ $parent = Split-Path -Parent $report
 # evidence from a previous attempt.
 foreach ($stage in @($manifest.buildStages)) {
   $existingLog = Join-Path $parent ("private-" + [string]$stage.id + ".log")
+  if ($report.Equals($existingLog, [StringComparison]::OrdinalIgnoreCase)) {
+    throw 'Private build report path collides with a reserved stage log.'
+  }
   if (Test-Path -LiteralPath $existingLog) {
     throw "Existing build log must be preserved: $existingLog"
   }
