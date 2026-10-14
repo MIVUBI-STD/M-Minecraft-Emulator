@@ -170,6 +170,20 @@ node tooling/isolation-source/windows/review-ownership.mjs observe <plan.json> <
 
 The CLI does not call KmdUtil, Windows SCM, or the active Tauri runtime. Its operator acknowledgment is not authorization; the event hash chain is not a digital signature. Every operation remains blocked and no service can be stopped/deleted from these records. An additional ten Node filesystem test cases are authored and V8 pure state/chain checks have been exercised; Windows/Node24 integrated validation remains NOT_EXECUTED.
 
+## Source-first SCM and signed lab reconciliation
+
+The [reconcile-ownership.mjs](./windows/reconcile-ownership.mjs) source connects three existing owners: the **actual canonical journal file** (from `execute-disposable.mjs`), its `ownership-ledger.mjs` hash-chain records, and the current Windows SCM observation produced by `probe-owned-service-image.ps1`. Both `SbieDrv` and `SbieSvc` must independently match pinned package image paths, SHA-256 values, observed signatures and one hashed host identifier.
+
+The new developer-only read-only CLI accepts an existing plan and journal with both SCM observations:
+
+~~~text
+node tooling/isolation-source/windows/reconcile-ownership-cli.mjs --plan <plan.json> --journal-directory <existing-journal-directory> --payload-root <Windows-payload-root> --driver-scm <driver-observation.json> --service-scm <service-observation.json>
+~~~
+
+The output is strictly `LOCAL_EVIDENCE_CORRELATED_NOT_AUTHORIZED` when all local evidence matches. It includes the SHA-256 of the **persisted journal bytes**, so a separately signed lab statement could bind exactly that file. The separate programmatic signed reconciliation function uses only the **source-pinned** Ed25519 key, which is not yet configured; it therefore currently refuses every production signature. These are not installation/rollback interfaces, and even verified local evidence cannot stop or delete Windows services.
+
+Seven new Node 22 filesystem tests were executed with lightweight stand-ins for upstream dependency modules and the exact new reconciliation module bytes (7/7 PASS); the full repository version with actual dependencies remains NOT_EXECUTED on this revision. Neither an existing standalone upstream source checkout nor signed-driver/Windows service/gameplay acceptance is proven.
+
 ## Product separation, attribution and acceptance
 
 Raw outputs remain in the upstream checkout; a private candidate may be staged into an explicitly requested separate folder. Neither is committed to `Local`, merged into Rust, or installed under the existing `M-Bedrock Virtual Clients` identity. Do not try a custom driver next to the official Sandboxie service/driver in the same account-bearing Windows installation: device/service/IPC namespaces may collide. The future cutover needs a dedicated disposable Windows environment, signing and crash-attribution evidence, game compatibility, persist/reboot and rollback tests, plus a new license/distribution decision. A fork is **deployment independence** once proved, not source independence from Sandboxie.

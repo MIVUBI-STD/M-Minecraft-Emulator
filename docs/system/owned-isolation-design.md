@@ -63,6 +63,14 @@ The existing `execute-disposable.mjs` journal now has one durable owner for both
 
 The event hash chain is **not a MAC or digital signature**: an attacker with write access could recalculate it. This is continuity/audit evidence, NOT independent SCM service ownership or a disposable-machine attestation. The explicit operator acknowledgment is likewise NOT an authorization to install, stop, delete or rollback. `review-ownership.mjs` is a developer CLI disconnected from Tauri, Windows KmdUtil and Minecraft 02. Every returned operation permission remains `false`.
 
+## Reconciliation of persisted journal and live SCM observations (source-first)
+
+`tooling/isolation-source/windows/reconcile-ownership.mjs` now reads the **existing** single transaction journal file, hashes its actual bytes (not user-supplied JSON metadata), verifies the ledger's existing hash chain, and independently compares both `SbieDrv` and `SbieSvc` live read-only SCM observations with the payload paths, expected binary SHA-256 and recorded signatures. It enforces a matching hashed machine fingerprint across both observations; only the correct pinned v1.18.5 plan and simulation journal may be evaluated. Missing/duplicated service observations, altered journal contents, outside-payload image paths and mismatched signed images fail closed.
+
+The production-signed variant binds the transaction ID, actual plan SHA-256, current journal-byte SHA-256, host fingerprint, nonce digest and snapshot ID to `verifyProductionLabAttestation`. Its source-pinned public trust key is still EMPTY: no caller-supplied key can enable it. Even future signature verification would only correlate evidence; `installationPermitted`, `canStopService`, `canDeleteService` and `rollbackPermitted` remain **false**. The read-only CLI does not accept any signer override and does not connect to Tauri, an installer or the official Client 02 launcher.
+
+The evidence chain remains audit continuity, not Windows kernel trust or proof the service was created by MIVUBI. A disposable-host attestation, signed native driver, verified service ownership and safe recovery require actual Windows evidence before privilege can be considered.
+
 ## The two distinct independence goals
 
 1. **Deployment independence (approved target):** our app can install, diagnose, manage and update an appropriately licensed and signed app-owned isolation backend without external SandMan/official Sandboxie installation. This still contains appropriately credited Sandboxie-derived GPL components.

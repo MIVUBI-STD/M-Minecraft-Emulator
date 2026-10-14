@@ -1,5 +1,19 @@
 # Current Development Handoff
 
+## Persisted journal and signed lab SCM reconciliation — 2026-10-14
+
+**Work:** source-first reconciliation of the one durable ownership journal with live Windows SCM evidence and Ed25519 lab-binding contract. **State:** DONE for source and fixture-level Node execution; full repository native tests and Windows acceptance NOT_EXECUTED.
+
+**Decision:** add `tooling/isolation-source/windows/reconcile-ownership.mjs`, tests and read-only CLI under the existing isolation tooling owner. The new module invokes the existing journal/ledger reader and pinned KmdUtil read-only specification, verifies exact `SbieDrv` and `SbieSvc` file/path/hash/signature observations, compares hashed host identity across both, and derives SHA-256 from the **actual journal file bytes**, not a self-reported digest. The signed variant binds plan hash, journal hash, transaction, host, snapshot and nonce through `verifyProductionLabAttestation`. The production Ed25519 trust key remains EMPTY and both local and signed outputs explicitly deny installation, service stop/delete, provider switch or rollback. The CLI has no signer input, Tauri route or Windows mutation.
+
+**Proof:** exact new module GitHub blob SHA `bfcc92eb61474a90c7cd5f77ca49bff34a72f09e` matches source executed in Linux Node22: seven filesystem scenarios PASS with lightweight replacement implementations of the existing dependency contracts. New repository tests authored (7 cases), integration against actual `execute-disposable.mjs`, `ownership-ledger.mjs`, `transport-commands.mjs` and Node24 not executed. Source/static contract checks applied at staged tree. No Windows driver/SCM or Minecraft actions executed.
+
+**Correction:** reviewed the existing `attestation-gate.mjs` and `service-ownership.mjs` UUID regular expressions again; both already match standard five-group UUIDs. No source change to those correct expressions was needed.
+
+**Unresolved:** no approved lab signer, signed host attestation, compiled/installed owned driver, validated independent Sandboxie service/box, official Client 02 crash attribution, or four-client gameplay evidence. The journal hash chain is not independently authenticated and an SCM name/path match cannot establish ownership.
+
+**Next ONE task:** implement and audit a source-first no-privilege rollback reconciliation report that explicitly contrasts recorded creation steps with current SCM image state, without enabling service deletion or switching the official Client 02 provider; higher-context Windows acceptance stays NOT_EXECUTED.
+
 ## Canonical operator-review and SCM ownership journal — 2026-10-14
 
 **Work:** continue the source-first driver/service lifecycle controller with durable recovery evidence and explicit operator review without adding a second manager. **State:** DONE for source implementation and logical state/chain checks; native filesystem/Windows validation deferred.
