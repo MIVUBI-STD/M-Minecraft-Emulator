@@ -9,7 +9,7 @@
 - Main source contracts: `Sandboxie/{SandboxDll.sln,Sandbox.sln,SandboxDrv.sln}`, `Installer/copy_build.cmd`, `Sandboxie/ReadMe.md`, upstream `.github/workflows/main.yml`, `LICENSE.Plus`, `Sandboxie/COPYING`.
 - File/build contract: [upstream-baseline.json](./upstream-baseline.json). One source of truth for required artifacts and stage order.
 - Metadata validator: [validate-baseline.mjs](./validate-baseline.mjs) with [six tests](./validate-baseline.test.mjs). Checks source revision, stage order and report consistency.
-- File-byte verifier: [verify-artifact-files.mjs](./verify-artifact-files.mjs) with [five tests](./verify-artifact-files.test.mjs). Independently rehashes every `PRESENT` file and confirms every `MISSING` file is absent; refuses symlinked file paths and changed files. Read-only; still **not** proof of signing, driver load or Minecraft gameplay. PowerShell invokes both verifiers after collection; Node.js is required.
+- File-byte verifier: [verify-artifact-files.mjs](./verify-artifact-files.mjs) with [five tests](./verify-artifact-files.test.mjs). Independently rehashes every `PRESENT` file and confirms every `MISSING` file is absent; refuses symlinked and dangling-symlink file paths and changed files. Read-only; still **not** proof of signing, driver load or Minecraft gameplay. PowerShell invokes both verifiers after collection; Node.js is required.
 
 ## Independent source checkout — full history preserved
 

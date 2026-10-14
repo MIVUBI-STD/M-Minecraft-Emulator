@@ -18,8 +18,16 @@ function checkPath(root, rel) {
   let current = root;
   for (const part of rel.split("/")) {
     current = join(current, part);
-    if (!existsSync(current)) break;
-    demand(!lstatSync(current).isSymbolicLink(), "symlinked component: " + rel);
+    // existsSync() follows symlinks and reports dangling links as absent.
+    // lstatSync() identifies the directory entry even if its target vanished.
+    let entry;
+    try {
+      entry = lstatSync(current);
+    } catch (error) {
+      if (error.code === "ENOENT") break;
+      throw error;
+    }
+    demand(!entry.isSymbolicLink(), "symlinked component: " + rel);
   }
   if (existsSync(target)) {
     demand(inside(root, realpathSync(target)), "resolved artifact escapes source root");

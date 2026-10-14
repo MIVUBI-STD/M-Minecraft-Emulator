@@ -1,5 +1,17 @@
 # Current Development Handoff
 
+## Build artifact dangling-symlink regression — 2026-10-14
+
+**Work:** correct a real filesystem-evidence bug in the owned isolation artifact verifier. **State:** DONE for the bounded fix.
+
+**Decision:** `verify-artifact-files.mjs` must use `lstatSync` instead of `existsSync` to detect each path component. `existsSync` follows a symlink; for a dangling symlink it returns false, allowing a symlinked optional artifact to be mislabeled MISSING. Missing ordinary path components still remain legitimate; other filesystem access errors fail closed. No new provider, driver, service or game mutation.
+
+**Proof:** actual regression first FAILED (5 pass, 1 fail: expected rejection missing) on the exact original verifier and tests by Git blob hash using Linux Node 22 and a metadata-validator-compatible shim. After the fix the same six filesystem tests PASSED (6/6). New revision must still be checked on Node 24/PowerShell and Windows; real upstream driver build, Minecraft acceptance and stable two-client soak NOT_EXECUTED.
+
+**Unresolved:** source fork not available in connected GitHub operations, Windows/WDK build and signing not executed, Client 02 idle crash cause UNKNOWN.
+
+**Next ONE task:** produce and evaluate actual pinned Sandboxie v1.18.5 unmodified build artifacts when Windows compilation is available; do not install a new driver on the existing account-bearing host.
+
 ## IsolationBackend launch dispatch v0.2 — 2026-10-14
 
 **Work:** one internal provider route for isolated Client 02 inspection and explicit launch. **State:** DONE as bounded source refactor; execution/gameplay verification remains NOT_EXECUTED.

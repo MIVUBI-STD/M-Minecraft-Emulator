@@ -100,3 +100,20 @@ test("hash verifier rejects a false missing symbol and permits genuinely absent 
     assert.equal(result.checkedAbsent, 1);
   } finally { f.cleanup(); }
 });
+
+test("refuses dangling symlink disguised as a missing optional artifact", async t => {
+  const f = setup(); const outside = mkdtempSync(join(tmpdir(), "isolation-dangling-"));
+  try {
+    const item = f.report.artifacts.find(x => x.kind === "optional-symbol");
+    const file = join(f.root, ...item.path.split("/"));
+    rmSync(file);
+    try { symlinkSync(join(outside, "nonexistent-payload"), file); } catch (error) {
+      if (process.platform === "win32" && ["EPERM", "EACCES"].includes(error.code)) {
+        t.skip("Windows symlink privilege unavailable"); return;
+      }
+      throw error;
+    }
+    Object.assign(item, {state:"MISSING", sizeBytes:null, sha256:null, authenticode:"NOT_EXECUTED"});
+    await assert.rejects(verifyArtifactFiles(f.manifest, f.report, f.root), /symlinked component/);
+  } finally { f.cleanup(); rmSync(outside, {recursive:true, force:true}); }
+});
