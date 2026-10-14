@@ -1,4 +1,38 @@
 # Current Development Handoff — M-Minecraft-Emulator
+
+## Core driver version identity — source batch 2026-10-14
+
+**Goal:** build an independently functional MIVUBI Sandboxie-derived
+driver/service/DLL/Start core, not a wrapper around installed Sandboxie.
+**Status:** DRIVER-AND-START SOURCE MODIFIED, portable native tests PASS;
+private Windows core NOT_COMPILED, NOT_INSTALLED, NOT_GAMEPLAY_VERIFIED.
+
+**Concrete engine change:** reuse pinned upstream kernel
+`API_GET_VERSION`, returning `5.73.5-MIVU` on MIVUBI private builds
+while retaining `MY_ABI_VERSION=0x57230`, the original ioctl and struct
+ABI. The private Start.exe opt-in three-client path now calls
+`SbieApi_GetVersionEx` and refuses owned-box launches unless both
+MIVUBI marker and ABI are returned. An upstream official driver cannot
+be mistaken for the private engine on this path. The canonical C11
+`owned-runtime/mivubi_core_identity.h` source is inlined into the
+private driver's API and Start.cpp, alongside the earlier C++17
+Start policy. Existing upstream service/driver names still collide,
+so **no coexistence with the installed official runtime**.
+
+**Actual execution:** CMake/CTest compiled and ran 2 portable native
+tests (Start C++17 policy + C11 driver identity) on each of GCC/Clang,
+2/2 PASS on both. Exact patched GitHub seven-file Sandboxie source
+produced 9 hunks; strict expected-blob comparison and modified-driver
+negative case passed using ChatGPT V8. Five authored pure-JS fork
+regression tests executed and passed. This is not an MSVC/WDK/kernel
+runtime test and does not establish a signed or functioning service.
+
+**Main next task:** verify private SbieSvc and SbieDll lifecycle accepts
+only this core identity, compile real private binaries, and investigate
+inter-component compatibility with REA on a disposable Windows host.
+Avoid ad-hoc driver installation or modification of account-bearing
+Client 02. Functional code takes priority over further proof-only layers.
+
 ## Primary milestone: actual MIVUBI Sandboxie fork (2026-10-14)
 
 **Priority contract:** The product objective is a **working, independently

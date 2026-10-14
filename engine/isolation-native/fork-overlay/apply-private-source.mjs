@@ -32,6 +32,20 @@ const MARKERS = [
 // intentionally opt-in; all upstream Start.exe switches retain their meaning.
 // The private core still uses upstream SbieSvc/SbieDrv and cannot co-install.
 const START_PATH = "Sandboxie/apps/start/start.cpp";
+const DRIVER_PATH = "Sandboxie/core/drv/api.c";
+const DRIVER_VERSION_ANCHOR =
+  "    API_GET_VERSION_ARGS *args = (API_GET_VERSION_ARGS *)parms;";
+// This portable identity is inlined into BOTH kernel API and private Start.
+// Existing kernel ABI/IOCTL/function codes remain exactly the pinned upstream.
+const CORE_IDENTITY = readFileSync(
+  new URL("../owned-runtime/mivubi_core_identity.h", import.meta.url),
+  "utf8").trimEnd().split("\n");
+const DRIVER_IDENTITY_OVERRIDE = [
+  "#if defined(MIVUBI_PRIVATE_ISOLATION_BUILD)",
+  "    // Change only the private fork's GET_VERSION response, not its ABI.",
+  "    const WCHAR *Driver_Version = MIVUBI_PRIVATE_DRIVER_ID;",
+  "#endif",
+];
 const START_PARSE_ANCHOR =
   '    if (_wcsicmp(cmd, L"run_sbie_ctrl") == 0 || _wcsnicmp(cmd, L"open_agent", 10) == 0) {';
 // The canonical portable C++ parser is compiled by independent tests and
@@ -47,6 +61,12 @@ const START_DISPATCH = [
   "    const MivubiOwnedDecision result = MivubiParseOwnedStart(cmd, &ownedLaunch);",
   "    if (result == MivubiOwnedDecision::Rejected) return FALSE;",
   "    if (result == MivubiOwnedDecision::Admitted) {",
+  "        // Never route a MIVUBI-owned box through the official driver.",
+  "        WCHAR observedVersion[16] = {0};",
+  "        ULONG observedAbi = 0;",
+  "        if (!NT_SUCCESS(SbieApi_GetVersionEx(observedVersion, &observedAbi)) ||",
+  "            !MivubiOwnedDriverMatches(observedVersion, observedAbi))",
+  "            return FALSE;",
   "        wcscpy(BoxName, ownedLaunch.box);",
   "        cmd = ownedLaunch.command;",
   "    }",
@@ -119,14 +139,22 @@ export function buildPrivateSourcePatch(files) {
   for (const path of SOURCE_FILES.slice(1)) {
     assert(!files[path].includes("MIVUBI_PRIVATE_ISOLATION_BUILD"),
       "private marker already present: " + path);
-    parts.push(hunk(files[path], path, ANCHOR,
-      path === START_PATH ? [...GUARD, "", ...START_POLICY] : GUARD));
+    const additions = path === START_PATH
+      ? [...GUARD, "", ...CORE_IDENTITY, "", ...START_POLICY]
+      : path === DRIVER_PATH ? [...GUARD, "", ...CORE_IDENTITY] : GUARD;
+    parts.push(hunk(files[path], path, ANCHOR, additions));
+    if (path === DRIVER_PATH) {
+      // Kernel returns a private runtime identity through the EXISTING
+      // API_GET_VERSION response. No ioctl or argument-structure change.
+      onlyOnce(files[path], DRIVER_VERSION_ANCHOR, path);
+      parts.push(hunk(files[path], path, DRIVER_VERSION_ANCHOR,
+        DRIVER_IDENTITY_OVERRIDE, true, additions.length, false));
+    }
     if (path === START_PATH) {
-      // Functional C++ admission is shared with a genuinely compiled
-      // portable native test; one dispatch hunk, no duplicate parser logic.
+      // Functional C++ admission is shared with native regression tests.
       onlyOnce(files[path], START_PARSE_ANCHOR, path);
       parts.push(hunk(files[path], path, START_PARSE_ANCHOR,
-        START_DISPATCH, true, GUARD.length + 1 + START_POLICY.length, false));
+        START_DISPATCH, true, additions.length, false));
     }
   }
   return parts.join("");
@@ -141,10 +169,16 @@ export function buildExpectedPrivateSources(original) {
   for (const [index, path] of SOURCE_FILES.entries()) {
     const anchor = index === 0 ? VERSION_ANCHOR : ANCHOR;
     const additions = index === 0 ? MARKERS
-      : path === START_PATH ? [...GUARD, "", ...START_POLICY] : GUARD;
+      : path === START_PATH ? [...GUARD, "", ...CORE_IDENTITY, "", ...START_POLICY]
+      : path === DRIVER_PATH ? [...GUARD, "", ...CORE_IDENTITY] : GUARD;
     const newline = original[path].includes("\r\n") ? "\r\n" : "\n";
     let value = original[path].replace(anchor,
       [anchor, ...additions].join(newline));
+    if (path === DRIVER_PATH) {
+      onlyOnce(original[path], DRIVER_VERSION_ANCHOR, path);
+      value = value.replace(DRIVER_VERSION_ANCHOR,
+        [...DRIVER_IDENTITY_OVERRIDE, DRIVER_VERSION_ANCHOR].join(newline));
+    }
     if (path === START_PATH) {
       onlyOnce(original[path], START_PARSE_ANCHOR, path);
       value = value.replace(START_PARSE_ANCHOR,

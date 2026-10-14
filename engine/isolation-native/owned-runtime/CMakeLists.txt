@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(MivubiOwnedStartPolicy LANGUAGES CXX)
+project(MivubiOwnedStartPolicy LANGUAGES C CXX)
 
 # Real C++ policy test for the SAME source that is inlined into the forked
 # Sandboxie Start.exe; runs without Windows SDK, a driver, accounts or GitHub.
@@ -17,3 +17,16 @@ endif()
 enable_testing()
 add_test(NAME owned_start_policy_native
   COMMAND mivubi-owned-start-policy-test)
+
+# The driver-facing marker must be a portable C definition, not a C++-only
+# shim: the pinned upstream kernel API implementation is compiled from api.c.
+add_executable(mivubi-core-identity-test mivubi_core_identity.test.c)
+set_target_properties(mivubi-core-identity-test PROPERTIES
+  C_STANDARD 11 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+if(MSVC)
+  target_compile_options(mivubi-core-identity-test PRIVATE /W4 /WX)
+else()
+  target_compile_options(mivubi-core-identity-test PRIVATE
+    -Wall -Wextra -Werror -pedantic)
+endif()
+add_test(NAME owned_core_identity_native COMMAND mivubi-core-identity-test)

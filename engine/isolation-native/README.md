@@ -153,6 +153,36 @@ atomically in the source checkout; no real Windows binary build, driver
 load or account data was involved. Real upstream patch application remains
 an additional integration obligation on the exact v1.18.5 source checkout.
 
+## Private kernel–launcher runtime identity (2026-10-14)
+
+The first **kernel-facing functional source change** is now included in
+the seven-file MIVUBI private overlay. The pinned upstream kernel
+`Sandboxie/core/drv/api.c` replies to its EXISTING `API_GET_VERSION`
+request with the MIVUBI-specific version string `5.73.5-MIVU`,
+preserving the original driver ABI `0x57230`, ioctl ID, buffer layout,
+and upstream behavior for an unmodified build. The shared
+[`mivubi_core_identity.h`](./owned-runtime/mivubi_core_identity.h)
+is embedded verbatim into both private kernel API and launcher source.
+
+When the explicitly opted-in MIVUBI launch mode is requested, private
+`Start.exe` calls `SbieApi_GetVersionEx` and refuses to route an owned
+box unless the connected kernel reports **both** the private marker and
+pinned ABI. An official Sandboxie driver replies with its original
+version and therefore fails this private launch admission. This change
+does **not** rename device/service objects; official/private coexistence
+remains unsupported. It is a version identity gate, not cryptographic
+attestation, signer verification, service ABI proof or kernel-load proof.
+
+The existing native owned-runtime CMake suite now builds **both**:
+C++17 Start policy admission tests and C11 driver-identity/16-WCHAR buffer
+tests. The two binaries passed under GCC and Clang using CTest in
+ChatGPT's Linux container (2/2 on each toolchain). The actual kernel,
+DLL, Start.exe and SbieSvc still require Windows MSVC/WDK compilation,
+signing and exclusive disposable-lab integration. An upstream consumer
+that requires an exact version string may need deliberate compatibility
+work once compiled; do not claim Windows compatibility from this source
+evidence.
+
 ## Functional core: native-owned Start.exe profile admission
 
 **Implementation owner:** [mivubi_owned_start_policy.h](./owned-runtime/mivubi_owned_start_policy.h).

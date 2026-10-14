@@ -24,6 +24,14 @@ function sources() {
       '    if (_wcsicmp(cmd, L"run_sbie_ctrl") == 0 || _wcsnicmp(cmd, L"open_agent", 10) == 0) {',
       "            run_regular_start();",
       "",
+    ].join("\n") : path === "Sandboxie/core/drv/api.c" ? [
+      "// isolated fixture component: " + path,
+      '#include "common/my_version.h"',
+      "static NTSTATUS Api_GetVersion(PROCESS *proc, ULONG64 *parms) {",
+      "    API_GET_VERSION_ARGS *args = (API_GET_VERSION_ARGS *)parms;",
+      "    return STATUS_SUCCESS;",
+      "}",
+      "",
     ].join("\n") : [
       "// isolated fixture component: " + path,
       '#include "common/my_version.h"',
@@ -43,13 +51,17 @@ function git(root, args, input) {
 test("generated patch touches exactly seven core build owners and preserves kernel names", () => {
   const patch = buildPrivateSourcePatch(sources());
   assert.equal((patch.match(/^diff --git/gm) ?? []).length, 7);
-  assert.equal((patch.match(/^@@ /gm) ?? []).length, 8);
+  assert.equal((patch.match(/^@@ /gm) ?? []).length, 9);
   // Git apply rejects the earlier anchor-only hunks even when the line
   // matches. Every insertion must retain a following source context line.
   assert.match(patch, /@@ -\d+,2 \+\d+,4 @@/);
   assert.match(patch, /\+#define MIVUBI_PRIVATE_ISOLATION_ABI   0x57230\n #define SBIEDRV/);
   assert.match(patch, /\+#endif\n int test_function\(void\)/);
-  assert.equal((patch.match(/^@@ -\d+,2 \+\d+,(?:4|7|80|12) @@$/gm) ?? []).length, 8);
+  assert.equal((patch.match(/^@@ -\d+,2 \+\d+,\d+ @@$/gm) ?? []).length, 9);
+  assert.match(patch, /MIVUBI_PRIVATE_DRIVER_ID/);
+  assert.match(patch, /const WCHAR \*Driver_Version = MIVUBI_PRIVATE_DRIVER_ID/);
+  assert.match(patch, /SbieApi_GetVersionEx\(observedVersion, &observedAbi\)/);
+  assert.match(patch, /MivubiOwnedDriverMatches\(observedVersion, observedAbi\)/);
   assert.ok(patch.includes("mivubi_client:"));
   assert.ok(patch.includes("MivubiEdu02"));
   assert.ok(patch.includes("MinecraftEducationEdition.exe"));
@@ -91,6 +103,10 @@ test("entire patch applies atomically to a disposable Git checkout without renam
     assert.match(feature, /mivubi_client:/);
     assert.match(feature, /MivubiEdu02/);
     assert.match(feature, /MivubiParseOwnedStart/);
+    assert.match(feature, /SbieApi_GetVersionEx\(observedVersion, &observedAbi\)/);
+    assert.match(feature, /MivubiOwnedDriverMatches\(observedVersion, observedAbi\)/);
+    const driver = readFileSync(join(root, "Sandboxie/core/drv/api.c"), "utf8");
+    assert.match(driver, /const WCHAR \*Driver_Version = MIVUBI_PRIVATE_DRIVER_ID/);
     assert.match(feature, /end\[1\] != L'/);
     const editedHeader = readFileSync(join(root, SOURCE_FILES[0]), "utf8");
     assert.ok(editedHeader.includes('L"SbieDrv"'));
@@ -112,6 +128,25 @@ test("refuses unexpected upstream line endings before writing a patch", () => {
   const crlf = sources();
   crlf[SOURCE_FILES[0]] = crlf[SOURCE_FILES[0]].replace(/\n/g, "\r\n");
   assert.throws(() => buildPrivateSourcePatch(crlf), /upstream newline format changed/);
+});
+
+test("private launcher and driver reject unreviewed runtime-identity edits", () => {
+  const original = sources();
+  const edited = buildExpectedPrivateSources(original);
+  const driver = "Sandboxie/core/drv/api.c";
+  const launcher = "Sandboxie/apps/start/start.cpp";
+  assert.ok(edited[driver].includes('MIVUBI_PRIVATE_DRIVER_ID'));
+  assert.ok(edited[launcher].includes('MivubiOwnedDriverMatches'));
+  assert.equal(verifyExactPrivateSourceBytes(original, edited), true);
+  const driverEdited = {...edited, [driver]:
+    edited[driver].replace("MIVUBI_PRIVATE_DRIVER_ID", "L\"5.73.5\"")};
+  assert.throws(() => verifyExactPrivateSourceBytes(original, driverEdited),
+    /unexpected modified source bytes/);
+  const launcherEdited = {...edited, [launcher]:
+    edited[launcher].replace("!MivubiOwnedDriverMatches(observedVersion, observedAbi)",
+      "MivubiOwnedDriverMatches(observedVersion, observedAbi)")};
+  assert.throws(() => verifyExactPrivateSourceBytes(original, launcherEdited),
+    /unexpected modified source bytes/);
 });
 
 test("wrong ABI, unexpected service identity and duplicate compiler anchors fail closed", () => {
