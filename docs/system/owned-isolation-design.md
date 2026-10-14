@@ -37,6 +37,12 @@ The standalone `tooling/isolation-source/provision-disposable.mjs` source now mo
 
 **No Windows mutation is possible from this module:** it only constructs a noninstallable transaction plan with `installationPermitted=false`; a self-reported target type is not proof of a disposable VM. No Tauri or UI command invokes it. Partial/ambiguous receipts stop for manual reconciliation rather than automatically stopping/deleting any service. An independently reviewed executor, Windows signing and actual ownership checks remain required before this plan can ever become actionable.
 
+## Disposable Windows execution contract and audit journal (source-first)
+
+`tooling/isolation-source/execute-disposable.mjs` now implements the **transaction sequencer and write-ahead ledger** that a future Windows driver/service transport will use. It records each intent as `UNKNOWN` before calling the supplied simulation adapter; crashes, timeouts, unexpected responses, retries and changed plan fingerprints fail closed. A new exclusive journal directory is created, receipts are committed through file fsync/atomic replacement, and recorded transactions are never automatically deleted. The current transport accepts only an in-memory simulation and cannot invoke KmdUtil, modify the host, or claim successful installation.
+
+The companion `windows/probe-disposable-readiness.ps1` is a **read-only Windows adapter** for service-name observations and Authenticode status of the staged kernel/service/helper files. A detected virtualized model is explicitly a heuristic, not proof of disposal: `disposableEnvironmentVerified=false`, `installationPermitted=false`, and `windowsKernelDriverLoadVerified=false` are always returned. Host trust, identity, binary signing and kernel acceptance need a dedicated privileged executor and independent Windows tests before any actual system mutation. The existing Minecraft 02 provider remains official Sandboxie.
+
 ## The two distinct independence goals
 
 1. **Deployment independence (approved target):** our app can install, diagnose, manage and update an appropriately licensed and signed app-owned isolation backend without external SandMan/official Sandboxie installation. This still contains appropriately credited Sandboxie-derived GPL components.

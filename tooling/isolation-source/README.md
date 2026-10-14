@@ -104,6 +104,22 @@ node tooling/isolation-source/plan-disposable.mjs --payload <engine-provenance.j
 
 Upstream anchors used for correct semantics: `Sandboxie/common/my_version.h` (driver/service names and `FILTER_ALTITUDE=86900`), `Sandboxie/install/SandboxieVS.nsi` (KmdUtil install/start/delete ordering), and `Sandboxie/install/kmdutil/kmdutil.c` (supported options), all from pinned tag v1.18.5.
 
+## Durable source-first transaction executor and Windows preflight
+
+The transaction plan can now be exercised in an **exclusive simulation journal** using `execute-disposable.mjs` and `simulate-disposable.mjs`. This is executable, tested source for ordering, write-ahead intent, unknown/failed results, and protection against retry/replay. It only accepts an `IN_MEMORY_SIMULATION` adapter. There is no channel from this module to the active desktop process, installer, or `kmdutil.exe`.
+
+Example after a plan has been created:
+
+~~~text
+node tooling/isolation-source/simulate-disposable.mjs --plan <plan.json> --journal-directory <brand-new-local-directory>
+~~~
+
+The journal directory must not exist beforehand; each intent is stored as `UNKNOWN` before a simulated stage runs. A failed/ambiguous stage stops without retry, and later manual reconciliation must determine whether anything occurred. The simulation NEVER reports a loaded driver or an installed provider. Source-level tests and execution evidence for this module are separately recorded in the development handoff.
+
+For Windows-only read-only preflight, `tooling/isolation-source/windows/probe-disposable-readiness.ps1 -PayloadRoot <candidate-folder>` checks registration names, signatures, and heuristic virtualization metadata. It **does not** prove a dedicated disposable host, source owner, supported signer, production signing, kernel loadability or game readiness. Every response has `installationPermitted=false`. Do not feed it into a privileged executor as authorization.
+
+**Still not implemented:** a privileged, host-attested Windows SCM/KmdUtil transport and service-ownership-proven rollback. Those must be written and reviewed as separate source that cannot target the existing `MinecraftClient02` host without independent safety evidence.
+
 ## Product separation, attribution and acceptance
 
 Raw outputs remain in the upstream checkout; a private candidate may be staged into an explicitly requested separate folder. Neither is committed to `Local`, merged into Rust, or installed under the existing `M-Bedrock Virtual Clients` identity. Do not try a custom driver next to the official Sandboxie service/driver in the same account-bearing Windows installation: device/service/IPC namespaces may collide. The future cutover needs a dedicated disposable Windows environment, signing and crash-attribution evidence, game compatibility, persist/reboot and rollback tests, plus a new license/distribution decision. A fork is **deployment independence** once proved, not source independence from Sandboxie.

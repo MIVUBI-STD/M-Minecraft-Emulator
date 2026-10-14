@@ -1,5 +1,17 @@
 # Current Development Handoff
 
+## Owned isolation durable transaction sequencer and Windows preflight — 2026-10-14
+
+**Work:** implement the source-first transaction execution core, not just a list of provisioning operations. **State:** DONE for journal-backed simulation and read-only Windows preflight source; privileged Windows mutation transport remains NOT_IMPLEMENTED.
+
+**Decision:** `tooling/isolation-source/execute-disposable.mjs` owns an exclusive write-ahead transaction journal bound to the exact v1.18.5 provisioning plan fingerprint. Record `UNKNOWN` with fsync/atomic replace *before* attempting a simulated effect; require seven verified ordered steps; propagate failed, unknown, interrupted or untrusted step results without retries; forbid replay and delete/rollback without proven owned-service receipts. Only `IN_MEMORY_SIMULATION` adapters are accepted and the source has no Tauri hook. Add `simulate-disposable.mjs` for explicit local simulation (no install). Separate read-only Windows `probe-disposable-readiness.ps1` checks signer status and service namespace, with VM detection only heuristic and `installationPermitted=false`.
+
+**Proof:** source review against exact GitHub blobs and five in-memory V8 transaction scenarios PASS (all seven steps, UNKNOWN, exception, privilege-adapter rejection, changed plan binding). Nine Node-test scenarios AUTHORED for filesystem durability/identity but exact Node test command NOT_EXECUTED for this revision. Windows/PowerShell, Microsoft signing, kernel load, Minecraft gameplay, four-client acceptance and real rollback NOT_EXECUTED.
+
+**Unresolved:** no authentic compiled/signed/installed owned driver; no privileged Windows transport or cryptographically attested disposable host; no proof of SCM path ownership or successful undo. Existing Client 02 idle crash UNKNOWN; official runtime/box untouched.
+
+**Next ONE task:** source-first implement a Windows-specific, host-attested KmdUtil/SCM transport under a privileged-operation gate, with independently verified binary signatures, per-service image-path ownership and durable recovery receipts; do not connect it to the active Tauri Client 02 route until runtime acceptance.
+
 ## Disposable owned-engine provisioning transaction source — 2026-10-14
 
 **Work:** begin the Windows Driver & Service Controller without waiting for a Windows SDK/WDK runtime. **State:** DONE for deterministic transaction planning/receipt model; actual privileged executor NOT_IMPLEMENTED and Windows validation NOT_EXECUTED.
