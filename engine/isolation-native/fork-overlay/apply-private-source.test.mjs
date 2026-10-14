@@ -143,3 +143,18 @@ test("Windows private build report uses committed proof, never removed staged-va
   assert.match(script, /Missing required private packaging resource/);
   assert.doesNotMatch(script, /\b(?:Start-Service|Stop-Service|Remove-Service|sc\.exe)\b/i);
 });
+
+test("private ABI probe CMake invokes canonical exact committed-fork verifier", () => {
+  const cmake = readFileSync(new URL("../CMakeLists.txt", import.meta.url), "utf8");
+  assert.match(cmake, /find_program\(MIVUBI_NODE_EXECUTABLE NAMES node\.exe node REQUIRED\)/);
+  assert.match(cmake, /fork-overlay\/apply-private-source\.mjs/);
+  assert.match(cmake, /--verify-committed --fork-root/);
+  assert.match(cmake, /RESULT_VARIABLE PRIVATE_SOURCE_RESULT/);
+  assert.match(cmake, /NOT PRIVATE_SOURCE_RESULT STREQUAL "0"/);
+  assert.match(cmake, /message\(FATAL_ERROR/);
+  assert.doesNotMatch(cmake, /MIVUBI_BUILD_MARKER REGEX/);
+  assert.doesNotMatch(cmake, /MIVUBI_ABI_MARKER REGEX/);
+  assert.match(cmake, /PINNED_COMMIT "abd4c240031cfb46666daa74ca47ed4e48b561e4"/);
+  assert.match(cmake, /status --porcelain=v1 --untracked-files=all/);
+  assert.match(cmake, /Pinned upstream ABI source checkout is dirty/);
+});

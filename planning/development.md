@@ -1,5 +1,38 @@
 # Current Development Handoff
 
+## Private native ABI probe admission consistency — 2026-10-14
+
+**Work:** remove an inconsistent native CMake shortcut for MIVUBI
+private-fork source acceptance. **State:** DONE for source correction;
+CMake/MSVC and Windows ABI probe remain NOT_EXECUTED.
+
+**Defect:** `engine/isolation-native/CMakeLists.txt` previously accepted a
+private fork by checking only upstream ancestry and two version-header
+markers. That did not prove the seven actual source edits, clean committed
+history or matching private build identity. The private MSBuild and assembly
+routes already required the stronger canonical exact-commit verifier.
+
+**Decision:** when `MIVUBI_PRIVATE_FORK_ROOT` is selected, CMake invokes
+`fork-overlay/apply-private-source.mjs --verify-committed --fork-root`.
+One canonical verifier checks the one direct-child private commit, clean
+worktree, exact seven authorized modified Git blobs and patch provenance.
+Reject any failure during CMake configuration, before ABI test compilation.
+Unmodified upstream probe path remains separate and requires pinned HEAD
+and a clean checkout (including untracked file detection).
+A source-only regression checks private CMake admission wiring.
+
+**Proof:** exact GitHub CMake and consumer source contract checks.
+No CMake configure, MSVC, CTest, Node24/Rust full suites, REA native binary
+analysis, kernel driver loading or Minecraft execution claimed.
+
+**Unresolved:** only an actual Windows lab with compiled, signed binaries
+can validate the native driver/DLL/service ABI. No live private engine.
+
+**Next ONE task:** consolidate remaining static source checks and carry out
+the existing Windows build and REA evidence procedure only once source work
+is closed, preserving the account-bearing official Sandboxie host.
+
+
 ## Source-only cross-layer preparation and REA campaign — 2026-10-14
 
 **Work:** close the available GitHub/ChatGPT source review of the private

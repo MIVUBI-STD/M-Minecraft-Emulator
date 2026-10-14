@@ -112,3 +112,18 @@ match the Windows build report, private payload and Rust read-only inspector.
 
 Source hashes ensure traceability, **not** repeatable binary compilation,
 Authenticode trust, driver load approval or Minecraft gameplay.
+
+## ABI probe CMake source admission (2026-10-14)
+
+For the private-fork option, CMake invokes the **same canonical**
+`apply-private-source.mjs --verify-committed` verifier used by
+`build-private.ps1` and `assemble-private-engine.mjs`. A Git descendant with
+only matching source-header markers is no longer accepted: it must contain
+exactly the committed, reviewed seven-file patch, with a clean worktree and
+no additional changes. Node must be available at CMake configure time.
+This check is source admission only, not driver/API compatibility proof.
+
+No CMake/MSVC execution is claimed from the ChatGPT/GitHub source review.
+The unmodified pinned submodule requires exact pinned HEAD and a clean
+tracked/untracked source checkout. It is not falsely treated as a committed
+MIVUBI fork.

@@ -24,21 +24,27 @@ endif()
 
 find_package(Git REQUIRED)
 if(OWNED_PRIVATE_SOURCE)
-  # HEAD may be an actual private fork commit descending from the pinned
-  # upstream release. Never relabel it as unmodified upstream provenance.
+  # Use the same exact committed seven-file source verifier as private MSBuild
+  # and payload staging. Ancestor + source marker alone is insufficient:
+  # it accepts unauthorized additional edits and even an uncommitted patch.
+  find_program(MIVUBI_NODE_EXECUTABLE NAMES node.exe node REQUIRED)
+  set(PRIVATE_SOURCE_VERIFIER
+    "${CMAKE_CURRENT_LIST_DIR}/fork-overlay/apply-private-source.mjs")
   execute_process(
-    COMMAND "${GIT_EXECUTABLE}" -C "${UPSTREAM_ROOT}"
-      merge-base --is-ancestor "${PINNED_COMMIT}" HEAD
-    RESULT_VARIABLE GIT_RESULT
+    COMMAND "${MIVUBI_NODE_EXECUTABLE}" "${PRIVATE_SOURCE_VERIFIER}"
+      --verify-committed --fork-root "${UPSTREAM_ROOT}"
+    RESULT_VARIABLE PRIVATE_SOURCE_RESULT
+    OUTPUT_VARIABLE PRIVATE_SOURCE_EVIDENCE
+    ERROR_VARIABLE PRIVATE_SOURCE_ERROR
+    OUTPUT_STRIP_TRAILING_WHITESPACE
   )
-  file(STRINGS "${UPSTREAM_ROOT}/Sandboxie/common/my_version.h"
-    MIVUBI_BUILD_MARKER REGEX "^#define MIVUBI_PRIVATE_ISOLATION_BUILD 0x4D495655$")
-  file(STRINGS "${UPSTREAM_ROOT}/Sandboxie/common/my_version.h"
-    MIVUBI_ABI_MARKER REGEX "^#define MIVUBI_PRIVATE_ISOLATION_ABI   0x57230$")
-  if(NOT GIT_RESULT EQUAL 0 OR
-     NOT MIVUBI_BUILD_MARKER OR NOT MIVUBI_ABI_MARKER)
-    message(FATAL_ERROR "Private fork ABI/source marker missing or upstream ancestry invalid.")
+  if(NOT PRIVATE_SOURCE_RESULT STREQUAL "0")
+    message(FATAL_ERROR
+      "Private ABI probe source is not a clean exact committed fork: ${PRIVATE_SOURCE_ERROR}")
   endif()
+  message(STATUS
+    "Private ABI probe uses exact committed source verified by canonical Node owner")
+
 else()
   # Unmodified upstream mode still requires exact pinned HEAD.
   execute_process(
@@ -50,6 +56,20 @@ else()
   if(NOT GIT_RESULT EQUAL 0 OR
      NOT UPSTREAM_SHA STREQUAL "${PINNED_COMMIT}")
     message(FATAL_ERROR "ABI source must match pinned upstream release.")
+  endif()
+  # HEAD alone is insufficient if tracked source files were modified after
+  # checkout. Include untracked inputs, but ignore ordinary build outputs as
+  # prescribed by the pinned upstream .gitignore.
+  execute_process(
+    COMMAND "${GIT_EXECUTABLE}" -C "${UPSTREAM_ROOT}"
+      status --porcelain=v1 --untracked-files=all
+    OUTPUT_VARIABLE UPSTREAM_DIRTY
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    RESULT_VARIABLE UPSTREAM_STATUS_RESULT
+  )
+  if(NOT UPSTREAM_STATUS_RESULT EQUAL 0 OR
+     NOT "${UPSTREAM_DIRTY}" STREQUAL "")
+    message(FATAL_ERROR "Pinned upstream ABI source checkout is dirty.")
   endif()
 endif()
 
