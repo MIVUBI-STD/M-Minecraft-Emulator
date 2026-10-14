@@ -1,5 +1,38 @@
 # Current Development Handoff — M-Minecraft-Emulator
 
+## Core identity memory-safety correction — 15 October 2026
+
+**Priority:** deliver a functioning Sandboxie-derived native MIVUBI core,
+not an external management wrapper or new readiness bureaucracy.
+
+**Actual defect repaired:** the shared C identity helper previously ran
+unbounded `wcscmp` on the `WCHAR[16]` response of upstream
+`API_GET_VERSION`. A foreign driver may return a malformed response without
+a NUL byte, risking an out-of-range read before the caller can reject it.
+The implementation now takes the caller's explicit WCHAR capacity,
+compares the exact marker including NUL only if it fits, and never scans
+past that capacity. All private Start and DLL callsites pass 16 WCHAR;
+the same C helper remains inlined into kernel and usermode source.
+
+**Evidence actually executed:** C11 test binaries for the capacity-bounded
+identity were compiled with GCC and Clang under
+`-Wall -Wextra -Werror -pedantic -fsanitize=address,undefined` and
+both exited successfully. Cases included 2-element nonterminated version,
+16-WCHAR nonterminated version, truncated declared capacity, NULL,
+wrong ABI, tampered prefix, correct identity. Exact pinned upstream
+eight-file patch/expected-byte comparison in ChatGPT V8 PASS, with 16
+hunks and all three caller capacities verified; seven authored pure JS
+regression test bodies PASS. Pinned Node24/Rust and Windows MSVC/WDK,
+native service/kernel, driver signing and Minecraft gameplay remain
+NOT_EXECUTED.
+
+**Next ONE task:** investigate actual native build/link failures with the
+full Windows toolchain in a disposable isolated lab; correct the private
+core driver/DLL/service source based on those results before attempting
+private provider cutover. Existing official Sandboxie and account-bearing
+world/profile data remain untouched.
+
+
 ## Private DLL ordinary-ioctl ownership and service shutdown — 15 October 2026
 
 **Goal remains:** working MIVUBI-owned Sandboxie-derived core, not a

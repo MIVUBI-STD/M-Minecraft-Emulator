@@ -153,6 +153,28 @@ atomically in the source checkout; no real Windows binary build, driver
 load or account data was involved. Real upstream patch application remains
 an additional integration obligation on the exact v1.18.5 source checkout.
 
+## Bounded native driver-version comparison — 15 October 2026
+
+The shared `mivubi_core_identity.h` now compares the private identity
+against the **explicit capacity** of the `WCHAR[16]` version response.
+The previous `wcscmp` could read beyond an unterminated or malformed
+foreign-driver version buffer. The replacement compares the literal
+version marker *including its NUL terminator* only after confirming the
+buffer is large enough. `SbieApi_GetVersionEx`, its direct-handle
+verification path, and the owned `Start.exe` launcher pass the precise
+16-WCHAR capacity. The same code is compiled into the private kernel API
+and userspace source, without adding an ioctl or altering ABI.
+
+**Execution:** GCC and Clang each compiled and executed C11 bounded-identity
+tests with AddressSanitizer and UndefinedBehaviorSanitizer enabled,
+including short nonterminated buffers, a full 16-WCHAR nonterminated
+response, invalid ABI, missing input and truncated capacity. The actual
+eight-file pinned Sandboxie overlay passed 16-hunk exact-source checks,
+and seven existing authored JavaScript source-test bodies passed in
+ChatGPT V8. This is NOT Windows MSVC/WDK kernel/driver execution.
+Version matching is non-cryptographic and does not establish safe
+kernel-driver authenticity.
+
 ## Private DLL ioctl admission and service failure shutdown — 15 October 2026
 
 **New functional core work:** the private SbieDll now verifies that the

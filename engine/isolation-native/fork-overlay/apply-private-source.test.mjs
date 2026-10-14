@@ -113,8 +113,9 @@ test("generated patch includes DLL and service startup in exact core closure and
   assert.match(patch, /MIVUBI_PRIVATE_DRIVER_ID/);
   assert.match(patch, /const WCHAR \*Driver_Version = MIVUBI_PRIVATE_DRIVER_ID/);
   assert.match(patch, /SbieApi_GetVersionEx\(observedVersion, &observedAbi\)/);
-  assert.match(patch, /MivubiOwnedDriverMatches\(observedVersion, observedAbi\)/);
-  assert.match(patch, /MivubiOwnedDriverMatches\(mivubiVersion, mivubiAbi\)/);
+  assert.match(patch, /MivubiOwnedDriverMatches\(observedVersion, 16, observedAbi\)/);
+  assert.match(patch, /MivubiOwnedDriverMatches\(mivubiVersion, 16, mivubiAbi\)/);
+  assert.match(patch, /MivubiOwnedDriverMatches\(version, 16, abi\)/);
   assert.match(patch, /STATUS_REVISION_MISMATCH/);
   assert.match(patch, /DriverAssistStart\.cpp/);
   assert.ok(patch.includes("mivubi_client:"));
@@ -159,9 +160,9 @@ test("entire patch applies atomically to a disposable Git checkout without renam
     assert.match(feature, /MivubiEdu02/);
     assert.match(feature, /MivubiParseOwnedStart/);
     assert.match(feature, /SbieApi_GetVersionEx\(observedVersion, &observedAbi\)/);
-    assert.match(feature, /MivubiOwnedDriverMatches\(observedVersion, observedAbi\)/);
+    assert.match(feature, /MivubiOwnedDriverMatches\(observedVersion, 16, observedAbi\)/);
     const dll = readFileSync(join(root, "Sandboxie/core/dll/sbieapi.c"), "utf8");
-    assert.match(dll, /MivubiOwnedDriverMatches\(mivubiVersion, mivubiAbi\)/);
+    assert.match(dll, /MivubiOwnedDriverMatches\(mivubiVersion, 16, mivubiAbi\)/);
     assert.match(dll, /MivubiVerifyOpenedDevice/);
     assert.match(dll, /parms\[0\] != API_GET_VERSION/);
     assert.match(dll, /MivubiVerifiedDeviceHandle = INVALID_HANDLE_VALUE/);
@@ -206,8 +207,8 @@ test("private launcher and driver reject unreviewed runtime-identity edits", () 
   assert.throws(() => verifyExactPrivateSourceBytes(original, driverEdited),
     /unexpected modified source bytes/);
   const launcherEdited = {...edited, [launcher]:
-    edited[launcher].replace("!MivubiOwnedDriverMatches(observedVersion, observedAbi)",
-      "MivubiOwnedDriverMatches(observedVersion, observedAbi)")};
+    edited[launcher].replace("!MivubiOwnedDriverMatches(observedVersion, 16, observedAbi)",
+      "MivubiOwnedDriverMatches(observedVersion, 16, observedAbi)")};
   assert.throws(() => verifyExactPrivateSourceBytes(original, launcherEdited),
     /unexpected modified source bytes/);
 });
@@ -219,8 +220,8 @@ test("DLL and service refuse unreviewed private startup bypasses", () => {
   const dll = "Sandboxie/core/dll/sbieapi.c";
   const svc = "Sandboxie/core/svc/DriverAssistStart.cpp";
   const modifiedDll = {...after, [dll]:
-    after[dll].replace("!MivubiOwnedDriverMatches(mivubiVersion, mivubiAbi)",
-      "MivubiOwnedDriverMatches(mivubiVersion, mivubiAbi)")};
+    after[dll].replace("!MivubiOwnedDriverMatches(mivubiVersion, 16, mivubiAbi)",
+      "MivubiOwnedDriverMatches(mivubiVersion, 16, mivubiAbi)")};
   assert.throws(() => verifyExactPrivateSourceBytes(before, modifiedDll),
     /unexpected modified source bytes/);
   const modifiedSvc = {...after, [svc]:
