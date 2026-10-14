@@ -43,6 +43,12 @@ The standalone `tooling/isolation-source/provision-disposable.mjs` source now mo
 
 The companion `windows/probe-disposable-readiness.ps1` is a **read-only Windows adapter** for service-name observations and Authenticode status of the staged kernel/service/helper files. A detected virtualized model is explicitly a heuristic, not proof of disposal: `disposableEnvironmentVerified=false`, `installationPermitted=false`, and `windowsKernelDriverLoadVerified=false` are always returned. Host trust, identity, binary signing and kernel acceptance need a dedicated privileged executor and independent Windows tests before any actual system mutation. The existing Minecraft 02 provider remains official Sandboxie.
 
+## Windows transport binding — source-only (2026-10-14)
+
+The disposable provision plan can now be compiled into a pinned `KmdUtil` command contract instead of invoking an arbitrary command line. The compiler restricts the payload path, validates the exact upstream step order, pins binary SHA-256 references and retains rollback image-path/receipt requirements. A separate PowerShell probe reads signatures and the `SbieSvc`/`SbieDrv` SCM namespace without changing Windows.
+
+The command transport currently **cannot install, start, stop or delete** a service: no trusted signed disposable-lab attestation certificate is pinned, and service ownership needs independent evidence before any mutation. The transport never becomes active through Tauri, and the official Sandboxie Client 02 launch stays unchanged. This separation enables continued source work without falsely treating self-reported receipts or Authenticode `Valid` alone as trust or safe driver deployment.
+
 ## The two distinct independence goals
 
 1. **Deployment independence (approved target):** our app can install, diagnose, manage and update an appropriately licensed and signed app-owned isolation backend without external SandMan/official Sandboxie installation. This still contains appropriately credited Sandboxie-derived GPL components.

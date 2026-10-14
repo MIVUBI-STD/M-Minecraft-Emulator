@@ -120,6 +120,16 @@ For Windows-only read-only preflight, `tooling/isolation-source/windows/probe-di
 
 **Still not implemented:** a privileged, host-attested Windows SCM/KmdUtil transport and service-ownership-proven rollback. Those must be written and reviewed as separate source that cannot target the existing `MinecraftClient02` host without independent safety evidence.
 
+## Windows KmdUtil transport interface (source-first)
+
+The source now includes [transport-commands.mjs](./windows/transport-commands.mjs) for deterministic **argv compilation** from the existing seven-stage v1.18.5 plan, including `SbieDrv` kernel minifilter `type=kernel start=demand altitude=86900`, the `SbieSvc` user-mode service, and stop/delete rollback commands. Rollback descriptors require a claim of an owned transaction receipt. **These claims must still be independently verified by Windows SCM image-path and journal signatures; the compiler alone cannot prove ownership.**
+
+The complementary [kmdutil-transport.ps1](./windows/kmdutil-transport.ps1) supports a **read-only Probe mode**. It revalidates exact argument sequences, image hash, Authenticode metadata, and SCM registration. Its `Apply` mode is deliberately sealed until an independently approved lab-attestation signer and service ownership validation are implemented. At present there is **no enabled privileged transport or executable driver installation**. The PowerShell source is not connected to Tauri, the active installer or any auto-update route.
+
+Seven argument/rollback/unsafe-source scenarios passed against the exact GitHub JS source in the available V8 test context. PowerShell parsing and Windows command semantics have NOT_EXECUTED status. The upstream command semantics were crosschecked against pinned `Sandboxie/install/SandboxieVS.nsi`, `Sandboxie/install/kmdutil/kmdutil.c`, and `Sandboxie/common/my_version.h`.
+
+Do not confuse a parsed/validated command with approval to use it. Every emitted transport specification includes `executionAllowed=false`, `driverSigningVerified=false`, `disposableHostAttested=false`, and `rollbackAuthorized=false`. No code automatically deletes a registered Windows service.
+
 ## Product separation, attribution and acceptance
 
 Raw outputs remain in the upstream checkout; a private candidate may be staged into an explicitly requested separate folder. Neither is committed to `Local`, merged into Rust, or installed under the existing `M-Bedrock Virtual Clients` identity. Do not try a custom driver next to the official Sandboxie service/driver in the same account-bearing Windows installation: device/service/IPC namespaces may collide. The future cutover needs a dedicated disposable Windows environment, signing and crash-attribution evidence, game compatibility, persist/reboot and rollback tests, plus a new license/distribution decision. A fork is **deployment independence** once proved, not source independence from Sandboxie.

@@ -1,5 +1,17 @@
 # Current Development Handoff
 
+## KmdUtil native Windows transport contract — 2026-10-14
+
+**Work:** author concrete v1.18.5 driver/service command transport source while preserving the active Minecraft pilot. **State:** DONE for typed argv source and read-only Windows probe; privileged Windows transport activation is still BLOCKED.
+
+**Decision:** `tooling/isolation-source/windows/transport-commands.mjs` compiles fixed, independently checked KmdUtil argv for seven installer stages and receipt-restricted stop/delete stages, matching `SandboxieVS.nsi` and minifilter altitude `86900`. Explicit Windows root restrictions, pinned image digests and immutable `executionAllowed=false` prevent command specs from granting authority. `windows/kmdutil-transport.ps1` independently compares arg lists and reads SHA-256, Authenticode and current SCM namespace. Its Apply gate rejects all calls until a fixed lab signing anchor, verified disposable-machine attestation, and owned-service transaction receipt checks have been implemented and reviewed. No shell process, driver or service mutation is exposed to Tauri or the active `MinecraftClient02`.
+
+**Proof:** seven pure command-contract tests executed on exact GitHub blobs in the available V8 runtime and PASS, including mismatched source, tampered checksum/step order, unsafe payload paths and rollback without verified receipt claim. PowerShell code static-inspected; Windows/PowerShell execution, driver signing/load, rollback, and Minecraft gameplay NOT_EXECUTED. A self-reported receipt claim is not external ownership proof.
+
+**Unresolved:** no active privileged Windows transport, no pinned MIVUBI lab certificate, no independently attested disposable VM, and no running MIVUBI Sandboxie fork. The existing client idle crash cause remains UNKNOWN.
+
+**Next ONE task:** implement an independently verifiable disposable-host attestation and service-image ownership receipt gate for the sealed Windows transport; after source review, wire it into the journaled execution owner without affecting official Sandboxie.
+
 ## Owned isolation durable transaction sequencer and Windows preflight — 2026-10-14
 
 **Work:** implement the source-first transaction execution core, not just a list of provisioning operations. **State:** DONE for journal-backed simulation and read-only Windows preflight source; privileged Windows mutation transport remains NOT_IMPLEMENTED.
