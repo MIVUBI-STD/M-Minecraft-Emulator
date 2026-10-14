@@ -1,23 +1,24 @@
-#include <cassert>
+#include <cstdlib>
 #include <cwchar>
 #include <string>
 #include "mivubi_owned_start_policy.h"
 
 using Decision = MivubiOwnedDecision;
 static unsigned checks = 0;
+static void require(bool condition) { if (!condition) std::abort(); }
 
 static void check(const wchar_t* raw, Decision expected,
                   const wchar_t* box = nullptr) {
     std::wstring command(raw);
     MivubiOwnedLaunch result{nullptr, nullptr};
     const Decision actual = MivubiParseOwnedStart(command.data(), &result);
-    assert(actual == expected);
+    require(actual == expected);
     if (actual == Decision::Admitted) {
-        assert(result.box && result.command);
-        assert(box && std::wcscmp(box, result.box) == 0);
-        assert(result.command[0] == L'"');
+        require(result.box && result.command);
+        require(box && std::wcscmp(box, result.box) == 0);
+        require(result.command[0] == L'"');
     } else {
-        assert(!result.box && !result.command);
+        require(!result.box && !result.command);
     }
     ++checks;
 }
@@ -53,5 +54,14 @@ int main() {
     check(L"/mivubi_client:02 \"C:/Minecraft.Windows.exe\"", Decision::Rejected);
     check(L"/mivubi_client:02 \"C:\\Minecraft.Windows.exe\"", Decision::Admitted,
           L"MivubiEdu02");
-    return checks >= 20 ? 0 : 1;
+    // Precisely truncated buffers are important: a parser that reads
+    // p[2]/p[3] before detecting NUL will overrun these heap strings.
+    check(L"/mivubi_client:", Decision::Rejected);
+    check(L"/mivubi_client:0", Decision::Rejected);
+    check(L"/mivubi_client:02", Decision::Rejected);
+    check(L"/mivubi_client:02 ", Decision::Rejected);
+    check(L"/mivubi_client:02 \"", Decision::Rejected);
+    check(L"/mivubi_clien", Decision::NotOwned);
+    // A Release build defines NDEBUG. Never rely on disabled assert().
+    return checks >= 26 ? 0 : 1;
 }

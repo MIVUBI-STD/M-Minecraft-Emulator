@@ -153,6 +153,34 @@ atomically in the source checkout; no real Windows binary build, driver
 load or account data was involved. Real upstream patch application remains
 an additional integration obligation on the exact v1.18.5 source checkout.
 
+## Native Start policy Release-test integrity — 15 October 2026
+
+**Confirmed failure:** the native `mivubi_owned_start_policy.test.cpp`
+previously relied on C/C++ `assert()`. In Release builds, `NDEBUG`
+disables those checks. I reproduced this with an intentionally incorrect
+expected result: the old Release test exited **0 (false PASS)**.
+The repaired test uses a small always-active `require()` helper that
+aborts on failure. The exact same deliberately incorrect expectation
+now exits with a nonzero status. Correct test source has 26 cases,
+including short and truncated `/mivubi_client:` input.
+
+The C++ parser was also refactored into sequential character checks
+for easier review. A sanitizer run of the original combined expression
+did **not** reproduce an out-of-bounds access: its boolean operators
+already short-circuited on a missing required character. This parser
+refactoring is **not** presented as a confirmed memory-safety fix.
+
+**Executed:** the *exact committed candidate blobs* for the modified
+header and C++ test were independently matched against `git hash-object`
+in the ChatGPT container. GCC and Clang each passed the 26-case test
+in Release with `-DNDEBUG` and under AddressSanitizer/UBSan.
+Both CMake Release builds passed CTest, and the modified policy was
+embedded and expected-byte verified against all eight pinned Sandboxie
+source files (16 nonoverlapping patch hunks).
+
+**Not executed:** native MSVC/WDK Windows DLL, service, driver, GUI,
+real isolation, signing or Minecraft multi-account gameplay.
+
 ## Bounded native driver-version comparison — 15 October 2026
 
 The shared `mivubi_core_identity.h` now compares the private identity

@@ -1,5 +1,39 @@
 # Current Development Handoff — M-Minecraft-Emulator
 
+## First valid native Release policy regression — 15 October 2026
+
+**Primary objective remains:** an actual functioning Sandboxie-derived
+MIVUBI native isolation engine. Desktop/client-manager additions are not
+a substitute for kernel/service/DLL integration.
+
+**Verified defect (fixed):** `owned-runtime/
+mivubi_owned_start_policy.test.cpp` used `assert` for all native checks.
+CMake Release builds normally define `NDEBUG`, which removes those
+checks. The old test passed despite a deliberately wrong expected
+result; the new always-on `require` helper fails on the same planted
+error, and 26 correct cases pass. Six truncated-input cases were added.
+The source policy's combined conditional was made sequential for
+auditability; ASAN did *not* show a memory error in the old expression
+because C++ short-circuit semantics already protected the missing
+character positions. Do not cite it as a demonstrated memory-safety bug.
+
+**Exact candidate proof in ChatGPT:** the two GitHub candidate C++/header
+blobs were reproduced byte-for-byte and their `git hash-object`
+matched. Native Release `-DNDEBUG` GCC and Clang: PASS, 26 cases
+each. AddressSanitizer + UBSan GCC and Clang: PASS. Two CMake Release
+builds and CTest PASS. The updated Start.cpp source patch still
+matches all eight pinned upstream v1.18.5 source files, produces
+16 hunks and passes exact edited-byte comparison in ChatGPT V8.
+No claim is made about Windows/MSVC/WDK source compilation.
+
+**Next substantive task:** the private runtime must be compiled as an
+actual Windows kernel minifilter/service/DLL/Start set on an approved
+disposable lab, with REA inspection of genuine native outputs and
+driven bug fixes. Merely running more static/checker tests or modifying
+docs must not be treated as product completion. Existing official
+Sandboxie and account-bearing profiles are unchanged.
+
+
 ## Core identity memory-safety correction — 15 October 2026
 
 **Priority:** deliver a functioning Sandboxie-derived native MIVUBI core,

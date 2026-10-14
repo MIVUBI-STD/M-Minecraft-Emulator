@@ -32,8 +32,12 @@ static MivubiOwnedDecision MivubiParseOwnedStart(wchar_t* cmd,
             return MivubiOwnedDecision::NotOwned;
     }
     wchar_t* p = cmd + (sizeof(prefix) / sizeof(prefix[0]) - 1);
-    if (p[0] != L'0' || (p[1] != L'2' && p[1] != L'3' && p[1] != L'4') ||
-        p[2] != L' ' || p[3] != L'"') return MivubiOwnedDecision::Rejected;
+    // Examine one character at a time. Short-circuit at the first NUL:
+    // a truncated command must not read p[1], p[2] or p[3] past its buffer.
+    if (p[0] != L'0') return MivubiOwnedDecision::Rejected;
+    if (p[1] != L'2' && p[1] != L'3' && p[1] != L'4')
+        return MivubiOwnedDecision::Rejected;
+    if (p[2] != L' ' || p[3] != L'"') return MivubiOwnedDecision::Rejected;
     const wchar_t* box = p[1] == L'2' ? L"MivubiEdu02" :
                          p[1] == L'3' ? L"MivubiEdu03" : L"MivubiEdu04";
     wchar_t* command = p + 3;
