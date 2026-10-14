@@ -10,6 +10,7 @@ import { lstatSync, realpathSync } from "node:fs";
 import {
   DRIVER_SERVICE, USER_SERVICE, UPSTREAM_SHA, evaluateProvisionReceipt,
 } from "./provision-disposable.mjs";
+import { validateOwnershipLedger } from "./windows/ownership-ledger.mjs";
 
 const PLAN_STATE = "SOURCE_PLAN_ONLY_DRIVER_INSTALL_BLOCKED";
 const JOURNAL_SCHEMA = 1;
@@ -63,6 +64,9 @@ function validateJournal(plan, journal) {
     if (i > 0) ensure(journal.records[i - 1].outcome === "CONFIRMED",
       "journal continued past failed or unknown operation");
   }
+  // The sole transaction journal also owns operator review and SCM evidence:
+  // never introduce a second lifecycle store or infer ownership from records.
+  validateOwnershipLedger(journal);
 }
 function checkPlan(plan) {
   ensure(plan?.schema === 1 && plan.state === PLAN_STATE &&
@@ -94,6 +98,49 @@ function writeDurableJson(path, value) {
   }
 }
 
+function bindTransactionJournal(path, plan) {
+  return {
+    read() {
+      const buf = readFileSync(path);
+      ensure(buf.length < 32768, "journal too large");
+      return JSON.parse(buf.toString("utf8"));
+    },
+    replace(next) {
+      const previous = this.read();
+      validateJournal(plan, previous);
+      validateJournal(plan, next);
+      ensure(next.actualDriverInstalled === false &&
+        next.providerSelected === false && next.rollbackAuthorized === false,
+      "journal claims privileged effects");
+      // Existing step history may only append, or resolve the LAST UNKNOWN.
+      ensure(next.records.length >= previous.records.length &&
+        next.records.length <= previous.records.length + 1,
+        "provisioning step history cannot be deleted or skipped");
+      for (let i = 0; i < previous.records.length; i++) {
+        const before = previous.records[i], after = next.records[i];
+        ensure(before.id === after.id && before.component === after.component &&
+          before.stepAction === after.stepAction &&
+          (before.outcome === after.outcome ||
+            (i === previous.records.length - 1 && before.outcome === "UNKNOWN" &&
+              ["CONFIRMED", "FAILED"].includes(after.outcome))),
+          "previous provisioning outcome is immutable");
+      }
+      if (previous.operatorReviewIntent !== undefined) {
+        ensure(JSON.stringify(previous.operatorReviewIntent) ===
+          JSON.stringify(next.operatorReviewIntent), "review intent cannot change");
+      }
+      const oldEvidence = previous.serviceEvidence ?? [];
+      const evidence = next.serviceEvidence ?? [];
+      ensure(evidence.length >= oldEvidence.length &&
+        evidence.length <= oldEvidence.length + 1 &&
+        oldEvidence.every((event, i) => JSON.stringify(event) === JSON.stringify(evidence[i])),
+        "previous SCM evidence cannot be removed, edited or reordered");
+      writeDurableJson(path, next);
+    },
+    location: path,
+  };
+}
+
 /**
  * Stores a local, exclusive, durable simulation journal. Never points at
  * an engine payload, profile directory or existing journal. No auto-cleanup
@@ -123,21 +170,28 @@ export function createTransactionJournal(destination, plan) {
     rollbackAuthorized: false,
   };
   writeDurableJson(path, starting);
-  return {
-    read() {
-      const buf = readFileSync(path);
-      ensure(buf.length < 32768, "journal too large");
-      return JSON.parse(buf.toString("utf8"));
-    },
-    replace(next) {
-      validateJournal(plan, next);
-      ensure(next.actualDriverInstalled === false &&
-        next.providerSelected === false && next.rollbackAuthorized === false,
-      "journal claims privileged effects");
-      writeDurableJson(path, next);
-    },
-    location: path,
-  };
+  return bindTransactionJournal(path, plan);
+}
+
+
+// Reopen the EXISTING canonical journal for a separate review session.
+// This is never a resume/replay of a privileged operation.
+export function openTransactionJournal(directory, plan) {
+  checkPlan(plan);
+  ensure(typeof directory === "string" && directory.trim(), "journal directory required");
+  const root = resolve(directory);
+  const rootStat = lstatSync(root);
+  ensure(rootStat.isDirectory() && !rootStat.isSymbolicLink() &&
+    (process.platform === "win32"
+      ? realpathSync(root).toLowerCase() === root.toLowerCase()
+      : realpathSync(root) === root), "journal directory must not be redirected");
+  const path = join(root, "transaction.json");
+  const fileStat = lstatSync(path);
+  ensure(fileStat.isFile() && !fileStat.isSymbolicLink(),
+    "journal must be an ordinary file");
+  const journal = bindTransactionJournal(path, plan);
+  validateJournal(plan, journal.read());
+  return journal;
 }
 
 /**

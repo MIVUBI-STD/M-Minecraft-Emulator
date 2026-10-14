@@ -57,6 +57,12 @@ The command transport currently **cannot install, start, stop or delete** a serv
 
 The KmdUtil command compiler is now tightened: self-declared `ownerProofVerified=true` and `signedReceiptAttested=true` cannot generate STOP/DELETE descriptors while there is no pinned lab attestation public key. The PowerShell transport is still sealed in Apply mode, and the app never selects or installs an owned driver.
 
+## Operator review and ownership ledger (source-first, 2026-10-14)
+
+The existing `execute-disposable.mjs` journal now has one durable owner for both provisioning stages and later recovery review. `openTransactionJournal` reopens an existing journal without resuming or replaying any operation; `replace` preserves prior step outcomes, operator intent, and SCM evidence prefix. `ownership-ledger.mjs` records a per-transaction **review-only** operator acknowledgment and at most two read-only SCM image observations (one driver, one service). Each event is linked by a SHA-256 hash chain and restricted to the pinned upstream plan and transaction ID. The journal deliberately avoids raw account identities or private world data.
+
+The event hash chain is **not a MAC or digital signature**: an attacker with write access could recalculate it. This is continuity/audit evidence, NOT independent SCM service ownership or a disposable-machine attestation. The explicit operator acknowledgment is likewise NOT an authorization to install, stop, delete or rollback. `review-ownership.mjs` is a developer CLI disconnected from Tauri, Windows KmdUtil and Minecraft 02. Every returned operation permission remains `false`.
+
 ## The two distinct independence goals
 
 1. **Deployment independence (approved target):** our app can install, diagnose, manage and update an appropriately licensed and signed app-owned isolation backend without external SandMan/official Sandboxie installation. This still contains appropriately credited Sandboxie-derived GPL components.

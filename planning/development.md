@@ -1,5 +1,17 @@
 # Current Development Handoff
 
+## Canonical operator-review and SCM ownership journal — 2026-10-14
+
+**Work:** continue the source-first driver/service lifecycle controller with durable recovery evidence and explicit operator review without adding a second manager. **State:** DONE for source implementation and logical state/chain checks; native filesystem/Windows validation deferred.
+
+**Decision:** enhance `tooling/isolation-source/execute-disposable.mjs` (single lifecycle journal) with an existing-journal reopen path, monotone provisioning step/receipt checks and immutable review/evidence prefixes. Implement `windows/ownership-ledger.mjs` as a stateless adapter on that journal. Bind operator review intent to the transaction SHA/ID and require the exact nonauthorizing phrase `REVIEW ONLY - NEVER INSTALL STOP OR DELETE`. Append at most one driver and one service SCM observation with a SHA-256 chain; observed file names and hashes are bounded and no raw Microsoft/account/host UUID are persisted. Add developer-only `windows/review-ownership.mjs` CLI to inspect, acknowledge, or record existing read-only SCM evidence without triggering any runtime operation.
+
+**Proof:** exact GitHub blob-source V8 pure transaction-review checks executed: operator acknowledgment, both service observations, read-only summary and modified-event hash-chain refusal pass (5/5). Ten Node filesystem tests authored, including journal re-open, persistent record semantics, tamper, immutable prefix and no simulation replay, but exact native Node test runner NOT_EXECUTED in GitHub-only source context. Staged-tree structural/consumer checks recorded at commit. No privileged Windows driver/service code runs.
+
+**Unresolved:** SHA-256 chain is not independently authenticated; no trusted lab signing key, no actual independently attested host, no SCM/driver execution or rollback, no Minecraft 02 migration and no new engine acceptance. Existing idle crash owner UNKNOWN. The production KmdUtil Apply route remains sealed.
+
+**Next ONE task:** implement source-first reconciliation of persisted SCM and journal evidence with the existing Ed25519 signed lab claims under an independently verified host-identity gate; maintain fail-closed ownership/rollback semantics and do not touch official Minecraft 02.
+
 ## Signed lab binding and service-image ownership source — 2026-10-14
 
 **Work:** close the self-reported boolean rollback loophole in the Windows KmdUtil contract and prepare cryptographic host/source evidence. **State:** DONE for source changes; Windows and Ed25519 Node test suite execution pending.

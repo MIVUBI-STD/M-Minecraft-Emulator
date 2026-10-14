@@ -146,6 +146,30 @@ To collect a read-only Windows service-image observation (source written, Window
 
 Seven Node tests for Ed25519 evidence and six for ownership correlation are authored. The KmdUtil compiler's seven pure scenarios and eight ownership-logic scenarios were checked against exact source blobs in the available JavaScript runtime; full Node cryptographic test, PowerShell Windows execution and actual signer provisioning remain NOT_EXECUTED.
 
+## Durable operator review and service ownership ledger
+
+The same journal now supports **reopening an existing transaction for review** without restarting an installation or an earlier simulation. `execute-disposable.mjs` rejects removal/rewriting of previous provisioning steps and SCM observations. `windows/ownership-ledger.mjs` binds an explicit operator acknowledgment to the current transaction and appends at most two read-only SCM observations with SHA-256-linked entries.
+
+Use the developer-only CLI `windows/review-ownership.mjs` to inspect a journal:
+
+~~~text
+node tooling/isolation-source/windows/review-ownership.mjs inspect <plan.json> <existing-journal-directory>
+~~~
+
+To explicitly record a **review-only** acknowledgment:
+
+~~~text
+node tooling/isolation-source/windows/review-ownership.mjs acknowledge <plan.json> <existing-journal-directory> <transaction-id> "REVIEW ONLY - NEVER INSTALL STOP OR DELETE"
+~~~
+
+To record a read-only SCM result:
+
+~~~text
+node tooling/isolation-source/windows/review-ownership.mjs observe <plan.json> <existing-journal-directory> SbieSvc <read-only-scm.json>
+~~~
+
+The CLI does not call KmdUtil, Windows SCM, or the active Tauri runtime. Its operator acknowledgment is not authorization; the event hash chain is not a digital signature. Every operation remains blocked and no service can be stopped/deleted from these records. An additional ten Node filesystem test cases are authored and V8 pure state/chain checks have been exercised; Windows/Node24 integrated validation remains NOT_EXECUTED.
+
 ## Product separation, attribution and acceptance
 
 Raw outputs remain in the upstream checkout; a private candidate may be staged into an explicitly requested separate folder. Neither is committed to `Local`, merged into Rust, or installed under the existing `M-Bedrock Virtual Clients` identity. Do not try a custom driver next to the official Sandboxie service/driver in the same account-bearing Windows installation: device/service/IPC namespaces may collide. The future cutover needs a dedicated disposable Windows environment, signing and crash-attribution evidence, game compatibility, persist/reboot and rollback tests, plus a new license/distribution decision. A fork is **deployment independence** once proved, not source independence from Sandboxie.
