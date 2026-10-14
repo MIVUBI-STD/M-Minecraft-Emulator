@@ -213,12 +213,27 @@ function onlyOnce(source, anchor, path) {
   assert(typeof source === "string" && source.includes(anchor) &&
     source.split(anchor).length === 2, "upstream anchor changed in " + path);
 }
+
+// On Windows a clean checkout may contain CRLF even when its Git blobs are
+// canonically LF (core.autocrlf=true). Git apply --index understands that
+// conversion. Generate unified diffs from normalized LF content only; never
+// rewrite the operator's tracked source or its global Git configuration.
+// Mixed/lone-CR lines are refused rather than interpreted ambiguously.
+function asGitPatchLines(source, path) {
+  const crlfCount = (source.match(/\r\n/g) || []).length;
+  const newlines = (source.match(/\n/g) || []).length;
+  const normalized = source.replace(/\r\n/g, "\n");
+  assert(!normalized.includes("\r") &&
+    (crlfCount === 0 || crlfCount === newlines),
+    "unsupported mixed/lone-CR line endings in " + path);
+  return normalized;
+}
 function hunk(source, path, anchor, added, before = false, offset = 0, headers = true) {
   onlyOnce(source, anchor, path);
   // Git applies a context hunk against the INDEX, not against a matching
   // isolated line. An anchor-only hunk can fail despite an exact match.
-  // The pinned upstream files have LF endings and a following source line.
-  assert(!source.includes("\r\n"), "upstream newline format changed in " + path);
+  // Input has been LF-normalized in memory; Git may preserve CRLF on disk.
+  assert(!source.includes("\r"), "Git patch source must be LF normalized: " + path);
   const at = source.indexOf(anchor);
   const after = source.slice(at + anchor.length);
   assert(after.startsWith("\n") && after.length > 1,
@@ -275,6 +290,11 @@ export function buildPrivateSourcePatch(files) {
   assert(Object.keys(files).length === SOURCE_FILES.length &&
     SOURCE_FILES.every(path => typeof files[path] === "string"),
     "the exact pinned source-file closure is required");
+  // Normalize only the in-memory patch input. The Git checkout and
+  // expected-source verification retain their original newline form.
+  files = Object.fromEntries(SOURCE_FILES.map(path => [
+    path, asGitPatchLines(files[path], path),
+  ]));
   const header = files[SOURCE_FILES[0]];
   onlyOnce(header, VERSION_ANCHOR, SOURCE_FILES[0]);
   for (const original of [

@@ -1,5 +1,37 @@
 # Current Development Handoff — M-Minecraft-Emulator
 
+## Private fork Windows Git CRLF compatibility — 15 October 2026
+
+**Goal:** actual native MIVUBI-owned Sandboxie core binaries that compile
+and run. Do not confuse source-work milestones with an operational
+replacement for official Sandboxie.
+
+**Implemented:** upstream .gitattributes marks .c/.cpp as text but not
+`eol=lf`. A clean Windows fork with `core.autocrlf=true` can have CRLF
+working-tree source. The previous private patch generator rejected CRLF
+before invoking Git apply, preventing actual private fork construction
+on a valid Windows checkout. The owner now normalizes each authorized
+file *in memory* to LF for patch creation, rejects mixed/lone-CR source,
+does not change `core.autocrlf` or rewrite source files, and preserves
+expected source bytes for either clean newline convention.
+
+**Evidence:** all eight actual pinned v1.18.5 upstream file contents
+produced exactly the same 16-hunk patch from LF and CRLF representations;
+mixed/lone-CR variants failed closed; eight authored pure JS test bodies
+executed and passed in ChatGPT V8. A disposable Git checkout with
+`core.autocrlf=true` demonstrated that `git apply --check --index`
+and `git apply --index` accept the LF patch and preserve CRLF on disk.
+The checked-in Git integration regression covers all eight source paths.
+**NOT executed:** full pinned Node24 test suite, whole-Sandboxie Git
+checkout/build in a Windows MSVC/WDK environment, REA native binaries,
+kernel load/service, and Minecraft four-client acceptance.
+
+**Next single step:** test and build the private fork using an eligible
+isolated Windows toolchain, then fix actual native compile/load
+incompatibilities and inspect artifacts with REA. Do not touch the active
+account-bearing official Sandboxie host.
+
+
 ## Private DLL atomic handle-verification cache — 15 October 2026
 
 **Primary goal:** MIVUBI's own functioning Sandboxie-derived native

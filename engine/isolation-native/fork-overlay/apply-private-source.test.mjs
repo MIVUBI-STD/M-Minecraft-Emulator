@@ -195,10 +195,62 @@ test("entire patch applies atomically to a disposable Git checkout without renam
   }
 });
 
-test("refuses unexpected upstream line endings before writing a patch", () => {
-  const crlf = sources();
-  crlf[SOURCE_FILES[0]] = crlf[SOURCE_FILES[0]].replace(/\n/g, "\r\n");
-  assert.throws(() => buildPrivateSourcePatch(crlf), /upstream newline format changed/);
+test("accepts clean Windows CRLF source without changing the Git patch bytes", () => {
+  const lf = sources();
+  const windows = Object.fromEntries(Object.entries(lf).map(([name, data]) =>
+    [name, data.replace(/\n/g, "\r\n")]));
+  assert.equal(buildPrivateSourcePatch(windows), buildPrivateSourcePatch(lf));
+  const mixed = {...windows, [SOURCE_FILES[1]]:
+    windows[SOURCE_FILES[1]].replace("\r\n", "\n")};
+  assert.throws(() => buildPrivateSourcePatch(mixed),
+    /unsupported mixed\/lone-CR line endings/);
+  const lone = {...lf, [SOURCE_FILES[0]]:
+    lf[SOURCE_FILES[0]].replace("\n", "\r")};
+  assert.throws(() => buildPrivateSourcePatch(lone),
+    /unsupported mixed\/lone-CR line endings/);
+});
+
+test("Git applies the private patch to a Windows-style CRLF checkout", () => {
+  const root = mkdtempSync(join(tmpdir(), "owned-source-windows-crlf-"));
+  try {
+    git(root, ["init", "-b", "main"]);
+    git(root, ["config", "user.name", "MIVUBI Test"]);
+    git(root, ["config", "user.email", "test@example.invalid"]);
+    git(root, ["config", "core.autocrlf", "true"]);
+    // Same .c/.cpp policy as pinned Sandboxie upstream .gitattributes.
+    writeFileSync(join(root, ".gitattributes"),
+      "*.c text working-tree-encoding=UTF-8\n" +
+      "*.cpp text working-tree-encoding=UTF-8\n");
+    for (const [path, data] of Object.entries(sources())) {
+      const target = join(root, ...path.split("/"));
+      mkdirSync(dirname(target), {recursive: true});
+      writeFileSync(target, data);
+    }
+    git(root, ["add", "."]);
+    git(root, ["commit", "-m", "Pinned source fixture with Windows conversion"]);
+    for (const path of SOURCE_FILES)
+      rmSync(join(root, ...path.split("/")));
+    git(root, ["restore", "--worktree", "--", "Sandboxie"]);
+    const checkout = Object.fromEntries(SOURCE_FILES.map(path => [
+      path, readFileSync(join(root, ...path.split("/")), "utf8")
+    ]));
+    assert.ok(SOURCE_FILES.every(path => checkout[path].includes("\r\n")));
+    assert.equal(git(root, ["status", "--porcelain"]), "");
+    const patch = buildPrivateSourcePatch(checkout);
+    assert.equal(patch, buildPrivateSourcePatch(sources()));
+    git(root, ["apply", "--check", "--index", "--whitespace=error", "-"], patch);
+    git(root, ["apply", "--index", "--whitespace=error", "-"], patch);
+    const expected = buildExpectedPrivateSources(checkout);
+    for (const path of SOURCE_FILES) {
+      const actual = readFileSync(join(root, ...path.split("/")), "utf8");
+      assert.equal(actual, expected[path]);
+      assert.ok(actual.includes("\r\n"), "Git must preserve Windows worktree EOL");
+    }
+    assert.deepEqual(git(root, ["diff", "--cached", "--name-only"]).split("\n"),
+      [...SOURCE_FILES].sort());
+  } finally {
+    rmSync(root, {recursive: true, force: true});
+  }
 });
 
 test("private launcher and driver reject unreviewed runtime-identity edits", () => {

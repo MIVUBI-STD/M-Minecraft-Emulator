@@ -5,6 +5,31 @@ It consumes the original Sandboxie-Plus v1.18.5 `Sandboxie/common/my_version.h`
 from pinned upstream commit `abd4c240031cfb46666daa74ca47ed4e48b561e4`.
 Driver ABI: `0x57230`; driver version: `5.73.5`.
 
+## Windows CRLF private checkout compatibility — 15 October 2026
+
+**Concrete Windows-source fix:** the upstream Sandboxie .gitattributes
+marks .c/.cpp files as Git text but does not force LF in those source
+working-tree paths. On Windows with Git `core.autocrlf=true`, a clean
+private checkout can contain CRLF lines. Earlier
+`buildPrivateSourcePatch` unconditionally rejected CRLF, so private
+fork source application could stop before MSBuild even begins.
+
+The canonical source owner now accepts consistent LF or CRLF source,
+normalizes the *in-memory patch input* to LF, and leaves both the actual
+checkout and the user's Git configuration untouched. Mixed/lone-CR
+source fails closed. `git apply --index` preserves checkout EOL through
+Git's attributes conversion; this was verified on a disposable Git repo
+configured for Windows CRLF, with check+index apply both succeeding.
+The exact eight Sandboxie v1.18.5 GitHub upstream sources produced
+byte-identical LF/CRLF patches (16 hunks), and the committed expected
+source verifier preserves CRLF if its input is CRLF.
+
+**Evidence boundary:** candidate pure source regressions passed in
+ChatGPT V8; a new checked-in disposable-Git integration test exercises
+all eight fixture files under `core.autocrlf=true`. This is not
+execution of the pinned Node24 runner, Windows MSBuild, a signed kernel
+driver, or Minecraft gameplay.
+
 ## Private-exclusive MIVUBI source fork (source-first)
 
 The **first planned private runtime** preserves the pinned upstream's
@@ -142,8 +167,8 @@ the insertion anchor as context. This generated syntactically plausible hunks
 that Git could reject with `patch does not apply`, even against the exact
 expected file contents. The source owner now includes the **following
 original source line as trailing context** and adjusts old/new hunk lengths
-to two original context lines. Unexpected CRLF source is refused before
-writing a patch. The existing disposable-Git regression does real
+to two original context lines. A clean Windows CRLF working tree is now accepted and normalized in
+memory into an LF Git patch. Mixed EOL or lone-CR input is still refused. The existing disposable-Git regression does real
 `git apply --check --index --whitespace=error` and `git apply --index`
 against its fixture checkout.
 
