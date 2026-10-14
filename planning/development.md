@@ -1,5 +1,42 @@
 # Current Development Handoff
 
+## Official Client 02 post-helper retry gap — 2026-10-14
+
+**Work:** close a source-level timing weakness in the active official
+Sandboxie Client 02 launch guard. **State:** DONE for bounded source correction;
+full Rust/Node24 and real Windows/Minecraft tests NOT_EXECUTED.
+
+**Observed defect:** the existing 30-second in-process anti-duplicate gap
+started immediately *before* the bounded PowerShell/Start.exe launch
+helper. That helper has a 20-second outer deadline and its result can
+be ambiguous: most of the nominal cooldown could elapse before the
+helper returns, allowing a rapid second launch request afterward.
+
+**Decision:** keep the existing single Rust `CLIENT_02_LAUNCH` Mutex held
+across fresh preflight, helper launch and its result. Record
+`Instant::now()` only after the bounded helper returns (including
+error/timeout), then propagate the original result. A pure helper
+`client_02_launch_in_retry_gap` makes the 30-second interval independently
+testable without mutating global shared state. Existing native Rust test
+and desktop source-order regression were added. The backend, box and
+Microsoft-signed executable checks are otherwise unchanged.
+
+**Proof:** exact GitHub source contract and V8 source-order check;
+the 30-second guard, one fresh membership inspection, no automatic
+retry and the same official backend remain. Rust/Node24 native tests
+and real PowerShell/Minecraft completion timings remain NOT_EXECUTED.
+
+**Limitations:** this cooldown is process-local and does not coordinate
+an external SandMan launch, another Windows session or an attacker
+mutating a box concurrently. Neither an accepted helper result nor an
+anti-duplicate gap proves independent Microsoft accounts or gameplay.
+
+**Next ONE task:** continue only any remaining actionable source-first
+verification using available tools; leave Windows driver signing/loading,
+native REA binaries and four-client acceptance for an authorized
+disposable test environment, without touching the existing account box.
+
+
 ## Official Client 02 launch admission recheck — 2026-10-14
 
 **Work:** inspect source-only whether recent owned candidate hardening

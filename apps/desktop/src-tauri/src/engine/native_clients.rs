@@ -11,12 +11,20 @@ use std::{
 const CLIENT_02_LAUNCH_RETRY_GAP: Duration = Duration::from_secs(30);
 static CLIENT_02_LAUNCH: Mutex<Option<Instant>> = Mutex::new(None);
 
+// The retry gap starts from the helper's completed/failed outcome, not from
+// its launch. That avoids consuming most of the safety window while the
+// bounded PowerShell/Start.exe helper is still running. This only protects
+// this app's explicit launches; external Sandboxie activity is not atomic.
+fn client_02_launch_in_retry_gap(last: Option<Instant>, now: Instant) -> bool {
+    last.is_some_and(|finished| now.saturating_duration_since(finished) < CLIENT_02_LAUNCH_RETRY_GAP)
+}
+
 fn acquire_client_02_launch() -> io::Result<MutexGuard<'static, Option<Instant>>> {
     let guard = CLIENT_02_LAUNCH.try_lock().map_err(|_| {
         io::Error::new(io::ErrorKind::WouldBlock,
             "A Client 02 launch is already in progress")
     })?;
-    if guard.as_ref().is_some_and(|last| last.elapsed() < CLIENT_02_LAUNCH_RETRY_GAP) {
+    if client_02_launch_in_retry_gap(*guard, Instant::now()) {
         return Err(io::Error::new(io::ErrorKind::AlreadyExists,
             "Client 02 was recently requested; inspect before retrying after 30 seconds"));
     }
@@ -948,14 +956,16 @@ try {{
     $launcher.Dispose()
 }}
 "#);
-    // Even a timed-out launch command might have spawned Minecraft already.
-    // Reserve a brief retry gap before the potentially ambiguous side effect.
-    *launch_guard = Some(Instant::now());
-    virtual_clients_core::bounded_command_output(
+    // Even a failed/timed-out Start.exe request may already have spawned the
+    // game. Keep the in-process lock throughout the attempt and reserve the
+    // entire retry gap AFTER helper completion, including ambiguous failures.
+    let launch_result = virtual_clients_core::bounded_command_output(
         &system_powershell()?,
         ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", script.as_str()],
         Duration::from_secs(20),
-    )?;
+    );
+    *launch_guard = Some(Instant::now());
+    launch_result?;
     Ok(())
 }
 
@@ -1177,6 +1187,18 @@ mod tests {
         let mut unknown = fresh.clone();
         unknown.membership_status = "UNKNOWN".into();
         assert!(super::verify_fresh_focus_target(&target, &unknown).is_err());
+    }
+
+    #[test]
+    fn client_02_retry_gap_uses_helper_completion_timestamp() {
+        let now = std::time::Instant::now();
+        let gap = super::CLIENT_02_LAUNCH_RETRY_GAP;
+        assert!(!super::client_02_launch_in_retry_gap(None, now));
+        assert!(super::client_02_launch_in_retry_gap(Some(now), now));
+        assert!(super::client_02_launch_in_retry_gap(
+            Some(now - (gap - std::time::Duration::from_secs(1))), now
+        ));
+        assert!(!super::client_02_launch_in_retry_gap(Some(now - gap), now));
     }
 
     #[test]

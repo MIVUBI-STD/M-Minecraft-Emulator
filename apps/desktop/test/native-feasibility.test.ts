@@ -470,3 +470,22 @@ describe("Native candidate IPC evidence", () => {
     expect(engine).toContain(String.raw`('"shell:AppsFolder\' + $appId + '"')`);
   });
 });
+
+describe("Client 02 retry safety — bounded official launch", () => {
+  it("starts the anti-duplicate gap after the helper outcome, not before", () => {
+    const source = readFileSync(new URL("../src-tauri/src/engine/native_clients.rs", import.meta.url), "utf8");
+    const launch = source.slice(source.indexOf("fn launch_with_official_sandboxie(executable: String, licensed: bool) -> io::Result<()>"),
+      source.indexOf("#[cfg(not(windows))]\nfn launch_with_official_sandboxie"));
+    const start = launch.indexOf("let launch_result = virtual_clients_core::bounded_command_output(");
+    const mark = launch.indexOf("*launch_guard = Some(Instant::now());");
+    const complete = launch.indexOf("launch_result?;");
+    expect(start).toBeGreaterThan(-1);
+    expect(mark).toBeGreaterThan(start);
+    expect(complete).toBeGreaterThan(mark);
+    expect(source).toContain("client_02_launch_in_retry_gap(*guard, Instant::now())");
+    expect(source).toContain("fn client_02_retry_gap_uses_helper_completion_timestamp()");
+    expect(launch).toContain("let mut launch_guard = acquire_client_02_launch()?;");
+    expect(launch).toContain("admit_client_02_launch_snapshot(&observation)?;");
+    expect(launch).not.toContain("desktop_activate_owned_engine");
+  });
+});
