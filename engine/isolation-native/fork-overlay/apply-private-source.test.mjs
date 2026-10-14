@@ -37,6 +37,12 @@ test("generated patch touches exactly seven core build owners and preserves kern
   const patch = buildPrivateSourcePatch(sources());
   assert.equal((patch.match(/^diff --git/gm) ?? []).length, 7);
   assert.equal((patch.match(/^@@ /gm) ?? []).length, 7);
+  // Git apply rejects the earlier anchor-only hunks even when the line
+  // matches. Every insertion must retain a following source context line.
+  assert.match(patch, /@@ -\d+,2 \+\d+,4 @@/);
+  assert.match(patch, /\+#define MIVUBI_PRIVATE_ISOLATION_ABI   0x57230\n #define SBIEDRV/);
+  assert.match(patch, /\+#endif\n int test_function\(void\)/);
+  assert.equal((patch.match(/^@@ -\d+,2 \+\d+,(?:4|7) @@$/gm) ?? []).length, 7);
   assert.ok(patch.includes("#define MIVUBI_PRIVATE_ISOLATION_BUILD 0x4D495655"));
   assert.ok(patch.includes("MY_ABI_VERSION != MIVUBI_PRIVATE_ISOLATION_ABI"));
   assert.ok(!patch.includes('-#define SBIEDRV'));
@@ -79,6 +85,12 @@ test("entire patch applies atomically to a disposable Git checkout without renam
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+test("refuses unexpected upstream line endings before writing a patch", () => {
+  const crlf = sources();
+  crlf[SOURCE_FILES[0]] = crlf[SOURCE_FILES[0]].replace(/\n/g, "\r\n");
+  assert.throws(() => buildPrivateSourcePatch(crlf), /upstream newline format changed/);
 });
 
 test("wrong ABI, unexpected service identity and duplicate compiler anchors fail closed", () => {

@@ -127,3 +127,21 @@ No CMake/MSVC execution is claimed from the ChatGPT/GitHub source review.
 The unmodified pinned submodule requires exact pinned HEAD and a clean
 tracked/untracked source checkout. It is not falsely treated as a committed
 MIVUBI fork.
+
+## Corrected patch application preflight (2026-10-14)
+
+The initial `apply-private-source.mjs` unified-diff generator included only
+the insertion anchor as context. This generated syntactically plausible hunks
+that Git could reject with `patch does not apply`, even against the exact
+expected file contents. The source owner now includes the **following
+original source line as trailing context** and adjusts old/new hunk lengths
+to two original context lines. Unexpected CRLF source is refused before
+writing a patch. The existing disposable-Git regression does real
+`git apply --check --index --whitespace=error` and `git apply --index`
+against its fixture checkout.
+
+The regression was additionally reproduced and corrected with disposable
+Git on the ChatGPT execution container. Seven fixture hunks now apply
+atomically in the source checkout; no real Windows binary build, driver
+load or account data was involved. Real upstream patch application remains
+an additional integration obligation on the exact v1.18.5 source checkout.

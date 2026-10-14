@@ -44,15 +44,25 @@ function onlyOnce(source, anchor, path) {
 }
 function hunk(source, path, anchor, added) {
   onlyOnce(source, anchor, path);
-  const line = source.slice(0, source.indexOf(anchor)).split("\n").length;
+  // Git applies a context hunk against the INDEX, not against a matching
+  // isolated line. An anchor-only hunk can fail despite an exact match.
+  // The pinned upstream files have LF endings and a following source line.
+  assert(!source.includes("\r\n"), "upstream newline format changed in " + path);
+  const at = source.indexOf(anchor);
+  const after = source.slice(at + anchor.length);
+  assert(after.startsWith("\n") && after.length > 1,
+    "upstream trailing patch context missing in " + path);
+  const followingLine = after.slice(1).split("\n")[0];
+  const line = source.slice(0, at).split("\n").length;
   const plus = added.map(text => "+" + text).join("\n");
   return [
     "diff --git a/" + path + " b/" + path,
     "--- a/" + path,
     "+++ b/" + path,
-    "@@ -" + line + ",1 +" + line + "," + (added.length + 1) + " @@",
+    "@@ -" + line + ",2 +" + line + "," + (added.length + 2) + " @@",
     " " + anchor,
     plus,
+    " " + followingLine,
     "",
   ].join("\n");
 }

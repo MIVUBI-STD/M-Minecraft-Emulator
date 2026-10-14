@@ -1,5 +1,39 @@
 # Current Development Handoff — M-Minecraft-Emulator
 
+## Actual private-fork patch application defect fixed — 2026-10-14
+
+**Work:** make the seven-file private source overlay actually applicable by
+Git, rather than just syntactically plausible text. **State:** DONE for
+source correction and disposable-Git reproduction; the genuine upstream
+private checkout and native Windows build remain NOT_EXECUTED.
+
+**Defect:** `buildPrivateSourcePatch()` emitted Git unified-diff hunks
+containing the insertion anchor but no original following context line
+(`@@ -line,1 +line,added+1 @@`). In a disposable seven-file Git fixture,
+`git apply --check --index` rejected that form as `patch does not apply`
+even though every anchor matched. This would block `--fork-root` before
+MSBuild or REA could make progress.
+
+**Fix:** each hunk retains one following original source line and updates
+the header to `@@ -line,2 +line,added+2 @@`. Unexpected CRLF source is
+rejected rather than producing misleading provenance. Existing disposable
+Git patch-application test plus new format/negative-case assertions
+cover the correction. Seven-file Git fixture application now succeeds
+(`git apply --check --index`, then `git apply --index`) and the actual
+candidate JS hunk output passed five focused assertions in ChatGPT V8.
+
+**Boundaries:** this does NOT prove patch application to the *full pinned
+upstream checkout* in this environment, successful MSBuild/WDK compilation,
+driver load, independent Minecraft gameplay, license clearance or REA
+native provider Evidence. No Windows PC, account data, kernel service or
+real game process was touched.
+
+**Next ONE task:** run the exact seven-file overlay test and subsequent
+source/build stages against a verified full-history pinned upstream
+checkout when eligible; continue ChatGPT-only development only for
+demonstrable defects, not repeated unexecuted readiness audits.
+
+
 ## Status decision — 14 October 2026: ChatGPT source stage NOT completely closed
 
 **Exact GitHub HEAD before this handoff update:** `0e486f151cef`.
