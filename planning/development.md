@@ -1,5 +1,49 @@
 # Current Development Handoff — M-Minecraft-Emulator
 
+## Status decision — 14 October 2026: ChatGPT source stage NOT completely closed
+
+**Exact GitHub HEAD before this handoff update:** `0e486f151cef`.
+The product is NOT a finished Sandboxie replacement. No private signed
+driver/service, installed source-compiled runtime, REA native binary Evidence,
+four-profile launch backend or four-client gameplay proof exists.
+
+**Confirmed done in GitHub source:** pinned v1.18.5 upstream inventory,
+source-fork/patch bootstrap, exact committed seven-file patch checker, Windows
+build scripts, noninstallable artifact stager, offline source/ABI probe,
+bounded read-only Tauri inspector, unchanged official Sandboxie Client 02
+backend and regression fixtures. A source patch marker is NOT a new
+isolation implementation.
+
+**Remaining GitHub/ChatGPT-only work:** the full `npm run
+test:isolation-source` and other exact-revision Node/Rust/desktop tests
+remain unexecuted at the pinned toolchain. Static V8 test-body runs do
+not count as those test suites. Any genuine test failures or demonstrable
+source contradictions should be fixed on `Local`; do not add speculative
+readiness layers. The upstream build guide was corrected to use **different
+report paths** for collection-only and the subsequent build, while build
+and build-plus-staging are **alternatives** on a fresh checkout.
+
+**Cannot be completed by GitHub source review alone:** native MSVC/WDK
+compilation, signing/cert trust, exclusive service/driver load and rollback,
+REA disassembly/decompilation of compiled Windows PE outputs, Windows
+WAM sign-in and idle-crash diagnosis, multi-hour soak, three/four-client
+resource profiling and independent account acceptance. These must remain
+NOT_EXECUTED until proper evidence exists.
+
+**Acceptance to close source handoff:** source fixes are in a committed
+exact `Local` HEAD; all documented commands are consistent with the current
+nonclobber behavior; no critical source-only known blocker remains; and the
+specific unexecuted toolchain/runtime tests are carried as an explicit
+disposable-Windows lab handoff. This is **source handoff readiness**, not
+product implementation completion.
+
+**Next ONE task:** do not perform a private-driver cutover. Where an eligible
+toolchain becomes available, execute pinned source suites at exact HEAD;
+then build the unmodified baseline in disposable Windows, followed by the
+separate committed private fork and REA comparisons. Never change
+account-bearing Client 02 to force progress.
+
+
 ## Private build preflight syntax and path-collision repair — 2026-10-14
 
 **Work:** remove an actual PowerShell parse blocker in the private native

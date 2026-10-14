@@ -125,3 +125,15 @@ test("baseline Windows build preserves reports, logs and existing staging paths"
     "prior logs must be rejected before any MSBuild invocation");
   assert.doesNotMatch(script, /\b(?:Start-Service|Stop-Service|sc\.exe)\b/i);
 });
+
+test("Windows baseline handoff uses different report paths for inspection and build", () => {
+  const guide = readFileSync(new URL("./README.md", import.meta.url), "utf8");
+  const lines = guide.split("\n").filter(line => line.includes("build-baseline.ps1") &&
+    line.includes("-ReportPath") && !line.trim().startsWith("#"));
+  assert.equal(lines.length, 3, "baseline handoff must show the collection and two alternative build commands");
+  const paths = lines.map(line => line.match(/-ReportPath '([^']+)'/)?.[1]);
+  assert.ok(paths.every(Boolean), "every build example must name an output report");
+  assert.notEqual(paths[0], paths[1], "collection-only must not block the later build report");
+  assert.equal(paths[1], paths[2], "build and build+stage are alternatives, not sequential runs");
+  assert.ok(guide.includes("Do not run both `-Build` examples"));
+});

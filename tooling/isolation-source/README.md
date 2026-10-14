@@ -66,10 +66,11 @@ On a Windows build environment with Visual Studio 2022 C++, MSVC v143, MFC, Wind
 
 ~~~powershell
 # Collection-only check; no compilation or driver operations:
-.\tooling\isolation-source\build-baseline.ps1 -SourceRoot 'D:\Source\M-Isolation-Engine' -ReportPath '.\workspace\isolation-baseline.json'
+.\tooling\isolation-source\build-baseline.ps1 -SourceRoot 'D:\Source\M-Isolation-Engine' -ReportPath '.\workspace\isolation-baseline-inspection.json'
 
-# After prerequisites: explicitly opt into compilation of unmodified upstream:
-.\tooling\isolation-source\build-baseline.ps1 -SourceRoot 'D:\Source\M-Isolation-Engine' -ReportPath '.\workspace\isolation-baseline.json' -Build
+# Optional later build: a NEW report path, never overwriting the inspection.
+# Run only after the required Windows toolchain is independently available.
+.\tooling\isolation-source\build-baseline.ps1 -SourceRoot 'D:\Source\M-Isolation-Engine' -ReportPath '.\workspace\isolation-baseline-build.json' -Build
 ~~~
 
 For source-only verification on any platform, run `npm run isolation-source:verify` and `npm run test:isolation-source` from the app repository root. To check an existing independent checkout before the Windows build, run `node tooling/isolation-source/verify-checkout.mjs --source-root 'D:\Source\M-Isolation-Engine'`. The PowerShell build procedure now requires that exact verification, too. These checks are read-only and have no build or Windows dependencies. The real file-byte verifier is invoked during `build-baseline.ps1` on the actual Windows checkout after artifact collection; metadata validation alone is insufficient.
@@ -82,10 +83,15 @@ The companion Windows x86 binaries `SbieSvc.exe`/`SbieDll.dll` matter even for x
 
 The new [assemble-engine.mjs](./assemble-engine.mjs) assembles a **private, unmodified upstream engine candidate** only after the successful pinned Win32/x64 build and full file-byte checks. Its structure follows upstream runtime packaging: x64 driver/service/DLL and helpers in the root, 32-bit companions in `32/`, required templates/manifests and upstream copyright/licenses under `LICENSES/`, optional PDB symbols under `_debug/`. Each copied artifact is SHA-256 checked again and recorded in `engine-provenance.json`.
 
-Optional Windows build-and-stage command, **NOT_EXECUTED here**:
+Alternative to the preceding `-Build` command: perform **one** clean
+build with staging in a fresh checkout. Do not run both `-Build` examples
+sequentially against the same source tree; the second must refuse the
+previous binary/PDB outputs. Use new report, log and destination paths
+for each separate build. Optional Windows build-and-stage command,
+**NOT_EXECUTED here**:
 
 ~~~powershell
-.\tooling\isolation-source\build-baseline.ps1 -SourceRoot 'D:\Source\M-Isolation-Engine' -ReportPath '.\workspace\isolation-baseline.json' -Build -StageOutput 'D:\Source\M-Isolation-Payload'
+.\tooling\isolation-source\build-baseline.ps1 -SourceRoot 'D:\Source\M-Isolation-Engine' -ReportPath '.\workspace\isolation-baseline-build.json' -Build -StageOutput 'D:\Source\M-Isolation-Payload'
 ~~~
 
 The destination's parent must exist and the destination must not exist yet. The result is labeled `ARTIFACTS_STAGED_NOT_INSTALLABLE`: it is **not** a signed, installed, loadable or gameplay-tested independent isolation engine. Seven executable assembly tests passed with disposable fixture binaries and injected source/byte-verification dependencies. Actual upstream build, staging of genuine binaries, signing and Minecraft acceptance remain NOT_EXECUTED.
