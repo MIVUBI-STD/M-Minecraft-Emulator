@@ -179,6 +179,10 @@ describe("Native candidate IPC evidence", () => {
     expect(engine).toContain("IsolationInspection::TargetedImageProof(target.pid)");
     expect(engine).toContain("trait IsolationBackend {");
     expect(engine).toContain("struct OfficialSandboxieBackend;");
+    expect(engine).toContain("fn request_launch(&self, executable: String, licensed: bool) -> io::Result<()>;");
+    expect(engine).toContain("request_with_backend(&ACTIVE_ISOLATION_BACKEND, executable, licensed)");
+    expect(engine).toContain("launch_with_official_sandboxie(executable, licensed)");
+    expect(engine).toContain("fn adapter_launch_dispatches_once_without_retry_on_timeout()");
     expect(engine).toContain("inspect_with_backend(&ACTIVE_ISOLATION_BACKEND, IsolationInspection::FastLaunchPreflight)");
     expect(engine).toContain('candidate.image_evidence == "SIGNED_EDUCATION_IMAGE_CANDIDATE"');
     expect(engine).toContain('candidate.created_file_time == target.created_file_time');

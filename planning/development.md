@@ -1,5 +1,17 @@
 # Current Development Handoff
 
+## IsolationBackend launch dispatch v0.2 — 2026-10-14
+
+**Work:** one internal provider route for isolated Client 02 inspection and explicit launch. **State:** DONE as bounded source refactor; execution/gameplay verification remains NOT_EXECUTED.
+
+**Decision:** extend private `IsolationBackend` with `request_launch(executable,licensed)`, implemented only by `OfficialSandboxieBackend`. Public `request_sandbox_client_02` stays as the unchanged Tauri ABI compatibility entrypoint. The original official Windows launcher function body, lock, signed Education admission, fresh box inspection, persistent-box settings, `Start.exe` helper and ambiguous-timeout retry gap are preserved exactly; no automatic retry, new runtime selection, driver installation or profile migration.
+
+**Proof:** GitHub tree source comparison confirms 5,030-character Windows launch body unchanged, exactly one public launcher, 78 TypeScript source-string consumer checks statically satisfied, and fake Rust timeout/argument-forwarding regression authored. Actual Rust Cargo, Node/Vitest, Windows and Minecraft runtime tests NOT_EXECUTED for this revision.
+
+**Unresolved:** standalone Sandboxie-derived fork and Win32/x64 binary build/signing NOT_EXECUTED; Windows restart/sustained client stability and the Client 02 idle-crash owner remain UNKNOWN/NOT_EXECUTED.
+
+**Next ONE task:** run targeted source/compiler verification when supported and reproduce the untouched upstream build, then design an owned provider implementation against this internal dispatch contract without touching existing accounts/worlds.
+
 ## Independent artifact-byte verification — 2026-10-14
 
 **Work:** close the gap between a syntactically valid SHA-256 string and evidence from the actual artifact bytes. **State:** DONE for source and Node filesystem tests, Windows build still NOT_EXECUTED.

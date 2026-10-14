@@ -412,9 +412,9 @@ fn admit_client_02_launch_snapshot(observation: &SandboxieClientObservation) -> 
     Ok(())
 }
 
-// The first provider boundary is inspection-only. Launch remains owned by
-// request_sandbox_client_02, including its original lock, preflight and
-// signed official launcher. No runtime provider selector or new state exists.
+// The provider boundary owns inspection and explicit launch requests.
+// Official Sandboxie stays the sole active backend; no data migration,
+// automatic launch retry or runtime provider selector is introduced.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum IsolationInspection {
     StatusWithImageProof,
@@ -424,6 +424,8 @@ enum IsolationInspection {
 
 trait IsolationBackend {
     fn inspect(&self, mode: IsolationInspection) -> io::Result<SandboxieClientObservation>;
+    // This acknowledges a launcher request only, not Minecraft gameplay.
+    fn request_launch(&self, executable: String, licensed: bool) -> io::Result<()>;
 }
 
 struct OfficialSandboxieBackend;
@@ -452,6 +454,10 @@ impl IsolationBackend for OfficialSandboxieBackend {
             Err(io::Error::new(io::ErrorKind::Unsupported, "Windows is required"))
         }
     }
+
+    fn request_launch(&self, executable: String, licensed: bool) -> io::Result<()> {
+        launch_with_official_sandboxie(executable, licensed)
+    }
 }
 
 // An adapter error is propagated verbatim, never interpreted as zero PIDs.
@@ -460,6 +466,15 @@ fn inspect_with_backend(
     mode: IsolationInspection,
 ) -> io::Result<SandboxieClientObservation> {
     backend.inspect(mode)
+}
+
+// One explicit request per invocation: never retry an ambiguous helper result.
+fn request_with_backend(
+    backend: &impl IsolationBackend,
+    executable: String,
+    licensed: bool,
+) -> io::Result<()> {
+    backend.request_launch(executable, licensed)
 }
 
 // The same collector owns both paths. Explicit UI Refresh checks candidate
@@ -805,8 +820,14 @@ pub fn select_education_exe() -> io::Result<Option<String>> {
     Err(io::Error::new(io::ErrorKind::Unsupported, "Windows only"))
 }
 
-#[cfg(windows)]
 pub fn request_sandbox_client_02(executable: String, licensed: bool) -> io::Result<()> {
+    request_with_backend(&ACTIVE_ISOLATION_BACKEND, executable, licensed)
+}
+
+// Original official launch implementation: policy, admission, lock, and
+// Microsoft executable signature checks remain unchanged.
+#[cfg(windows)]
+fn launch_with_official_sandboxie(executable: String, licensed: bool) -> io::Result<()> {
     use std::{path::Path, time::Duration};
     validate_education_path(&executable)?;
     if !licensed {
@@ -913,7 +934,7 @@ try {{
 }
 
 #[cfg(not(windows))]
-pub fn request_sandbox_client_02(_executable: String, _licensed: bool) -> io::Result<()> {
+fn launch_with_official_sandboxie(_executable: String, _licensed: bool) -> io::Result<()> {
     Err(io::Error::new(io::ErrorKind::Unsupported, "Windows only"))
 }
 
@@ -961,6 +982,11 @@ mod tests {
             self.value.clone().ok_or_else(|| std::io::Error::new(
                 std::io::ErrorKind::InvalidData, "no complete sandbox observation"))
         }
+
+        fn request_launch(&self, _executable: String, _licensed: bool) -> std::io::Result<()> {
+            Err(std::io::Error::new(std::io::ErrorKind::Unsupported,
+                "inspection fake never launches"))
+        }
     }
 
     #[test]
@@ -989,6 +1015,39 @@ mod tests {
         assert_eq!(super::ACTIVE_ISOLATION_BACKEND.inspect(
             super::IsolationInspection::TargetedImageProof(0))
             .unwrap_err().kind(), std::io::ErrorKind::InvalidInput);
+    }
+
+
+    struct FakeLaunch {
+        attempts: std::cell::Cell<u32>,
+        received: std::cell::RefCell<Option<(String, bool)>>,
+    }
+
+    impl super::IsolationBackend for FakeLaunch {
+        fn inspect(&self, _mode: super::IsolationInspection)
+            -> std::io::Result<super::SandboxieClientObservation> {
+            Err(std::io::Error::new(std::io::ErrorKind::Unsupported, "launch fake cannot inspect"))
+        }
+
+        fn request_launch(&self, executable: String, licensed: bool) -> std::io::Result<()> {
+            self.attempts.set(self.attempts.get() + 1);
+            *self.received.borrow_mut() = Some((executable, licensed));
+            Err(std::io::Error::new(std::io::ErrorKind::TimedOut,
+                "ambiguous launch outcome"))
+        }
+    }
+
+    #[test]
+    fn adapter_launch_dispatches_once_without_retry_on_timeout() {
+        let fake = FakeLaunch {
+            attempts: std::cell::Cell::new(0),
+            received: std::cell::RefCell::new(None),
+        };
+        let path = "C:/Program Files/Minecraft Education/Minecraft.Windows.exe".to_string();
+        let error = super::request_with_backend(&fake, path.clone(), true).unwrap_err();
+        assert_eq!(error.kind(), std::io::ErrorKind::TimedOut);
+        assert_eq!(fake.attempts.get(), 1);
+        assert_eq!(*fake.received.borrow(), Some((path, true)));
     }
 
     #[test]

@@ -30,7 +30,7 @@ Svelte CompactManagerApp
 Tauri native client commands (thin)
     ↓
 Rust native_clients.rs (current single authority)
-    ↓ implemented inspection-only IsolationBackend boundary (official adapter)
+    ↓ implemented inspect + explicit launch IsolationBackend boundary (official adapter)
     ├─ OfficialSandboxieAdapter → installed signed official 1.18.5 tools (ACTIVE)
     └─ OwnedIsolationAdapter  → independently built/signed/tested fork (FUTURE)
            ↓ service/driver/DLL matched as one release
@@ -45,6 +45,12 @@ This is an internal implementation boundary, not a new Tauri public schema, netw
 The first **source-only** Rust boundary is implemented in the active desktop owner `apps/desktop/src-tauri/src/engine/native_clients.rs`. It privately defines `IsolationBackend::inspect` and `OfficialSandboxieBackend` as the **sole** active implementation. Existing UI status inspection, fast launch preflight and signed-PID window inspection now route through that interface. The actual sandboxed launch remains the **unchanged** official Sandboxie request path and still performs a fresh backend-admitted inspection before requesting `Start.exe`.
 
 The public Tauri/schema-6 `SandboxieClientObservation` is intentionally preserved. This is still an upstream-specific observation; vendor-neutral models, launch abstraction and the separate owned runtime remain future tasks. No new daemon, driver, user setting, account migration or box mutation is added. A fake inspection adapter exercises timeout/incomplete evidence and a zero-PID refusal; authored tests are **NOT_EXECUTED** until Rust/Windows tooling becomes available. This checkpoint does not establish crash recovery, independent deployment, or new gameplay acceptance.
+
+### Implemented source checkpoint: Launch Dispatcher v0.2
+
+The internal `IsolationBackend` now includes `request_launch(executable, licensed)` alongside `inspect(mode)`. `request_sandbox_client_02` is retained as the existing public Tauri entrypoint, but delegates through the **single active** `OfficialSandboxieBackend`. The official provider's Windows launch body is preserved byte-for-byte: executable and license admission, signed Microsoft product check, box membership, service/tool verification, launch lock, and `Start.exe` timeout/retry gap remain unchanged. A test double records forwarded arguments and asserts exactly one request on a timed-out launch.
+
+This is an internal API boundary, **not** a second isolation engine, switched backend, new service, installed fork, or gameplay evidence. `Ok(())` from a launcher remains a *request acknowledgment only*. Public schema 6, app identity, native Client 01, and existing Client 02 profile are unchanged. The future owned provider cannot be activated until independent source/build/signing/Windows acceptance is demonstrated.
 
 ### Future full interface (design-only; not implemented)
 
