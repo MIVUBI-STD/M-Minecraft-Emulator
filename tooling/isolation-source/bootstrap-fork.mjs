@@ -23,8 +23,30 @@ function destinationOccupied(path) {
   catch (error) { if (error.code === 'ENOENT') return false; throw error; }
 }
 
-// Dependency-injectable source/pin exist for tests ONLY. The CLI below always
-// selects the reviewed public Sandboxie URL, v1.18.5 and exact upstream SHA.
+// A checked-out submodule can seed a full independent local Git clone, without
+// needing another network fetch. This does not make a GitHub remote fork.
+export function verifyPinnedSeed(seed, { expectedCommit = PIN, upstreamUrl = UPSTREAM, tag = TAG } = {}) {
+  const root = resolve(seed);
+  if (!existsSync(root) || !lstatSync(root).isDirectory() || lstatSync(root).isSymbolicLink()) {
+    throw new Error('Pinned upstream seed must be a real directory');
+  }
+  const run = (...args) => git(['-C', root, ...args]);
+  if (resolve(run('rev-parse', '--show-toplevel')) !== root ||
+      run('rev-parse', '--is-shallow-repository') !== 'false' ||
+      run('rev-parse', 'HEAD') !== expectedCommit ||
+      run('rev-parse', '--verify', `refs/tags/${tag}^{commit}`) !== expectedCommit) {
+    throw new Error('Seed is not the complete pinned Sandboxie source');
+  }
+  const origin = run('config', '--get', 'remote.origin.url');
+  if (origin !== upstreamUrl) throw new Error('Seed upstream URL does not match approved repository');
+  if (run('status', '--porcelain=v1', '--untracked-files=all') !== '') {
+    throw new Error('Seed contains uncommitted or untracked changes');
+  }
+  return root;
+}
+
+// Dependency-injectable source/pin exist for tests ONLY. The CLI defaults
+// to the reviewed upstream SHA, tag and official GitHub repository.
 export function bootstrapFork({ destination, source = UPSTREAM, expectedCommit = PIN,
   tag = TAG, branch = BRANCH } = {}) {
   if (typeof destination !== 'string' || !destination.trim()) throw new Error('Destination required');
@@ -51,6 +73,9 @@ export function bootstrapFork({ destination, source = UPSTREAM, expectedCommit =
     if (at('rev-parse', '--is-shallow-repository') !== 'false') throw new Error('Shallow clone not accepted');
     at('switch', '--create', branch, expectedCommit);
     at('remote', 'rename', 'origin', 'upstream');
+    // The resulting standalone source always records the real upstream URL,
+    // including when cloned from a previously authenticated local submodule.
+    at('remote', 'set-url', 'upstream', UPSTREAM);
     if (at('rev-parse', 'HEAD') !== expectedCommit) throw new Error('Working branch does not match pinned commit');
     if (at('status', '--porcelain=v1', '--untracked-files=all') !== '') throw new Error('Unexpected dirty checkout');
     const historyCount = Number(at('rev-list', '--count', 'HEAD'));
@@ -69,10 +94,12 @@ export function bootstrapFork({ destination, source = UPSTREAM, expectedCommit =
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
     const args = process.argv.slice(2);
-    if (args.length !== 2 || args[0] !== '--destination') {
-      throw new Error('Usage: node bootstrap-fork.mjs --destination <empty-new-directory>');
+    if (!((args.length === 2 || args.length === 4) && args[0] === '--destination') ||
+        (args.length === 4 && args[2] !== '--local-seed')) {
+      throw new Error('Usage: node bootstrap-fork.mjs --destination <new-directory> [--local-seed <pinned-submodule>]');
     }
-    const result = bootstrapFork({ destination: args[1] });
+    const source = args.length === 4 ? verifyPinnedSeed(args[3]) : UPSTREAM;
+    const result = bootstrapFork({ destination: args[1], source });
     process.stdout.write(JSON.stringify(result, null, 2) + '\n');
   } catch (error) {
     process.stderr.write(error.message + '\n');

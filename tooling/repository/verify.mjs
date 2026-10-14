@@ -11,6 +11,7 @@ const requireFact = (condition, message) => {
 };
 const required = [
   "README.md", "AGENTS.md", "GITHUB_RULES.md", "CONTEXT.md", "CONTRIBUTING.md",
+  ".gitmodules",
   "SECURITY.md", "VERSION", "DEV.cmd", ".agents/skills/emulator-development/SKILL.md",
   "planning/development.md", "docs/README.md", "docs/system/implementation-map.md",
   "tooling/local-test/session.mjs", "tooling/local-test/session.test.mjs",

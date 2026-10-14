@@ -11,6 +11,12 @@ lifecycle: ACTIVE
 
 **Selected direction (2026-10-14):** Personal educational/noncommercial isolation engine, integrated into Minecraft Instance Manager and eventually usable without installing official Sandboxie-Plus. The first implementation is Sandboxie-derived, not a clean-room substitute. Upstream source and license audit: [pinned inventory](../validation/owned-isolation-upstream-inventory.md).
 
+## Source acquisition now pinned in Git (2026-10-14)
+
+The application repository now contains a Git **submodule pointer** to the authentic upstream Sandboxie v1.18.5 commit at `engine/isolation-upstream/Sandboxie`. The `.gitmodules` URL targets the public upstream repository, and a tested `bootstrap-fork.mjs --local-seed` path creates a **separate full-history checkout** for engine development after initializing the submodule. This removes the need to copy kernel source files into this app repository. The pointer is a real Git tree entry, not an installed runtime; the actual submodule bytes have not been downloaded into the current execution environment.
+
+**Non-claims:** a Git submodule is not a published MIVUBI fork; an independent checkout is not a custom signed driver; a compiled driver is not the same as a working, independently authenticated Minecraft Education session. The active official Sandboxie launch behavior and account-bearing profile remain unchanged.
+
 ## The two distinct independence goals
 
 1. **Deployment independence (approved target):** our app can install, diagnose, manage and update an appropriately licensed and signed app-owned isolation backend without external SandMan/official Sandboxie installation. This still contains appropriately credited Sandboxie-derived GPL components.

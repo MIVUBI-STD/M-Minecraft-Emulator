@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, existsSync, rmSync, symlinkSync } from 'node:fs';
+import { mkdtempSync, existsSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { bootstrapFork } from './bootstrap-fork.mjs';
+import { bootstrapFork, verifyPinnedSeed } from './bootstrap-fork.mjs';
 
 const cmd = (args) => {
   const r = spawnSync('git', args, {encoding:'utf8'});
@@ -61,5 +61,31 @@ test('refuses dangling symlink as a destination', t => {
       throw e;
     }
     assert.throws(() => bootstrapFork({source:f.upstream,destination:f.destination,expectedCommit:f.expectedCommit}), /Destination exists/);
+  } finally { f.cleanup(); }
+});
+
+test('accepts a pinned local seed and creates standalone full-history checkout', () => {
+  const f = createRepo(); try {
+    cmd(['-C', f.upstream, 'remote', 'add', 'origin', 'https://github.com/sandboxie-plus/Sandboxie.git']);
+    const local = verifyPinnedSeed(f.upstream, { expectedCommit: f.expectedCommit });
+    const result = bootstrapFork({source:local,destination:f.destination,expectedCommit:f.expectedCommit});
+    assert.equal(result.historyCount,3);
+    assert.equal(result.shallow,false);
+    assert.equal(cmd(['-C',f.destination,'remote','get-url','upstream']), 'https://github.com/sandboxie-plus/Sandboxie.git');
+  } finally {f.cleanup();}
+});
+test('rejects an alternate source URL even if the commit and tag match', () => {
+  const f=createRepo(); try {
+    cmd(['-C', f.upstream,'remote','add','origin','https://example.invalid/lookalike.git']);
+    assert.throws(()=>verifyPinnedSeed(f.upstream,{expectedCommit:f.expectedCommit}),/upstream URL/);
+    assert.equal(existsSync(f.destination), false);
+  } finally { f.cleanup(); }
+});
+test('rejects modified local seed despite matching tag', () => {
+  const f=createRepo(); try {
+    cmd(['-C',f.upstream,'remote','add','origin','https://github.com/sandboxie-plus/Sandboxie.git']);
+    writeFileSync(join(f.upstream,'unexpected.txt'),'local artifact');
+    assert.throws(()=>verifyPinnedSeed(f.upstream,{expectedCommit:f.expectedCommit}),/uncommitted or untracked/);
+    assert.equal(existsSync(f.destination),false);
   } finally { f.cleanup(); }
 });

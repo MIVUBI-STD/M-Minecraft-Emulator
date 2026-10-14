@@ -1,5 +1,17 @@
 # Current Development Handoff
 
+## Pinned upstream Git submodule and offline-seed bootstrap — 2026-10-14
+
+**Work:** materialize the genuine Sandboxie upstream revision as a Git tree dependency, ready for later independent engine source work. **State:** DONE for Gitlink/source acquisition route; actual submodule checkout, remote MIVUBI fork and native engine build NOT_EXECUTED.
+
+**Decision:** record `.gitmodules` and a Gitlink `engine/isolation-upstream/Sandboxie` pointing to Sandboxie v1.18.5 commit `abd4c240031cfb46666daa74ca47ed4e48b561e4`, without copying GPL driver files into Tauri or changing current official launch. Extend `bootstrap-fork.mjs` with CLI `--local-seed` and explicit seed remote/tag/SHA/full-history/clean-checkout checks. An initialized submodule can seed a standalone full-history checkout, which keeps the same pinned branch and canonical upstream remote required by the existing Windows build preflight. No automatic GitHub push, service/driver installation, account or world change.
+
+**Proof:** connected GitHub API accepted a real `160000` Gitlink and `.gitmodules` to the pinned upstream tag commit. Eight tests on actual Git fixture repositories in Linux Node22 PASS (including three new local-seed cases). Test/source file Git hashes from execution exactly match Git objects `daf8fa5561260f2cf27309320f584a1463e49cf6` and `014aa8c49bd33a9bd6ff0edd51ca122992b196e9`. No real source clone was executed here due to Git DNS failure; build/runtime NOT_EXECUTED.
+
+**Unresolved:** real submodule materialization still needs GitHub network access, and publishing a new fork requires a GitHub fork/repository-creation capability not exposed by the connector. VS2022/WDK, driver signing/loading, two-client crash attribution, reboot/stability, and four-account gameplay remain unproven.
+
+**Next ONE task:** populate the pinned upstream submodule and create the standalone checkout from it when Git is available, then compile unchanged Win32/x64 components with build/byte-hash attestation in a Windows-capable environment. Preserve official Sandboxie box.
+
 ## Pre-build checkout provenance verification — 2026-10-14
 
 **Work:** read-only verification of the actual pinned isolation source checkout before any native build. **State:** DONE for source and Git-fixture checks; authentic Sandboxie clone and Windows compilation still NOT_EXECUTED.

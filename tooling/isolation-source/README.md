@@ -12,6 +12,26 @@
 - Metadata validator: [validate-baseline.mjs](./validate-baseline.mjs) with [six tests](./validate-baseline.test.mjs). Checks source revision, stage order and report consistency.
 - File-byte verifier: [verify-artifact-files.mjs](./verify-artifact-files.mjs) with [five tests](./verify-artifact-files.test.mjs). Independently rehashes every `PRESENT` file and confirms every `MISSING` file is absent; refuses symlinked and dangling-symlink file paths and changed files. Read-only; still **not** proof of signing, driver load or Minecraft gameplay. PowerShell invokes both verifiers after collection; Node.js is required.
 
+## Pinned upstream source inside the application repository
+
+The `Local` Git tree now contains a real Git submodule at `engine/isolation-upstream/Sandboxie`, pointing to the upstream Sandboxie **v1.18.5** commit `abd4c240031cfb46666daa74ca47ed4e48b561e4`. The actual upstream history remains in that Git repository, rather than copying kernel source into Rust or committing a ZIP. This is a **pinned source reference**, not a new MIVUBI GitHub fork and not a compiled engine.
+
+For a checkout with GitHub access, the source-to-build route is:
+
+~~~powershell
+# From the M-Minecraft-Emulator repository root (Local):
+git submodule update --init -- engine/isolation-upstream/Sandboxie
+
+# Make a SEPARATE full-history checkout with a modifiable development branch.
+# The target's parent must exist; the target itself must be absent.
+node tooling/isolation-source/bootstrap-fork.mjs --destination 'D:\Source\M-Isolation-Engine' --local-seed 'engine/isolation-upstream/Sandboxie'
+
+# Inspect the standalone, unmodified source before the Windows build.
+node tooling/isolation-source/verify-checkout.mjs --source-root 'D:\Source\M-Isolation-Engine'
+~~~
+
+The local-seed mode checks the seed's real directory, remote URL, pinned Git SHA/tag, full history and clean working tree. It creates a full, independent Git checkout and sets its `upstream` remote back to the official public repository, without a second network clone. Eight disposable-Git tests passed in Linux Node 22; **the real submodule materialization and native Windows build remain NOT_EXECUTED here** because this runtime cannot resolve github.com through Git.
+
 ## Independent source checkout — full history preserved
 
 The new bootstrap tool creates a complete, non-shallow Git checkout **outside** the application source and points an independent working branch at the pinned v1.18.5 commit. It verifies the tag, commit, clean working tree and history before promoting a temporary checkout into the chosen empty destination. It does **not** publish a GitHub fork or install a driver.
@@ -36,7 +56,7 @@ git status --porcelain=v1 --untracked-files=all
 git remote -v
 ~~~
 
-Five local Git regression tests are included in [bootstrap-fork.test.mjs](./bootstrap-fork.test.mjs); they prove successful full-history cloning, wrong pin/missing tag refusal, existing destination preservation, and dangling-symlink refusal using disposable repositories. Tests do not download Sandboxie.
+Eight local Git regression tests are included in [bootstrap-fork.test.mjs](./bootstrap-fork.test.mjs); they cover full-history cloning, wrong pin/tag refusal, existing destination preservation, dangling-symlink refusal, local pinned seed verification, wrong seed remote and dirty source using disposable repositories. Tests do not download Sandboxie.
 
 **Do not** use GitHub's "Download ZIP" as your eventual fork provenance: it loses Git history. Creating a **new GitHub fork** requires a repository-fork operation not available through this session's connected GitHub actions. Do not claim that a fork has been published or that a local independent checkout is already a GitHub fork. A later approved remote fork must preserve the upstream history and its notices; pin this tag as the base of its working branch. Never delete/rename upstream GPL license notices.
 
@@ -64,4 +84,4 @@ The build outputs stay in the upstream checkout. They are not committed to `Loca
 
 Source references and license findings: [inventory](../../docs/validation/owned-isolation-upstream-inventory.md); product isolation/rollback design: [owned isolation design](../../docs/system/owned-isolation-design.md). Store local logs/manifests under ignored `workspace/`; never commit credentials, Minecraft worlds, machine-specific paths or raw dumps.
 
-**Current evidence ceiling (2026-10-14):** checkout bootstrap tests 5/5 executed using local Git fixtures on Linux Node 22; actual Sandboxie GitHub clone, separate published fork, unmodified upstream build, custom driver signing/loading and new-gameplay acceptance **NOT_EXECUTED**.
+**Current evidence ceiling (2026-10-14):** GitHub accepted an actual gitlink to upstream v1.18.5, and 8/8 bootstrap/local-seed tests executed against disposable local Git fixtures on Linux Node 22. Populating the real upstream submodule, creating a remote fork, compiling a Windows driver, and proving Minecraft gameplay are **NOT_EXECUTED**.
