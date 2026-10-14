@@ -526,6 +526,14 @@ mod tests {
         fs::write(&path, serde_json::to_vec(&data).unwrap()).unwrap();
         assert!(inspect_candidate(&c.0).is_err());
         data["privatePatchSha256"] = serde_json::json!("c".repeat(64));
+        data["privateForkHead"] = serde_json::json!(PINNED_UPSTREAM);
+        fs::write(&path, serde_json::to_vec(&data).unwrap()).unwrap();
+        assert!(inspect_candidate(&c.0).is_err());
+        data["privateForkHead"] = serde_json::json!("a".repeat(40));
+        data["privateForkTree"] = serde_json::json!("bad-tree");
+        fs::write(&path, serde_json::to_vec(&data).unwrap()).unwrap();
+        assert!(inspect_candidate(&c.0).is_err());
+        data["privateForkTree"] = serde_json::json!("b".repeat(40));
         data["canCoexistWithOfficialSandboxie"] = serde_json::json!(true);
         fs::write(path, serde_json::to_vec(&data).unwrap()).unwrap();
         assert!(inspect_candidate(&c.0).is_err());

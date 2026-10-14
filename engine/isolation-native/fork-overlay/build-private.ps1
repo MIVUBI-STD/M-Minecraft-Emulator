@@ -11,6 +11,26 @@ $ErrorActionPreference = 'Stop'
 if ($env:OS -ne 'Windows_NT') { throw 'Windows private source build required.' }
 $root = (Resolve-Path -LiteralPath $ForkRoot -ErrorAction Stop).ProviderPath.TrimEnd('\')
 $report = [IO.Path]::GetFullPath($ReportPath)
+# Evidence and payload paths must be reserved before any expensive build.
+# Never overwrite a prior report or silently replace a staged engine.
+if (Test-Path -LiteralPath $report) {
+  throw 'Build report already exists. Use a new report path to preserve evidence.'
+}
+if ($StageOutput) {
+  $stageDestination = [IO.Path]::GetFullPath($StageOutput)
+  if (Test-Path -LiteralPath $stageDestination) {
+    throw 'Private payload destination already exists; refusing overwrite.'
+  }
+  $stageParent = Split-Path -Parent $stageDestination
+  if (-not (Test-Path -LiteralPath $stageParent -PathType Container)) {
+    throw 'Private payload destination parent is missing; create it before the build.'
+  }
+  if ($stageDestination.Equals($root, [StringComparison]::OrdinalIgnoreCase) -or
+      ($stageDestination.StartsWith($root + '\', [StringComparison]::OrdinalIgnoreCase) -or
+      $root.StartsWith($stageDestination + '\', [StringComparison]::OrdinalIgnoreCase)) {
+    throw 'Private stage destination may not overlap the private source checkout.'
+  }
+}
 if ($report.StartsWith($root + '\', [StringComparison]::OrdinalIgnoreCase)) {
   throw 'Report must be outside private checkout.'
 }
@@ -23,10 +43,17 @@ if ([string]$manifest.upstream.commit -cne $pin) { throw 'Upstream pin changed.'
 # of the pinned release; the canonical Node verifier checks exact Git blobs.
 $node = (Get-Command node.exe -ErrorAction Stop).Source
 $sourceVerifier = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot 'apply-private-source.mjs'))
-$verifiedJson = & $node $sourceVerifier --verify-committed --fork-root $root
+$verifiedJson = (& $node $sourceVerifier --verify-committed --fork-root $root | Out-String).Trim()
 if ($LASTEXITCODE -ne 0) { throw 'Private source commit verification failed.' }
 $sourceProof = $verifiedJson | ConvertFrom-Json -ErrorAction Stop
 $msbuild = (Get-Command msbuild.exe -ErrorAction Stop).Source
+# Source resources/license notices are essential for staging, so fail early.
+foreach ($resource in @($manifest.sourceResources) + @($manifest.upstream.sourceLicenseFiles)) {
+  $sourceAsset = Join-Path $root ([string]$resource -replace '/','\')
+  if (-not (Test-Path -LiteralPath $sourceAsset -PathType Leaf)) {
+    throw "Missing required private packaging resource: $resource"
+  }
+}
 foreach ($rel in @($manifest.requiredArtifacts)) {
   $binary = Join-Path $root ([string]$rel -replace '/','\')
   if (Test-Path -LiteralPath $binary -PathType Leaf) {
@@ -35,6 +62,14 @@ foreach ($rel in @($manifest.requiredArtifacts)) {
 }
 $parent = Split-Path -Parent $report
 [IO.Directory]::CreateDirectory($parent) | Out-Null
+# Check every stage log before MSBuild so a partial retry cannot overwrite
+# evidence from a previous attempt.
+foreach ($stage in @($manifest.buildStages)) {
+  $existingLog = Join-Path $parent ("private-" + [string]$stage.id + ".log")
+  if (Test-Path -LiteralPath $existingLog) {
+    throw "Existing build log must be preserved: $existingLog"
+  }
+}
 $stages = @()
 foreach ($stage in @($manifest.buildStages)) {
   $solution = Join-Path $root ([string]$stage.solution -replace '/','\')
@@ -68,7 +103,7 @@ foreach ($rel in @($manifest.requiredArtifacts)) {
   }
 }
 # Reject changes to the source revision while compilation was running.
-$afterJson = & $node $sourceVerifier --verify-committed --fork-root $root
+$afterJson = (& $node $sourceVerifier --verify-committed --fork-root $root | Out-String).Trim()
 if ($LASTEXITCODE -ne 0) { throw 'Private source changed during compilation.' }
 $afterProof = $afterJson | ConvertFrom-Json -ErrorAction Stop
 if ($sourceProof.privateForkHead -cne $afterProof.privateForkHead -or
@@ -83,7 +118,7 @@ $proof = [pscustomobject]@{
   privateForkHead = [string]$sourceProof.privateForkHead
   privateForkTree = [string]$sourceProof.privateForkTree
   privatePatchSha256 = [string]$sourceProof.privatePatchSha256
-  sourceFilesModified = $expected
+  sourceFilesModified = [string[]]@($sourceProof.sourceFilesModified)
   sourceBuildMarker = 'MIVUBI_PRIVATE_ISOLATION_BUILD'
   buildStages = $stages
   artifacts = $artifacts

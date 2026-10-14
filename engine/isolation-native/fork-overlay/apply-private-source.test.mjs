@@ -122,3 +122,24 @@ test("exact committed source comparison refuses extra code even with valid marke
   assert.throws(() => verifyExactPrivateSourceBytes(before, after),
     /unexpected modified source bytes/);
 });
+
+test("Windows private build report uses committed proof, never removed staged-variable", () => {
+  const script = readFileSync(new URL("./build-private.ps1", import.meta.url), "utf8");
+  assert.match(script, /Set-StrictMode -Version Latest/);
+  assert.doesNotMatch(script, /\$expected\b/);
+  assert.match(script, /sourceFilesModified\s*=\s*\[string\[\]\]@\(\$sourceProof\.sourceFilesModified\)/);
+  assert.match(script, /privateForkHead\s*=\s*\[string\]\$sourceProof\.privateForkHead/);
+  assert.match(script, /privateForkTree\s*=\s*\[string\]\$sourceProof\.privateForkTree/);
+  assert.match(script, /privatePatchSha256\s*=\s*\[string\]\$sourceProof\.privatePatchSha256/);
+  const verificationCalls = script.match(/--verify-committed --fork-root/g) ?? [];
+  assert.equal(verificationCalls.length, 2, "build must verify before and after MSBuild");
+  assert.match(script, /\$sourceProof\.privatePatchSha256 -cne \$afterProof\.privatePatchSha256/);
+  // Reject evidence clobber and avoid expensive compilation for bad paths.
+  assert.match(script, /Build report already exists/);
+  assert.match(script, /Existing build log must be preserved/);
+  assert.match(script, /Private payload destination already exists/);
+  assert.match(script, /Private stage destination may not overlap/);
+  assert.match(script, /Private payload destination parent is missing/);
+  assert.match(script, /Missing required private packaging resource/);
+  assert.doesNotMatch(script, /\b(?:Start-Service|Stop-Service|Remove-Service|sc\.exe)\b/i);
+});

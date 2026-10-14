@@ -1,5 +1,35 @@
 # Current Development Handoff
 
+## Private Windows build script source-defect closure — 2026-10-14
+
+**Work:** remove an executable post-compile failure introduced during the
+committed-source provenance migration. **State:** DONE for code correction;
+actual PowerShell/Windows compilation remains NOT_EXECUTED.
+
+**Observed defect:** `engine/isolation-native/fork-overlay/build-private.ps1`
+still referenced deleted `$expected` to populate `sourceFilesModified`. Under
+`Set-StrictMode -Version Latest`, a successful MSBuild could be followed by an
+unbound-variable failure before a valid private build report was written.
+
+**Decision:** use `[string[]]@($sourceProof.sourceFilesModified)` from the
+same canonical exact-commit verifier that supplies Git HEAD, tree and patch
+SHA-256; retain both pre/post compilation checks. Parse its JSON output as a
+whole string. Precheck destination/report/log non-overwrite and required
+packaging resources before entering MSBuild; preserve old evidence and official
+Sandboxie without installation or service mutation.
+
+**Proof:** source inspection against exact GitHub files; pinned upstream
+v1.18.5 seven actual source blobs passed the existing patch/strict-bytes
+checks in 7/7 locations, plus two mutation rejection scenarios. Windows
+build script regression expectations updated; Node test suite, PowerShell
+parser/runtime, Rust, MSBuild, and Minecraft remain NOT_EXECUTED.
+
+**Next ONE task:** validate the source-only integrated build/report/payload
+contracts once more, then treat genuine MSBuild/WDK and the signed-driver
+lab as strictly Windows-only evidence. Do not ask the user to modify the
+account-bearing PC for source-only work.
+
+
 ## Private-fork committed source provenance — 2026-10-14
 
 **Work:** close a source provenance gap where a staged private patch could be
