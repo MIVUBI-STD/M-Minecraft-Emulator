@@ -21,10 +21,8 @@ function sources() {
       "// isolated fixture component: " + path,
       '#include "common/my_version.h"',
       "int test_function(void) { return 0; }",
-      '        if (_wcsnicmp(cmd, L"box:", 4) == 0) {',
-      "            cmd += 4;",
-      '    if (wcsncmp(cmd, default_browser, wcslen(default_browser)) == 0 ||',
-      "            other_condition) {",
+      '    if (_wcsicmp(cmd, L"run_sbie_ctrl") == 0 || _wcsnicmp(cmd, L"open_agent", 10) == 0) {',
+      "            run_regular_start();",
       "",
     ].join("\n") : [
       "// isolated fixture component: " + path,
@@ -45,16 +43,18 @@ function git(root, args, input) {
 test("generated patch touches exactly seven core build owners and preserves kernel names", () => {
   const patch = buildPrivateSourcePatch(sources());
   assert.equal((patch.match(/^diff --git/gm) ?? []).length, 7);
-  assert.equal((patch.match(/^@@ /gm) ?? []).length, 9);
+  assert.equal((patch.match(/^@@ /gm) ?? []).length, 8);
   // Git apply rejects the earlier anchor-only hunks even when the line
   // matches. Every insertion must retain a following source context line.
   assert.match(patch, /@@ -\d+,2 \+\d+,4 @@/);
   assert.match(patch, /\+#define MIVUBI_PRIVATE_ISOLATION_ABI   0x57230\n #define SBIEDRV/);
   assert.match(patch, /\+#endif\n int test_function\(void\)/);
-  assert.equal((patch.match(/^@@ -\d+,2 \+\d+,(?:4|7|10|21|25) @@$/gm) ?? []).length, 9);
+  assert.equal((patch.match(/^@@ -\d+,2 \+\d+,(?:4|7|80|12) @@$/gm) ?? []).length, 8);
   assert.ok(patch.includes("mivubi_client:"));
-  assert.ok(patch.includes("MivubiEdu0%d"));
+  assert.ok(patch.includes("MivubiEdu02"));
   assert.ok(patch.includes("MinecraftEducationEdition.exe"));
+  assert.ok(patch.includes("MivubiParseOwnedStart(cmd, &ownedLaunch)"));
+  assert.ok(patch.includes("MivubiOwnedDecision::Admitted"));
   assert.ok(patch.includes("#define MIVUBI_PRIVATE_ISOLATION_BUILD 0x4D495655"));
   assert.ok(patch.includes("MY_ABI_VERSION != MIVUBI_PRIVATE_ISOLATION_ABI"));
   assert.ok(!patch.includes('-#define SBIEDRV'));
@@ -89,8 +89,9 @@ test("entire patch applies atomically to a disposable Git checkout without renam
     }
     const feature = readFileSync(join(root, "Sandboxie/apps/start/start.cpp"), "utf8");
     assert.match(feature, /mivubi_client:/);
-    assert.match(feature, /MivubiEdu0%d/);
-    assert.match(feature, /if \(!end \|\| end\[1\] != L'/);
+    assert.match(feature, /MivubiEdu02/);
+    assert.match(feature, /MivubiParseOwnedStart/);
+    assert.match(feature, /end\[1\] != L'/);
     const editedHeader = readFileSync(join(root, SOURCE_FILES[0]), "utf8");
     assert.ok(editedHeader.includes('L"SbieDrv"'));
     assert.ok(editedHeader.includes('L"SbieSvc"'));

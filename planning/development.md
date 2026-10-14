@@ -1,6 +1,51 @@
 # Current Development Handoff — M-Minecraft-Emulator
+## Primary milestone: actual MIVUBI Sandboxie fork (2026-10-14)
 
-## First functional Sandboxie fork customization — 2026-10-14
+**Priority contract:** The product objective is a **working, independently
+built, Sandboxie-derived native isolation system owned by MIVUBI**. No more
+source-checker/proof bureaucracy as a substitute for implementing the native
+engine. Three Minecraft boxes, REA and desktop UI are consumers/developer
+tools, not separate competing products.
+
+**Current implementation batch:** the private upstream `Start.exe` parser
+now consumes one shared, independently compilable C++17 admission policy
+(`engine/isolation-native/owned-runtime/mivubi_owned_start_policy.h`).
+The fork overlay INLINES those exact bytes into the pinned seven-file
+upstream patch, with one opt-in dispatch site; non-owned upstream launch
+behavior remains intact. The duplicated hand-authored JS array of C++
+parser rules is eliminated. The final approved overlay has **seven source
+files and eight Git hunks**. The standalone native test contains **20
+positive/negative cases** and is registered under the canonical repo's
+`isolation-native:test-owned-start` CMake/CTest command.
+
+**Executed native evidence:** C++17 policy compiled with **GCC** and
+**Clang** in this ChatGPT execution container under strict warnings, and
+both CMake/CTest executable runs PASSED. The earlier handwritten harness
+for the identical 3228-byte policy had 17+ edge cases, while the committed
+native test source expands this to 20. Real full-upstream patch generation
+and strict expected-byte verification using exact seven GitHub upstream
+v1.18.5 source files passed in ChatGPT V8, with one additional modified
+Start source rejected. The private native Start.exe, service, DLL and
+driver remain **NOT_COMPILED / NOT_EXECUTED** in Windows/MSVC/WDK.
+
+**Proof boundary:** Native C++ parser acceptance is not a full Sandboxie
+core build, kernel minifilter signing, safe coexistence with official
+Sandboxie or four-account Minecraft stability. Service `SbieSvc`, driver
+`SbieDrv`, IPC and minifilter altitude are unchanged in the current
+exclusive upstream-derived private fork. Do not attempt to install alongside
+the user's active official environment.
+
+**Priority after this batch:** compile the actual pinned upstream core
+with Windows MSVC/WDK on an authorized disposable Windows host, then build
+the same source with the reviewed MIVUBI patch, compare native binaries via
+REA, validate DLL/service/driver ABI, and implement the necessary core
+isolation changes revealed by those results. Only after a loadable,
+self-contained MIVUBI core is proven should it replace the official
+Sandboxie backend, and only after real two-client stability should Client
+03/04 be enabled. Do not misclassify this as finished product.
+
+
+## Historical initial JS-only launcher customization — superseded by native policy
 
 **Work:** move from ABI-marker-only overlay to real pinned upstream C++
 `Start.exe` command-line behavior plus deterministic MIVUBI three-box

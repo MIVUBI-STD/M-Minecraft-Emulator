@@ -20,6 +20,17 @@ AGENTS.md → GITHUB_RULES.md → docs/system/implementation-map.md
 
 An operator does **not** need a local checkout to complete repository/source-verifiable tasks. Windows or Minecraft acceptance is a separate, higher proof context. `DEV.cmd` is an optional local developer convenience, never the remote GitHub completion requirement.
 
+**Primary development priority (14 October 2026): build MIVUBI's own
+Sandboxie-derived Windows isolation core to completion**, not an independent
+wrapper or endless source validator. The first native C++ behavioral component
+is the MIVUBI-owned `Start.exe` profile admission policy in
+[engine/isolation-native/owned-runtime](engine/isolation-native/owned-runtime/),
+compiled and tested with GCC/Clang in ChatGPT. It is also inlined by the
+exact pinned Sandboxie fork overlay, but **the complete private Windows
+driver/service/DLL/Start binaries have not been built or activated**.
+The already installed official Sandboxie Client 02 remains the safe active
+pilot until signed disposable-Windows core evidence exists.
+
 **Definition of DONE:** [Four simultaneous Minecraft Education accounts](docs/product/four-concurrent-accounts.md). **Technical status:** candidate PID/window observations and manually reported two-account playability are separate intermediate evidence; neither proves four-client acceptance. **Current experiment:** [One native + one Sandboxie Plus Windows Client 02](docs/validation/sandboxie-two-client-feasibility.md); explicit isolated launch and separate read-only verification. Two-account simultaneous playability has been operator-reported in the later 14 October test, but sustained stability failed. Documentation: [docs/README.md](docs/README.md). **Current handoff:** [planning/development.md](planning/development.md) (top section). **Removal map:** [Legacy Retirement](docs/system/legacy-retirement.md).
 
 ## Current operating mode

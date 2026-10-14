@@ -11,11 +11,13 @@ lifecycle: ACTIVE
 
 ## First owned-fork feature — source only (14 October 2026)
 
-The MIVUBI private fork now includes a FUNCTIONAL change to upstream
-`Sandboxie/apps/start/start.cpp`: a deliberately opt-in
-`/mivubi_client:02`, `:03` or `:04` launch path maps three independent
-planned boxes `MivubiEdu02/03/04` and limits the selected child to one
-quoted Minecraft Education Windows executable. The accompanying
+The MIVUBI private fork now includes a functional native C++ source
+change to upstream `Sandboxie/apps/start/start.cpp`: the canonical
+[owned Start policy](../../engine/isolation-native/owned-runtime/mivubi_owned_start_policy.h)
+is inlined into the fork and provides an opt-in `/mivubi_client:02`,
+`:03` or `:04` launch path for `MivubiEdu02/03/04`, limited to one
+quoted Minecraft Education Windows executable. Its 20-case C++ test
+compiled and passed with GCC and Clang in ChatGPT. The accompanying
 [owned profile contract](../../engine/isolation-native/owned-runtime/minecraft-profiles.mjs)
 generates three persistent, non-auto-deleting sandbox configuration sections
 and exact corresponding launch arguments.

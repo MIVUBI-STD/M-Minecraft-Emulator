@@ -153,10 +153,18 @@ atomically in the source checkout; no real Windows binary build, driver
 load or account data was involved. Real upstream patch application remains
 an additional integration obligation on the exact v1.18.5 source checkout.
 
-## First functional MIVUBI source-fork feature — profile-restricted Start.exe
+## Functional core: native-owned Start.exe profile admission
 
-The private overlay now modifies **the upstream C++ `Start.exe` parser**,
-in addition to the existing ABI guards. Its explicit opt-in command is:
+**Implementation owner:** [mivubi_owned_start_policy.h](./owned-runtime/mivubi_owned_start_policy.h).
+The private overlay INLINES this exact C++17 policy into upstream
+`Sandboxie/apps/start/start.cpp` and adds one opt-in dispatch point after
+upstream command-line parsing obtains the argument string. We no longer keep
+an independently authored copy of the path/box parser inside the JavaScript
+patch generator. The committed private-fork source still changes exactly
+seven pinned upstream files, now with eight Git hunks (six ABI guard sites,
+the shared header, and the native dispatch site).
+
+The launch policy accepts only:
 
 ~~~text
 Start.exe /mivubi_client:02 "C:\Program Files\Microsoft Studios\Minecraft Education\Minecraft.Windows.exe"
@@ -164,29 +172,35 @@ Start.exe /mivubi_client:03 "C:\Program Files\Microsoft Studios\Minecraft Educat
 Start.exe /mivubi_client:04 "C:\Program Files\Microsoft Studios\Minecraft Education\Minecraft.Windows.exe"
 ~~~
 
-These route to the distinct, private-fork box names `MivubiEdu02`,
-`MivubiEdu03` and `MivubiEdu04`. The new switch is restricted to
-Client IDs 02–04, a single quoted absolute local Windows Education EXE
-without extra arguments, and an exact matching box identity. Existing
-Sandboxie `/box` and ordinary `Start.exe` paths are unchanged unless
-the new option is explicitly requested. The original account-bearing
-official `MinecraftClient02` box is **not** reused or modified.
+These select separate box names `MivubiEdu02`, `MivubiEdu03`,
+`MivubiEdu04`. Non-owned `Start.exe` command lines follow upstream code
+unchanged; owned requests reject unsupported client IDs, executable names,
+UNC/relative paths, traversal, unwanted shell arguments and malformed quotes.
+A requested box is passed to upstream `RestartInSandbox()` and
+`SbieDll_RunSandboxed()`. It is NOT a new implementation of the driver or a
+Microsoft-signature verifier, and is not proof of WAM/SSO isolation.
 
-`owned-runtime/minecraft-profiles.mjs` implements the matching application
-configuration/launch contract. It enumerates three stable owned profiles,
-constructs `SbieIni.exe set` commands for persistent enabled boxes with
-`AutoDelete=n`, `AutoRemove=n` and `OpenCredentials=n`, refuses
-existing owned box identities, and produces exact per-client fork Start
-invocations. **This module is not an executor and makes no configuration
-changes.** The test suite checks IDs, safe inputs, command identity,
-non-destructive planning and parser-contract alignment.
+**Native executable evidence (ChatGPT, Linux):** the same portable C++ header
+was compiled with GCC and Clang using C++17, `-Wall -Wextra -Werror -pedantic`.
+Each CMake/CTest test executable passed in the isolated ChatGPT container.
+The checked-in [native test](./owned-runtime/mivubi_owned_start_policy.test.cpp)
+contains 20 positive/negative admission cases. This is **native C++ evidence**,
+not Windows/MSVC compilation of the fork's complete `Start.exe`, service,
+DLL or kernel driver.
 
-**Important:** The new parser is an actual functional source modification,
-but has **NOT** been compiled into a private `Start.exe`. Its use requires
-a *separate* signed, verified MIVUBI-owned core on an authorized disposable
-Windows host. The current private fork still retains upstream
-`SbieSvc`/`SbieDrv` names and cannot coexist with official Sandboxie.
-`OpenCredentials=n` is merely a requested configuration value; Microsoft
-WAM/SSO and credential separation remain unproven. No driver signing,
-runtime start, independent account login or four-client gameplay is claimed.
-Public redistribution of modified upstream components requires license review.
+Reproduce in a supported developer environment:
+
+~~~powershell
+cmake -S engine/isolation-native/owned-runtime -B workspace/owned-start-policy
+cmake --build workspace/owned-start-policy --config Release
+ctest --test-dir workspace/owned-start-policy -C Release --output-on-failure
+~~~
+
+The separate [profile plan](./owned-runtime/minecraft-profiles.mjs) constructs
+non-overwriting per-client `SbieIni` settings and private `Start.exe` launch
+arguments, but never executes them. The current official Client 02 sandbox
+remains active and unchanged. The private fork still retains the upstream
+`SbieSvc`/`SbieDrv` names and cannot coexist with the installed official
+Sandboxie service. Real independent operation requires a separately tested
+disposable Windows lab with signed/native core artifacts; legal distribution
+review is mandatory for publishing this Sandboxie-derived fork.

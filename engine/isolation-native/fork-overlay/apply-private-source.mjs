@@ -32,57 +32,23 @@ const MARKERS = [
 // intentionally opt-in; all upstream Start.exe switches retain their meaning.
 // The private core still uses upstream SbieSvc/SbieDrv and cannot co-install.
 const START_PATH = "Sandboxie/apps/start/start.cpp";
-const START_SWITCH_ANCHOR = '        if (_wcsnicmp(cmd, L"box:", 4) == 0) {';
-const START_COMMAND_ANCHOR =
-  '    if (wcsncmp(cmd, default_browser, wcslen(default_browser)) == 0 ||';
-const START_EXTRA_GUARD = [
-  "",
-  "// First MIVUBI-owned functional entry: a bounded, per-client box launch.",
-  "static int MivubiRequestedClient = 0;",
-];
-const START_SWITCH = [
+const START_PARSE_ANCHOR =
+  '    if (_wcsicmp(cmd, L"run_sbie_ctrl") == 0 || _wcsnicmp(cmd, L"open_agent", 10) == 0) {';
+// The canonical portable C++ parser is compiled by independent tests and
+// INLINED into pinned Start.cpp: the standalone upstream clone needs no
+// external MIVUBI header include path during MSVC compilation.
+const START_POLICY = readFileSync(
+  new URL("../owned-runtime/mivubi_owned_start_policy.h", import.meta.url),
+  "utf8").trimEnd().split("\n");
+const START_DISPATCH = [
   "#if defined(MIVUBI_PRIVATE_ISOLATION_BUILD)",
-  "        // Opt-in app-owned route; never reassign the official Client 02 box.",
-  '        if (_wcsnicmp(cmd, L"mivubi_client:", 14) == 0) {',
-  "            cmd += 14;",
-  "            if (cmd[0] != L'0' || (cmd[1] != L'2' &&",
-  "                    cmd[1] != L'3' && cmd[1] != L'4') ||",
-  "                    (cmd[2] != L' ' && cmd[2] != L'\\0'))",
-  "                return FALSE;",
-  "            // The private flag must be the first and only launcher switch.",
-  "            if (MivubiRequestedClient != 0 ||",
-  "                    cmd - 15 != Eat_String(GetCommandLine())) return FALSE;",
-  "            MivubiRequestedClient = (int)(cmd[1] - L'0');",
-  '            wsprintf(BoxName, L"MivubiEdu0%d", MivubiRequestedClient);',
-  "            cmd += 2;",
-  "            while (*cmd == L' ') ++cmd;",
-  "            if (*cmd != L'\"') return FALSE;",
-  "            continue;",
-  "        }",
-  "#endif",
-];
-const START_RESTRICTION = [
-  "#if defined(MIVUBI_PRIVATE_ISOLATION_BUILD)",
-  "    if (MivubiRequestedClient != 0) {",
-  "        // Existing /box: switches cannot redirect an owned launch.",
-  "        WCHAR expected[BOXNAME_COUNT];",
-  '        wsprintf(expected, L"MivubiEdu0%d", MivubiRequestedClient);',
-  "        if (_wcsicmp(BoxName, expected) != 0 || *cmd != L'\"')",
-  "            return FALSE;",
-  "        const WCHAR *file = cmd + 1;",
-  "        const WCHAR *end = wcschr(file, L'\"');",
-  "        // No arguments, URL aliases, UNC paths, relative paths or shell.",
-  "        if (!end || end[1] != L'\\0' || end - file < 4 || end - file > 1024 ||",
-  "                !iswalpha(file[0]) || file[1] != L':' ||",
-  "                file[2] != L'\\\\')",
-  "            return FALSE;",
-  "        const WCHAR *name = end;",
-  "        while (name > file && name[-1] != L'\\\\') --name;",
-  "        const size_t len = (size_t)(end - name);",
-  '        if (!((len == 21 && _wcsnicmp(name, L"Minecraft.Windows.exe", len) == 0) ||',
-  '              (len == 22 && _wcsnicmp(name, L"MinecraftEducation.exe", len) == 0) ||',
-  '              (len == 29 && _wcsnicmp(name, L"MinecraftEducationEdition.exe", len) == 0)))',
-  "            return FALSE;",
+  "    // MIVUBI-only opt-in: explicit, bounded client selection BEFORE restart.",
+  "    MivubiOwnedLaunch ownedLaunch{nullptr, nullptr};",
+  "    const MivubiOwnedDecision result = MivubiParseOwnedStart(cmd, &ownedLaunch);",
+  "    if (result == MivubiOwnedDecision::Rejected) return FALSE;",
+  "    if (result == MivubiOwnedDecision::Admitted) {",
+  "        wcscpy(BoxName, ownedLaunch.box);",
+  "        cmd = ownedLaunch.command;",
   "    }",
   "#endif",
 ];
@@ -154,15 +120,13 @@ export function buildPrivateSourcePatch(files) {
     assert(!files[path].includes("MIVUBI_PRIVATE_ISOLATION_BUILD"),
       "private marker already present: " + path);
     parts.push(hunk(files[path], path, ANCHOR,
-      path === START_PATH ? [...GUARD, ...START_EXTRA_GUARD] : GUARD));
+      path === START_PATH ? [...GUARD, "", ...START_POLICY] : GUARD));
     if (path === START_PATH) {
-      // Two additional pinned-context hunks give the source fork actual
-      // restricted client-profile launch behavior, not just ABI markers.
-      const offset = GUARD.length + START_EXTRA_GUARD.length;
-      parts.push(hunk(files[path], path, START_SWITCH_ANCHOR,
-        START_SWITCH, true, offset, false));
-      parts.push(hunk(files[path], path, START_COMMAND_ANCHOR,
-        START_RESTRICTION, true, offset + START_SWITCH.length, false));
+      // Functional C++ admission is shared with a genuinely compiled
+      // portable native test; one dispatch hunk, no duplicate parser logic.
+      onlyOnce(files[path], START_PARSE_ANCHOR, path);
+      parts.push(hunk(files[path], path, START_PARSE_ANCHOR,
+        START_DISPATCH, true, GUARD.length + 1 + START_POLICY.length, false));
     }
   }
   return parts.join("");
@@ -177,17 +141,14 @@ export function buildExpectedPrivateSources(original) {
   for (const [index, path] of SOURCE_FILES.entries()) {
     const anchor = index === 0 ? VERSION_ANCHOR : ANCHOR;
     const additions = index === 0 ? MARKERS
-      : path === START_PATH ? [...GUARD, ...START_EXTRA_GUARD] : GUARD;
+      : path === START_PATH ? [...GUARD, "", ...START_POLICY] : GUARD;
     const newline = original[path].includes("\r\n") ? "\r\n" : "\n";
     let value = original[path].replace(anchor,
       [anchor, ...additions].join(newline));
     if (path === START_PATH) {
-      onlyOnce(original[path], START_SWITCH_ANCHOR, path);
-      onlyOnce(original[path], START_COMMAND_ANCHOR, path);
-      value = value.replace(START_SWITCH_ANCHOR,
-        [...START_SWITCH, START_SWITCH_ANCHOR].join(newline));
-      value = value.replace(START_COMMAND_ANCHOR,
-        [...START_RESTRICTION, START_COMMAND_ANCHOR].join(newline));
+      onlyOnce(original[path], START_PARSE_ANCHOR, path);
+      value = value.replace(START_PARSE_ANCHOR,
+        [...START_DISPATCH, START_PARSE_ANCHOR].join(newline));
     }
     expected[path] = value;
   }

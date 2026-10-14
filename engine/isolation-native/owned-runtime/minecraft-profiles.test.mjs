@@ -81,11 +81,14 @@ test("rejects arbitrary code, paths, client IDs, UNC, args, and shell",()=>{
 
 test("control contract and owned Start parser share the same profile namespace",()=>{
   const source=readFileSync(new URL("../fork-overlay/apply-private-source.mjs",import.meta.url),"utf8");
-  assert.match(source,/mivubi_client:/);
-  assert.match(source,/MivubiEdu0%d/);
-  assert.match(source,/cmd - 15 != Eat_String\(GetCommandLine\(\)\)/);
-  assert.match(source,/MivubiRequestedClient != 0/);
-  assert.match(source,/end - file < 4/);
-  assert.match(source,/MinecraftEducationEdition\.exe/);
+  const policy=readFileSync(new URL("./mivubi_owned_start_policy.h",import.meta.url),"utf8");
+  assert.match(source,/mivubi_owned_start_policy\.h/);
+  assert.match(policy,/mivubi_client:/);
+  assert.match(policy,/MivubiEdu02/);
+  assert.match(policy,/MivubiEdu03/);
+  assert.match(policy,/MivubiEdu04/);
+  assert.match(policy,/MivubiParseOwnedStart/);
+  assert.match(policy,/end\[1\] != L'/);
+  assert.match(policy,/MinecraftEducationEdition\.exe/);
   assert.doesNotMatch(source,/SbieDrv2|SbieSvc2|disable.*signing/i);
 });

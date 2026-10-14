@@ -43,6 +43,7 @@
     "isolation-native:test": "ctest --test-dir workspace/isolation-native-build -C Release --output-on-failure",
     "isolation-native:prepare-fork": "node engine/isolation-native/fork-overlay/apply-private-source.mjs",
     "isolation-native:build-private": "powershell -NoProfile -NonInteractive -File engine/isolation-native/fork-overlay/build-private.ps1",
-    "isolation-source:assemble-private": "node tooling/isolation-source/assemble-private-engine.mjs"
+    "isolation-source:assemble-private": "node tooling/isolation-source/assemble-private-engine.mjs",
+    "isolation-native:test-owned-start": "cmake -S engine/isolation-native/owned-runtime -B workspace/owned-start-policy -DCMAKE_BUILD_TYPE=Release && cmake --build workspace/owned-start-policy --config Release && ctest --test-dir workspace/owned-start-policy -C Release --output-on-failure"
   }
 }
