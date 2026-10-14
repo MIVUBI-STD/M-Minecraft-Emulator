@@ -278,3 +278,20 @@ digest through the Windows build report, staging assembler and read-only Rust
 candidate inspector. A marker-only match or HEAD still equal to upstream is
 refused. These checks never touch installed Sandboxie, Microsoft accounts or
 Minecraft worlds; no Windows kernel driver is installed or started.
+
+## Complete upstream artifact manifest (2026-10-14)
+
+`validate-baseline.mjs` now validates the FULL pinned v1.18.5 inventory,
+not just the five core DLL/service/driver files. The version-locked closure
+has 16 required binaries (including helpers), nine optional symbol paths,
+five source resources and three source license files. It rejects removal,
+reordering and injection in any group. This is used by the existing
+unmodified baseline builder, the private build's PRE-MSBuild source check
+and the private staging assembler. A reduced manifest can no longer produce
+a misleading complete binary report.
+
+An upstream update requires reviewing the upstream pin, manifest, complete
+validator closure, consumer payload map, tests and licensing together.
+Optional symbol files may remain absent, but their declared locations are
+immutable for the pinned version. This is only source/build provenance:
+compiler output, signing and native driver functionality remain untested.

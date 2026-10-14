@@ -10,6 +10,57 @@ const STAGES = [
 ];
 const SHA256 = /^[a-f0-9]{64}$/;
 const PATH = /^[A-Za-z0-9_.\/-]+$/;
+// Version-locked complete artifact closure, independent of caller-supplied
+// manifest rows. A reduced manifest must NEVER pass as a successful build.
+// Update only with a reviewed upstream pin and matching package consumers.
+const EXPECTED_CLOSURE = Object.freeze({
+  sourceLicenseFiles: Object.freeze([
+    "LICENSE.Plus",
+    "Sandboxie/COPYING",
+    "SandboxiePlus/QSbieAPI/LICENSE"
+  ]),
+  requiredArtifacts: Object.freeze([
+    "Sandboxie/Bin/Win32/SbieRelease/SbieSvc.exe",
+    "Sandboxie/Bin/Win32/SbieRelease/SbieDll.dll",
+    "Sandboxie/Bin/x64/SbieRelease/SbieDrv.sys",
+    "Sandboxie/Bin/x64/SbieRelease/SbieSvc.exe",
+    "Sandboxie/Bin/x64/SbieRelease/SbieDll.dll",
+    "Sandboxie/Bin/x64/SbieRelease/Start.exe",
+    "Sandboxie/Bin/x64/SbieRelease/SbieIni.exe",
+    "Sandboxie/Bin/x64/SbieRelease/kmdutil.exe",
+    "Sandboxie/Bin/x64/SbieRelease/SbieMsg.dll",
+    "Sandboxie/Bin/x64/SbieRelease/SandboxieRpcSs.exe",
+    "Sandboxie/Bin/x64/SbieRelease/SandboxieDcomLaunch.exe",
+    "Sandboxie/Bin/x64/SbieRelease/SandboxieCrypto.exe",
+    "Sandboxie/Bin/x64/SbieRelease/SandboxieBITS.exe",
+    "Sandboxie/Bin/x64/SbieRelease/SandboxieWUAU.exe",
+    "Sandboxie/Bin/x64/SbieRelease/SbieCtrl.exe",
+    "Sandboxie/Bin/x64/SbieRelease/SboxHostDll.dll"
+  ]),
+  optionalSymbols: Object.freeze([
+    "Sandboxie/Bin/Win32/SbieRelease/SbieSvc.pdb",
+    "Sandboxie/Bin/Win32/SbieRelease/SbieDll.pdb",
+    "Sandboxie/Bin/x64/SbieRelease/SbieDrv.pdb",
+    "Sandboxie/Bin/x64/SbieRelease/SbieSvc.pdb",
+    "Sandboxie/Bin/x64/SbieRelease/SbieDll.pdb",
+    "Sandboxie/Bin/x64/SbieRelease/Start.pdb",
+    "Sandboxie/Bin/x64/SbieRelease/SbieIni.pdb",
+    "Sandboxie/Bin/x64/SbieRelease/kmdutil.pdb",
+    "Sandboxie/Bin/x64/SbieRelease/SboxHostDll.pdb"
+  ]),
+  sourceResources: Object.freeze([
+    "Sandboxie/install/Templates.ini",
+    "Sandboxie/install/SbieSettings.ini",
+    "Sandboxie/install/Manifest0.txt",
+    "Sandboxie/install/Manifest1.txt",
+    "Sandboxie/install/Manifest2.txt"
+  ]),
+});
+function exactInventory(actual, expected, name) {
+  requireFact(Array.isArray(actual) &&
+    JSON.stringify(actual) === JSON.stringify(expected), "complete " + name + " inventory");
+}
+
 
 function requireFact(ok, description) {
   if (!ok) throw new Error("Invalid baseline: " + description);
@@ -28,7 +79,8 @@ export function verifyManifest(m) {
     m.buildStages.every((s, i) => sameStage(s, STAGES[i])), "build stages");
   requireFact(m.distribution === "NOT_APPROVED" && m.driverLoad === "NOT_EXECUTED" &&
     m.windowsGameplay === "NOT_EXECUTED", "unsafe manifest acceptance");
-  requireFact(m.upstream.sourceLicenseFiles?.includes("Sandboxie/COPYING"), "GPL notice");
+  exactInventory(m.upstream.sourceLicenseFiles, EXPECTED_CLOSURE.sourceLicenseFiles,
+    "license");
   const seen = new Set();
   for (const key of ["requiredArtifacts", "optionalSymbols", "sourceResources"]) {
     requireFact(Array.isArray(m[key]) && m[key].length > 0, "missing group " + key);
@@ -38,6 +90,9 @@ export function verifyManifest(m) {
         !path.startsWith("/") && !seen.has(path), "invalid artifact path");
       seen.add(path);
     }
+  }
+  for (const group of ["requiredArtifacts", "optionalSymbols", "sourceResources"]) {
+    exactInventory(m[group], EXPECTED_CLOSURE[group], group);
   }
   for (const name of ["SbieDrv.sys", "SbieSvc.exe", "SbieDll.dll"]) {
     requireFact(m.requiredArtifacts.includes("Sandboxie/Bin/x64/SbieRelease/" + name),

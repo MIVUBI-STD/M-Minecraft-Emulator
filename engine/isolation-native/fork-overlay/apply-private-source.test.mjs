@@ -141,6 +141,8 @@ test("Windows private build report uses committed proof, never removed staged-va
   assert.match(script, /Private stage destination may not overlap/);
   assert.match(script, /Private payload destination parent is missing/);
   assert.match(script, /Missing required private packaging resource/);
+  assert.match(script, /Pinned complete upstream manifest validation failed/);
+  assert.match(script, /& \$node \$validateManifest \$manifestPath/);
   assert.doesNotMatch(script, /\b(?:Start-Service|Stop-Service|Remove-Service|sc\.exe)\b/i);
 });
 

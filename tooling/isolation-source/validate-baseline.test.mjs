@@ -1,34 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { verifyManifest, verifyReport } from "./validate-baseline.mjs";
 
-function fixture() {
-  return {
-    schema: 1, purpose: "SOURCE_ONLY_UNMODIFIED_UPSTREAM_BUILD_PROVENANCE",
-    upstream: {
-      repository: "sandboxie-plus/Sandboxie", tag: "v1.18.5",
-      commit: "abd4c240031cfb46666daa74ca47ed4e48b561e4",
-      sourceLicenseFiles: ["Sandboxie/COPYING"],
-    },
-    platforms: ["Win32", "x64"], configuration: "SbieRelease",
-    buildStages: [
-      { id: "win32-support", solution: "Sandboxie/SandboxDll.sln", platform: "Win32" },
-      { id: "x64-core", solution: "Sandboxie/Sandbox.sln", platform: "x64" },
-      { id: "x64-kernel", solution: "Sandboxie/SandboxDrv.sln", platform: "x64" },
-    ],
-    requiredArtifacts: [
-      "Sandboxie/Bin/x64/SbieRelease/SbieDrv.sys",
-      "Sandboxie/Bin/x64/SbieRelease/SbieSvc.exe",
-      "Sandboxie/Bin/x64/SbieRelease/SbieDll.dll",
-      "Sandboxie/Bin/Win32/SbieRelease/SbieSvc.exe",
-      "Sandboxie/Bin/Win32/SbieRelease/SbieDll.dll",
-    ],
-    optionalSymbols: ["Sandboxie/Bin/x64/SbieRelease/SbieDrv.pdb"],
-    sourceResources: ["Sandboxie/install/Templates.ini"],
-    distribution: "NOT_APPROVED", driverLoad: "NOT_EXECUTED",
-    windowsGameplay: "NOT_EXECUTED",
-  };
-}
+// Contract fixtures are derived from the pinned complete manifest, so that
+// test cases prove rejection of reduced or reordered real inventories.
+const baseline = JSON.parse(readFileSync(
+  new URL("./upstream-baseline.json", import.meta.url), "utf8"));
+function fixture() { return structuredClone(baseline); }
 function report(m, compiled = true) {
   return {
     schema: 1, sourceRepository: m.upstream.repository, sourceTag: m.upstream.tag,
@@ -59,7 +38,7 @@ test("pins upstream version, stage order and critical x86/x64 artifacts", () => 
   const wrong = fixture(); wrong.upstream.commit = "0".repeat(40);
   assert.throws(() => verifyManifest(wrong), /upstream pin/);
   const missing = fixture(); missing.requiredArtifacts.pop();
-  assert.throws(() => verifyManifest(missing), /Win32 companion/);
+  assert.throws(() => verifyManifest(missing), /complete requiredArtifacts inventory/);
 });
 test("rejects path traversal, duplicates and removal of core GPL notice", () => {
   const bad = fixture(); bad.optionalSymbols.push("../malicious.pdb");
@@ -67,7 +46,7 @@ test("rejects path traversal, duplicates and removal of core GPL notice", () => 
   const dup = fixture(); dup.optionalSymbols.push(dup.requiredArtifacts[0]);
   assert.throws(() => verifyManifest(dup), /invalid artifact path/);
   const license = fixture(); license.upstream.sourceLicenseFiles = [];
-  assert.throws(() => verifyManifest(license), /GPL notice/);
+  assert.throws(() => verifyManifest(license), /complete license inventory/);
 });
 test("collection-only and build reports never establish runnable driver or gameplay", () => {
   const m = fixture();
@@ -107,4 +86,23 @@ test("incomplete mandatory output cannot be reported as successful; missing symb
     sha256: null, authenticode: "NOT_EXECUTED",
   };
   assert.equal(verifyReport(m, symbols).artifactResult, "BUILD_ARTIFACTS_COLLECTED");
+});
+
+test("pins COMPLETE binary, helper, optional symbol, resource and license closure", () => {
+  for (const group of ["requiredArtifacts", "optionalSymbols", "sourceResources"]) {
+    const missing = fixture(); missing[group].splice(Math.floor(missing[group].length/2), 1);
+    assert.throws(() => verifyManifest(missing), /complete .* inventory/);
+    const reordered = fixture(); reordered[group].reverse();
+    assert.throws(() => verifyManifest(reordered), /complete .* inventory/);
+    const extra = fixture(); extra[group].push("Sandboxie/extra.txt");
+    assert.throws(() => verifyManifest(extra), /complete .* inventory/);
+  }
+  for (const license of [
+    "LICENSE.Plus", "Sandboxie/COPYING", "SandboxiePlus/QSbieAPI/LICENSE"
+  ]) {
+    const missing = fixture();
+    missing.upstream.sourceLicenseFiles =
+      missing.upstream.sourceLicenseFiles.filter(path => path !== license);
+    assert.throws(() => verifyManifest(missing), /complete license inventory/);
+  }
 });

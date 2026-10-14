@@ -7,6 +7,7 @@ import { createReadStream, existsSync, lstatSync, readFileSync, realpathSync } f
 import { resolve, join, relative, isAbsolute, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { assembleEngine } from './assemble-engine.mjs';
+import { verifyManifest } from './validate-baseline.mjs';
 import { SOURCE_FILES, verifyCommittedPrivateFork } from '../../engine/isolation-native/fork-overlay/apply-private-source.mjs';
 
 const PIN = 'abd4c240031cfb46666daa74ca47ed4e48b561e4';
@@ -53,6 +54,9 @@ async function sizeAndHash(path) {
   return {sizeBytes:size, sha256:hash.digest('hex')};
 }
 function checkReport(manifest, report) {
+  // Same complete version-locked inventory as the upstream baseline builder.
+  // No reduced private manifest may claim all core artifacts were built.
+  verifyManifest(manifest);
   refuse(manifest?.upstream?.commit === PIN &&
     report?.schema === 1 && report.state === STATUS &&
     report.upstreamCommit === PIN && SHA_COMMIT.test(report.privateForkHead) &&

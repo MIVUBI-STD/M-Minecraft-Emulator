@@ -42,6 +42,11 @@ if ([string]$manifest.upstream.commit -cne $pin) { throw 'Upstream pin changed.'
 # The staged overlay must first be reviewed and committed as one direct child
 # of the pinned release; the canonical Node verifier checks exact Git blobs.
 $node = (Get-Command node.exe -ErrorAction Stop).Source
+# Fail before MSBuild if any helper/license/optional-symbol contract has been
+# deleted from the version-pinned manifest. The baseline owns this closure.
+$validateManifest = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../../tooling/isolation-source/validate-baseline.mjs'))
+& $node $validateManifest $manifestPath
+if ($LASTEXITCODE -ne 0) { throw 'Pinned complete upstream manifest validation failed.' }
 $sourceVerifier = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot 'apply-private-source.mjs'))
 $verifiedJson = (& $node $sourceVerifier --verify-committed --fork-root $root | Out-String).Trim()
 if ($LASTEXITCODE -ne 0) { throw 'Private source commit verification failed.' }

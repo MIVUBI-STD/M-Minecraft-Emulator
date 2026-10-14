@@ -9,17 +9,11 @@ import { SOURCE_FILES } from '../../engine/isolation-native/fork-overlay/apply-p
 
 const PIN='abd4c240031cfb46666daa74ca47ed4e48b561e4';
 const SHA = bytes=>createHash('sha256').update(bytes).digest('hex');
-const required = [
-  'Sandboxie/Bin/Win32/SbieRelease/SbieSvc.exe',
-  'Sandboxie/Bin/Win32/SbieRelease/SbieDll.dll',
-  ...['SbieDrv.sys','SbieSvc.exe','SbieDll.dll','Start.exe','SbieIni.exe',
-    'kmdutil.exe','SbieMsg.dll','SandboxieRpcSs.exe','SandboxieDcomLaunch.exe',
-    'SandboxieCrypto.exe','SandboxieBITS.exe','SandboxieWUAU.exe','SbieCtrl.exe',
-    'SboxHostDll.dll'].map(f=>'Sandboxie/Bin/x64/SbieRelease/'+f),
-];
-const resources=['Templates.ini','SbieSettings.ini','Manifest0.txt',
-  'Manifest1.txt','Manifest2.txt'].map(f=>'Sandboxie/install/'+f);
-const license=['LICENSE.Plus','Sandboxie/COPYING'];
+const canonicalManifest = JSON.parse(readFileSync(
+  new URL("./upstream-baseline.json", import.meta.url), "utf8"));
+const required = canonicalManifest.requiredArtifacts;
+const resources = canonicalManifest.sourceResources;
+const license = canonicalManifest.upstream.sourceLicenseFiles;
 function fixture() {
   const base=mkdtempSync(join(tmpdir(),'mivubi-private-stage-'));
   const root=join(base,'fork');
@@ -38,12 +32,7 @@ function fixture() {
     {id:'x64-core',platform:'x64',exitCode:0},
     {id:'x64-kernel',platform:'x64',exitCode:0},
   ];
-  const manifest={upstream:{repository:'sandboxie-plus/Sandboxie',
-    commit:PIN,tag:'v1.18.5',sourceLicenseFiles:license},
-    buildStages:buildStages.map(({id,platform})=>({id,platform})),
-    requiredArtifacts:required,sourceResources:resources,optionalSymbols:[
-      'Sandboxie/Bin/x64/SbieRelease/SbieDrv.pdb',
-    ]};
+  const manifest=structuredClone(canonicalManifest);
   const report={schema:1,state:'PRIVATE_CORE_BINARIES_BUILT_NOT_SIGNED_OR_RUN',
     upstreamCommit:PIN,privateForkHead:'a'.repeat(40),
     privateForkTree:'b'.repeat(40),privatePatchSha256:'c'.repeat(64),
@@ -61,6 +50,26 @@ const run=f=>stagePrivateCore({sourceRoot:f.root,manifest:f.manifest,
   {checkSource:()=>({privateForkHead:f.report.privateForkHead,
     privateForkTree:f.report.privateForkTree,
     privatePatchSha256:f.report.privatePatchSha256})});
+
+test('rejects a reduced private manifest before staging any output',async()=>{
+  const f=fixture();try {
+    for(const mutate of [
+      m => m.requiredArtifacts.pop(),
+      m => m.optionalSymbols.shift(),
+      m => m.sourceResources.pop(),
+      m => m.upstream.sourceLicenseFiles.pop(),
+    ]) {
+      const changed=structuredClone(f.manifest);
+      mutate(changed);
+      await assert.rejects(stagePrivateCore({
+        sourceRoot:f.root,manifest:changed,report:f.report,
+        outputDirectory:f.output,
+      },{checkSource:()=>{throw Error('should not inspect source on invalid manifest')}}),
+      /complete .* inventory/);
+      assert.equal(existsSync(f.output),false);
+    }
+  }finally{f.cleanup();}
+});
 
 test('assembles genuine file bytes into exclusive private payload with fork provenance',async()=>{
   const f=fixture();try {
