@@ -168,6 +168,12 @@ $report | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $reportFull -Encod
 if ($LASTEXITCODE -ne 0) {
     throw 'Isolation artifact report is inconsistent. Do not use these binaries.'
 }
+# Independent check against the ACTUAL produced files, not only reported
+# SHA-256 strings. Read-only and rejects missing, altered or symlinked artifacts.
+& $nodeCmd.Source (Join-Path $PSScriptRoot 'verify-artifact-files.mjs') $specPath $reportFull $root
+if ($LASTEXITCODE -ne 0) {
+    throw 'Artifact bytes do not match report metadata. Do not use these binaries.'
+}
 Write-Output ("Artifact inventory written: " + $reportFull)
 Write-Output ("Result: " + $status + " / required missing: " + $missingRequired.Count)
 if ($Build -and ($missingRequired.Count -gt 0 -or $missingResources.Count -gt 0)) {

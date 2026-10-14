@@ -18,6 +18,8 @@ const required = [
   "tooling/isolation-source/build-baseline.ps1",
   "tooling/isolation-source/validate-baseline.mjs",
   "tooling/isolation-source/validate-baseline.test.mjs",
+  "tooling/isolation-source/verify-artifact-files.mjs",
+  "tooling/isolation-source/verify-artifact-files.test.mjs",
   "apps/desktop/package.json", "apps/desktop/package-lock.json",
   "apps/desktop/src-tauri/Cargo.toml", "apps/desktop/src-tauri/tauri.conf.json",
   "engine/runtime-core/Cargo.toml", "engine/distribution/release-channel.json",

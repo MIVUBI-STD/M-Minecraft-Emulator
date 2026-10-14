@@ -1,5 +1,17 @@
 # Current Development Handoff
 
+## Independent artifact-byte verification — 2026-10-14
+
+**Work:** close the gap between a syntactically valid SHA-256 string and evidence from the actual artifact bytes. **State:** DONE for source and Node filesystem tests, Windows build still NOT_EXECUTED.
+
+**Decision:** keep the current metadata validator and add `tooling/isolation-source/verify-artifact-files.mjs` as a second read-only gate. It rejects missing files falsely marked present, existing optional symbols falsely marked missing, mismatched size/hash, symlinked paths and files changing during verification. PowerShell runs this after `validate-baseline.mjs`, before reporting a successful artifact inventory; no compiled driver, signing, service, installation, account or world changes.
+
+**Proof:** checked-in source/test content matched exact Git blob SHA. Five filesystem regression scenarios PASS on available Linux Node 22 using a baseline-compatible contract validator; metadata source contract and new PowerShell call were inspected. Node 24/Windows/PowerShell and actual upstream compilation NOT_EXECUTED. File consistency is not code provenance/driver trust or gameplay acceptance.
+
+**Unresolved:** Windows unmodified Win32/x64 compilation, artifact collection, driver signing/load, fork creation and Client 02 idle crash attribution. Report-level metadata is not security or end-to-end gameplay proof.
+
+**Next ONE task:** complete original unmodified upstream build in an appropriate Windows environment and capture validated SHA-256 artifacts. Keep the existing official Sandboxie client and account-bearing box unchanged.
+
 ## Isolation source report validation — 2026-10-14
 
 **Work:** strict validation for pinned Sandboxie source/build evidence. **State:** DONE for source tooling and pure logic checks; native Windows build remains NOT_EXECUTED.
