@@ -139,17 +139,41 @@ fn rejected(message: &'static str) -> io::Error {
     io::Error::new(io::ErrorKind::InvalidData, message)
 }
 
+// Windows has reparse-point types besides ordinary symbolic links (including
+// junctions). Never treat those filesystem redirections as candidate files.
+fn is_redirected_entry(meta: &fs::Metadata) -> bool {
+    if meta.file_type().is_symlink() {
+        return true;
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::MetadataExt;
+        const FILE_ATTRIBUTE_REPARSE_POINT: u32 = 0x0000_0400;
+        if meta.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT != 0 {
+            return true;
+        }
+    }
+    false
+}
+
 // Manifest/marker paths are user-selected and untrusted. Bound allocation
 // BEFORE parsing/inspection; checking fs::read().len() after allocation is late.
 fn read_bounded_file(path: &Path, limit: usize) -> io::Result<Vec<u8>> {
-    let meta = fs::symlink_metadata(path)?;
-    if !meta.is_file() || meta.len() > limit as u64 {
+    // Check the opened handle, rather than trusting only pre-open path metadata.
+    // The path itself is prechecked for symbolic links by safe_relative_file.
+    let mut file = File::open(path)?;
+    let before = file.metadata()?;
+    if !before.is_file() || before.len() > limit as u64 {
         return Err(rejected("owned-engine metadata is not a bounded regular file"));
     }
-    let mut bytes = Vec::with_capacity(meta.len() as usize);
-    File::open(path)?.take(limit as u64 + 1).read_to_end(&mut bytes)?;
+    let mut bytes = Vec::with_capacity(before.len() as usize);
+    (&mut file).take(limit as u64 + 1).read_to_end(&mut bytes)?;
     if bytes.len() > limit {
         return Err(rejected("owned-engine metadata exceeds bounded size"));
+    }
+    let after = file.metadata()?;
+    if after.len() != before.len() || after.modified()? != before.modified()? {
+        return Err(rejected("owned-engine metadata changed while it was read"));
     }
     Ok(bytes)
 }
@@ -182,8 +206,8 @@ fn safe_relative_file(root: &Path, relative: &str) -> io::Result<PathBuf> {
         // Include broken symlinks: metadata() follows them and can lie by returning ENOENT.
         let metadata = fs::symlink_metadata(&joined)
             .map_err(|_| rejected("owned-engine artifact entry missing or inaccessible"))?;
-        if metadata.file_type().is_symlink() {
-            return Err(rejected("owned-engine artifact symlink refused"));
+        if is_redirected_entry(&metadata) {
+            return Err(rejected("owned-engine artifact redirected path refused"));
         }
     }
     if depth == 0 {
@@ -212,6 +236,61 @@ fn sha256_file(path: &Path, expected_size: u64) -> io::Result<String> {
     Ok(format!("{:x}", hasher.finalize()))
 }
 
+// A read-only candidate must match the assembler's closed payload inventory.
+// Manifest hashes alone are insufficient: an unlisted executable or redirecting
+// directory could otherwise exist beside an apparently valid staged payload.
+// This is a bounded snapshot, not an immutable filesystem or install permit.
+fn verify_payload_inventory(root: &Path, declared: &HashSet<String>) -> io::Result<()> {
+    let mut observed = HashSet::new();
+    let mut directories = vec![(root.to_path_buf(), String::new(), 0_usize)];
+    let mut entries_seen = 0_usize;
+    while let Some((directory, prefix, depth)) = directories.pop() {
+        if depth > 6 {
+            return Err(rejected("owned-engine payload directory depth exceeded"));
+        }
+        for entry in fs::read_dir(directory)? {
+            entries_seen += 1;
+            if entries_seen > 96 {
+                return Err(rejected("owned-engine payload entry cap exceeded"));
+            }
+            let name_os = entry.file_name();
+            let name = name_os.to_str()
+                .ok_or_else(|| rejected("owned-engine payload contains non-Unicode name"))?;
+            if name.is_empty() || !name.bytes().all(|b|
+                b.is_ascii_alphanumeric() || matches!(b, b'.' | b'_' | b'-'))
+            {
+                return Err(rejected("owned-engine payload name is not canonical"));
+            }
+            let relative = if prefix.is_empty() {
+                name.to_string()
+            } else {
+                format!("{prefix}/{name}")
+            };
+            let meta = fs::symlink_metadata(entry.path())?;
+            if is_redirected_entry(&meta) {
+                return Err(rejected("owned-engine payload redirected entry refused"));
+            }
+            if meta.is_dir() {
+                let directory_prefix = format!("{relative}/");
+                if !declared.iter().any(|path| path.starts_with(&directory_prefix)) {
+                    return Err(rejected("undeclared owned-engine directory"));
+                }
+                directories.push((entry.path(), relative, depth + 1));
+            } else if meta.is_file() {
+                if !declared.contains(&relative) || !observed.insert(relative) {
+                    return Err(rejected("undeclared or duplicate owned-engine file"));
+                }
+            } else {
+                return Err(rejected("owned-engine payload special file refused"));
+            }
+        }
+    }
+    if &observed != declared {
+        return Err(rejected("owned-engine payload inventory changed during inspection"));
+    }
+    Ok(())
+}
+
 fn required_stages(stages: &[BuildStage]) -> bool {
     let expected = [
         ("win32-support", "Win32"),
@@ -232,7 +311,7 @@ pub fn inspect_candidate(root: &Path) -> io::Result<OwnedCandidateInspection> {
             "Owned engine candidate requires an absolute directory"));
     }
     let metadata = fs::symlink_metadata(root)?;
-    if metadata.file_type().is_symlink() || !metadata.is_dir() {
+    if is_redirected_entry(&metadata) || !metadata.is_dir() {
         return Err(rejected("owned-engine candidate root must be an ordinary directory"));
     }
     let manifest_path = safe_relative_file(root, "engine-provenance.json")?;
@@ -315,6 +394,10 @@ pub fn inspect_candidate(root: &Path) -> io::Result<OwnedCandidateInspection> {
     if marker_bytes != expected_not_installable_marker(private).as_bytes() {
         return Err(rejected("owned-engine safety marker is missing or modified"));
     }
+    let mut declared = seen;
+    declared.insert("engine-provenance.json".into());
+    declared.insert("NOT-INSTALLABLE.txt".into());
+    verify_payload_inventory(root, &declared)?;
     Ok(OwnedCandidateInspection {
         schema: 1,
         state: "CANDIDATE_INTEGRITY_VERIFIED_NOT_INSTALLABLE".into(),
@@ -695,6 +778,54 @@ mod tests {
         c.populate();
         fs::write(c.0.join("NOT-INSTALLABLE.txt"), vec![b'X'; 1025]).unwrap();
         assert!(inspect_candidate(&c.0).is_err());
+    }
+
+    #[test]
+    fn candidate_rejects_unlisted_file_without_manifest_entry() {
+        let c = TempCandidate::new();
+        c.populate();
+        fs::write(c.0.join("not-listed.exe"), b"unexpected extra file").unwrap();
+        assert!(inspect_candidate(&c.0).is_err());
+    }
+
+    #[test]
+    fn candidate_rejects_unlisted_nested_directory_or_file() {
+        let c = TempCandidate::new();
+        c.populate();
+        let extra_dir = c.0.join("LICENSES/other");
+        fs::create_dir(&extra_dir).unwrap();
+        fs::write(extra_dir.join("extra.txt"), b"extra notice").unwrap();
+        assert!(inspect_candidate(&c.0).is_err());
+    }
+
+    #[test]
+    fn candidate_rejects_unlisted_nested_file_in_allowed_directory() {
+        let c = TempCandidate::new();
+        c.populate();
+        fs::write(c.0.join("32/unlisted.dll"), b"unknown helper").unwrap();
+        assert!(inspect_candidate(&c.0).is_err());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn candidate_rejects_unlisted_symlink_at_inventory_scan() {
+        use std::os::unix::fs::symlink;
+        let c = TempCandidate::new();
+        c.populate();
+        symlink(c.0.join("Start.exe"), c.0.join("redirect.exe")).unwrap();
+        assert!(inspect_candidate(&c.0).is_err());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn candidate_rejects_symlinked_root_directory() {
+        use std::os::unix::fs::symlink;
+        let c = TempCandidate::new();
+        c.populate();
+        let alias = c.0.with_extension("alias");
+        symlink(&c.0, &alias).unwrap();
+        assert!(inspect_candidate(&alias).is_err());
+        fs::remove_file(alias).unwrap();
     }
 
     #[test]

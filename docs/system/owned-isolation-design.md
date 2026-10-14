@@ -21,6 +21,31 @@ The application repository now contains a Git **submodule pointer** to the authe
 
 A new private assembler combines the pinned upstream kernel driver, service, DLL, Win32 companions and required helpers into a coherent isolated directory, preserving original licensing and hashing copied bytes. This is deliberately marked `ARTIFACTS_STAGED_NOT_INSTALLABLE`. No actual Windows artifacts, driver installation, runtime selection or gameplay validation exists in this ChatGPT session; production signing and coexistence remain separate gates.
 
+## Closed payload inventory and read-only path consistency — 2026-10-14
+
+The existing candidate inspector now enumerates its user-selected payload
+directory with a bounded 96-entry, six-level traversal, rejecting any
+undeclared file, directory, symbolic link, Windows reparse-point redirection
+or special filesystem entry. Inventory must match the manifest's hashed
+artifact entries plus only `engine-provenance.json` and
+`NOT-INSTALLABLE.txt`. Optional PDBs remain supported only at known paths;
+the assembler's existing payload format and the active provider are unchanged.
+
+Small manifest (256 KiB) and marker (1 KiB) reads now inspect the **opened**
+file handle's metadata, cap actual bytes read and check length/mtime again
+after reading. The underlying artifact verification still compares the
+hash of opened file bytes to the manifest entry. The UI describes a
+**folder snapshot**, not a stable verified engine. Ordinary concurrent file
+changes can invalidate a later result; the inspector does not freeze
+filesystem contents and must be rerun before any future action.
+
+**Boundaries:** traversal/metadata checks reduce accidental path drift and
+certain replacement risks; they are not a complete Windows adversarial
+filesystem-race proof. No launch or privileged action consumes this
+snapshot, so it cannot independently authorize service installation or
+switch the official Client 02 backend. Windows reparse/runtime behavior and
+Rust integration tests remain NOT_EXECUTED in the current environment.
+
 ## Read-only staged candidate provenance tightening (2026-10-14)
 
 The existing Rust-owned candidate inspector now accepts only the exact

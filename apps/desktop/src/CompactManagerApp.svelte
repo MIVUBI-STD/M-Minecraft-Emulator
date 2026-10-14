@@ -494,7 +494,7 @@
             {ownedInspectionBusy ? "Inspecting candidate…" : "Inspect engine candidate"}
           </button>
           {#if ownedCandidate}
-            <p aria-live="polite">Checksums match {ownedCandidate.verifiedArtifactCount} staged files and the expected source paths. This does not authenticate the build or prove driver compatibility. Not installable; the official Sandboxie provider remains active.</p>
+            <p aria-live="polite">Folder snapshot: checksums match {ownedCandidate.verifiedArtifactCount} declared files and source paths, with no additional entries observed. Files could change after inspection. This does not authenticate the build or prove driver compatibility. Not installable; the official Sandboxie provider remains active.</p>
           {/if}
           {#if ownedInspectionError}
             <p class="cm-warning" role="alert">{ownedInspectionError}</p>

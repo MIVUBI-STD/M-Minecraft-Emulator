@@ -48,11 +48,17 @@ describe("Owned isolation candidate — strictly read-only", () => {
     expect(owned).toContain("LICENSES/SandboxiePlus/QSbieAPI/LICENSE");
     expect(owned).toContain("expected_source_for_payload");
     expect(owned).toContain("expected_not_installable_marker");
+    expect(owned).toContain("verify_payload_inventory(root, &declared)?");
+    expect(owned).toContain("FILE_ATTRIBUTE_REPARSE_POINT");
+    expect(owned).toContain("owned-engine payload entry cap exceeded");
+    expect(owned).toContain("owned-engine metadata changed while it was read");
     expect(bootstrap).toContain("commands::native_clients::desktop_inspect_owned_engine_candidate,");
     expect(bootstrap).toContain("commands::native_clients::desktop_select_owned_engine_candidate_directory,");
     expect(commands).toContain("fn desktop_inspect_owned_engine_candidate(");
     expect(screen).toContain("Inspect engine candidate");
     expect(screen).toContain("No engine was activated.");
+    expect(screen).toContain("Folder snapshot:");
+    expect(screen).toContain("Files could change after inspection.");
   });
 });
 

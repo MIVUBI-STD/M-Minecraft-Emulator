@@ -1,5 +1,42 @@
 # Current Development Handoff
 
+## Closed candidate-folder snapshot and opened-file metadata — 2026-10-14
+
+**Work:** address bounded read-only filesystem inventory and path consistency
+in the existing owned-engine inspector. **State:** DONE for source;
+Rust/Windows execution NOT_EXECUTED.
+
+**Observed source gap:** the prior implementation accepted arbitrary extra
+unlisted files and directories beside a valid manifest, and read metadata
+size from a path before opening the file. Windows non-symlink reparse points
+were not explicitly rejected by file-attributes inspection. This was a
+candidate-inspection evidence limitation, NOT an observed engine bypass:
+the backend still cannot install, select or launch an owned driver.
+
+**Decision:** keep the one Rust inspector and exact assembler format.
+Read small manifest/marker files through opened handles with bounded reads
+and post-read length/mtime checks; reject all Windows reparse-point
+attributes, symlinks and unexpected filesystem entry kinds. Enumerate a
+bounded payload tree, compare it to the exact declared artifact paths plus
+the two known metadata files, and refuse additions/missing entries.
+Update source-level tests and Settings text to describe a point-in-time
+snapshot, not immutable trust or installation permission. No new driver
+commands, native provider or account/world operations.
+
+**Proof:** authored Rust regression cases for unlisted root/nested files,
+symlinked paths (Unix conditional), optional PDB positive case already
+retained and bounded metadata constraints. Source contracts inspected at
+GitHub ref; actual Rust compiler/CTest/Windows filesystem tests remain
+NOT_EXECUTED. No claim of defeating every concurrent directory replacement.
+
+**Unresolved:** native Windows signed driver, real REA binary analysis,
+source MSBuild and Minecraft gameplay have not been executed.
+**Next ONE task:** perform a final bounded source-only consistency check
+of source files, consumer contracts and unchanged official backend;
+then stop at the actual Windows/REA proof boundary rather than adding
+unjustified lifecycle/attestation layers.
+
+
 ## Private payload read-only inspection closure — 2026-10-14
 
 **Work:** tighten the existing owned candidate inspector without exposing
