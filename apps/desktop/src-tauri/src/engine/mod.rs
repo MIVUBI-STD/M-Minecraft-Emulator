@@ -3,3 +3,4 @@
 pub mod app_instance;
 pub mod dpi;
 pub mod native_clients;
+pub mod owned_isolation;

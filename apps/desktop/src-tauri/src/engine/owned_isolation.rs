@@ -1,0 +1,320 @@
+//! Read-only candidate for an app-owned Sandboxie-derived engine.
+//! This module NEVER installs/loads a driver, chooses a runtime backend,
+//! migrates an occupied box, or treats checksums as Authenticode trust.
+//! The officially installed Sandboxie provider remains the only active route.
+
+use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
+use std::{
+    collections::HashSet,
+    fs::{self, File},
+    io::{self, Read},
+    path::{Component, Path, PathBuf},
+};
+
+const PINNED_UPSTREAM: &str = "abd4c240031cfb46666daa74ca47ed4e48b561e4";
+const EXPECTED_STATE: &str = "ARTIFACTS_STAGED_NOT_INSTALLABLE";
+const REQUIRED_FILES: &[&str] = &[
+    "SbieDrv.sys", "SbieSvc.exe", "SbieDll.dll",
+    "Start.exe", "SbieIni.exe", "kmdutil.exe", "SbieMsg.dll",
+    "SandboxieRpcSs.exe", "SandboxieDcomLaunch.exe",
+    "SandboxieCrypto.exe", "SandboxieBITS.exe", "SandboxieWUAU.exe",
+    "SbieCtrl.exe", "SboxHostDll.dll",
+    "32/SbieSvc.exe", "32/SbieDll.dll",
+    "Templates.ini", "SbieSettings.ini",
+    "Manifest0.txt", "Manifest1.txt", "Manifest2.txt",
+    "LICENSES/LICENSE.Plus", "LICENSES/Sandboxie/COPYING",
+];
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct StagedArtifact {
+    path: String,
+    source: String,
+    size_bytes: u64,
+    sha256: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct BuildStage {
+    id: String,
+    platform: String,
+    state: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct StagedManifest {
+    schema: u32,
+    state: String,
+    upstream_repository: String,
+    upstream_tag: String,
+    upstream_commit: String,
+    build_stages: Vec<BuildStage>,
+    artifacts: Vec<StagedArtifact>,
+    windows_kernel_driver_loaded: bool,
+    minecraft_gameplay_verified: bool,
+    sandboxie_external_dependency_removed: bool,
+    public_distribution_approved: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OwnedCandidateInspection {
+    pub schema: u32,
+    pub state: String,
+    pub upstream_commit: String,
+    pub verified_artifact_count: u32,
+    pub required_artifact_count: u32,
+    pub provider_selected: bool,
+    pub driver_load_verified: bool,
+    pub gameplay_verified: bool,
+    pub install_permitted: bool,
+}
+
+fn rejected(message: &'static str) -> io::Error {
+    io::Error::new(io::ErrorKind::InvalidData, message)
+}
+
+fn safe_relative_file(root: &Path, relative: &str) -> io::Result<PathBuf> {
+    if relative.is_empty() || relative.len() > 240 {
+        return Err(rejected("empty or oversized owned-engine artifact path"));
+    }
+    let relative_path = Path::new(relative);
+    if relative_path.is_absolute() || relative.contains('\\') {
+        return Err(rejected("owned-engine artifact path is not portable"));
+    }
+    let mut joined = root.to_path_buf();
+    let mut depth = 0;
+    for component in relative_path.components() {
+        let Component::Normal(part) = component else {
+            return Err(rejected("owned-engine artifact path traversal refused"));
+        };
+        depth += 1;
+        if depth > 6 {
+            return Err(rejected("owned-engine artifact path depth exceeded"));
+        }
+        let part = part.to_string_lossy();
+        if part.is_empty() || !part.bytes().all(|b|
+            b.is_ascii_alphanumeric() || matches!(b, b'.' | b'_' | b'-'))
+        {
+            return Err(rejected("owned-engine artifact path has unsafe characters"));
+        }
+        joined.push(part.as_ref());
+        // Include broken symlinks: metadata() follows them and can lie by returning ENOENT.
+        let metadata = fs::symlink_metadata(&joined)
+            .map_err(|_| rejected("owned-engine artifact entry missing or inaccessible"))?;
+        if metadata.file_type().is_symlink() {
+            return Err(rejected("owned-engine artifact symlink refused"));
+        }
+    }
+    if depth == 0 {
+        return Err(rejected("empty owned-engine artifact path"));
+    }
+    Ok(joined)
+}
+
+fn sha256_file(path: &Path, expected_size: u64) -> io::Result<String> {
+    let mut file = File::open(path)?;
+    let original = file.metadata()?;
+    if !original.is_file() || original.len() != expected_size || expected_size == 0 {
+        return Err(rejected("owned-engine artifact type or size changed"));
+    }
+    let mut hasher = Sha256::new();
+    let mut buffer = [0_u8; 64 * 1024];
+    loop {
+        let count = file.read(&mut buffer)?;
+        if count == 0 { break; }
+        hasher.update(&buffer[..count]);
+    }
+    let current = file.metadata()?;
+    if current.len() != original.len() || current.modified()? != original.modified()? {
+        return Err(rejected("owned-engine artifact changed during hash verification"));
+    }
+    Ok(format!("{:x}", hasher.finalize()))
+}
+
+fn required_stages(stages: &[BuildStage]) -> bool {
+    let expected = [
+        ("win32-support", "Win32"),
+        ("x64-core", "x64"),
+        ("x64-kernel", "x64"),
+    ];
+    stages.len() == expected.len() && stages.iter().zip(expected).all(
+        |(actual, (id, platform))|
+            actual.id == id && actual.platform == platform && actual.state == "COMPILED"
+    )
+}
+
+/// Read-only checksum and layout inspection. A result is NEVER approval to
+/// install the upstream kernel driver or launch a separate Minecraft account.
+pub fn inspect_candidate(root: &Path) -> io::Result<OwnedCandidateInspection> {
+    if root.as_os_str().is_empty() || !root.is_absolute() {
+        return Err(io::Error::new(io::ErrorKind::InvalidInput,
+            "Owned engine candidate requires an absolute directory"));
+    }
+    let metadata = fs::symlink_metadata(root)?;
+    if metadata.file_type().is_symlink() || !metadata.is_dir() {
+        return Err(rejected("owned-engine candidate root must be an ordinary directory"));
+    }
+    let manifest_path = safe_relative_file(root, "engine-provenance.json")?;
+    let raw = fs::read(&manifest_path)?;
+    if raw.len() > 256 * 1024 {
+        return Err(rejected("owned-engine manifest exceeds bounded size"));
+    }
+    let manifest: StagedManifest = serde_json::from_slice(&raw)
+        .map_err(|_| rejected("invalid owned-engine provenance schema"))?;
+    if manifest.schema != 1 || manifest.state != EXPECTED_STATE
+        || manifest.upstream_repository != "sandboxie-plus/Sandboxie"
+        || manifest.upstream_tag != "v1.18.5"
+        || manifest.upstream_commit != PINNED_UPSTREAM
+        || manifest.windows_kernel_driver_loaded
+        || manifest.minecraft_gameplay_verified
+        || manifest.sandboxie_external_dependency_removed
+        || manifest.public_distribution_approved
+        || !required_stages(&manifest.build_stages)
+        || !(REQUIRED_FILES.len()..=48).contains(&manifest.artifacts.len())
+    {
+        return Err(rejected("owned-engine manifest makes unproven runtime claims"));
+    }
+
+    let mut seen = HashSet::new();
+    for artifact in &manifest.artifacts {
+        if !seen.insert(artifact.path.as_str()) {
+            return Err(rejected("duplicate owned-engine artifact path"));
+        }
+        if artifact.source.is_empty() || artifact.source.len() > 256
+            || !artifact.source.starts_with("Sandboxie/")
+                && !artifact.source.starts_with("LICENSE.Plus")
+                && !artifact.source.starts_with("SandboxiePlus/")
+        {
+            return Err(rejected("unrecognized upstream artifact provenance"));
+        }
+        if artifact.sha256.len() != 64 || !artifact.sha256.bytes().all(|b|
+            b.is_ascii_hexdigit() && !b.is_ascii_uppercase())
+        {
+            return Err(rejected("invalid owned-engine artifact checksum"));
+        }
+        let path = safe_relative_file(root, &artifact.path)?;
+        if sha256_file(&path, artifact.size_bytes)? != artifact.sha256 {
+            return Err(rejected("owned-engine artifact checksum does not match bytes"));
+        }
+    }
+    if !REQUIRED_FILES.iter().all(|name| seen.contains(name)) {
+        return Err(rejected("incomplete owned-engine driver/service/DLL, helpers or license closure"));
+    }
+    // Explicit staging marker must accompany the purported uninstalled bundle.
+    let marker = safe_relative_file(root, "NOT-INSTALLABLE.txt")?;
+    if !fs::metadata(marker)?.is_file() {
+        return Err(rejected("owned-engine safety marker missing"));
+    }
+    Ok(OwnedCandidateInspection {
+        schema: 1,
+        state: "CANDIDATE_INTEGRITY_VERIFIED_NOT_INSTALLABLE".into(),
+        upstream_commit: PINNED_UPSTREAM.into(),
+        verified_artifact_count: manifest.artifacts.len() as u32,
+        required_artifact_count: REQUIRED_FILES.len() as u32,
+        provider_selected: false,
+        driver_load_verified: false,
+        gameplay_verified: false,
+        install_permitted: false,
+    })
+}
+
+pub fn inspect_candidate_path(path: String) -> io::Result<OwnedCandidateInspection> {
+    inspect_candidate(Path::new(&path))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    struct TempCandidate(PathBuf);
+    impl TempCandidate {
+        fn new() -> Self {
+            let unique = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+            let path = std::env::temp_dir().join(format!("mivubi-owned-candidate-{}-{unique}", std::process::id()));
+            fs::create_dir(&path).unwrap();
+            Self(path)
+        }
+        fn add_file(&self, path: &str, content: &[u8]) -> serde_json::Value {
+            let target = self.0.join(path);
+            fs::create_dir_all(target.parent().unwrap()).unwrap();
+            fs::write(&target, content).unwrap();
+            let mut hash = Sha256::new();
+            hash.update(content);
+            serde_json::json!({
+                "path": path,
+                "source": if path == "LICENSES/LICENSE.Plus" { "LICENSE.Plus".to_string() }
+                    else { format!("Sandboxie/{}", path) },
+                "sizeBytes": content.len(),
+                "sha256": format!("{:x}", hash.finalize()),
+            })
+        }
+        fn populate(&self) {
+            let mut files = Vec::new();
+            for path in REQUIRED_FILES {
+                files.push(self.add_file(path, format!("fixture:{path}").as_bytes()));
+            }
+            fs::write(self.0.join("NOT-INSTALLABLE.txt"), b"NOT INSTALLABLE").unwrap();
+            let provenance = serde_json::json!({
+                "schema": 1, "state": EXPECTED_STATE, "upstreamRepository": "sandboxie-plus/Sandboxie",
+                "upstreamTag": "v1.18.5", "upstreamCommit": PINNED_UPSTREAM,
+                "buildStages": [
+                    {"id":"win32-support","platform":"Win32","state":"COMPILED"},
+                    {"id":"x64-core","platform":"x64","state":"COMPILED"},
+                    {"id":"x64-kernel","platform":"x64","state":"COMPILED"}
+                ],
+                "artifacts": files,
+                "windowsKernelDriverLoaded": false,
+                "minecraftGameplayVerified": false,
+                "sandboxieExternalDependencyRemoved": false,
+                "publicDistributionApproved": false
+            });
+            fs::write(self.0.join("engine-provenance.json"),
+                serde_json::to_vec(&provenance).unwrap()).unwrap();
+        }
+    }
+    impl Drop for TempCandidate {
+        fn drop(&mut self) { let _ = fs::remove_dir_all(&self.0); }
+    }
+
+    #[test]
+    fn candidate_source_fixture_validates_hashes_but_never_proves_driver_load() {
+        let c = TempCandidate::new();
+        c.populate();
+        let result = inspect_candidate(&c.0).unwrap();
+        assert_eq!(result.verified_artifact_count, REQUIRED_FILES.len() as u32);
+        assert!(!result.provider_selected && !result.driver_load_verified
+            && !result.gameplay_verified && !result.install_permitted);
+    }
+
+    #[test]
+    fn candidate_checksum_mismatch_is_rejected() {
+        let c = TempCandidate::new();
+        c.populate();
+        fs::write(c.0.join("SbieDrv.sys"), b"tampered binary").unwrap();
+        assert!(inspect_candidate(&c.0).is_err());
+    }
+
+    #[test]
+    fn candidate_missing_license_is_rejected() {
+        let c = TempCandidate::new();
+        c.populate();
+        fs::remove_file(c.0.join("LICENSES/Sandboxie/COPYING")).unwrap();
+        assert!(inspect_candidate(&c.0).is_err());
+    }
+
+    #[test]
+    fn candidate_runtime_claim_is_rejected() {
+        let c = TempCandidate::new();
+        c.populate();
+        let path = c.0.join("engine-provenance.json");
+        let mut manifest: serde_json::Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+        manifest["windowsKernelDriverLoaded"] = true.into();
+        fs::write(path, serde_json::to_vec(&manifest).unwrap()).unwrap();
+        assert!(inspect_candidate(&c.0).is_err());
+    }
+}

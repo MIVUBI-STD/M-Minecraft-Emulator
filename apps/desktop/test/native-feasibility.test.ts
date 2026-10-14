@@ -81,6 +81,9 @@ describe("Native candidate IPC evidence", () => {
     expect(bootstrap).toContain("commands::native_clients::desktop_select_education_exe,");
     expect(bootstrap).toContain("commands::native_clients::desktop_request_sandbox_client_02,");
     expect(bootstrap).toContain("commands::native_clients::desktop_inspect_sandbox_client_02,");
+    expect(bootstrap).toContain("commands::native_clients::desktop_inspect_owned_engine_candidate,");
+    expect(commands).toContain("fn desktop_inspect_owned_engine_candidate(");
+    expect(bridge).toContain('"desktop_inspect_owned_engine_candidate"');
     expect(bootstrap).toContain("commands::native_clients::desktop_focus_observed_client_02,");
     expect(bootstrap).toContain("commands::native_clients::desktop_place_observed_client_02,");
     expect(commands).toContain("fn desktop_inspect_sandbox_client_02(");

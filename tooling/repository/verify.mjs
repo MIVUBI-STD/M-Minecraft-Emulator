@@ -40,6 +40,8 @@ const required = [
   "docs/validation/pre-local-test-readiness.md",
   "docs/product/four-concurrent-accounts.md",
   "apps/desktop/src-tauri/src/engine/native_clients.rs",
+  "apps/desktop/src-tauri/src/engine/owned_isolation.rs",
+  "apps/desktop/test/owned-isolation.test.ts",
   "apps/desktop/src-tauri/src/commands/native_clients.rs",
   "apps/desktop/src/NativeFeasibilityApp.svelte",
   "apps/desktop/src/CompactManagerApp.svelte",
@@ -180,6 +182,17 @@ requireFact(activeTauri.includes("commands::native_clients::desktop_open_native_
   "Legacy VM handlers must not be registered in the active Tauri pilot");
 const nativeBridge = read("apps/desktop/src/app/bridge/nativeFeasibilityApi.ts");
 const nativeOwner = read("apps/desktop/src-tauri/src/engine/native_clients.rs");
+const ownedEngine = read("apps/desktop/src-tauri/src/engine/owned_isolation.rs");
+const ownedBridge = read("apps/desktop/src/app/bridge/nativeFeasibilityApi.ts");
+requireFact(
+  ownedEngine.includes("pub fn inspect_candidate(") &&
+  ownedEngine.includes("CANDIDATE_INTEGRITY_VERIFIED_NOT_INSTALLABLE") &&
+  ownedEngine.includes("install_permitted: false") &&
+  nativeOwner.includes("const ACTIVE_ISOLATION_BACKEND: OfficialSandboxieBackend") &&
+  ownedBridge.includes('"desktop_inspect_owned_engine_candidate"') &&
+  read("apps/desktop/src-tauri/src/app_bootstrap.rs").includes(
+    "commands::native_clients::desktop_inspect_owned_engine_candidate,"),
+  "Owned engine inspection must be candidate-only and never switch live provider");
 const nativeAdapter = read("apps/desktop/src-tauri/src/commands/native_clients.rs");
 requireFact(nativeBridge.includes('"desktop_inspect_native_candidates"') &&
   nativeBridge.includes("parseNativeObservation") &&

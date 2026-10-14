@@ -55,3 +55,22 @@ pub async fn desktop_inspect_sandbox_client_02() -> Result<native_clients::Sandb
         .map_err(|error| format!("Sandboxie inspection task failed: {error}"))?
         .map_err(|error| error.to_string())
 }
+
+#[tauri::command]
+pub async fn desktop_inspect_owned_engine_candidate(
+    directory: String,
+) -> Result<crate::engine::owned_isolation::OwnedCandidateInspection, String> {
+    tauri::async_runtime::spawn_blocking(move ||
+        native_clients::inspect_owned_engine_candidate(directory))
+        .await
+        .map_err(|error| format!("Owned engine candidate inspection failed: {error}"))?
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub async fn desktop_select_owned_engine_candidate_directory() -> Result<Option<String>, String> {
+    tauri::async_runtime::spawn_blocking(native_clients::select_owned_candidate_directory)
+        .await
+        .map_err(|error| format!("Owned candidate directory picker failed: {error}"))?
+        .map_err(|error| error.to_string())
+}

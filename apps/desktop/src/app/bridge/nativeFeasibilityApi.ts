@@ -234,6 +234,40 @@ export function parseIsolatedClientObservation(value: unknown): IsolatedClientOb
   return value as unknown as IsolatedClientObservation;
 }
 
+
+export interface OwnedCandidateInspection {
+  schema: 1;
+  state: "CANDIDATE_INTEGRITY_VERIFIED_NOT_INSTALLABLE";
+  upstreamCommit: "abd4c240031cfb46666daa74ca47ed4e48b561e4";
+  verifiedArtifactCount: number;
+  requiredArtifactCount: number;
+  providerSelected: false;
+  driverLoadVerified: false;
+  gameplayVerified: false;
+  installPermitted: false;
+}
+
+// Candidate checks cannot be interpreted as a ready, installed engine.
+export function parseOwnedCandidateInspection(value: unknown): OwnedCandidateInspection {
+  if (!isRecord(value) || !hasOnly(value, [
+    "schema", "state", "upstreamCommit", "verifiedArtifactCount",
+    "requiredArtifactCount", "providerSelected", "driverLoadVerified",
+    "gameplayVerified", "installPermitted",
+  ]) || value.schema !== 1 ||
+    value.state !== "CANDIDATE_INTEGRITY_VERIFIED_NOT_INSTALLABLE" ||
+    value.upstreamCommit !== "abd4c240031cfb46666daa74ca47ed4e48b561e4" ||
+    typeof value.verifiedArtifactCount !== "number" ||
+    !Number.isSafeInteger(value.verifiedArtifactCount) ||
+    (value.verifiedArtifactCount as number) < 23 ||
+    (value.verifiedArtifactCount as number) > 48 ||
+    value.requiredArtifactCount !== 23 ||
+    value.providerSelected !== false || value.driverLoadVerified !== false ||
+    value.gameplayVerified !== false || value.installPermitted !== false) {
+    throw new TypeError("Untrusted owned isolation candidate observation.");
+  }
+  return value as unknown as OwnedCandidateInspection;
+}
+
 export const nativeFeasibility = {
   // Only the official registered Start app is requested, never a copied EXE.
   openOfficialMinecraft: () => invokeRuntime<void>("desktop_open_native_minecraft"),
@@ -248,4 +282,11 @@ export const nativeFeasibility = {
     parseIsolatedClientObservation(await invokeRuntime<unknown>("desktop_inspect_sandbox_client_02")),
   inspectCandidates: async (): Promise<NativeProcessObservation> =>
     parseNativeObservation(await invokeRuntime<unknown>("desktop_inspect_native_candidates")),
+  // Exposes a manually selected candidate directory for source-first work;
+  // it does not select/install or launch the owned isolation provider.
+  inspectOwnedCandidate: async (directory: string): Promise<OwnedCandidateInspection> =>
+    parseOwnedCandidateInspection(await invokeRuntime<unknown>(
+      "desktop_inspect_owned_engine_candidate", { directory })),
+  selectOwnedCandidateDirectory: (): Promise<string | null> =>
+    invokeRuntime<string | null>("desktop_select_owned_engine_candidate_directory"),
 };

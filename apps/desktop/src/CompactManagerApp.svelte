@@ -4,6 +4,7 @@
     nativeFeasibility,
     isSandboxieBoxPrepared,
     type IsolatedClientObservation,
+    type OwnedCandidateInspection,
   } from "./app/bridge/nativeFeasibilityApi.js";
   import {
     client02Presentation,
@@ -30,6 +31,10 @@
   let lastCheckIsCurrent = false;
   let selectedExecutable = "";
   let licenseConfirmed = false;
+  // Development-only candidate inspection is independent of active Client 02.
+  let ownedCandidate: OwnedCandidateInspection | null = null;
+  let ownedInspectionError = "";
+  let ownedInspectionBusy = false;
   // Temporary UI feedback, isolated by supported instance identity.
   let issues: Partial<Record<InstanceId, UiIssue>> = {};
   let notices: Partial<Record<InstanceId, UiNotice>> = {};
@@ -292,6 +297,23 @@
     if (action === "setup") toggleDetails(id, "setup", origin);
   }
 
+  async function inspectStagedOwnedEngine() {
+    if (busy || ownedInspectionBusy) return;
+    ownedInspectionBusy = true;
+    ownedCandidate = null;
+    ownedInspectionError = "";
+    try {
+      const directory = await nativeFeasibility.selectOwnedCandidateDirectory();
+      if (!directory) return;
+      ownedCandidate = await nativeFeasibility.inspectOwnedCandidate(directory);
+    } catch {
+      // Keep sensitive local filesystem paths and error details out of UI.
+      ownedInspectionError = "Candidate integrity could not be verified. No engine was activated.";
+    } finally {
+      ownedInspectionBusy = false;
+    }
+  }
+
   function primaryLabel(action: string | null) {
     if (action === "open") return "Open";
     if (action === "switch") return "Switch to";
@@ -444,6 +466,21 @@
           <h2>Minecraft setup</h2>
           <p>Choose the official Minecraft Education Desktop installation for Minecraft 02.</p>
           <button type="button" class="cm-button cm-secondary" on:click={() => openClient02DetailsFromSettings("setup")}>Set up Minecraft 02</button>
+        </div>
+        <div class="cm-setting-group">
+          <h2>Owned isolation engine (source preview)</h2>
+          <p>Inspect a staged engine folder without installing a driver or changing Minecraft 02. A matching checksum does not mean the engine is ready to run.</p>
+          <button type="button" class="cm-button cm-secondary"
+            disabled={Boolean(busy) || ownedInspectionBusy}
+            on:click={inspectStagedOwnedEngine}>
+            {ownedInspectionBusy ? "Inspecting candidate…" : "Inspect engine candidate"}
+          </button>
+          {#if ownedCandidate}
+            <p aria-live="polite">Verified {ownedCandidate.verifiedArtifactCount} staged files. Not installable; the official Sandboxie provider remains active.</p>
+          {/if}
+          {#if ownedInspectionError}
+            <p class="cm-warning" role="alert">{ownedInspectionError}</p>
+          {/if}
         </div>
         <div class="cm-setting-group">
           <h2>Window preferences</h2>

@@ -21,6 +21,12 @@ The application repository now contains a Git **submodule pointer** to the authe
 
 A new private assembler combines the pinned upstream kernel driver, service, DLL, Win32 companions and required helpers into a coherent isolated directory, preserving original licensing and hashing copied bytes. This is deliberately marked `ARTIFACTS_STAGED_NOT_INSTALLABLE`. No actual Windows artifacts, driver installation, runtime selection or gameplay validation exists in this ChatGPT session; production signing and coexistence remain separate gates.
 
+## Source-first owned candidate inspection (2026-10-14)
+
+The desktop now includes `apps/desktop/src-tauri/src/engine/owned_isolation.rs`, a private, read-only Rust module validating the staged engine payload's complete required x64/Win32 driver, service, DLL, COM helpers, manifests and license files against SHA-256. It exposes `desktop_inspect_owned_engine_candidate` through an isolated Tauri command, strict TypeScript parser, and an explicit read-only candidate-selection control in Settings. The result **always** declares `providerSelected=false`, `driverLoadVerified=false`, `gameplayVerified=false`, and `installPermitted=false`. The official Sandboxie backend remains selected. The candidate inspection prepares the application's native source while Windows compilation/signing and actual activation are validated only later.
+
+Source-first policy: continue implementing provider management and disposable-environment lifecycle source regardless of absent WDK, but retain actual compilation, signing, driver loading, login, concurrency and rollback as separate evidence gates. No work in this source batch is an installed or live custom engine.
+
 ## The two distinct independence goals
 
 1. **Deployment independence (approved target):** our app can install, diagnose, manage and update an appropriately licensed and signed app-owned isolation backend without external SandMan/official Sandboxie installation. This still contains appropriately credited Sandboxie-derived GPL components.

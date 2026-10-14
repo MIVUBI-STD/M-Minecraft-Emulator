@@ -1,5 +1,31 @@
 # Current Development Handoff
 
+## Source-first development policy — active implementation, 2026-10-14
+
+**Work:** implement the native app's owned engine source ahead of future Windows-only validation. **State:** ACTIVE for complete owned-engine source program; this batch's read-only candidate API is DONE as source, not yet compiled/accepted.
+
+**Decision:** missing WDK/Windows/Git clone will no longer pause independently useful source engineering. The next source batches are in functional order: (1) read-only candidate manifest/SDK integration and Settings UI (this batch), (2) owned-provider activation admission and capabilities without using schema-6 Sandboxie evidence as universal truth, (3) disposable-machine-only driver/service provisioning and data-preserving rollback source, (4) host process membership and launch using the owned engine's own installation root rather than official Sandboxie paths, (5) independent installer/uninstaller/updater contract and four-client resource admission. Implement these in their existing owners and leave the working official pilot untouched. External compilation and test evidence remain an independent acceptance campaign, **not a prerequisite for source authoring**.
+
+**This batch:** adds Rust `owned_isolation.rs` to parse `engine-provenance.json`, verify staged executable bytes against SHA-256, require 23 driver/service/DLL/helper/license/config paths, and fail closed for symlinks, duplicates, wrong upstream, absent files or fabricated runtime readiness. Adds read-only Tauri folder picker/inspection, typed frontend parser and Settings source-preview button. The active `OfficialSandboxieBackend` and existing launch/focus/public process schema remain unchanged; no new driver install or account/world state.
+
+**Proof:** exact GitHub Local source/consumer static review; Rust tests (four cases) and frontend Vitest tests (three cases) AUTHORED but Rust/TypeScript/native Windows execution NOT_EXECUTED on this revision. The `sha2 = =0.10.8` dependency is already present in the project runtime-core family; Cargo lock and compilation must be generated/verified in a capable environment, not fabricated. This source-only outcome is not signed driver/engine acceptance.
+
+**Unresolved:** genuine fork remote and Windows-native toolchain, driver loading/signature, own service IPC/box functionality, two-account stability, privacy/rollback and four-instance operation remain UNKNOWN/NOT_EXECUTED.
+
+**Next ONE task:** implement the owned-provider activation and capability-selection source with a disjoint, disposable-only engine profile and no public Tauri state regression.
+
+## Source-first native owned-engine candidate API — 2026-10-14
+
+**Work:** build native desktop support for the eventual owned isolation engine, without blocking on Windows toolchain. **State:** DONE for bounded source additions; integration/runtime tests deferred.
+
+**Decision:** add `owned_isolation.rs` as the source owner for strict read-only staged payload attestation in Rust, requiring pinned upstream v1.18.5 identity, 23 core/license/config artifacts, bounded SHA-256 checks, no symlinks/duplicates and credible build-stage provenance. Add exactly one read-only Tauri command and typed frontend bridge. Preserve `native_clients.rs` as active operation authority with `OfficialSandboxieBackend` unchanged; no alternate provider enabled, driver/service installs, credentials, box migration, or renamed runtime identity. Reuse pinned sha2 0.10.8 matching existing runtime-core family.
+
+**Proof:** upstream pinned source and current desktop commands/consumer contracts inspected at exact Local parent. Four Rust fixture tests authored (integrity, tamper, missing license, false driver-load claim) but Rust compiler/SDK NOT_EXECUTED here; Tauri/frontend source assertions updated and structural guards reviewed. Do not promote a written Rust test to PASS.
+
+**Unresolved:** artifact signature verification, actual Windows driver/service/IPC runtime and fork build, dual-account stability, license-aware distribution and four-instance proof NOT_EXECUTED; upstream source history pinned but no remote MIVUBI fork exists.
+
+**Next ONE task:** source-first implement owned-provider activation boundary and disposable Windows driver/service deployment/rollback contracts with explicit operator-only gates, without switching active official Client 02 until validated.
+
 ## Private isolation engine artifact assembly — 2026-10-14
 
 **Work:** construct a candidate standalone upstream-runtime payload from an actual successful pinned build, not scattered binaries. **State:** DONE for source implementation and executable fixture tests; not a working engine.
