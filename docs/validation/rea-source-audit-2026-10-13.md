@@ -9,6 +9,64 @@ lifecycle: ACTIVE
 
 # REA-aligned Full Audit — M-Minecraft-Emulator
 
+## Private core REA evidence campaign — 2026-10-14
+
+**State: SOURCE PLAN READY; NATIVE REA NOT_EXECUTED.** The current Local
+branch contains committed-source verification, private-build report contracts
+and a read-only package inspector, but still no genuine compiled private
+Windows core binaries. Analyzing original upstream source is not REA binary
+analysis or live Windows proof.
+
+**Actual source proof:** all seven authentic original source files from
+Sandboxie v1.18.5 at abd4c240031cfb46666daa74ca47ed4e48b561e4
+passed strict source-patch verification (7 hunks), with two unexpected
+source mutations refused. No MSBuild, ABI or driver observation follows
+from that result.
+
+### Binary investigation once artifacts genuinely exist
+
+1. Preserve separate untouched upstream and private build outputs with their
+   source Git HEAD/tree, private patch SHA-256, compiler/WDK/SDK versions,
+   binary SHA-256 and build logs. Work on disposable artifact copies, not
+   installed Sandboxie or account-bearing Minecraft processes.
+2. Discover an actual available provider and capabilities. For Ghidra,
+   developer-side commands are:
+
+~~~text
+rea providers --json
+rea capabilities --json
+rea doctor --provider ghidra --json
+rea inspect ABSOLUTE_BINARY_PATH --provider ghidra --json
+rea search ABSOLUTE_BINARY_PATH SbieApi_GetVersionEx --kind procedures --provider ghidra --json
+~~~
+
+3. Analyze copies of SbieDll.dll, SbieSvc.exe, Start.exe and SbieIni.exe
+   first; expand to SbieDrv.sys only if the selected REA provider explicitly
+   supports that PE/driver target. Match findings to exact upstream source,
+   not filename guesses.
+4. For a resolved symbol use the documented REA function/trace commands
+   with its exact observed address or name. If a provider reports incomplete
+   coverage or unsupported host/target, retain UNKNOWN rather than inferring
+   absence. Capture Evidence IDs, limitations and artifact hashes.
+5. Use portable Evidence export/compare only between matching evidence
+   kinds and coverage. REA comparison is not runtime equivalence or a
+   performance/security benchmark.
+6. No REA tool output can authorize Windows driver installation, Windows
+   credential access, the app backend switch, or Minecraft gameplay.
+
+| Candidate | Investigation target | Pinned upstream source owner |
+| --- | --- | --- |
+| SbieDrv.sys | Driver ABI/version and process-to-box enforcement | Sandboxie/core/drv/api.c |
+| SbieSvc.exe | Service, broker and driver IPC boundary | Sandboxie/core/svc/DriverAssist.cpp |
+| SbieDll.dll | API exports and driver/DLL handshake | Sandboxie/core/dll/sbieapi.c |
+| Start.exe | Launch and box selection path | Sandboxie/apps/start/start.cpp |
+| SbieIni.exe | Configuration access path | Sandboxie/apps/ini/main.c |
+| kmdutil.exe | Installer command semantics (static-only) | Sandboxie/install/kmdutil/kmdutil.c |
+
+Official command guidance: https://github.com/morluto/rea/blob/main/docs/cli.md
+and https://github.com/morluto/rea/blob/main/docs/native-investigation.md .
+REA stays a developer-only investigator, never a production game dependency.
+
 ## Additional source-only REA-aligned crosscheck — 2026-10-13
 
 This second audit pass traced `-BoxedImageProofPid` from the PowerShell

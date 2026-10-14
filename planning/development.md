@@ -1,5 +1,42 @@
 # Current Development Handoff
 
+## Source-only cross-layer preparation and REA campaign — 2026-10-14
+
+**Work:** close the available GitHub/ChatGPT source review of the private
+Windows build handoff before requesting any local-PC work. **State: DONE
+for bounded SOURCE review; NOT_EXECUTED for actual Windows/Node24/Rust and
+REA binary analysis.**
+
+**Evidence:** the pinned upstream 7-file actual source patch produced exactly
+7 expected hunks; strict expected-byte comparison passed and 2 tamper
+scenarios were rejected. The private build report's real manifest was checked
+with 16 required binary artifact paths, 3 ordered compile stages and
+rejection of bad commit/tree/patch, false co-installation and failed stages.
+The staged package maps 16 binaries, 5 resources and 3 license files to
+24 unique paths; the Rust read-only inspector's 23 mandatory paths are all
+included. V8 logic/static source observations are **not** Node24 test-suite,
+Windows compiler, PowerShell parser, C++ ABI or gameplay results.
+
+**Decision:** use existing owners only: fork-overlay build guard,
+single private assembler, canonical payload, existing Rust inspector.
+No new engine selector/privileged transport, no source claims of driver
+load or performance. The existing REA source audit now contains the
+evidence-guided Windows artifact investigation instructions, provider
+capabilities and target-specific questions. REA is developer-only.
+
+**Unresolved external evidence:** actual full upstream checkout and the
+MIVUBI private commit do not exist in this execution environment; native
+Visual Studio/WDK build, signing, service/driver runtime, REA provider
+results and Minecraft multi-account stability are not available here.
+Do not modify the account-bearing host to force them.
+
+**Next ONE task:** when proceeding to a separately authorized disposable
+Windows lab, execute the already-authored exact-SHA upstream build and
+private build/REA evidence procedures. Until then, source review remains
+the available proof ceiling; no new code should be invented merely to
+replace missing Windows evidence.
+
+
 ## Private Windows build script source-defect closure — 2026-10-14
 
 **Work:** remove an executable post-compile failure introduced during the
