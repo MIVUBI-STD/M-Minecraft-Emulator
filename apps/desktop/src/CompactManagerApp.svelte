@@ -371,9 +371,9 @@
       <header class="cm-toolbar">
         <h1>Virtual Manager</h1>
         <div class="cm-toolbar-actions">
-          <button class="cm-button cm-secondary" type="button" bind:this={checkStatusButton} disabled={resourceOperationBusy} on:click={checkStatus}>
+          <button class="cm-button cm-secondary" type="button" title="Inspects Virtual 02 only; Host 01 is not checked" bind:this={checkStatusButton} disabled={resourceOperationBusy} on:click={checkStatus}>
             <span class="cm-refresh-icon" aria-hidden="true">↻</span>
-            {busy === "check" ? "Checking…" : "Check status"}
+            {busy === "check" ? "Checking…" : "Check status · 02"}
           </button>
           <button class="cm-button cm-quiet" type="button" on:click={showSettings}>Settings</button>
         </div>
@@ -516,8 +516,8 @@
                 <h3>Move window</h3>
                 <p>Choose where Minecraft 02 should appear on its current monitor.</p>
                 <div class="cm-side-choices" role="group" aria-label="Window position">
-                  <button type="button" class:cm-selected={moveSide === "LEFT"} aria-pressed={moveSide === "LEFT"} on:click={() => (moveSide = "LEFT")}>Left</button>
-                  <button type="button" class:cm-selected={moveSide === "RIGHT"} aria-pressed={moveSide === "RIGHT"} on:click={() => (moveSide = "RIGHT")}>Right</button>
+                  <button type="button" class:cm-selected={moveSide === "LEFT"} aria-pressed={moveSide === "LEFT"} disabled={resourceOperationBusy} on:click={() => (moveSide = "LEFT")}>Left</button>
+                  <button type="button" class:cm-selected={moveSide === "RIGHT"} aria-pressed={moveSide === "RIGHT"} disabled={resourceOperationBusy} on:click={() => (moveSide = "RIGHT")}>Right</button>
                 </div>
                 <button class="cm-button cm-primary" type="button" disabled={resourceOperationBusy} on:click={moveMinecraft02}>Apply</button>
                 <p class="cm-assist">Only Minecraft 02 is moved. Restore a maximized or minimized window before applying.</p>
