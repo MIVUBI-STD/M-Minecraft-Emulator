@@ -123,11 +123,63 @@ export function evaluateNativePerformance(report) {
   };
 }
 
+
+/**
+ * Compare two process-only captures without claiming same host/workload,
+ * full sandbox process-tree cost, FPS or successful Minecraft optimization.
+ * Results are withheld for mismatched captures or any lost process identity.
+ */
+export function compareNativePerformance(baseline, candidate) {
+  const before = evaluateNativePerformance(baseline);
+  const after = evaluateNativePerformance(candidate);
+  const conditions = {
+    equalRequestedDuration: baseline.durationRequestedSeconds === candidate.durationRequestedSeconds,
+    equalSampleInterval: baseline.sampleIntervalSeconds === candidate.sampleIntervalSeconds,
+    equalLogicalCpus: baseline.hostLogicalCpus === candidate.hostLogicalCpus,
+    equalSampleCount: baseline.sampleCount === candidate.sampleCount,
+    similarObservedDuration: Math.abs(
+      baseline.durationObservedSeconds - candidate.durationObservedSeconds
+    ) <= baseline.sampleIntervalSeconds,
+    noIdentityLoss: !before.identityDiscontinuityObserved && !after.identityDiscontinuityObserved,
+    completeProcessReadings: [before.native, before.isolated, after.native, after.isolated]
+      .every(item => item.missingSamples === 0),
+  };
+  const eligibleForNumericDifference = Object.values(conditions).every(Boolean);
+  const difference = (a, b) => Number((b - a).toFixed(2));
+  const perProcess = (first, second) => eligibleForNumericDifference ? {
+    meanHostCpuPercentagePointDifference: difference(first.meanHostCpuPercent, second.meanHostCpuPercent),
+    peakHostCpuPercentagePointDifference: difference(first.peakHostCpuPercent, second.peakHostCpuPercent),
+    meanWorkingSetMbDifference: difference(first.meanWorkingSetMb, second.meanWorkingSetMb),
+    maxWorkingSetMbDifference: difference(first.maxWorkingSetMb, second.maxWorkingSetMb),
+  } : null;
+  return {
+    interpretation: "NUMERIC_PROCESS_COMPARISON_ONLY",
+    performanceVerdict: "NOT_PROVIDED",
+    improvementVerified: false,
+    sameHostVerified: false,
+    sameWorkloadVerified: false,
+    fullProcessTreeMeasured: false,
+    conditions,
+    comparableForNumericDifference: eligibleForNumericDifference,
+    differences: eligibleForNumericDifference ? {
+      native: perProcess(before.native, after.native),
+      isolated: perProcess(before.isolated, after.isolated),
+    } : null,
+    baseline: before,
+    candidate: after,
+  };
+}
+
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   try {
-    if (process.argv.length !== 3) throw new TypeError("Usage: node evaluate-native-performance.mjs <report.json>");
-    const report = JSON.parse(readFileSync(process.argv[2], "utf8"));
-    process.stdout.write(JSON.stringify(evaluateNativePerformance(report), null, 2) + "\n");
+    if (![3, 4].includes(process.argv.length)) {
+      throw new TypeError("Usage: node evaluate-native-performance.mjs <report.json> [candidate-report.json]");
+    }
+    const baseline = JSON.parse(readFileSync(process.argv[2], "utf8"));
+    const result = process.argv.length === 4
+      ? compareNativePerformance(baseline, JSON.parse(readFileSync(process.argv[3], "utf8")))
+      : evaluateNativePerformance(baseline);
+    process.stdout.write(JSON.stringify(result, null, 2) + "\n");
   } catch (error) {
     process.stderr.write("Performance evidence invalid: " + error.message + "\n");
     process.exitCode = 1;
