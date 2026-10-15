@@ -61,7 +61,50 @@
     "installerApproved": false,
     "gameplayValidated": false
   },
-  "notes": "Source layout is not a deployable bill of materials. Compile the complete dependency closure before reducing runtime payloads; do not infer native ABI correctness from source SHA equality.",
+  "notes": "Build-time binary/resource inventory for owned v1.18.6 only. No source pruning, driver signing, installation or activation implied. Compile and hash all artifacts before packaging.",
   "privateDriverIdentity": "5.73.6-MIVU",
-  "driverAbi": "0x57230"
+  "driverAbi": "0x57230",
+  "buildStages": [
+    {
+      "id": "win32-support",
+      "sln": "Sandboxie/SandboxDll.sln",
+      "platform": "Win32"
+    },
+    {
+      "id": "x64-user-core",
+      "sln": "Sandboxie/Sandbox.sln",
+      "platform": "x64"
+    },
+    {
+      "id": "x64-wdk-kernel",
+      "sln": "Sandboxie/SandboxDrv.sln",
+      "platform": "x64"
+    }
+  ],
+  "requiredArtifacts": [
+    "Sandboxie/Bin/Win32/SbieRelease/SbieSvc.exe",
+    "Sandboxie/Bin/Win32/SbieRelease/SbieDll.dll",
+    "Sandboxie/Bin/x64/SbieRelease/SbieDrv.sys",
+    "Sandboxie/Bin/x64/SbieRelease/SbieSvc.exe",
+    "Sandboxie/Bin/x64/SbieRelease/SbieDll.dll",
+    "Sandboxie/Bin/x64/SbieRelease/Start.exe",
+    "Sandboxie/Bin/x64/SbieRelease/SbieIni.exe",
+    "Sandboxie/Bin/x64/SbieRelease/kmdutil.exe",
+    "Sandboxie/Bin/x64/SbieRelease/SbieMsg.dll",
+    "Sandboxie/Bin/x64/SbieRelease/SandboxieRpcSs.exe",
+    "Sandboxie/Bin/x64/SbieRelease/SandboxieDcomLaunch.exe",
+    "Sandboxie/Bin/x64/SbieRelease/SandboxieCrypto.exe",
+    "Sandboxie/Bin/x64/SbieRelease/SandboxieBITS.exe",
+    "Sandboxie/Bin/x64/SbieRelease/SandboxieWUAU.exe",
+    "Sandboxie/Bin/x64/SbieRelease/SbieCtrl.exe",
+    "Sandboxie/Bin/x64/SbieRelease/SboxHostDll.dll"
+  ],
+  "sourceResources": [
+    "Sandboxie/install/Templates.ini",
+    "Sandboxie/install/SbieSettings.ini",
+    "Sandboxie/install/Manifest0.txt",
+    "Sandboxie/install/Manifest1.txt",
+    "Sandboxie/install/Manifest2.txt"
+  ],
+  "enginePayloadState": "MIVUBI_V1186_CORE_STAGED_NOT_INSTALLABLE"
 }
