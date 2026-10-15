@@ -51,6 +51,10 @@ int main() {
           Decision::Rejected);
     check(L"/mivubi_client:02 \"C:\\folder\\Minecraft.Windows.exe:ads\"",
           Decision::Rejected);
+    check(L"/mivubi_client:02 \"C:\\folder:stream\\Minecraft.Windows.exe\"",
+          Decision::Rejected);
+    check(L"/mivubi_client:02 \"C:\\folder/other\\Minecraft.Windows.exe\"",
+          Decision::Rejected);
     check(L"/mivubi_client:02 \"C:/Minecraft.Windows.exe\"", Decision::Rejected);
     check(L"/mivubi_client:02 \"C:\\Minecraft.Windows.exe\"", Decision::Admitted,
           L"MivubiEdu02");
