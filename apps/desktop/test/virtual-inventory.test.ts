@@ -57,14 +57,19 @@ describe("Sandboxie box discovery completeness", () => {
     expect(upstream).toContain('printf("GlobalSettings\\n")');
     expect(collector).toContain("$sections = @(& $ini query '*' 2>$null)");
     expect(collector).not.toContain("$ini query /boxes");
-    expect(collector).toContain("([string]$sections[0]).Trim() -cne 'GlobalSettings'");
+    expect(collector).toContain("([string]$sections[0]) -cne 'GlobalSettings'");
     expect(collector).toContain("Select-Object -Skip 1");
-    expect(collector).toContain("$sections.Count -gt 129");
-    // The same upstream all-section enumeration also includes non-box
-    // UserSettings_* and Template_* sections; never label those as boxes.
+    // Section inventory includes templates/users and needs a separate cap.
+    expect(collector).toContain("$sections.Count -gt 512");
+    expect(collector).toContain("$boxes.Count -gt 128");
     expect(collector).toContain("if ($name -imatch '^(Template_|UserSettings_)'");
     expect(collector).toContain("$name -ieq 'TemplateSettings'");
-    expect(collector).toContain("Unknown custom sections do not prove box identity");
+    expect(collector).toContain("$name = [string]$item");
+    expect(collector).not.toContain("([string]$item).Trim()");
+    expect(collector).toContain("if ($name -cnotmatch '^[A-Za-z0-9_]{1,32}$' -or -not $seen.Add($name)) {");
+    // The previous HEAD had a broken regex and duplicated JSON output body.
+    expect(collector.match(/\} \| ConvertTo-Json -Depth 3 -Compress/g)).toHaveLength(1);
+    expect(collector.match(/\$boxes \+= \$name/g)).toHaveLength(1);
     // A displayed official box name is never owned-provider or game proof.
     expect(collector).toContain("ownedProviderSelected = $false");
     expect(collector).toContain("gameplayVerified = $false");
