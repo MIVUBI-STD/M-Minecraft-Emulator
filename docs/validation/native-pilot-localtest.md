@@ -105,6 +105,20 @@ For a manually confirmed two-game report, follow the existing commands in [Sandb
 | Game crashes / input broken / account crossing | Stop scaling; preserve existing worlds/profiles and record the first reproducible failure and hardware summary. |
 | Installer request | Existing package path is deliberately blocked. Only developer mode is supported for this pilot. |
 
+### Client 02 idle-crash isolation (one controlled session at a time)
+
+The 14 October 2026 pilot proved two concurrently playable Minecraft Education sessions but subsequently reported Client 02 disappearing while idle. The first cause is **UNKNOWN**: the old two-hour Application event lookup returned no matching 1000/1001/1002 record, and the current manager has no continuous Minecraft monitor or idle-stop action. Do not patch an unproven Sandboxie/graphics cause or report the crash resolved.
+
+Use the **same official Education installation, Windows user, licensed Client 02 account, world/scene, graphics options, idle duration (initially 30 minutes)** and Sandboxie box in these comparisons. Close Minecraft normally between runs, save world progress, and do not reset or recreate the persistent box.
+
+1. **A — Sandboxie without MIVUBI manager:** launch Minecraft 02 using the already installed official Sandboxie Plus interface, then close the MIVUBI manager. Observe whether the boxed game stays responsive while idle. This isolates manager involvement, not Sandboxie from the game.
+2. **B — Sandboxie with MIVUBI manager:** with the same closed/empty box and verified setup, request Client 02 from the manager, leave the manager running but do not click repeated checks, and repeat the same idle state. An accepted launcher request is not proof of gameplay.
+3. **C — native control:** if A or B fails, run one authorized native Education session outside Sandboxie with the same scene and settings. Compare an equally long idle interval. Do not run this control simultaneously with A/B if doing so changes resource pressure.
+
+For each run record the **start/end time including local timezone, whether the game exited, froze or remained responsive, and whether the Windows desktop/other processes remained alive**. After any exit, review Windows **Reliability Monitor** (`perfmon /rel`) and Event Viewer → Windows Logs → Application near that **exact time**. Check Application Error (1000) and Windows Error Reporting (1001), if present. Retain only the application name, faulting-module name, exception code and event time in the handoff; redact names, paths and account/world information. An absent matching event **does not** prove a clean exit or exclude a crash. Do not enable full crash dumps or persist raw reports without a separate privacy review.
+
+Interpretation is conditional: **A and B fail, C passes** → prioritize Minecraft–Sandboxie compatibility; **only B fails** → investigate manager-launched process/working directory/interaction; **A, B and C fail** → investigate game, Windows or graphics baseline first. Other combinations and missing event data are **INCONCLUSIVE**. These are diagnostic routing rules, not proof of root cause. Only a reproduced failure with matching Windows/module evidence justifies a targeted code or configuration patch. Do not change driver signing, account isolation, templates or live profile data speculatively.
+
 ## E. Evidence handoff — no secret data
 
 When reporting the **first** error, send a short manually redacted report instead of raw logs or account details:
