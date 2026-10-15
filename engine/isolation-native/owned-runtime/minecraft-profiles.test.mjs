@@ -291,3 +291,29 @@ test("no mid-setup ENABLE or cleanup/retry is permitted in the source-only plan"
     assert.equal(plan.partialConfigurationRequiresManualReview, true);
   }
 });
+
+test("partial owned-box plans remain disabled until all other readbacks complete", () => {
+  for (const client of ["02", "03", "04"]) {
+    const plan = planOwnedMinecraftVirtual(client, ["MinecraftClient02"]);
+    const steps = plan.guardedSteps;
+    // Failure after any earlier operation must not have requested Enabled=y.
+    for (let interruptedAt = 0; interruptedAt <= 16; interruptedAt++) {
+      const attempted = steps.slice(0, interruptedAt);
+      const enabledWrites = attempted.filter(step =>
+        step.operation === "SET" &&
+        step.arguments[2] === "Enabled" && step.arguments[3] === "y");
+      assert.equal(enabledWrites.length, 0,
+        "interrupted setup must not enable a partially configured box");
+      assert.ok(attempted.every(step => step.arguments[1] === "MivubiEdu" + client));
+      assert.equal(plan.automaticDeletionPermitted, false);
+      assert.equal(plan.partialConfigurationRequiresManualReview, true);
+    }
+    // A failed last readback is ambiguous: Enabled=y may have been written.
+    // Only manual reconciliation, never an automatic delete/retry, is permitted.
+    assert.equal(steps[16].operation, "SET");
+    assert.equal(steps[16].arguments[3], "y");
+    assert.equal(steps[17].operation, "REQUIRE_READBACK");
+    assert.equal(steps[17].expectedValue, "y");
+    assert.equal(plan.hostChanged, false);
+  }
+});
