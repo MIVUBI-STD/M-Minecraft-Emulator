@@ -63,19 +63,20 @@ export function ownedMinecraftProfiles() {
  * An executor needs explicit operator approval for this compatibility mode
  * and must verify all settings via SbieIni query before any box is usable.
  */
-export function planOwnedMinecraftProfiles(existingBoxes = []) {
-  if (!Array.isArray(existingBoxes) || existingBoxes.some(name =>
-      typeof name !== "string" || !/^[A-Za-z0-9_]{1,32}$/.test(name))) {
-    throw new Error("A trustworthy existing box-name inventory is required");
+function occupiedNames(existingBoxes) {
+  if (!Array.isArray(existingBoxes) || existingBoxes.length > 256 ||
+      existingBoxes.some(name =>
+        typeof name !== "string" || !/^[A-Za-z0-9_]{1,32}$/.test(name))) {
+    throw new Error("A bounded trustworthy existing box-name inventory is required");
   }
   const occupied = new Set(existingBoxes.map(name => name.toLowerCase()));
   if (occupied.size !== existingBoxes.length) {
     throw new Error("Ambiguous duplicate Sandboxie box identity");
   }
-  const profiles = ownedMinecraftProfiles();
-  if (profiles.some(p => occupied.has(p.box.toLowerCase()))) {
-    throw new Error("MIVUBI-owned box already exists; refusing any overwrite");
-  }
+  return occupied;
+}
+
+function configurationPlan(profiles) {
   return {
     state: "PRIVATE_BOX_CONFIGURATION_PLAN_NOT_EXECUTED",
     source: "MIVUBI_PRIVATE_START_PROFILE_V1",
@@ -93,6 +94,34 @@ export function planOwnedMinecraftProfiles(existingBoxes = []) {
     accountIsolationVerified: false,
     driverInstalled: false,
   };
+}
+
+/** A SINGLE supported sandbox target, never an eager three-box creation.
+ * The caller must independently observe the occupied names through its OWN
+ * verified engine, not the installed official Sandboxie compatibility pilot.
+ * This is source-only planning: no executable or driver is invoked.
+ */
+export function planOwnedMinecraftVirtual(client, existingBoxes = []) {
+  const box = requireProfile(client);
+  const occupied = occupiedNames(existingBoxes);
+  if (occupied.has(box.toLowerCase())) {
+    throw new Error("MIVUBI-owned box already exists; refusing any overwrite");
+  }
+  const profile = ownedMinecraftProfiles().find(item => item.client === client);
+  return configurationPlan([profile]);
+}
+
+/** Legacy bulk planning retained for existing tests/source consumers. It
+ * shares the EXACT per-box profile and remains nonexecuting. The desktop
+ * should use one-target planning for a single Create Virtual request.
+ */
+export function planOwnedMinecraftProfiles(existingBoxes = []) {
+  const occupied = occupiedNames(existingBoxes);
+  const profiles = ownedMinecraftProfiles();
+  if (profiles.some(p => occupied.has(p.box.toLowerCase()))) {
+    throw new Error("MIVUBI-owned box already exists; refusing any overwrite");
+  }
+  return configurationPlan(profiles);
 }
 
 /** Launch contract implemented by the MIVUBI-modified Start.exe parser.
