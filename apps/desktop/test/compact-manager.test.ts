@@ -232,6 +232,17 @@ describe("Compact Manager app source and command boundary", () => {
     expect(app).not.toContain("Create virtual requested");
     expect(bootstrap).not.toContain("desktop_create_virtual");
   });
+  it("lists only actually queried Sandboxie boxes and keeps Create virtual locked", () => {
+    expect(app).toContain("async function discoverExistingVirtuals()");
+    expect(app).toContain("nativeFeasibility.discoverExistingVirtuals()");
+    expect(app).toContain('on:click={discoverExistingVirtuals}');
+    expect(app).toContain('existingVirtuals = null;');
+    expect(app).toContain("No virtuals were changed.");
+    expect(app).toContain("Existing Sandboxie boxes (read-only)");
+    expect(app).toContain('{#each existingVirtuals.boxes as boxName (boxName)}');
+    expect(app).toContain('title="Internal isolation engine is not yet installed and verified">Create virtual</button>');
+    expect(app).not.toMatch(/onMount\s*\(|setInterval\s*\(/);
+  });
   it("keeps checking explicitly user-triggered and launch calls guarded", () => {
     expect(app).toContain("nativeFeasibility.inspectIsolatedClient02()");
     expect(app).toContain("nativeFeasibility.requestSandboxClient02(");
