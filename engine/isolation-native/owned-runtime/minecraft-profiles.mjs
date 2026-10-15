@@ -85,11 +85,24 @@ function configurationPlan(profiles) {
     requiresExplicitOperatorApproval: true,
     settingsReadbackVerified: false,
     profiles,
+    // Historical write-only commands remain for source consumers. They are
+    // NOT an authorized execution transaction. The future owned-engine
+    // executor must process guardedSteps in order, stopping on the first
+    // failed write/readback without ever deleting a box or account state.
     commands: profiles.flatMap(({client, box}) =>
       SETTINGS.map(([key, value]) => ({
         client, executable: "SbieIni.exe",
         arguments: ["set", box, key, value],
       }))),
+    guardedSteps: profiles.flatMap(({client, box}) =>
+      SETTINGS.flatMap(([key, value]) => [
+        {client, operation: "SET", executable: "SbieIni.exe",
+          arguments: ["set", box, key, value]},
+        {client, operation: "REQUIRE_READBACK", executable: "SbieIni.exe",
+          arguments: ["query", box, key], expectedValue: value},
+      ])),
+    stopOnReadbackMismatch: true,
+    automaticDeletionPermitted: false,
     hostChanged: false,
     accountIsolationVerified: false,
     driverInstalled: false,
