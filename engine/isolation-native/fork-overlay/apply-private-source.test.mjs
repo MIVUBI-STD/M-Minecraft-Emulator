@@ -157,6 +157,7 @@ test("generated patch includes DLL and service startup in exact core closure and
   assert.match(patch, /MIVUBI_PRIVATE_DRIVER_ID/);
   assert.match(patch, /const WCHAR \*Driver_Version = MIVUBI_PRIVATE_DRIVER_ID/);
   assert.match(patch, /SbieApi_GetVersionEx\(observedVersion, &observedAbi\)/);
+  assert.match(patch, /if \(!CallSbieSvcGetUser\(\)\) return FALSE;/);
   assert.match(patch, /MivubiOwnedDriverMatches\(observedVersion, 16, observedAbi\)/);
   assert.match(patch, /MivubiOwnedDriverMatches\(mivubiVersion, 16, mivubiAbi\)/);
   assert.match(patch, /MivubiOwnedDriverMatches\(version, 16, abi\)/);
@@ -204,6 +205,11 @@ test("entire patch applies atomically to a disposable Git checkout without renam
     assert.match(feature, /MivubiEdu02/);
     assert.match(feature, /MivubiParseOwnedStart/);
     assert.match(feature, /SbieApi_GetVersionEx\(observedVersion, &observedAbi\)/);
+    const brokerStart = feature.indexOf("if (!CallSbieSvcGetUser()) return FALSE;");
+    const identityQuery = feature.indexOf("SbieApi_GetVersionEx(observedVersion, &observedAbi)");
+    const boxSelection = feature.indexOf("wcscpy(BoxName, ownedLaunch.box)");
+    assert.ok(brokerStart > 0 && brokerStart < identityQuery &&
+      identityQuery < boxSelection, "cold-start broker must precede private ABI admission");
     assert.match(feature, /MivubiOwnedDriverMatches\(observedVersion, 16, observedAbi\)/);
     const boxed = readFileSync(join(root, "Sandboxie/core/drv/box.c"), "utf8");
     assert.match(boxed, /MivubiBoxNameAllowed\(boxname\)/);
@@ -357,6 +363,28 @@ test("Git applies the private patch to a Windows-style CRLF checkout", () => {
       [...SOURCE_FILES].sort());
   } finally {
     rmSync(root, {recursive: true, force: true});
+  }
+});
+
+test("private Start.exe bootstraps its broker before first driver identity query", () => {
+  const original = sources();
+  const expected = buildExpectedPrivateSources(original);
+  const path = "Sandboxie/apps/start/start.cpp";
+  const code = expected[path];
+  const bootstrap = code.indexOf("if (!CallSbieSvcGetUser()) return FALSE;");
+  const handshake = code.indexOf("SbieApi_GetVersionEx(observedVersion, &observedAbi)");
+  const selection = code.indexOf("wcscpy(BoxName, ownedLaunch.box)");
+  assert.ok(bootstrap >= 0 && handshake > bootstrap && selection > handshake);
+  assert.match(code.slice(bootstrap, handshake),
+    /if \(!CallSbieSvcGetUser\(\)\) return FALSE;/);
+  for (const removed of [
+    code.replace("if (!CallSbieSvcGetUser()) return FALSE;",
+      "/* missing cold-start broker */"),
+    code.replace("if (!CallSbieSvcGetUser()) return FALSE;",
+      "CallSbieSvcGetUser();"),
+  ]) {
+    assert.throws(() => verifyExactPrivateSourceBytes(original,
+      {...expected, [path]: removed}), /unexpected modified source bytes/);
   }
 });
 

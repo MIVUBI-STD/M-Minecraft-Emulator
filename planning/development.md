@@ -1,5 +1,28 @@
 # Current Development Handoff — M-Minecraft-Emulator
 
+## Private Start.exe cold-boot launcher fix — 15 October 2026
+
+**Functional integration issue:** the opt-in MIVUBI `Start.exe` mode
+performed `SbieApi_GetVersionEx` before `Validate_Box_Name`, the first
+normal location that waits for/starts `SbieSvc`. On a clean first run
+without an already running service/driver, the private handshake could
+reject the valid new installation instead of starting it.
+
+**Source fix:** start and await the existing Sandboxie service broker via
+`CallSbieSvcGetUser` **only for admitted private client modes**, then
+perform the mandatory private version/ABI check before setting the box
+name or launching a child. A failed broker request or foreign driver
+remains rejected. This modifies actual private Start.exe source overlay,
+not an app wrapper or an installer.
+
+**Evidence:** source patch and regression test cover startup order,
+private ABI admission, and tamper refusal. Full Windows MSVC/WDK,
+SbieSvc service startup, driver loading, REA binary inspection and
+Minecraft runtime remain NOT_EXECUTED; no official host mutation.
+
+**Next:** compile the complete owned Windows fork to validate the changed
+broker/launcher interplay against real service initialization.
+
 ## Unblocked iterative private native builds — 15 October 2026
 
 The previous private fork verifier required one single direct-child commit

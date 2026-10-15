@@ -1,5 +1,20 @@
 # MIVUBI native isolation ABI probe — source-first
 
+## Cold-start native Start.exe broker bootstrap — 15 October 2026
+
+The private `/mivubi_client:02/03/04` mode now invokes the existing
+Sandboxie `CallSbieSvcGetUser` broker startup/wait path before its
+private `SbieApi_GetVersionEx` handshake. Previously the driver
+identity query ran before `Validate_Box_Name` could start the broker;
+on a clean cold boot, that ordering could reject every owned launch
+with `STATUS_SERVER_DISABLED`. The identity check remains mandatory
+after service startup and still rejects official/foreign drivers.
+
+This is a source-level functional first-launch fix. It does not bypass
+service signing, install a driver, create sandbox configuration profiles,
+or prove that the full Windows private core runs.
+
+
 This is product-specific **Windows-native source** for the prospective M-Isolation-Engine.
 It consumes the original Sandboxie-Plus v1.18.5 `Sandboxie/common/my_version.h`
 from pinned upstream commit `abd4c240031cfb46666daa74ca47ed4e48b561e4`.
