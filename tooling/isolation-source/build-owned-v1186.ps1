@@ -1,7 +1,8 @@
 # Compile-only v1.18.6 MIVUBI native engine. NEVER installs, signs or starts drivers.
 [CmdletBinding()]
 param(
-  [Parameter(Mandatory=$true)][string]$ReportDirectory
+  [Parameter(Mandatory=$true)][string]$ReportDirectory,
+  [string]$PackageDirectory = ''
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -191,3 +192,13 @@ finally {
   $report | ConvertTo-Json -Depth 8 | Out-File -LiteralPath $output -Encoding UTF8 -NoClobber
 }
 Write-Output "Build-only result written to $reportFolder; no driver or service was installed."
+if ($PackageDirectory) {
+  # Explicit opt-in: package the already-hashed native outputs, NEVER install them.
+  # Source tree and build report are reverified by the single v1.18.6 assembler.
+  $assembler = Join-Path $repo 'tooling/isolation-source/assemble-owned-v1186.mjs'
+  $packageResult = (& $node $assembler --build-report $output --output $PackageDirectory | Out-String).Trim()
+  if ($LASTEXITCODE -ne 0) {
+    throw 'Owned v1.18.6 bundle assembly failed; native build artifacts remain NOT INSTALLABLE.'
+  }
+  Write-Output $packageResult
+}
