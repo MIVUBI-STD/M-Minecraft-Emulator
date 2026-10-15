@@ -310,7 +310,7 @@
   }
 
   async function discoverExistingVirtuals() {
-    if (isResourceOperationBusy(busy, ownedHostBusy, ownedInspectionBusy) || ownedHostBusy || ownedInspectionBusy) return;
+    if (isResourceOperationBusy(busy, ownedHostBusy, ownedInspectionBusy)) return;
     busy = "discover-virtuals";
     existingVirtuals = null;
     existingVirtualsError = "";
@@ -325,7 +325,7 @@
   }
 
   async function inspectOwnedServiceNames() {
-    if (isResourceOperationBusy(busy, ownedHostBusy, ownedInspectionBusy) || ownedHostBusy || ownedInspectionBusy) return;
+    if (isResourceOperationBusy(busy, ownedHostBusy, ownedInspectionBusy)) return;
     ownedHostBusy = true;
     ownedHostInspection = null;
     ownedHostError = "";
@@ -339,7 +339,7 @@
   }
 
   async function inspectStagedOwnedEngine() {
-    if (isResourceOperationBusy(busy, ownedHostBusy, ownedInspectionBusy) || ownedInspectionBusy) return;
+    if (isResourceOperationBusy(busy, ownedHostBusy, ownedInspectionBusy)) return;
     ownedInspectionBusy = true;
     ownedCandidate = null;
     ownedInspectionError = "";
