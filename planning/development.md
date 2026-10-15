@@ -1,5 +1,15 @@
 # Current Development Handoff — M-Minecraft-Emulator
 
+## v1.18.6 source migration checkpoint — 15 October 2026
+
+**Committed actual source, not just documents:** `engine/isolation-candidates/sandboxie-v1.18.6/` now contains **723 of 1,627** genuine upstream v1.18.6 files. SHA and Git file mode parity were validated across the entire candidate tree before the latest `Local` commit. The 723 include complete kernel driver, DLL, privileged service, low-level injection, application launcher and config code; complete shared/common, COM helpers, QSbieAPI, Classic control (110 files), Classic app resource binaries (34 files), and Sandboxie/install support. There are **904 missing**, primarily SandMan/Plus utilities, upstream repo metadata and additional tooling. Full remote GitHub import is NOT complete. Existing `engine/isolation-owned/` v1.18.5 source remains untouched.
+
+**Upgrade caution:** 40 source files changed and three were added between v1.18.5 and v1.18.6. In the existing eleven-source-file MIVUBI private overlay, at least `Sandboxie/common/my_version.h` and `Sandboxie/core/drv/api.c` changed upstream, so version-specific patch revalidation is required before any switch. No native Windows driver build, signing, installation or Minecraft gameplay acceptance was performed.
+
+**Exact target:** upstream tree `f690477c07a40810f479f53973334ceae7e0ab13`. The already committed ZIP importer `tooling/isolation-source/import-v1186-archive.py` was tested against the exact uploaded ZIP (source blob `b8e3c500597103ea9d0a5f60b1b44fb7199a41c6`) in a disposable Git repo, but this local success does not imply all 1,627 files were pushed to GitHub.
+
+**Next:** move the remaining 904 files as ordinary Git blobs and verify full candidate subtree parity before attempting to rebase the MIVUBI patch.
+
 ## Uploaded v1.18.6 full source and actual candidate migration — 15 October 2026
 
 Source ZIP supplied by user was verified locally: **1,627 authentic files**,

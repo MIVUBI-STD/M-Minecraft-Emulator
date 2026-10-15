@@ -139,9 +139,9 @@ upstream tag `v1.18.6` commit `cdba7096240b93d79c5373aa81a75a1c5c71b883`
 tree `f690477c07a40810f479f53973334ceae7e0ab13`.
 
 The `Local` branch now has a **separate partial** versioned candidate at
-`engine/isolation-candidates/sandboxie-v1.18.6/`: 526 original source files
+`engine/isolation-candidates/sandboxie-v1.18.6/`: 723 original source files
 with exact Git SHA/mode parity. The active older partial copy at
-`engine/isolation-owned/` is left unchanged. The full source has NOT yet
+`engine/isolation-owned/` is left unchanged. The remaining 904 files still need to be transferred. The full source has NOT yet
 been committed to GitHub. This candidate is source only, NOT built or active.
 
 `tooling/isolation-source/import-v1186-archive.py` is an executable Python
