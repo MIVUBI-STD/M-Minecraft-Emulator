@@ -215,7 +215,7 @@ $report = [ordered]@{
   samples = @($samples.ToArray())
   missingEvidence = @('ACCOUNT_ISOLATION', 'GAMEPLAY_RENDERING', 'FRAME_TIMES', 'GPU_VRAM', 'MULTIPLAYER', 'INPUT_RESPONSIVENESS')
 }
-if ($GpuSnapshot) { $report.gpuDiagnostic = $gpuDiagnostic }
+if ($GpuSnapshot) { $report['gpuDiagnostic'] = $gpuDiagnostic }
 $stamp = $beginUtc.ToString('yyyyMMddTHHmmssfffffffZ')
 $file = Join-Path $OutputDirectory ('native-process-performance-' + $stamp + '.json')
 if (Test-Path -LiteralPath $file) {
