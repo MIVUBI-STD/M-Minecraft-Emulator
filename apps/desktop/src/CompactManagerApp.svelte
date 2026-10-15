@@ -346,7 +346,7 @@
   <main class="cm-content">
     {#if page === "instances"}
       <header class="cm-toolbar">
-        <h1>Instances</h1>
+        <h1>Virtual Manager</h1>
         <div class="cm-toolbar-actions">
           <button class="cm-button cm-secondary" type="button" bind:this={checkStatusButton} disabled={Boolean(busy)} on:click={checkStatus}>
             <span class="cm-refresh-icon" aria-hidden="true">↻</span>
@@ -356,12 +356,20 @@
         </div>
       </header>
 
-      <section class="cm-list" aria-label="Minecraft instances">
+      <section class="cm-virtual-overview" aria-label="Create virtual availability">
+        <div>
+          <h2>Your virtuals</h2>
+          <p>Use this app to manage Windows and isolated sessions. The internal Sandboxie-derived engine must pass Windows driver and service validation before new virtuals can be created.</p>
+        </div>
+        <button type="button" class="cm-button cm-secondary" disabled
+          title="Internal isolation engine is not yet installed and verified">Create virtual</button>
+      </section>
+      <section class="cm-list" aria-label="Virtual sessions">
         <div class="cm-instance">
           <div class="cm-row">
             <span class="cm-monitor" aria-hidden="true"></span>
             <div class="cm-row-copy">
-              <h2>Minecraft 01</h2>
+              <h2>Host · Minecraft 01</h2>
               <p class={row01.tone === "warning" ? "cm-warning" : ""} aria-live="polite">{row01.status}</p>
             </div>
             <div class="cm-row-actions">
@@ -393,7 +401,7 @@
           <div class="cm-row">
             <span class="cm-monitor" aria-hidden="true"></span>
             <div class="cm-row-copy">
-              <h2>Minecraft 02</h2>
+              <h2>Virtual 02 · Minecraft Education</h2>
               <p class={row02.tone === "warning" ? "cm-warning" : ""} aria-live="polite">{row02.status}</p>
             </div>
             <div class="cm-row-actions">
@@ -425,7 +433,7 @@
                 <h3>{setupInstruction(observation).title}</h3>
                 <p>{setupInstruction(observation).text}</p>
                 {#if !observation || !isSandboxieBoxPrepared(observation)}
-                  <p class="cm-assist">Complete this step in Windows or Sandboxie Plus, then use Check status in the toolbar.</p>
+                  <p class="cm-assist">The current pilot uses an existing Sandboxie Plus box. MIVUBI-owned virtual creation requires a tested internal driver and service; this setup will not change an existing box.</p>
                   <details><summary>Sandboxie Plus settings</summary>
                     <p>Create and enable the persistent MinecraftClient02 box. Keep AutoDelete, AutoRemove and credential-bypass/protected-storage settings off. Never copy another Minecraft account profile.</p>
                   </details>
@@ -455,7 +463,7 @@
               {:else}
                 <h3>About Minecraft 02</h3>
                 <p>{base02.details}</p>
-                <p class="cm-assist">Environment: Isolated · Sandboxie Plus.</p>
+                <p class="cm-assist">Runtime: existing Sandboxie Plus pilot. MIVUBI-owned engine is not active.</p>
                 {#if moveEligible}<button class="cm-button cm-secondary" type="button" on:click={showClient02MoveDetails}>Move window</button>{/if}
               {/if}
               <div class="cm-detail-footer">
@@ -477,7 +485,7 @@
     {:else}
       <header class="cm-toolbar">
         <h1>Settings</h1>
-        <button class="cm-button cm-secondary" type="button" bind:this={settingsBackButton} on:click={showInstances}>Back to Instances</button>
+        <button class="cm-button cm-secondary" type="button" bind:this={settingsBackButton} on:click={showInstances}>Back to Virtuals</button>
       </header>
       <section class="cm-settings" aria-label="Application settings">
         <div class="cm-setting-group">
@@ -486,15 +494,15 @@
           <button type="button" class="cm-button cm-secondary" on:click={() => openClient02DetailsFromSettings("setup")}>Set up Minecraft 02</button>
         </div>
         <div class="cm-setting-group">
-          <h2>Owned isolation engine (source preview)</h2>
-          <p>Inspect a staged engine folder without installing a driver or changing Minecraft 02. A matching checksum does not mean the engine is ready to run.</p>
+          <h2>M-Isolation-Engine · Internal runtime</h2>
+          <p>The Sandboxie-derived C/C++ core belongs to MIVUBI. Inspecting its packaged files is diagnostic only; a compiled, signed and installed engine is required before Create virtual can become available.</p>
           <button type="button" class="cm-button cm-secondary"
             disabled={Boolean(busy) || ownedInspectionBusy || ownedHostBusy}
             on:click={inspectStagedOwnedEngine}>
             {ownedInspectionBusy ? "Inspecting candidate…" : "Inspect engine candidate"}
           </button>
           {#if ownedCandidate}
-            <p aria-live="polite">Folder snapshot: checksums match {ownedCandidate.verifiedArtifactCount} declared files and source paths, with no additional entries observed. Files could change after inspection. This does not authenticate the build or prove driver compatibility. Not installable; the official Sandboxie provider remains active.</p>
+            <p aria-live="polite">Engine package {ownedCandidate.upstreamCommit === "cdba7096240b93d79c5373aa81a75a1c5c71b883" ? "v1.18.6" : "v1.18.5"}: checksums match {ownedCandidate.verifiedArtifactCount} declared files and source paths, with no additional entries observed. Files could change after inspection. This does not authenticate the build or prove driver compatibility. Not installable; the official Sandboxie provider remains active.</p>
           {/if}
           {#if ownedInspectionError}
             <p class="cm-warning" role="alert">{ownedInspectionError}</p>
@@ -519,7 +527,7 @@
           <p>Use Check status to inspect your setup. Minecraft sign-in remains inside the official game.</p>
           <details>
             <summary>Advanced details</summary>
-            <p>Instance 01: Windows installation. Instance 02: persistent Sandboxie Plus box MinecraftClient02.</p>
+            <p>Host 01: Windows installation. Virtual 02: existing persistent Sandboxie Plus box MinecraftClient02. New virtual creation is not yet active.</p>
             <p>Process observations do not confirm accounts or playable worlds. The manager never copies credentials or game worlds.</p>
           </details>
         </div>
