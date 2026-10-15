@@ -26,7 +26,7 @@ if ($signature.Status -ne 'Valid') { throw 'Installed Sandboxie query tool has u
 $sections = @(& $ini query '*' 2>$null)
 if ($LASTEXITCODE -ne 0 -or $sections.Count -lt 1 -or
     $sections.Count -gt 512 -or
-    [string]$sections[0] -cne 'GlobalSettings') {
+    ([string]$sections[0]) -cne 'GlobalSettings') {
   throw 'Cannot reliably enumerate Sandboxie configuration sections.'
 }
 
