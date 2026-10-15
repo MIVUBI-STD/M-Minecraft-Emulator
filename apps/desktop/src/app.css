@@ -26,6 +26,11 @@ button:disabled { opacity: .52; cursor: not-allowed; }
 .cm-quiet { background: transparent; border-color: transparent; }
 .cm-quiet:hover:not(:disabled) { background: #1d2227; }
 .cm-refresh-icon { font-size: 19px; font-weight: 400; line-height: 1; }
+.cm-virtual-overview { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 20px 18px; margin: 0 0 18px; background: #171c20; border: 1px solid #30373e; border-radius: 12px; }
+.cm-virtual-overview > div { flex: 1; min-width: 0; }
+.cm-virtual-overview h2 { margin: 0 0 6px; font-size: 14px; font-weight: 650; }
+.cm-virtual-overview p { margin: 0; font-size: 12px; color: #a8b0b7; line-height: 1.55; max-width: 58ch; }
+.cm-virtual-overview .cm-button:disabled { opacity: .62; }
 .cm-list { border-top: 1px solid #2b3238; }
 .cm-instance { border-bottom: 1px solid #2b3238; }
 .cm-row { display: flex; align-items: center; gap: 17px; min-height: 92px; padding: 15px 8px; }
@@ -66,6 +71,8 @@ button:disabled { opacity: .52; cursor: not-allowed; }
   .cm-toolbar { flex-wrap: wrap; padding-bottom: 16px; }
   .cm-row { gap: 12px; min-height: 84px; }
   .cm-monitor { transform: scale(.86); flex-basis: 38px; }
+  .cm-virtual-overview { flex-wrap: wrap; padding: 17px 14px; }
+  .cm-virtual-overview .cm-button { width: 100%; }
   .cm-detail { padding: 18px 14px; }
 }
 @media (prefers-reduced-motion: reduce) {
