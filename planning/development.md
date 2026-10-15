@@ -1,5 +1,15 @@
 # Current Development Handoff — M-Minecraft-Emulator
 
+## Code-only blocker closure: repaired Sandboxie inventory PowerShell — 16 October 2026
+
+**Confirmed defect at previous `Local` HEAD:** `tooling/acceptance/windows/collect-virtual-boxes.ps1` had a literal PowerShell regex truncated at `{1,32}` and a duplicated trailing `ConvertTo-Json` output block. This was an actual malformed committed source file, not an inferred runtime issue. The proximate source-edit mechanism was reproduced in V8: JavaScript `String.replace(search, replacementString)` interprets `$'` as the suffix of the original string when a replacement contains a regex ending in `$'`. The canonical `GITHUB_RULES.md` now requires callback/splice literal editing plus committed-byte readback.
+
+**Fixed in the existing collector:** one complete `if ($name -cnotmatch '^[A-Za-z0-9_]{1,32}$' -or -not $seen.Add($name))` validation; one JSON output block; explicit `GlobalSettings` header; `query *` remains read-only to include disabled box names but only yields **candidate sections**, not verified boxes or Create Virtual authority. The raw 512-section limit is distinct from the 128 candidate-name limit because documented template/user sections also consume input rows. Padded raw names are rejected rather than normalized into a different identity. The current `apps/desktop/test/virtual-inventory.test.ts` now rejects a truncated regex, duplicate collector output, missing bounds, name trimming or removed reserved-namespace filtering. All active IPC/result fields remain unchanged.
+
+**Actual validation:** read back the exact GitHub commits and evaluated 11 selected source files with targeted static/structure checks, including V8 parsing of four edited pure JavaScript modules/tests (after stripping imports solely for syntax inspection); all the **selected** checks passed. These are not a complete PowerShell AST/runtime parse, Svelte/Vitest test run, Rust/Cargo checks, signing, Windows driver/service activation, or Minecraft gameplay. No local-PC testing requested; all stronger proofs remain **NOT_EXECUTED**.
+
+**Next:** focus further code-only work on reproducible source blockers and existing test consumers; never interpret helper timeout, box-section candidate names or unsigned built artifacts as authenticated/working Minecraft clients. Preserve the currently mounted official Client 02 provider, account-bearing data, and disabled private Create Virtual.
+
 ## Code-only launcher and Sandboxie inventory contract review — 16 October 2026
 
 **Goal and scope:** continue source-only work on official Client 02 launch safety, duplicate request admission, read-only official Sandboxie inventory, and user-facing readiness truth. No local PC request, no private driver activation, no account migration or automatic launch retry.
