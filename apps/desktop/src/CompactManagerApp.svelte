@@ -6,6 +6,7 @@
     type IsolatedClientObservation,
     type OwnedCandidateInspection,
     type OwnedHostInspection,
+    type VirtualBoxInventory,
   } from "./app/bridge/nativeFeasibilityApi.js";
   import {
     client02Presentation,
@@ -39,6 +40,8 @@
   let ownedHostInspection: OwnedHostInspection | null = null;
   let ownedHostBusy = false;
   let ownedHostError = "";
+  let existingVirtuals: VirtualBoxInventory | null = null;
+  let existingVirtualsError = "";
   // Temporary UI feedback, isolated by supported instance identity.
   let issues: Partial<Record<InstanceId, UiIssue>> = {};
   let notices: Partial<Record<InstanceId, UiNotice>> = {};
@@ -301,6 +304,21 @@
     if (action === "setup") toggleDetails(id, "setup", origin);
   }
 
+  async function discoverExistingVirtuals() {
+    if (busy || ownedHostBusy || ownedInspectionBusy) return;
+    busy = "discover-virtuals";
+    existingVirtuals = null;
+    existingVirtualsError = "";
+    try {
+      existingVirtuals = await nativeFeasibility.discoverExistingVirtuals();
+    } catch {
+      // No invented empty inventory: a failed query is unknown, not zero boxes.
+      existingVirtualsError = "Could not verify existing sandbox names. No virtuals were changed.";
+    } finally {
+      busy = "";
+    }
+  }
+
   async function inspectOwnedServiceNames() {
     if (busy || ownedHostBusy || ownedInspectionBusy) return;
     ownedHostBusy = true;
@@ -361,9 +379,33 @@
           <h2>Your virtuals</h2>
           <p>Use this app to manage Windows and isolated sessions. The internal Sandboxie-derived engine must pass Windows driver and service validation before new virtuals can be created.</p>
         </div>
-        <button type="button" class="cm-button cm-secondary" disabled
-          title="Internal isolation engine is not yet installed and verified">Create virtual</button>
+        <div class="cm-virtual-actions">
+          <button type="button" class="cm-button cm-secondary" disabled
+            title="Internal isolation engine is not yet installed and verified">Create virtual</button>
+          <button type="button" class="cm-button cm-secondary" disabled={Boolean(busy)}
+            on:click={discoverExistingVirtuals}>
+            {busy === "discover-virtuals" ? "Checking…" : "Find existing virtuals"}
+          </button>
+        </div>
       </section>
+      {#if existingVirtuals}
+        <section class="cm-existing-virtuals" aria-label="Existing Sandboxie virtual names">
+          <h3>Existing Sandboxie boxes (read-only)</h3>
+          <p>These names come from the installed Sandboxie compatibility pilot, not the MIVUBI-owned engine. Detection does not mean a game is running.</p>
+          {#if existingVirtuals.boxes.length === 0}
+            <p>No enabled boxes were reported for the current Windows user.</p>
+          {:else}
+            <ul>
+              {#each existingVirtuals.boxes as boxName (boxName)}
+                <li>{boxName}</li>
+              {/each}
+            </ul>
+          {/if}
+        </section>
+      {/if}
+      {#if existingVirtualsError}
+        <p class="cm-warning cm-existing-error" role="alert">{existingVirtualsError}</p>
+      {/if}
       <section class="cm-list" aria-label="Virtual sessions">
         <div class="cm-instance">
           <div class="cm-row">
