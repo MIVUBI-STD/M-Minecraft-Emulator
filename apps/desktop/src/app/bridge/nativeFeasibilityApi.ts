@@ -238,7 +238,9 @@ export function parseIsolatedClientObservation(value: unknown): IsolatedClientOb
 export interface OwnedCandidateInspection {
   schema: 1;
   state: "CANDIDATE_INTEGRITY_VERIFIED_NOT_INSTALLABLE";
-  upstreamCommit: "abd4c240031cfb46666daa74ca47ed4e48b561e4";
+  upstreamCommit:
+    | "abd4c240031cfb46666daa74ca47ed4e48b561e4"
+    | "cdba7096240b93d79c5373aa81a75a1c5c71b883";
   verifiedArtifactCount: number;
   requiredArtifactCount: number;
   providerSelected: false;
@@ -248,6 +250,9 @@ export interface OwnedCandidateInspection {
 }
 
 // Candidate checks cannot be interpreted as a ready, installed engine.
+// Same Rust command inspects both legacy v1.18.5 and current owned v1.18.6.
+// Exact version/required-file pairing matters; a checksum match alone never
+// proves a driver was signed, installed, selected, or safe to use.
 export function parseOwnedCandidateInspection(value: unknown): OwnedCandidateInspection {
   if (!isRecord(value) || !hasOnly(value, [
     "schema", "state", "upstreamCommit", "verifiedArtifactCount",
@@ -255,19 +260,24 @@ export function parseOwnedCandidateInspection(value: unknown): OwnedCandidateIns
     "gameplayVerified", "installPermitted",
   ]) || value.schema !== 1 ||
     value.state !== "CANDIDATE_INTEGRITY_VERIFIED_NOT_INSTALLABLE" ||
-    value.upstreamCommit !== "abd4c240031cfb46666daa74ca47ed4e48b561e4" ||
     typeof value.verifiedArtifactCount !== "number" ||
     !Number.isSafeInteger(value.verifiedArtifactCount) ||
-    (value.verifiedArtifactCount as number) < 24 ||
     (value.verifiedArtifactCount as number) > 48 ||
-    value.requiredArtifactCount !== 24 ||
     value.providerSelected !== false || value.driverLoadVerified !== false ||
     value.gameplayVerified !== false || value.installPermitted !== false) {
     throw new TypeError("Untrusted owned isolation candidate observation.");
   }
+  const required = value.upstreamCommit === "cdba7096240b93d79c5373aa81a75a1c5c71b883"
+    ? 25
+    : value.upstreamCommit === "abd4c240031cfb46666daa74ca47ed4e48b561e4"
+      ? 24
+      : null;
+  if (required === null || value.requiredArtifactCount !== required ||
+    (value.verifiedArtifactCount as number) < required) {
+    throw new TypeError("Untrusted owned isolation candidate version or required files.");
+  }
   return value as unknown as OwnedCandidateInspection;
 }
-
 
 export interface OwnedHostInspection {
   schema: 1;
