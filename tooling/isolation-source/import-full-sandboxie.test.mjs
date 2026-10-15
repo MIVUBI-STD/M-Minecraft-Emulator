@@ -53,3 +53,34 @@ test('refuses dirty Local, bad branch, existing owner directory, or changed HEAD
   assert.throws(()=>importFullSandboxie({repoRoot:f.repo,seedRoot:f.seed,expectedHead:f.head,upstreamCommit:f.pin}),/already exists/);
  } finally {rmSync(f.dir,{recursive:true,force:true})}
 });
+
+test('resumes 1-file owned source without replacing it and reaches exact upstream Git tree',()=>{
+ const f=makeFixture();try{
+  const path='Sandboxie/core/drv/box.c';
+  const full=join(f.repo,OWNED_PATH,path);
+  mkdirSync(dirname(full),{recursive:true});
+  writeFileSync(full,'original '+path+'\n');
+  git(f.repo,'add','.');git(f.repo,'commit','-m','Partial pinned source');
+  const before=git(f.repo,'rev-parse','HEAD');
+  const r=importFullSandboxie({repoRoot:f.repo,seedRoot:f.seed,expectedHead:before,upstreamCommit:f.pin});
+  assert.equal(r.importedFileCount,10);
+  assert.equal(r.newlyImportedFileCount,9);
+  assert.equal(r.importedTree,git(f.seed,'rev-parse','HEAD^{tree}'));
+  assert.equal(git(f.repo,'show',before+':'+OWNED_PATH+'/'+path),'original '+path);
+  const repeat=importFullSandboxie({repoRoot:f.repo,seedRoot:f.seed,expectedHead:r.appCommit,upstreamCommit:f.pin});
+  assert.equal(repeat.newlyImportedFileCount,0);
+  assert.equal(repeat.appCommit,r.appCommit);
+ } finally {rmSync(f.dir,{recursive:true,force:true})}
+});
+test('refuses mismatched or unexpected committed owned files before filling gaps',()=>{
+ const f=makeFixture();try{
+  const path=join(f.repo,OWNED_PATH,'Sandboxie/core/drv/box.c');
+  mkdirSync(dirname(path),{recursive:true});writeFileSync(path,'CORRUPT\n');
+  git(f.repo,'add','.');git(f.repo,'commit','-m','Wrong partial source');
+  const head=git(f.repo,'rev-parse','HEAD');
+  assert.throws(()=>importFullSandboxie({repoRoot:f.repo,seedRoot:f.seed,
+    expectedHead:head,upstreamCommit:f.pin}),/existing owned source differs/);
+  assert.equal(git(f.repo,'rev-parse','HEAD'),head);
+  assert.equal(git(f.repo,'status','--porcelain'),'');
+ }finally{rmSync(f.dir,{recursive:true,force:true})}
+});

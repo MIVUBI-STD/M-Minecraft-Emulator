@@ -15,9 +15,10 @@ This is a **navigation guide**, not a second registry or copy of implementation 
 
 For the complete pinned source copy and first direct MIVUBI native modifications,
 use [Owned full-source import](./owned-source-import.md); the source owner
-becomes `engine/isolation-owned/` **only once the Git subtree import has
-actually succeeded**. Until then, the existing pinned upstream Gitlink and
-native overlay remain the committed source inputs.
+is migrating into `engine/isolation-owned/` (213/1,624 pinned blobs at the
+2026-10-15 partial checkpoint). The pinned upstream Gitlink remains the exact
+reference; the native overlay remains the unapplied MIVUBI patch owner until
+the complete owned subtree matches the upstream Git tree SHA.
 
 | Question / fault | Primary implementation owner | Consumer / companion |
 | --- | --- | --- |

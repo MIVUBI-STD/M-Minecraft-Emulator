@@ -1,5 +1,29 @@
 # Current Development Handoff — M-Minecraft-Emulator
 
+## Resumable full-source import — 15 October 2026
+
+**Current verified GitHub base**: `1752e98eeba3c5294889580b26537e6d4fa9a679` (Local).
+The owned tree contains 213 / 1,624 genuine pinned v1.18.5 tracked blobs:
+89 core/drv, 117 core/dll and seven additional source/license files.
+Existing SHA/mode parity against upstream is exact. The source migration
+is NOT complete; private native 11-file patch has NOT been applied to owned
+files. The external installed Sandboxie pilot is still active.
+
+**This batch** corrects the partial-import blind spot in
+`tooling/isolation-source/import-full-sandboxie.mjs`. The importer can
+continue from a clean, committed partial `engine/isolation-owned/`,
+refuses any changed/foreign blob or path, copies missing pinned binary/text
+bytes, and requires exact final upstream Git tree parity before committing.
+Negative and completion fixture tests were added. Native Windows build,
+driver signing/loading, Minecraft gameplay and crash analysis remain
+NOT_EXECUTED. The importer does NOT mutate existing account data.
+
+**Next**: transfer all remaining pinned upstream blobs and verify that
+`engine/isolation-owned/` resolves to source tree
+`9b3d37901e0b6cfb0cfa77cfa465b23c758deefe`, then apply the
+existing exact private MIVUBI native overlay directly to the owned files.
+Avoid repeating source-plan work before achieving full source completeness.
+
 ## Complete upstream source ownership — 15 October 2026
 
 **User decision:** stop developing only a small external Sandboxie overlay;

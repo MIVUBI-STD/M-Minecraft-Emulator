@@ -9,14 +9,14 @@ Local → active development / source authority
 main  → reviewed stable/release authority
 ```
 
-## Full Sandboxie source ownership — source import prepared
+## Full Sandboxie source ownership — partial import in progress
 
 [Complete owned source import](docs/system/owned-source-import.md) provides a
-tested Git subtree workflow to copy **all** pinned Sandboxie Plus/Classic
+resumable, fail-closed source-import workflow to finish copying **all** pinned Sandboxie Plus/Classic
 tracked source, tools and licenses into `engine/isolation-owned/`, then apply
-the MIVUBI changes directly to that owned source. The source import must be
-executed against the real pinned checkout; no new remote GitHub fork or
-compiled Windows driver is claimed. The existing upstream submodule remains
+the MIVUBI changes directly to that owned source. The `Local` branch currently contains 213/1,624 pinned upstream source blobs;
+the remaining source, owned native patch, and Windows build are NOT complete.
+No private compiled Windows driver is claimed. The existing upstream submodule remains
 a pinned, read-only reference until the exact subtree import is completed.
 
 ## Start here

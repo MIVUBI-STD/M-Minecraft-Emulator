@@ -11,9 +11,9 @@ lifecycle: ACTIVE
 
 ## Chosen ownership model
 
-The application retains the authentic **Sandboxie Plus / Classic v1.18.5**
-source as a **writable Git subtree snapshot** at `engine/isolation-owned/`.
-This is the *complete tracked upstream source tree*, including the Sandboxie
+The application is importing the authentic **Sandboxie Plus / Classic v1.18.5**
+source as **ordinary writable Git blobs** at `engine/isolation-owned/`.
+The target is the *complete tracked upstream source tree*, including the Sandboxie
 kernel/service/DLL/launcher, SandboxiePlus/SandMan sources, resources, tools,
 installer and **all original license files**. It is **not a Git submodule**:
 editing `engine/isolation-owned/Sandboxie/core/drv/box.c` is an ordinary commit
@@ -55,9 +55,12 @@ node tooling/isolation-source/import-full-sandboxie.mjs --seed engine/isolation-
 
 The importer verifies the seed's tag, exact commit, origin, full Git history
 and clean tree; it requires the application's exact `Local` HEAD and a clean
-index. It refuses an already occupied destination. Git's `subtree add
---squash` creates a normal `Local` commit, and the importer **compares the
-complete imported Git tree hash to the original upstream Git tree hash**.
+index. If the directory is empty, Git's `subtree add --squash` makes the first copy.
+If it already contains a **clean, committed partial upstream copy**, the same
+importer validates every existing blob SHA and file mode, copies only missing
+pinned blobs, and refuses any mismatch or unknown file. It commits only after
+the staged full source subtree SHA exactly equals the pinned upstream root tree
+SHA. This is a one-time completion, not a destructive reset.
 Unlike copying only the 11 modified source files, this retains **all** tracked
 Plus/Classic sources. The `--squash` choice retains the pinned original commit
 and Git subtree provenance without inserting decades of unrelated upstream
@@ -81,8 +84,7 @@ Later fixes should edit the actual owned files directly and be committed
 normally, rather than creating another wrapper or regenerating the whole
 overlay. The historical overlay remains only the initial migration source.
 
-The script is **not idempotent**: reruns refuse an already-imported or patched
-source. Neither command pushes automatically. Review the resulting commits
+The import script is idempotent on the complete unmodified upstream tree; the native patch script is not idempotent and refuses a patched tree. Neither command pushes automatically. Review the resulting commits
 and push `Local` by the normal repository-approved Git workflow.
 
 ## Acceptance boundary
@@ -104,15 +106,25 @@ and push `Local` by the normal repository-approved Git workflow.
 REA, if installed alongside a native analysis provider, may inspect genuine
 built binaries; it does not replace Windows/MSVC/WDK or driver signing.
 
-## Executed evidence versus current GitHub state
+## Current GitHub state (15 October 2026)
 
-The import and patch routines have been exercised with separate disposable
-Git repositories and synthetic source fixtures, including exact imported
-Git-tree parity, direct editability of copied files, refusal on dirty/incorrect
-branch or existing target, and refusal to reapply the native patch. This is
-**not** an executed import of all 1,624 authentic upstream blobs to GitHub:
-ChatGPT's current GitHub connector cannot create a fork/repository or reuse
-unrelated upstream Git tree objects, and the ChatGPT Linux container does not
-have outbound GitHub DNS/network access. A full source transfer requires the
-above one-time Git subtree operation. Until it has run on the actual `Local`
-checkout, `engine/isolation-owned/` does not exist in the remote repository.
+At `1752e98eeba3c5294889580b26537e6d4fa9a679`, the `Local`
+repository contains **213 of 1,624** pinned upstream Git blobs at
+`engine/isolation-owned/`: 89 driver, 117 DLL and seven license/metadata
+files. No existing blob SHA or file mode differs from upstream. The first
+partial import is an ordinary Git directory, not a subtree-complete snapshot.
+
+The resumed importer is prepared for **the committed partial tree**. The
+actual full-source GitHub transfer, source patch and native Windows build
+remain separate proof gates. Transferring blobs via GitHub API must be
+followed by exact subtree SHA comparison before asserting completion.
+A GitHub object SHA from another repository is not by itself sufficient
+proof that the destination can resolve that object. Never delete, replace or
+reinitialize this directory as a shortcut.
+
+The ChatGPT container has no direct GitHub network route; GitHub connector
+writes can transfer individual blobs but cannot atomically fetch/copy the
+entire external upstream Git tree. A full checkout with the pinned upstream
+seed can use the resumed importer if direct API transfer remains incomplete.
+No user account, box, Microsoft login, signed driver or existing official
+Sandboxie installation is touched by source operations.
