@@ -1,5 +1,33 @@
 # Current Development Handoff — M-Minecraft-Emulator
 
+## Uploaded v1.18.6 full source and actual candidate migration — 15 October 2026
+
+Source ZIP supplied by user was verified locally: **1,627 authentic files**,
+Git tree **f690477c07a40810f479f53973334ceae7e0ab13**, original tag
+commit **cdba7096240b93d79c5373aa81a75a1c5c71b883**.
+Uploaded installer EXE is not the source, not executed or installed.
+
+**Direct GitHub proof:** 526 authentic v1.18.6 source files now exist as
+ordinary Git files at `engine/isolation-candidates/sandboxie-v1.18.6/`.
+All 526 SHA/mode entries match v1.18.6 upstream (5 revised kernel/service/
+common blobs were copied byte-identically; unchanged owned blobs reused).
+This is **partial** (1,101 missing); not a completed full GitHub source transfer.
+The parallel older `engine/isolation-owned/` remains at 526/1,624 v1.18.5.
+
+**Executed source-only proof:** a Python standard-library importer was
+successfully exercised on the user's ZIP in a disposable local Git fixture.
+It copied the missing 1,625 files after a 2-file partial seed, reached the
+exact **1,627-file upstream tree**, left a clean working tree, and passed an
+idempotent second invocation. The exact tested importer source Git blob
+`b8e3c500597103ea9d0a5f60b1b44fb7199a41c6` is committed under
+`tooling/isolation-source/import-v1186-archive.py`.
+
+**Next:** complete the remaining 1,101 v1.18.6 candidate source files to
+GitHub (do not mislabel a locally tested copy as uploaded). After full tree
+parity, port/review the 1.18.5 MIVUBI native patches against 1.18.6 and run
+native build tests in an isolated Windows test environment. No driver install,
+official Sandboxie modification, gameplay or multi-account acceptance here.
+
 ## Direct GitHub transfer of core runtime sources — 15 October 2026
 
 **Committed migration checkpoint:** 314 / 1,624 pinned upstream v1.18.5

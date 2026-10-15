@@ -129,3 +129,37 @@ entire external upstream Git tree. A full checkout with the pinned upstream
 seed can use the resumed importer if direct API transfer remains incomplete.
 No user account, box, Microsoft login, signed driver or existing official
 Sandboxie installation is touched by source operations.
+
+## Verified user-provided upstream v1.18.6 ZIP (15 October 2026)
+
+The uploaded `Sandboxie-1.18.6.zip` is a full **1,627-file** source archive.
+Its SHA-256 is `22d8b004d4fe8dcf05654c4704a8b121c730352c1b406d2f1dad564dea451b33`.
+Extracted into a disposable Git repository, the source produces exact
+upstream tag `v1.18.6` commit `cdba7096240b93d79c5373aa81a75a1c5c71b883`
+tree `f690477c07a40810f479f53973334ceae7e0ab13`.
+
+The `Local` branch now has a **separate partial** versioned candidate at
+`engine/isolation-candidates/sandboxie-v1.18.6/`: 526 original source files
+with exact Git SHA/mode parity. The active older partial copy at
+`engine/isolation-owned/` is left unchanged. The full source has NOT yet
+been committed to GitHub. This candidate is source only, NOT built or active.
+
+`tooling/isolation-source/import-v1186-archive.py` is an executable Python
+standard-library importer for exactly this ZIP. It accepts an existing,
+clean and committed candidate, copies only missing files, and commits only if
+the entire final candidate tree matches the pinned official upstream SHA.
+A local disposable Git test using the authentic ZIP completed the full
+1,627-file import and verified a clean, idempotent re-run. This is NOT
+remote GitHub completion evidence.
+
+Typical usage with an authorized checkout containing the archive:
+
+```sh
+python tooling/isolation-source/import-v1186-archive.py \\
+  --repo-root . --archive /path/to/Sandboxie-1.18.6.zip \\
+  --expect-head "$(git rev-parse HEAD)"
+```
+
+The `Sandboxie-Plus-x64-v1.18.6.exe` upload is an **installer**, not source.
+It was not executed or redistributed. No driver, service, account or Minecraft
+world data is touched by the source-only migration.
