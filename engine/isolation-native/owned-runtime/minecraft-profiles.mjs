@@ -109,6 +109,24 @@ function configurationPlan(profiles) {
   };
 }
 
+/** Compare read-only setting values against the ONE canonical source.
+ * This is equality checking only: caller must independently authenticate a
+ * signed, exclusively owned engine and fresh same-host query results.
+ * It cannot prove provider identity, sign-in or gameplay by itself.
+ * Fail closed on truncated, duplicated, reordered or foreign-box records.
+ */
+export function matchesOwnedMinecraftReadback(client, readings) {
+  const box = requireProfile(client);
+  if (!Array.isArray(readings) || readings.length !== SETTINGS.length) return false;
+  return SETTINGS.every(([key, value], index) => {
+    const row = readings[index];
+    return row !== null && typeof row === "object" && !Array.isArray(row) &&
+      Object.keys(row).length === 4 &&
+      row.client === client && row.box === box &&
+      row.key === key && row.value === value;
+  });
+}
+
 /** A SINGLE supported sandbox target, never an eager three-box creation.
  * The caller must explicitly pass independently observed occupied names through
  * its OWN verified engine, not the installed official Sandboxie pilot. Omitting
