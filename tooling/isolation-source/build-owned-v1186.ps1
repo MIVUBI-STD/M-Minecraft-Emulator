@@ -190,7 +190,7 @@ try {
       throw "Unexpected native build-stage inventory: $($stage.id)"
     }
     foreach ($rel in $stageRequired) {
-      $built = Join-Path $source ($rel -replace '/', '\\')
+      $built = Join-Path $source ($rel -replace '/', '\')
       if (-not (Test-Path -LiteralPath $built -PathType Leaf)) {
         throw "Native stage $($stage.id) succeeded but required output is missing: $rel"
       }
