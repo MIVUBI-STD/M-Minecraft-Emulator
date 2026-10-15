@@ -1,5 +1,19 @@
 # Current Development Handoff — M-Minecraft-Emulator
 
+## Code-only native build stage and output preflight — 16 October 2026
+
+**User directive preserved:** no incremental Windows/PC testing. Keep exact source proof distinct from successful Windows compilation, signed kernel/service activation, account safety, idle-crash diagnosis and four-client Minecraft acceptance.
+
+**Source audit:** inspected the real v1.18.6 `SandboxDll.sln`, `Sandbox.sln`, `SandboxDrv.sln` and shared output `.props` files. The pinned SbieRelease solution schedules 2 required Win32 support outputs, 13 x64 user-core outputs and the single WDK driver output in its separate final solution. `SboxDrv` is present in the main solution but **not scheduled** for `SbieRelease|x64`; it is scheduled in `SandboxDrv.sln`. The original builder checked missing native outputs only after all three MSBuild stages, wasting later compilation if an earlier stage omitted an expected artifact.
+
+**Implemented:** `tooling/isolation-source/build-owned-v1186.ps1` now derives each stage's required outputs from the existing profile, requires exactly 2/13/1 ordinary nonempty files immediately after successful MSBuild exit for that stage, and refuses the next stage if any is absent. The existing final sixteen-file SHA-256 capture remains untouched. The same builder now rejects optional package output paths that are drive roots, under/above the repository, already occupied, missing a parent or directly under a reparse-point parent **before** any native build or report directory is created. The existing assembler remains the final path and payload authority; no install/sign/load code has been enabled.
+
+**Tests authored:** extended the existing `tooling/isolation-source/build-owned-v1186.test.mjs` to require all 13 scheduled x64 native projects, to assert complete 2/13/1 stage partition and early failure guards, and to assert optional package path preflight precedes compilation. No additional test framework was created.
+
+**Actual proof ceiling:** GitHub source inspection of the three solution project GUID/configuration mappings, plus direct V8 checks showing every selected x64 project is scheduled, profile output counts are 2/13/1, and every new static guard exists before the build loop. The edited Node test file passed V8 syntax parsing in isolation. **Windows PowerShell AST/runtime, Node 24 full tests, MSVC/WDK compilation, native binary output, signing/loading, Minecraft idle stability and four account playability remain NOT_EXECUTED.** Do not infer that either an installer or engine is ready to use.
+
+**Next meaningful source-only owner:** verify the remaining private-driver/service/tool ABI assumptions, and preserve source-only, fail-closed Create Virtual behavior until an actual signed exclusive runtime can be tested in the final Windows campaign. Avoid creating new dashboards or duplicative readiness systems.
+
 ## Code-only batch: owned payload integrity and explicit box inventory — 16 October 2026
 
 **Scope and source owners:** (1) `tooling/isolation-source/assemble-owned-v1186.mjs` plus its existing `.test.mjs`; (2) `engine/isolation-native/owned-runtime/minecraft-profiles.mjs` plus its existing `.test.mjs`. All changes are source-only on `Local`; the active official Sandboxie backend, MIVUBI native driver, Minecraft game, credentials and account-bearing boxes are untouched.
