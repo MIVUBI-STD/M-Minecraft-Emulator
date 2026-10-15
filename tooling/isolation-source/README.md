@@ -1,3 +1,57 @@
+# Active MIVUBI isolation engine — Sandboxie v1.18.6
+
+This directory has ONE active owned Windows-native route. Historical v1.18.5
+fork bootstrap, private builders, assemblers and disposal prototypes below
+remain read-only references. They must not be silently selected by a user or
+the desktop. The editable original C/C++ source is `engine/isolation-owned/`;
+`engine/isolation-candidates/sandboxie-v1.18.6/` remains the untouched
+comparison snapshot.
+
+## Current source-to-desktop pipeline
+
+```text
+engine/isolation-owned/ (C/C++ source)
+  -> build-owned-v1186.ps1 (real Win32/x64/WDK MSBuild)
+  -> build-result.json (three compiler exits + sixteen hashed binaries)
+  -> assemble-owned-v1186.mjs (binary/resource/license packaging)
+  -> engine-provenance.json schema 2 + NOT-INSTALLABLE.txt
+  -> existing apps/desktop/src-tauri/src/engine/owned_isolation.rs
+  -> existing Tauri / Settings "Inspect engine candidate" (READ ONLY)
+```
+
+The single machine-readable build/component inventory is
+`engine/isolation-native/owned-runtime/build-profile-v1186.json`.
+It declares three build stages, sixteen binary artifacts, five runtime
+resources and four original upstream license notices. The current npm
+entrypoint `isolation-source:assemble` invokes **only** the owned v1.18.6
+assembler. The old v1.18.5 staging files remain historical, not an
+alternative active runtime or another app UI.
+
+On an authorized Windows build-only environment, the **documented source
+contract** is:
+
+```powershell
+# An empty report destination, outside engine/isolation-owned:
+.\tooling\isolation-source\build-owned-v1186.ps1 -ReportDirectory 'D:\MIVUBIReports\native-v1186'
+
+# Optional compile-and-package in one operation, also requiring a fresh
+# outside-repository destination:
+.\tooling\isolation-source\build-owned-v1186.ps1 -ReportDirectory 'D:\MIVUBIReports\native-v1186' -PackageDirectory 'D:\MIVUBIPayloads\owned-v1186'
+```
+
+Use ONE of the two commands on a fresh checkout, **never both** on the
+same binary output tree. A separately verified successful build result can
+also be passed to
+`npm run isolation-source:assemble -- --build-report <build-result.json> --output <new-directory>`.
+The package is an **unsigned, noninstallable candidate**, not a working
+Sandboxie replacement. No signing, SCM service installation, kernel load,
+runtime cutover, licensed Minecraft login or four-client success has been
+executed or proved here. The existing official account-bearing Client 02
+sandbox stays untouched until separately authorized, signed and
+successfully tested exclusive disposable-Windows acceptance.
+
+---
+
 ## v1.18.6 native build-only route (source authored, Windows run pending)
 
 The active compile-only entrypoint is `build-owned-v1186.ps1`. It consumes the full editable `engine/isolation-owned/` v1.18.6 source after exact Git proof, reads `engine/isolation-native/owned-runtime/build-profile-v1186.json`, invokes Win32 → x64 → WDK MSBuild, and keeps immutable stage logs plus artifact SHA-256 values under a new report directory. It never installs, signs or loads a kernel driver, and never selects a runtime provider. **No successful Windows compile is claimed.** The v1.18.5 scripts below remain archived references and must not validate or package v1.18.6.
