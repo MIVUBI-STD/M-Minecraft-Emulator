@@ -290,7 +290,7 @@ test("opt-in GPU counter capture is one-shot and leaves default collector overhe
   assert.doesNotMatch(collector, /Start-Process|Start-Service|Stop-Process|Stop-Service|Set-Process/);
   assert.doesNotMatch(collector, /Set-ItemProperty|Set-GpuPreference|taskkill/);
   // No GPU counter collection happens inside the CPU/RAM sampling loop.
-  const loopBody = collector.split("while ($timer.Elapsed.TotalSeconds < $DurationSeconds) {")[1]
+  const loopBody = collector.split("while ($timer.Elapsed.TotalSeconds -lt $DurationSeconds) {")[1]
     ?.split("# Capture duration excludes the optional diagnostic query.")[0] ?? "";
   assert.ok(loopBody.length > 0);
   assert.doesNotMatch(loopBody, /Get-Counter|Read-GpuSnapshot/);
