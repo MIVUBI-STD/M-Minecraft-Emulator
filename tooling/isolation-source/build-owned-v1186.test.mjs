@@ -137,6 +137,27 @@ test('build-only stages reject incomplete outputs before starting the next expen
     'x64 stage unexpectedly builds driver; reconsider stage ownership');
 });
 
+test('optional engine package target is refused early before expensive MSBuild work', () => {
+  const gate = source.indexOf('$packageAbsolute = [IO.Path]::GetFullPath($PackageDirectory)');
+  const compiler = source.indexOf('foreach ($stage in $stages)');
+  assert.ok(gate > 0 && gate < compiler, 'package path admission must precede MSBuild');
+  assert.ok(gate < source.indexOf('New-Item -ItemType Directory -Path $reportFolder'),
+    'bad output must not create a report folder');
+  for (const reason of [
+    'Engine package output must not be a drive root.',
+    'Engine package output must be outside the repository checkout.',
+    'Engine package destination already exists; refuse replacement.',
+    'Engine package destination parent must exist before native compilation.',
+    'Engine package parent must not be a Windows reparse point.',
+  ]) {
+    assert.ok(source.includes(reason), 'missing non-destructive path refusal: '+reason);
+  }
+  assert.match(source, /\$packageFolder\.StartsWith\(\$repoFolder \+ /);
+  assert.match(source, /\$repoFolder\.StartsWith\(\$packageFolder \+ /);
+  assert.match(source, /\$parentItem\.Attributes -band \[IO\.FileAttributes\]::ReparsePoint/);
+  assert.match(source, /\$node \$assembler --build-report \$output --output \$PackageDirectory/);
+});
+
 test('ignored native build artifacts cannot evade the clean-tree preflight', () => {
   const fixture = mkdtempSync(join(tmpdir(), 'mivubi-native-build-'));
   const command = (...args) => {
