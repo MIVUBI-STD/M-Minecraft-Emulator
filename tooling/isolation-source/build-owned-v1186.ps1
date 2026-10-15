@@ -11,22 +11,44 @@ $repo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
 $source = Join-Path $repo 'engine/isolation-owned'
 $profile = Join-Path $repo 'engine/isolation-native/owned-runtime/build-profile-v1186.json'
 $verifier = Join-Path $repo 'tooling/isolation-source/verify-owned-v1186.mjs'
-$reportFolder = [IO.Path]::GetFullPath($ReportDirectory).TrimEnd('\')
+$reportAbsolute = [IO.Path]::GetFullPath($ReportDirectory)
+$reportRoot = [IO.Path]::GetPathRoot($reportAbsolute)
+if ($reportAbsolute.TrimEnd('\').Equals($reportRoot.TrimEnd('\'),
+    [StringComparison]::OrdinalIgnoreCase)) {
+  throw 'Build report destination must not be a drive root.'
+}
+$reportFolder = $reportAbsolute.TrimEnd('\')
+$repoFolder = [IO.Path]::GetFullPath($repo).TrimEnd('\')
 if (-not (Test-Path -LiteralPath $source -PathType Container)) {
   throw 'Complete owned native source is missing.'
 }
 if (Test-Path -LiteralPath $reportFolder) {
   throw 'Report destination exists; use a new directory to preserve build evidence.'
 }
+# A report beneath the checkout becomes untracked input after the Git clean
+# preflight and can invalidate reproducibility or a subsequent assembler run.
+# Refuse the entire repository, not just engine/isolation-owned.
+if ($reportFolder.Equals($repoFolder, [StringComparison]::OrdinalIgnoreCase) -or
+    $reportFolder.StartsWith($repoFolder + '\', [StringComparison]::OrdinalIgnoreCase) -or
+    $repoFolder.StartsWith($reportFolder + '\', [StringComparison]::OrdinalIgnoreCase)) {
+  throw 'Build report must be outside the repository checkout.'
+}
 $reportParent = Split-Path -Parent $reportFolder
 if (-not (Test-Path -LiteralPath $reportParent -PathType Container)) {
   throw 'Report destination parent does not exist.'
 }
-$sourceFull = [IO.Path]::GetFullPath($source).TrimEnd('\')
-if ($reportFolder.Equals($sourceFull, [StringComparison]::OrdinalIgnoreCase) -or
-    $reportFolder.StartsWith($sourceFull + '\', [StringComparison]::OrdinalIgnoreCase) -or
-    $sourceFull.StartsWith($reportFolder + '\', [StringComparison]::OrdinalIgnoreCase)) {
-  throw 'Build report may not overlap native source.'
+# An apparently external report parent may redirect through an NTFS junction
+# into this repository or another protected tree. Check the full ancestor
+# chain before source verification, MSBuild and directory creation.
+$ancestor = $reportParent
+while ($ancestor) {
+  $parentItem = Get-Item -LiteralPath $ancestor -Force -ErrorAction Stop
+  if (($parentItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+    throw 'Build report parent must not be a Windows reparse point.'
+  }
+  $next = Split-Path -Parent $ancestor
+  if (-not $next -or $next -eq $ancestor) { break }
+  $ancestor = $next
 }
 # The optional assembler refuses existing targets and destinations within
 # the repository. Reject those predictable failures BEFORE spending time on
