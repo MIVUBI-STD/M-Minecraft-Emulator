@@ -3,8 +3,9 @@ import { readFileSync } from "node:fs";
 import {
   client02Presentation, focusCandidate, rowPresentation,
   safeErrorDetails, setupInstruction, shouldClearPickerIssue,
+  ownedVirtualCreationReason,
 } from "../src/app/presentation/compactManager.js";
-import type { IsolatedClientObservation } from "../src/app/bridge/nativeFeasibilityApi.js";
+import type { IsolatedClientObservation, OwnedHostInspection } from "../src/app/bridge/nativeFeasibilityApi.js";
 
 function inspected(): IsolatedClientObservation {
   return {
@@ -22,6 +23,38 @@ function inspected(): IsolatedClientObservation {
     interpretation: "CONFIG_AND_PROCESS_CANDIDATES_ONLY_NO_AUTHENTICATION_PROOF",
   };
 }
+
+describe("MIVUBI Create Virtual readiness", () => {
+  const probe = (state: OwnedHostInspection["state"]): OwnedHostInspection => ({
+    schema: 1, state, interactiveSession: true,
+    serviceRegistration: state === "BLOCKED_SERVICE_NAMESPACE_IN_USE" ? "PRESENT" : "ABSENT",
+    driverRegistration: "ABSENT", serviceNamespaceAvailable: false,
+    providerSelected: false, trustedDriverLoaded: false,
+    gameplayVerified: false, activationAllowed: false,
+  });
+
+  it("explains that source and host-name presence cannot authorize creation", () => {
+    expect(ownedVirtualCreationReason(null)).toContain("not yet installed or validated");
+    expect(ownedVirtualCreationReason(probe("BLOCKED_SERVICE_NAMESPACE_IN_USE")))
+      .toContain("already registered");
+    expect(ownedVirtualCreationReason(probe("BLOCKED_UNVERIFIED_OWNED_DRIVER")))
+      .toContain("no signed and verified MIVUBI driver");
+    expect(ownedVirtualCreationReason(probe("BLOCKED_SERVICE_PROBE_UNKNOWN")))
+      .toContain("could not verify");
+    expect(ownedVirtualCreationReason(probe("BLOCKED_NON_INTERACTIVE_SESSION")))
+      .toContain("interactive Windows desktop");
+  });
+
+  it("uses one existing Rust engine probe in the UI and keeps Create disabled", () => {
+    expect(app).toContain("ownedVirtualCreationReason(ownedHostInspection)");
+    expect(app).toContain('on:click={inspectOwnedServiceNames}');
+    expect(app).toContain("Check engine readiness");
+    expect(app).toContain("MivubiEdu02, MivubiEdu03 and MivubiEdu04");
+    expect(app).toContain("These virtuals have not been created.");
+    expect(app).toContain('title="Internal isolation engine is not yet installed and verified">Create virtual</button>');
+    expect(app).not.toContain("desktop_create_virtual");
+  });
+});
 
 describe("Compact Manager projections", () => {
   it("does not treat a missing observation as stopped or ready", () => {
