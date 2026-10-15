@@ -691,6 +691,54 @@ mod tests {
 
 
     #[test]
+    fn owned_v1186_package_uses_real_stage_identity_and_remains_uninstallable() {
+        let c = TempCandidate::new();
+        c.populate();
+        let path = c.0.join("engine-provenance.json");
+        let mut data: serde_json::Value =
+            serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+        let classic = c.add_file("LICENSES/LICENSE.Classic", b"GPL classic notice fixture");
+        data["artifacts"].as_array_mut().unwrap().push(classic);
+        data["schema"] = serde_json::json!(2);
+        data["state"] = serde_json::json!(OWNED_V1186_STATE);
+        data["sourceVersion"] = serde_json::json!("v1.18.6");
+        data["upstreamTag"] = serde_json::json!("v1.18.6");
+        data["upstreamCommit"] = serde_json::json!(OWNED_V1186_UPSTREAM);
+        data["upstreamTree"] = serde_json::json!(OWNED_V1186_TREE);
+        data["ownedRepoHead"] = serde_json::json!("a".repeat(40));
+        data["ownedTree"] = serde_json::json!("b".repeat(40));
+        data["nativeModifiedFiles"] = serde_json::json!(11);
+        data["buildReportSha256"] = serde_json::json!("c".repeat(64));
+        data["compilerSha256"] = serde_json::json!("d".repeat(64));
+        data["canCoexistWithOfficialSandboxie"] = serde_json::json!(false);
+        data["buildStages"][1]["id"] = serde_json::json!("x64-user-core");
+        data["buildStages"][2]["id"] = serde_json::json!("x64-wdk-kernel");
+        fs::write(c.0.join("NOT-INSTALLABLE.txt"), OWNED_V1186_MARKER).unwrap();
+        fs::write(&path, serde_json::to_vec(&data).unwrap()).unwrap();
+        let inspected = inspect_candidate(&c.0).unwrap();
+        assert_eq!(inspected.upstream_commit, OWNED_V1186_UPSTREAM);
+        assert_eq!(inspected.verified_artifact_count, 25);
+        assert!(!inspected.provider_selected && !inspected.install_permitted
+            && !inspected.driver_load_verified && !inspected.gameplay_verified);
+        for (key, wrong) in [
+            ("nativeModifiedFiles", serde_json::json!(10)),
+            ("sourceVersion", serde_json::json!("v1.18.5")),
+            ("compilerSha256", serde_json::json!("invalid")),
+            ("upstreamTree", serde_json::json!("not-pinned")),
+            ("canCoexistWithOfficialSandboxie", serde_json::json!(true)),
+        ] {
+            let saved = data[key].clone();
+            data[key] = wrong;
+            fs::write(&path, serde_json::to_vec(&data).unwrap()).unwrap();
+            assert!(inspect_candidate(&c.0).is_err(), "accepted invalid {key}");
+            data[key] = saved;
+        }
+        data["buildStages"][1]["id"] = serde_json::json!("x64-core");
+        fs::write(&path, serde_json::to_vec(&data).unwrap()).unwrap();
+        assert!(inspect_candidate(&c.0).is_err());
+    }
+
+    #[test]
     fn private_exclusive_candidate_is_inspected_but_never_selected_or_installable() {
         let c = TempCandidate::new();
         c.populate();
