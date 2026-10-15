@@ -320,6 +320,37 @@ export function parseOwnedHostInspection(value: unknown): OwnedHostInspection {
   return value as unknown as OwnedHostInspection;
 }
 
+export interface VirtualBoxInventory {
+  schema: 1;
+  source: "EXISTING_OFFICIAL_SANDBOXIE_PILOT";
+  evidence: "BOX_NAMES_ONLY";
+  boxes: string[];
+  ownedProviderSelected: false;
+  gameplayVerified: false;
+}
+
+// Display names only. These are NOT MIVUBI-owned created/ready virtuals.
+export function parseVirtualBoxInventory(value: unknown): VirtualBoxInventory {
+  if (!isRecord(value) || !hasOnly(value, [
+    "schema", "source", "evidence", "boxes", "ownedProviderSelected", "gameplayVerified",
+  ]) || value.schema !== 1 ||
+    value.source !== "EXISTING_OFFICIAL_SANDBOXIE_PILOT" ||
+    value.evidence !== "BOX_NAMES_ONLY" ||
+    value.ownedProviderSelected !== false || value.gameplayVerified !== false ||
+    !Array.isArray(value.boxes) || value.boxes.length > 128) {
+    throw new TypeError("Untrusted existing virtual inventory.");
+  }
+  const names = new Set<string>();
+  for (const item of value.boxes) {
+    if (typeof item !== "string" || !/^[A-Za-z0-9_]{1,32}$/.test(item) ||
+      names.has(item.toLowerCase())) {
+      throw new TypeError("Invalid or duplicate existing virtual name.");
+    }
+    names.add(item.toLowerCase());
+  }
+  return value as unknown as VirtualBoxInventory;
+}
+
 export const nativeFeasibility = {
   // Only the official registered Start app is requested, never a copied EXE.
   openOfficialMinecraft: () => invokeRuntime<void>("desktop_open_native_minecraft"),
@@ -341,6 +372,8 @@ export const nativeFeasibility = {
       "desktop_inspect_owned_engine_candidate", { directory })),
   selectOwnedCandidateDirectory: (): Promise<string | null> =>
     invokeRuntime<string | null>("desktop_select_owned_engine_candidate_directory"),
+  discoverExistingVirtuals: async (): Promise<VirtualBoxInventory> =>
+    parseVirtualBoxInventory(await invokeRuntime<unknown>("desktop_discover_existing_virtuals")),
   inspectOwnedHost: async (): Promise<OwnedHostInspection> =>
     parseOwnedHostInspection(await invokeRuntime<unknown>("desktop_inspect_owned_engine_host")),
 };
