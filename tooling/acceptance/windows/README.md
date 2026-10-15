@@ -20,6 +20,45 @@ powershell.exe -NoProfile -File .\tooling\acceptance\windows\collect-native-perf
   -DurationSeconds 3600 -SampleIntervalSeconds 5
 ```
 
+### Optional GPU counter snapshot (diagnostic only)
+
+The default command above remains lightweight, uses **schema 1**, and does
+**not** query any GPU performance counters. On an existing authorized Windows
+session, opt in to **one GPU counter snapshot at the END of the timed CPU/RAM
+capture**:
+
+```powershell
+powershell.exe -NoProfile -File .\tooling\acceptance\windows\collect-native-performance.ps1 `
+  -NativePid <NATIVE_PID> -IsolatedPid <BOXED_PID> `
+  -DurationSeconds 60 -SampleIntervalSeconds 5 -GpuSnapshot
+```
+
+This produces **schema 2** (same CPU/RAM samples plus `gpuDiagnostic`). The
+optional snapshot requests exactly two rate-counter samples once using
+`GPU Engine(*): Utilization Percentage` and `GPU Process Memory(*):
+Dedicated Usage`, and reads the last sample. It reports each selected
+process's largest observed **3D engine instance percentage** and largest
+**dedicated-memory counter instance** in MB. These are **not** total GPU
+utilization or actual aggregate VRAM. Windows performance-counter names may
+be unavailable/localized, GPU drivers may not expose the data, and Microsoft
+documents cases of stale/incorrect GPU Process Memory values. In any such
+case the affected result is `UNKNOWN` with nulls, not a fabricated 0.
+Original PID creation times are rechecked to reduce PID-reuse attribution;
+the JSON contains no PIDs, device IDs, paths, user names or account data.
+
+All GPU output is explicitly an **unverified hint**, with
+`gpuPerformanceVerified=false`, `frameTimingVerified=false`, and no
+performance verdict. The reviewer still lists `GPU_VRAM` and `FRAME_TIMES`
+among missing acceptance evidence. It does not measure FPS, presentation
+latency, full process trees or GPU power. For real frame timing use a separate
+trusted frame-present capture where supported; test comparable worlds and
+graphics settings and do not treat GPU counters alone as an Eco-mode PASS.
+The `Get-Counter` diagnostic may briefly add CPU load after collection;
+do not enable it by default or run it at high frequency.
+
+Technical references: [Microsoft performance-counter sampling guidance](https://learn.microsoft.com/en-us/windows/win32/perfctrs/about-performance-counters)
+and [Microsoft known incorrect GPU Process Memory values](https://learn.microsoft.com/en-us/troubleshoot/windows-client/performance/gpu-process-memory-counters-report-wrong-value).
+
 To review the generated JSON without declaring gameplay PASS:
 
 ```powershell
@@ -44,7 +83,7 @@ the comparison is **descriptive only**: matching CPU counts do not establish
 the same physical PC or workload. It cannot infer FPS, GPU demand, full
 sandbox descendant-process cost or confirmed Minecraft optimization.
 
-`npm run test:native-performance` checks the offline reviewer's schema,
+`npm run test:native-performance` checks schema-1/schema-2 GPU hint handling,
 privacy, missing-data, numeric comparison and false-PASS constraints.
 Authored tests do not prove that the Windows sampler has actually executed.
 
