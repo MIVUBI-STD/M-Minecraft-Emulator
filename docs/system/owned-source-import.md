@@ -108,11 +108,12 @@ built binaries; it does not replace Windows/MSVC/WDK or driver signing.
 
 ## Current GitHub state (15 October 2026)
 
-At `1752e98eeba3c5294889580b26537e6d4fa9a679`, the `Local`
-repository contains **213 of 1,624** pinned upstream Git blobs at
+At the first checkpoint `1752e98`, `Local` contained **213 of 1,624** pinned upstream Git blobs at
 `engine/isolation-owned/`: 89 driver, 117 DLL and seven license/metadata
-files. No existing blob SHA or file mode differs from upstream. The first
-partial import is an ordinary Git directory, not a subtree-complete snapshot.
+files. No existing blob SHA or file mode differs from upstream. A later GitHub transfer increased the matching owned snapshot to **314 of
+1,624** files, including full service, low-level, launcher and ini groups.
+The
+partial import remains an ordinary Git directory, not a subtree-complete snapshot.
 
 The resumed importer is prepared for **the committed partial tree**. The
 actual full-source GitHub transfer, source patch and native Windows build

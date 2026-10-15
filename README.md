@@ -14,7 +14,7 @@ main  → reviewed stable/release authority
 [Complete owned source import](docs/system/owned-source-import.md) provides a
 resumable, fail-closed source-import workflow to finish copying **all** pinned Sandboxie Plus/Classic
 tracked source, tools and licenses into `engine/isolation-owned/`, then apply
-the MIVUBI changes directly to that owned source. The `Local` branch currently contains 213/1,624 pinned upstream source blobs;
+the MIVUBI changes directly to that owned source. The `Local` branch currently contains 314/1,624 pinned upstream source blobs;
 the remaining source, owned native patch, and Windows build are NOT complete.
 No private compiled Windows driver is claimed. The existing upstream submodule remains
 a pinned, read-only reference until the exact subtree import is completed.

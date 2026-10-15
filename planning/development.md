@@ -1,9 +1,26 @@
 # Current Development Handoff — M-Minecraft-Emulator
 
+## Direct GitHub transfer of core runtime sources — 15 October 2026
+
+**Committed migration checkpoint:** 314 / 1,624 pinned upstream v1.18.5
+files are copied as normal MIVUBI-owned Git blobs. The complete
+`Sandboxie/core/svc` (74), `Sandboxie/core/low` (7),
+`Sandboxie/apps/start` (13), and `Sandboxie/apps/ini` (7) groups now
+join the preexisting driver (89) and DLL (117).
+All 314 actual blob SHAs and executable modes were compared against the
+pinned upstream Git tree and matched exactly; 1,310 upstream files remain.
+Source transfer only: private native overlay, Windows binary build, driver
+installation and Minecraft runtime tests are NOT_EXECUTED.
+The complete upstream target tree SHA is
+`9b3d37901e0b6cfb0cfa77cfa465b23c758deefe`.
+
+**Next:** import pinned common/shared, messages, build solution and other
+remaining upstream paths without touching the official Windows installation.
+
 ## Resumable full-source import — 15 October 2026
 
 **Current verified GitHub base**: `1752e98eeba3c5294889580b26537e6d4fa9a679` (Local).
-The owned tree contains 213 / 1,624 genuine pinned v1.18.5 tracked blobs:
+The original checkpoint held 213 / 1,624 genuine pinned v1.18.5 tracked blobs:
 89 core/drv, 117 core/dll and seven additional source/license files.
 Existing SHA/mode parity against upstream is exact. The source migration
 is NOT complete; private native 11-file patch has NOT been applied to owned
