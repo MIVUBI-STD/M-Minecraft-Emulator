@@ -1,8 +1,31 @@
 use crate::engine::native_clients;
 
+use std::{io, sync::Mutex};
+
+// One admission point for heavyweight MIVUBI desktop requests. The caller
+// may not bypass this by invoking Tauri commands directly while another
+// probe, file hash, dialog, launch or window operation is in flight.
+// This limits manager-created CPU/RAM peaks, not Minecraft CPU or GPU usage.
+static MANAGER_RESOURCE_LOCK: Mutex<()> = Mutex::new(());
+
+fn admit_resource_operation<T>(
+    lock: &Mutex<()>,
+    operation: impl FnOnce() -> io::Result<T>,
+) -> io::Result<T> {
+    let _guard = lock.try_lock().map_err(|_| {
+        io::Error::new(io::ErrorKind::WouldBlock,
+            "Another MIVUBI desktop operation is running; retry after it finishes")
+    })?;
+    operation()
+}
+
+fn run_manager_operation<T>(operation: impl FnOnce() -> io::Result<T>) -> io::Result<T> {
+    admit_resource_operation(&MANAGER_RESOURCE_LOCK, operation)
+}
+
 #[tauri::command]
 pub async fn desktop_open_native_minecraft() -> Result<(), String> {
-    tauri::async_runtime::spawn_blocking(native_clients::open_native_minecraft)
+    tauri::async_runtime::spawn_blocking(|| run_manager_operation(native_clients::open_native_minecraft))
         .await
         .map_err(|error| format!("Desktop launch task failed: {error}"))?
         .map_err(|error| error.to_string())
@@ -10,7 +33,7 @@ pub async fn desktop_open_native_minecraft() -> Result<(), String> {
 
 #[tauri::command]
 pub async fn desktop_inspect_native_candidates() -> Result<native_clients::NativeProcessObservation, String> {
-    tauri::async_runtime::spawn_blocking(native_clients::inspect_native_candidates)
+    tauri::async_runtime::spawn_blocking(|| run_manager_operation(native_clients::inspect_native_candidates))
         .await
         .map_err(|error| format!("Native inspection task failed: {error}"))?
         .map_err(|error| error.to_string())
@@ -18,20 +41,20 @@ pub async fn desktop_inspect_native_candidates() -> Result<native_clients::Nativ
 
 #[tauri::command]
 pub async fn desktop_select_education_exe() -> Result<Option<String>, String> {
-    tauri::async_runtime::spawn_blocking(native_clients::select_education_exe)
+    tauri::async_runtime::spawn_blocking(|| run_manager_operation(native_clients::select_education_exe))
         .await.map_err(|e| format!("File dialog failed: {e}"))?
         .map_err(|e| e.to_string())
 }
 #[tauri::command]
 pub async fn desktop_request_sandbox_client_02(executable: String, licensed: bool) -> Result<(), String> {
-    tauri::async_runtime::spawn_blocking(move || native_clients::request_sandbox_client_02(executable, licensed))
+    tauri::async_runtime::spawn_blocking(move || run_manager_operation(|| native_clients::request_sandbox_client_02(executable, licensed)))
         .await.map_err(|e| format!("Isolated launch failed: {e}"))?
         .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub async fn desktop_focus_observed_client_02(target: native_clients::ProcessIdentityCandidate) -> Result<(), String> {
-    tauri::async_runtime::spawn_blocking(move || native_clients::focus_observed_client_02(target))
+    tauri::async_runtime::spawn_blocking(move || run_manager_operation(|| native_clients::focus_observed_client_02(target)))
         .await
         .map_err(|error| format!("Client 02 focus task failed: {error}"))?
         .map_err(|error| error.to_string())
@@ -42,7 +65,7 @@ pub async fn desktop_place_observed_client_02(
     target: native_clients::ProcessIdentityCandidate,
     side: native_clients::Client02PlacementSide,
 ) -> Result<(), String> {
-    tauri::async_runtime::spawn_blocking(move || native_clients::place_observed_client_02(target, side))
+    tauri::async_runtime::spawn_blocking(move || run_manager_operation(|| native_clients::place_observed_client_02(target, side)))
         .await
         .map_err(|error| format!("Client 02 placement task failed: {error}"))?
         .map_err(|error| error.to_string())
@@ -50,7 +73,7 @@ pub async fn desktop_place_observed_client_02(
 
 #[tauri::command]
 pub async fn desktop_inspect_sandbox_client_02() -> Result<native_clients::SandboxieClientObservation, String> {
-    tauri::async_runtime::spawn_blocking(native_clients::inspect_sandbox_client_02)
+    tauri::async_runtime::spawn_blocking(|| run_manager_operation(native_clients::inspect_sandbox_client_02))
         .await
         .map_err(|error| format!("Sandboxie inspection task failed: {error}"))?
         .map_err(|error| error.to_string())
@@ -60,8 +83,8 @@ pub async fn desktop_inspect_sandbox_client_02() -> Result<native_clients::Sandb
 pub async fn desktop_inspect_owned_engine_candidate(
     directory: String,
 ) -> Result<crate::engine::owned_isolation::OwnedCandidateInspection, String> {
-    tauri::async_runtime::spawn_blocking(move ||
-        native_clients::inspect_owned_engine_candidate(directory))
+    tauri::async_runtime::spawn_blocking(move || run_manager_operation(||
+        native_clients::inspect_owned_engine_candidate(directory)))
         .await
         .map_err(|error| format!("Owned engine candidate inspection failed: {error}"))?
         .map_err(|error| error.to_string())
@@ -69,7 +92,7 @@ pub async fn desktop_inspect_owned_engine_candidate(
 
 #[tauri::command]
 pub async fn desktop_select_owned_engine_candidate_directory() -> Result<Option<String>, String> {
-    tauri::async_runtime::spawn_blocking(native_clients::select_owned_candidate_directory)
+    tauri::async_runtime::spawn_blocking(|| run_manager_operation(native_clients::select_owned_candidate_directory))
         .await
         .map_err(|error| format!("Owned candidate directory picker failed: {error}"))?
         .map_err(|error| error.to_string())
@@ -78,7 +101,7 @@ pub async fn desktop_select_owned_engine_candidate_directory() -> Result<Option<
 #[tauri::command]
 pub async fn desktop_inspect_owned_engine_host(
 ) -> Result<crate::engine::owned_isolation::OwnedHostInspection, String> {
-    tauri::async_runtime::spawn_blocking(native_clients::inspect_owned_engine_host)
+    tauri::async_runtime::spawn_blocking(|| run_manager_operation(native_clients::inspect_owned_engine_host))
         .await
         .map_err(|error| format!("Owned runtime host inspection failed: {error}"))?
         .map_err(|error| error.to_string())
@@ -87,8 +110,8 @@ pub async fn desktop_inspect_owned_engine_host(
 #[tauri::command]
 pub async fn desktop_discover_existing_virtuals(
 ) -> Result<crate::engine::virtual_inventory::VirtualBoxInventory, String> {
-    tauri::async_runtime::spawn_blocking(
-        crate::engine::virtual_inventory::discover_existing_virtuals)
+    tauri::async_runtime::spawn_blocking(|| run_manager_operation(
+        crate::engine::virtual_inventory::discover_existing_virtuals))
         .await
         .map_err(|error| format!("Virtual discovery task failed: {error}"))?
         .map_err(|error| error.to_string())
