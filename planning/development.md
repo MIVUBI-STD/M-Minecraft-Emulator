@@ -1,5 +1,19 @@
 # Current Development Handoff — M-Minecraft-Emulator
 
+## Code-only launcher and Sandboxie inventory contract review — 16 October 2026
+
+**Goal and scope:** continue source-only work on official Client 02 launch safety, duplicate request admission, read-only official Sandboxie inventory, and user-facing readiness truth. No local PC request, no private driver activation, no account migration or automatic launch retry.
+
+**Launcher findings (review, no speculative mutation):** active Tauri command `desktop_request_sandbox_client_02` is serialized with other expensive manager operations; `native_clients.rs` has a separate Client 02 launch lock, fresh Sandboxie PID membership inspection, a 30-second helper-completion-based retry gap, explicit-only `Start.exe` request, and bounded PowerShell subprocess timeout. A timed-out launcher may have already spawned Minecraft, so source rightly refuses automatic retry and describes the result as UNKNOWN. No source evidence demonstrates that the manager kills Minecraft when idle. A retry race involving an external launcher/app restart and later-starting game processes remains unproven; do not invent a fix or claim real idle-crash resolution.
+
+**Defect found during all-section inventory review:** `SbieIni query *` reaches upstream `DoListSections` and `SbieApi_EnumBoxesEx(..., TRUE)`, which enumerates configuration sections, **not just proven boxes**. The earlier disabled-inclusive change could present documented `Template_*` and `UserSettings_*` sections as if they were virtuals. `tooling/acceptance/windows/collect-virtual-boxes.ps1` now excludes those namespaces (and `TemplateSettings`) before candidate-name validation; names are still candidate-only and unknown custom sections cannot be authenticated by this call. The collector remains on-demand, read-only and bounded and cannot authorize Create Virtual.
+
+**UI and regression alignment:** `CompactManagerApp.svelte` now calls the result `Sandboxie name candidates (read-only)`, uses `Inspect Sandboxie names` for the action, warns that disabled and possibly non-box sections can be present, and no longer claims the inventory is enabled-only or authenticated. Updated existing `compact-manager.test.ts` and `virtual-inventory.test.ts` to bind the terminology, source-owned auxiliary exclusion and the permanently disabled Create Virtual control. No new IPC fields/schema, runtime permissions, launch operations or workers.
+
+**Actually verified:** exact GitHub source readback; 13 source-level checks PASS covering all-section command, header, auxiliary exclusions, non-mutating collector, honest UI, disabled Create Virtual, tests and no automatic polling. A generic V8 parse attempt on a TypeScript Vitest file was not applicable (TypeScript annotations), and must **not** be reported as a failed or passed compile test. Pinned Node24 Vitest/Tauri/Rust, Windows PowerShell, user-account Minecraft gameplay and native driver build remain **NOT_EXECUTED**.
+
+**Next code-first priorities:** correct any further reproducible backend-only failure handling defect, then run available exact source suites in a valid toolchain. Reserve final Minecraft/Windows acceptance as one campaign; preserve official `MinecraftClient02` box and accounts.
+
 ## Code-only batch: readback identity and disabled-box enumeration — 16 October 2026
 
 **Exact source defects confirmed and fixed on `Local`:**
