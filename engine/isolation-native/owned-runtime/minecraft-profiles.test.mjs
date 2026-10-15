@@ -181,3 +181,38 @@ test("bulk compatibility plan stays identical to three independently planned box
   assert.deepEqual(bulk.commands, individual);
   assert.equal(bulk.commands.length, 24);
 });
+
+test("owned configuration plans verify every setting before advancing or enabling", () => {
+  for (const client of ["02", "03", "04"]) {
+    const result = planOwnedMinecraftVirtual(client, []);
+    assert.equal(result.commands.length, 8, "retain the historical write-only plan");
+    assert.equal(result.guardedSteps.length, 16, "eight writes and eight readbacks");
+    assert.equal(result.stopOnReadbackMismatch, true);
+    assert.equal(result.automaticDeletionPermitted, false);
+    assert.equal(result.settingsReadbackVerified, false);
+    assert.equal(result.driverInstalled, false);
+    for (let i = 0; i < 8; i++) {
+      const write = result.guardedSteps[i * 2];
+      const read = result.guardedSteps[i * 2 + 1];
+      assert.equal(write.operation, "SET");
+      assert.equal(read.operation, "REQUIRE_READBACK");
+      assert.equal(write.client, client);
+      assert.equal(read.client, client);
+      assert.equal(write.executable, "SbieIni.exe");
+      assert.equal(read.executable, "SbieIni.exe");
+      assert.deepEqual(read.arguments, ["query", "MivubiEdu" + client, write.arguments[2]]);
+      assert.equal(read.expectedValue, write.arguments[3]);
+      assert.deepEqual(result.commands[i].arguments, write.arguments);
+    }
+    assert.equal(result.guardedSteps[14].arguments[2], "Enabled");
+    assert.equal(result.guardedSteps[14].arguments[3], "y");
+    assert.equal(result.guardedSteps[15].expectedValue, "y");
+  }
+  const bulk = planOwnedMinecraftProfiles([]);
+  assert.equal(bulk.guardedSteps.length, 48);
+  const singles = ["02", "03", "04"].flatMap(
+    client => planOwnedMinecraftVirtual(client, []).guardedSteps);
+  assert.deepEqual(bulk.guardedSteps, singles);
+  assert.equal(bulk.stopOnReadbackMismatch, true);
+  assert.equal(bulk.automaticDeletionPermitted, false);
+});
