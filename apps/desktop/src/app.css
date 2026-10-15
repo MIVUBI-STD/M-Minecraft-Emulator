@@ -46,6 +46,12 @@ button:disabled { opacity: .52; cursor: not-allowed; }
 
 
 .cm-list { border-top: 1px solid #2b3238; }
+.cm-future-virtuals { margin-top: 24px; border-top: 1px solid #2b3238; }
+.cm-future-virtuals > h2 { font-size: 14px; font-weight: 650; margin: 20px 8px 6px; }
+.cm-future-virtuals > p { margin: 0 8px 12px; max-width: 66ch; color: #a8b0b7; font-size: 12px; line-height: 1.55; }
+.cm-planned-instance .cm-row { min-height: 70px; padding-top: 12px; padding-bottom: 12px; }
+.cm-planned-instance .cm-row-copy h3 { font-size: 13px; font-weight: 600; color: #d5dce3; margin: 0 0 4px; }
+.cm-planned-instance .cm-monitor { opacity: .4; }
 .cm-instance { border-bottom: 1px solid #2b3238; }
 .cm-row { display: flex; align-items: center; gap: 17px; min-height: 92px; padding: 15px 8px; }
 .cm-monitor { position: relative; flex: 0 0 43px; width: 43px; height: 35px; border: 2px solid #67717b; border-radius: 5px; opacity: .72; }
