@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
 import { parseVirtualBoxInventory } from "../src/app/bridge/nativeFeasibilityApi.js";
 
 const inventory = (boxes: string[] = []) => ({
@@ -41,5 +42,26 @@ describe("existing virtual names in one MIVUBI desktop", () => {
     ]) {
       expect(() => parseVirtualBoxInventory({...base, ...altered})).toThrow(TypeError);
     }
+  });
+});
+
+describe("Sandboxie box discovery completeness", () => {
+  it("does not hide disabled boxes or treat GlobalSettings as a sandbox", () => {
+    const upstream = readFileSync(new URL(
+      "../../../engine/isolation-owned/Sandboxie/apps/ini/query.c", import.meta.url), "utf8");
+    const collector = readFileSync(new URL(
+      "../../../tooling/acceptance/windows/collect-virtual-boxes.ps1", import.meta.url), "utf8");
+    // Actual upstream source only filters disabled boxes with /boxes.
+    expect(upstream).toContain("if (boxes) {");
+    expect(upstream).toContain("SbieApi_IsBoxEnabled(section_name)");
+    expect(upstream).toContain('printf("GlobalSettings\\n")');
+    expect(collector).toContain("$sections = @(& $ini query '*' 2>$null)");
+    expect(collector).not.toContain("$ini query /boxes");
+    expect(collector).toContain("([string]$sections[0]).Trim() -cne 'GlobalSettings'");
+    expect(collector).toContain("Select-Object -Skip 1");
+    expect(collector).toContain("$sections.Count -gt 129");
+    // A displayed official box name is never owned-provider or game proof.
+    expect(collector).toContain("ownedProviderSelected = $false");
+    expect(collector).toContain("gameplayVerified = $false");
   });
 });
