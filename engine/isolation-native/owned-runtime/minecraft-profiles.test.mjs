@@ -1,8 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
-import {ownedMinecraftProfiles, planOwnedMinecraftProfiles, planOwnedMinecraftVirtual, ownedMinecraftLaunch}
-  from "./minecraft-profiles.mjs";
+import {
+  ownedMinecraftProfiles, planOwnedMinecraftProfiles, planOwnedMinecraftVirtual,
+  ownedMinecraftLaunch, matchesOwnedMinecraftReadback,
+} from "./minecraft-profiles.mjs";
 
 test("three functional MIVUBI boxes have stable distinct identities", () => {
   const actual = ownedMinecraftProfiles();
@@ -215,4 +217,35 @@ test("owned configuration plans verify every setting before advancing or enablin
   assert.deepEqual(bulk.guardedSteps, singles);
   assert.equal(bulk.stopOnReadbackMismatch, true);
   assert.equal(bulk.automaticDeletionPermitted, false);
+});
+
+test("owned readback comparison accepts only complete ordered matching values", () => {
+  for (const client of ["02", "03", "04"]) {
+    const plan = planOwnedMinecraftVirtual(client, []);
+    const readings = plan.guardedSteps
+      .filter(step => step.operation === "REQUIRE_READBACK")
+      .map(step => ({
+        client, box: step.arguments[1], key: step.arguments[2],
+        value: step.expectedValue,
+      }));
+    assert.equal(matchesOwnedMinecraftReadback(client, readings), true);
+    for (const corrupt of [
+      rows => rows.pop(),
+      rows => rows.reverse(),
+      rows => { rows[0].value = "UNKNOWN"; },
+      rows => { rows[0].key = rows[1].key; },
+      rows => { rows[0].box = "MinecraftClient02"; },
+      rows => { rows[0].client = "03"; },
+      rows => { rows[0].privateAccount = "never accepted"; },
+      rows => { rows[0].value = true; },
+    ]) {
+      const changed = structuredClone(readings);
+      corrupt(changed);
+      assert.equal(matchesOwnedMinecraftReadback(client, changed), false);
+    }
+    for (const invalid of [undefined, null, {}, "MATCH", [], false]) {
+      assert.equal(matchesOwnedMinecraftReadback(client, invalid), false);
+    }
+  }
+  assert.throws(() => matchesOwnedMinecraftReadback("05", []));
 });
