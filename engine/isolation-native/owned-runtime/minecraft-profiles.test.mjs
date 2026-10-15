@@ -74,6 +74,18 @@ test("existing named boxes never get silently reconfigured", () => {
   }
 });
 
+test("owned source plans require an explicit authoritative box inventory", () => {
+  // An omitted or unknown inventory must not be silently replaced with [].
+  for (const invalid of [undefined, null, "UNKNOWN", {}, false]) {
+    assert.throws(() => planOwnedMinecraftVirtual("02", invalid),
+      /trustworthy existing box-name inventory/);
+    assert.throws(() => planOwnedMinecraftProfiles(invalid),
+      /trustworthy existing box-name inventory/);
+  }
+  assert.equal(planOwnedMinecraftVirtual("02", []).commands.length, 8);
+  assert.equal(planOwnedMinecraftProfiles([]).commands.length, 24);
+});
+
 test("owned Start launch selects only one exact profile and Education EXE",()=>{
   for(const id of ["02","03","04"]) {
     const exe = "C:\\Program Files\\Microsoft Studios\\Minecraft Education\\Minecraft.Windows.exe";
