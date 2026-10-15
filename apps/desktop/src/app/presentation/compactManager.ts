@@ -23,6 +23,22 @@ export function ownedVirtualCreationReason(host: OwnedHostInspection | null): st
   }
 }
 
+/**
+ * Lightweight default Balanced policy: permit at most one explicit
+ * resource-intensive desktop operation at a time. A file-hash inspection,
+ * PowerShell status probe, native launch or picker must never overlap
+ * another helper via the mounted UI. This does NOT throttle Minecraft
+ * processes, change Windows priority, or claim any GPU/FPS savings.
+ */
+export function isResourceOperationBusy(
+  currentAction: string,
+  ownedHostInspectionBusy: boolean,
+  ownedPackageInspectionBusy: boolean,
+): boolean {
+  return currentAction !== "" ||
+    ownedHostInspectionBusy || ownedPackageInspectionBusy;
+}
+
 export type InstanceAction = "open" | "switch" | "setup" | "issue" | null;
 export type StateTone = "neutral" | "warning" | "success";
 export type InstanceId = "01" | "02";
