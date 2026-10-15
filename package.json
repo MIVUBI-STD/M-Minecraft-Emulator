@@ -28,11 +28,9 @@
     "native-performance:review": "node tooling/acceptance/evaluate-native-performance.mjs",
     "sandboxie-feasibility:review": "node tooling/acceptance/evaluate-sandboxie-feasibility.mjs",
     "test:localtest": "node --test tooling/local-test/session.test.mjs",
-    "test:isolation-source": "node --test tooling/isolation-source/validate-baseline.test.mjs tooling/isolation-source/verify-artifact-files.test.mjs tooling/isolation-source/bootstrap-fork.test.mjs tooling/isolation-source/verify-checkout.test.mjs tooling/isolation-source/assemble-engine.test.mjs tooling/isolation-source/provision-disposable.test.mjs tooling/isolation-source/execute-disposable.test.mjs tooling/isolation-source/windows/transport-commands.test.mjs tooling/isolation-source/windows/attestation-gate.test.mjs tooling/isolation-source/windows/service-ownership.test.mjs tooling/isolation-source/windows/ownership-ledger.test.mjs tooling/isolation-source/windows/reconcile-ownership.test.mjs engine/isolation-native/fork-overlay/apply-private-source.test.mjs engine/isolation-native/owned-runtime/minecraft-profiles.test.mjs tooling/isolation-source/assemble-private-engine.test.mjs tooling/isolation-source/import-full-sandboxie.test.mjs tooling/isolation-source/apply-owned-sandboxie.test.mjs",
-    "isolation-source:verify": "node tooling/isolation-source/validate-baseline.mjs tooling/isolation-source/upstream-baseline.json",
+    "test:isolation-source": "node --test tooling/isolation-source/validate-baseline.test.mjs tooling/isolation-source/verify-artifact-files.test.mjs tooling/isolation-source/bootstrap-fork.test.mjs tooling/isolation-source/verify-checkout.test.mjs tooling/isolation-source/assemble-engine.test.mjs tooling/isolation-source/provision-disposable.test.mjs tooling/isolation-source/execute-disposable.test.mjs tooling/isolation-source/windows/transport-commands.test.mjs tooling/isolation-source/windows/attestation-gate.test.mjs tooling/isolation-source/windows/service-ownership.test.mjs tooling/isolation-source/windows/ownership-ledger.test.mjs tooling/isolation-source/windows/reconcile-ownership.test.mjs engine/isolation-native/fork-overlay/apply-private-source.test.mjs engine/isolation-native/owned-runtime/minecraft-profiles.test.mjs tooling/isolation-source/assemble-private-engine.test.mjs tooling/isolation-source/import-full-sandboxie.test.mjs tooling/isolation-source/apply-owned-sandboxie.test.mjs tooling/isolation-source/verify-owned-v1186.test.mjs",
+    "isolation-source:verify": "node tooling/isolation-source/verify-owned-v1186.mjs",
     "isolation-source:bootstrap": "node tooling/isolation-source/bootstrap-fork.mjs",
-    "isolation-source:import-full": "node tooling/isolation-source/import-full-sandboxie.mjs",
-    "isolation-source:apply-owned": "node tooling/isolation-source/apply-owned-sandboxie.mjs",
     "isolation-source:checkout-verify": "node tooling/isolation-source/verify-checkout.mjs",
     "isolation-source:assemble": "node tooling/isolation-source/assemble-engine.mjs",
     "isolation-source:plan-disposable": "node tooling/isolation-source/plan-disposable.mjs",
@@ -43,9 +41,8 @@
     "isolation-native:configure": "cmake -S engine/isolation-native -B workspace/isolation-native-build -G \"Visual Studio 17 2022\" -A x64",
     "isolation-native:build": "cmake --build workspace/isolation-native-build --config Release",
     "isolation-native:test": "ctest --test-dir workspace/isolation-native-build -C Release --output-on-failure",
-    "isolation-native:prepare-fork": "node engine/isolation-native/fork-overlay/apply-private-source.mjs",
-    "isolation-native:build-private": "powershell -NoProfile -NonInteractive -File engine/isolation-native/fork-overlay/build-private.ps1",
     "isolation-source:assemble-private": "node tooling/isolation-source/assemble-private-engine.mjs",
-    "isolation-native:test-owned-start": "cmake -S engine/isolation-native/owned-runtime -B workspace/owned-start-policy -DCMAKE_BUILD_TYPE=Release && cmake --build workspace/owned-start-policy --config Release && ctest --test-dir workspace/owned-start-policy -C Release --output-on-failure"
+    "isolation-native:test-owned-start": "cmake -S engine/isolation-native/owned-runtime -B workspace/owned-start-policy -DCMAKE_BUILD_TYPE=Release && cmake --build workspace/owned-start-policy --config Release && ctest --test-dir workspace/owned-start-policy -C Release --output-on-failure",
+    "isolation-source:verify-legacy-v1185": "node tooling/isolation-source/validate-baseline.mjs tooling/isolation-source/upstream-baseline.json"
   }
 }

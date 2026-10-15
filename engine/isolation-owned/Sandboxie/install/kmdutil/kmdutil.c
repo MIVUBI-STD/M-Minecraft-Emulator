@@ -26,6 +26,11 @@
 #include <stdlib.h>
 #include "common/defines.h"
 #include "common/my_version.h"
+
+// MIVUBI private source build: match core driver/service/DLL/launcher ABI.
+#if !defined(MIVUBI_PRIVATE_ISOLATION_BUILD) || MIVUBI_PRIVATE_ISOLATION_BUILD != 0x4D495655 || MY_ABI_VERSION != MIVUBI_PRIVATE_ISOLATION_ABI
+#error MIVUBI_isolation_build_requires_matching_pinned_core
+#endif
 #include "core/dll/sbieapi.h"
 
 extern void Kmd_ScanDll(BOOLEAN silent);

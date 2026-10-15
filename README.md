@@ -9,11 +9,28 @@ Local → active development / source authority
 main  → reviewed stable/release authority
 ```
 
-## Source ownership — active v1.18.6 migration
+## Native source ownership — Sandboxie v1.18.6
 
-The authentic Sandboxie v1.18.6 source candidate is being imported as ordinary editable Git files under `engine/isolation-candidates/sandboxie-v1.18.6/`. At the latest audit it contains **827 of 1,627 files** (50.83%), and the independently verified complete original source ZIP is available to the resumable, fail-closed importer at `tooling/isolation-source/import-v1186-archive.py`. **This is source-transfer progress, not build or gameplay readiness.**
+**Source migration and private native source patch are complete (source-only).**
+All 1,627 authentic v1.18.6 files remain untouched at
+`engine/isolation-candidates/sandboxie-v1.18.6/`, with pinned Git tree
+`f690477c07a40810f479f53973334ceae7e0ab13`.
+The sole editable MIVUBI native owner is now `engine/isolation-owned/`:
+1,627 files, with **exactly 11 MIVUBI-modified native source files** and
+all original licenses and other upstream files preserved. The old partial
+v1.18.5 owned tree was superseded; its history is retained in Git, not used
+as the current source. Read-only inspection:
+`npm run isolation-source:verify`.
 
-The separate partial `engine/isolation-owned/` v1.18.5 snapshot and the installed licensed official Sandboxie pilot have not been modified or switched. The remaining source and MIVUBI-owned native patch migration, signed Windows driver/service/DLL/launcher build, and real Minecraft acceptance are **NOT_EXECUTED**. See [complete owned source import](docs/system/owned-source-import.md) and [current handoff](planning/development.md).
+**Not complete:** no v1.18.6 MSVC/WDK build, driver signing/load,
+service lifecycle, Microsoft Education login, four-client stability or
+performance results are claimed. The existing official Sandboxie Client 02
+pilot is still the active runtime and is never switched merely because
+source code exists. The v1.18.5-specific builder/patch commands remain
+historical source and must not be used for the current engine. Follow
+`engine/isolation-native/owned-runtime/build-profile-v1186.json`
+for required build components and excluded app UIs; this does not approve
+runtime pruning without a native build closure.
 
 ## Start here
 

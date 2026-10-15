@@ -34,6 +34,41 @@
 #include "common/pattern.h"
 #include "common/my_version.h"
 
+// MIVUBI private source build: match core driver/service/DLL/launcher ABI.
+#if !defined(MIVUBI_PRIVATE_ISOLATION_BUILD) || MIVUBI_PRIVATE_ISOLATION_BUILD != 0x4D495655 || MY_ABI_VERSION != MIVUBI_PRIVATE_ISOLATION_ABI
+#error MIVUBI_isolation_build_requires_matching_pinned_core
+#endif
+
+/* MIVUBI-owned kernel sandbox namespace for the exclusive private fork.
+ * This exact C implementation is injected into Sandboxie/core/drv/box.c.
+ * Reject unknown boxes BEFORE allocating any kernel BOX object; cloned
+ * descendant contexts pass through that same allocation entrypoint.
+ * It is a product namespace gate, not a replacement for Sandboxie hooks.
+ */
+#ifndef MIVUBI_KERNEL_BOX_POLICY_H
+#define MIVUBI_KERNEL_BOX_POLICY_H
+
+static int MivubiBoxAsciiEqual(wchar_t lhs, wchar_t rhs)
+{
+    if (lhs >= L'A' && lhs <= L'Z') lhs += L'a' - L'A';
+    if (rhs >= L'A' && rhs <= L'Z') rhs += L'a' - L'A';
+    return lhs == rhs;
+}
+
+static int MivubiBoxNameAllowed(const wchar_t *name)
+{
+    static const wchar_t prefix[] = L"MivubiEdu0";
+    unsigned i;
+    if (name == 0) return 0;
+    for (i = 0; i < sizeof(prefix) / sizeof(prefix[0]) - 1; ++i) {
+        if (!name[i] || !MivubiBoxAsciiEqual(name[i], prefix[i]))
+            return 0;
+    }
+    return (name[i] == L'2' || name[i] == L'3' || name[i] == L'4')
+        && name[i + 1] == L'\0';
+}
+#endif
+
 
 //---------------------------------------------------------------------------
 // Functions
@@ -92,6 +127,16 @@ _FX NTSTATUS Process_Api_Start(PROCESS *proc, ULONG64 *parms)
         KIRQL irql;
 
         proc2 = Process_Find((HANDLE)(-user_box_parm), &irql);
+#if defined(MIVUBI_PRIVATE_ISOLATION_BUILD)
+        // A model process can carry a box from outside the owned namespace.
+        // Process_Find holds Process_ListLock and elevated IRQL here.
+        if (proc2 && !proc2->terminated &&
+                (!proc2->box || !MivubiBoxNameAllowed(proc2->box->name))) {
+            ExReleaseResourceLite(Process_ListLock);
+            KeLowerIrql(irql);
+            return STATUS_ACCESS_DENIED;
+        }
+#endif
         if (proc2 && !proc2->terminated)
             box = Box_Clone(Driver_Pool, proc2->box);
 
@@ -124,6 +169,12 @@ _FX NTSTATUS Process_Api_Start(PROCESS *proc, ULONG64 *parms)
         if (! Api_CopyBoxNameFromUser(boxname, (WCHAR *)user_box_parm))
             return STATUS_INVALID_PARAMETER;
 
+#if defined(MIVUBI_PRIVATE_ISOLATION_BUILD)
+        // A deliberately forbidden box is an access denial, not OOM.
+        // Reject BEFORE querying a service impersonation token or BOX alloc.
+        if (!MivubiBoxNameAllowed(boxname))
+            return STATUS_ACCESS_DENIED;
+#endif
         TokenObject = PsReferenceImpersonationToken(PsGetCurrentThread(),
                         &CopyOnOpen, &EffectiveOnly, &ImpersonationLevel);
 
@@ -623,6 +674,11 @@ _FX NTSTATUS Process_Api_QueryBoxPath(PROCESS *proc, ULONG64 *parms)
         if (! ok)
             return STATUS_INVALID_PARAMETER;
 
+#if defined(MIVUBI_PRIVATE_ISOLATION_BUILD)
+        // Querying a foreign box path must not allocate a BOX first.
+        if (!MivubiBoxNameAllowed(boxname))
+            return STATUS_ACCESS_DENIED;
+#endif
         box = Box_Create(Driver_Pool, boxname, TRUE);
         if (! box)
             return STATUS_UNSUCCESSFUL;

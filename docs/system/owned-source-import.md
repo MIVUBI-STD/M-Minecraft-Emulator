@@ -9,7 +9,49 @@ lifecycle: ACTIVE
 
 # Complete Sandboxie source in the MIVUBI repository
 
-## Latest complete snapshot — 15 October 2026
+## Current owned v1.18.6 native source — 15 October 2026
+
+The byte-exact **upstream reference** is the complete original 1,627-file
+`engine/isolation-candidates/sandboxie-v1.18.6/` tree,
+SHA `f690477c07a40810f479f53973334ceae7e0ab13`.
+The complete **modifiable MIVUBI source owner** is now
+`engine/isolation-owned/`, with all 1,627 files, original
+license/source attribution, and precisely 11 edited native source files.
+The selected fork is an *exclusive* `SbieDrv`/`SbieSvc` runtime:
+it is NOT co-installable with official Sandboxie.
+
+To inspect the exact committed source-byte transformation (read-only):
+
+```sh
+npm run isolation-source:verify
+npm run test:isolation-source
+```
+
+The verifier compares both complete Git inventories, requires the
+upstream tree to remain unchanged, rebuilds the existing 24-hunk private
+transform using the original 11 source files, and checks the committed
+modified bytes. The executable v1.18.5 patch/import scripts below are
+retained solely for historical source tests. **Never run them for current
+v1.18.6 work; edit the native files under `engine/isolation-owned/` directly
+and validate the reviewed delta before proceeding to a Windows build.**
+
+**Application-specific component boundary:** see
+`engine/isolation-native/owned-runtime/build-profile-v1186.json`.
+Keep the full source tree, compile all required core and 32-bit helpers
+first, and package a minimal verified MIVUBI runtime rather than
+shipping SandMan/Classic Qt UIs. Do not remove uncertain COM, RPC,
+injection or build-time dependencies based on source assumptions.
+
+**Unproven:** MSVC x86/x64 compile, WDK x64 kernel build,
+signing/installation, service namespace ownership, WAM sign-in,
+multi-instance graphics, two-client crash recovery, and four-client
+performance. Existing game accounts/boxes and official Sandboxie
+are unchanged. The EXE uploaded by the user is a *reference installer*,
+not a private engine binary.
+
+## Historical v1.18.5 source procedure (superseded)
+
+## Archived full-source-import checkpoint — 15 October 2026
 
 The user-supplied v1.18.6 archive is now fully imported as **1,627 normal
 editable Git files** at `engine/isolation-candidates/sandboxie-v1.18.6/`.
@@ -29,7 +71,7 @@ re-run passed. Source import is not a native build or performance fix.
 The historical checkpoints below document earlier incomplete transfers;
 current continuation is at the top of [development handoff](../../planning/development.md).
 
-## Chosen ownership model
+## Historical ownership procedure
 
 The application is importing the authentic **Sandboxie Plus / Classic v1.18.5**
 source as **ordinary writable Git blobs** at `engine/isolation-owned/`.

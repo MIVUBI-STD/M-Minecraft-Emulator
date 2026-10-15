@@ -1,0 +1,65 @@
+{
+  "schema": 1,
+  "identity": "MIVUBI_MINECRAFT_EDUCATION_ISOLATION",
+  "sourceVersion": "v1.18.6",
+  "sourceCommit": "cdba7096240b93d79c5373aa81a75a1c5c71b883",
+  "pristineSourceTree": "f690477c07a40810f479f53973334ceae7e0ab13",
+  "pristineSource": "engine/isolation-candidates/sandboxie-v1.18.6",
+  "canonicalEditableSource": "engine/isolation-owned",
+  "status": "SOURCE_PATCHED_NOT_BUILT",
+  "baseline": {
+    "client01": "official-native",
+    "clients02to04": "MivubiEdu02/03/04 isolated boxes, subject to future Windows acceptance"
+  },
+  "requiresWindowsBuild": [
+    "Sandboxie/SandboxDll.sln (Win32)",
+    "Sandboxie/Sandbox.sln (x64)",
+    "Sandboxie/SandboxDrv.sln (x64 WDK)"
+  ],
+  "coreComponents": {
+    "kernel": "Sandboxie/core/drv",
+    "service": "Sandboxie/core/svc",
+    "hookDll": "Sandboxie/core/dll",
+    "injection": "Sandboxie/core/low",
+    "launcher": "Sandboxie/apps/start",
+    "configuration": "Sandboxie/apps/ini",
+    "comHelpers": "Sandboxie/apps/com",
+    "shared": [
+      "Sandboxie/common",
+      "Sandboxie/msgs"
+    ],
+    "installerHelper": "Sandboxie/install/kmdutil"
+  },
+  "preserveUntilDependencyProof": [
+    "Sandboxie/SboxHostDll",
+    "Sandboxie/apps/control",
+    "SandboxiePlus/QSbieAPI",
+    "Sandboxie/install",
+    "SandboxieTools"
+  ],
+  "doNotPackageAsMivubiAppUI": [
+    "SandboxiePlus/SandMan",
+    "Sandboxie/apps/control",
+    "SandboxiePlus/QtSingleApp"
+  ],
+  "approvedNativeModifiedFiles": 11,
+  "driverServiceNamesStillExclusive": [
+    "SbieDrv",
+    "SbieSvc"
+  ],
+  "originalLicensesMustBeRetained": [
+    "LICENSE.Classic",
+    "LICENSE.Plus",
+    "Sandboxie/COPYING",
+    "SandboxiePlus/QSbieAPI/LICENSE"
+  ],
+  "flags": {
+    "canCoexistWithOfficialSandboxie": false,
+    "driverBuilt": false,
+    "driverSigned": false,
+    "driverLoaded": false,
+    "installerApproved": false,
+    "gameplayValidated": false
+  },
+  "notes": "Source layout is not a deployable bill of materials. Compile the complete dependency closure before reducing runtime payloads; do not infer native ABI correctness from source SHA equality."
+}

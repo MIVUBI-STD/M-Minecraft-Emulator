@@ -29,6 +29,41 @@
 #endif
 #include "session.h"
 #include "common/my_version.h"
+
+// MIVUBI private source build: match core driver/service/DLL/launcher ABI.
+#if !defined(MIVUBI_PRIVATE_ISOLATION_BUILD) || MIVUBI_PRIVATE_ISOLATION_BUILD != 0x4D495655 || MY_ABI_VERSION != MIVUBI_PRIVATE_ISOLATION_ABI
+#error MIVUBI_isolation_build_requires_matching_pinned_core
+#endif
+
+/* Shared identity for the MIVUBI-owned Sandboxie-derived core.
+ * Included verbatim in the pinned private driver API and Start.exe sources.
+ * This is runtime identification, NOT signing/attestation or a new ABI.
+ */
+#ifndef MIVUBI_OWNED_CORE_IDENTITY_H
+#define MIVUBI_OWNED_CORE_IDENTITY_H
+#define MIVUBI_PRIVATE_DRIVER_ID L"5.73.5-MIVU"
+#define MIVUBI_PRIVATE_DRIVER_ABI 0x57230U
+#include <stddef.h>
+#include <wchar.h>
+/* API_GET_VERSION supplies at most WCHAR[16], possibly without a terminator
+ * when the device is malformed or foreign. Never run unbounded wcscmp over
+ * a driver-provided buffer. Compare the terminator within the caller's
+ * explicitly provided WCHAR capacity, with no CRT string reads.
+ */
+static inline int MivubiOwnedDriverMatches(const wchar_t *observed,
+                                           size_t available_wchars,
+                                           unsigned long abi) {
+    static const wchar_t required[] = MIVUBI_PRIVATE_DRIVER_ID;
+    const size_t required_wchars = sizeof(required) / sizeof(required[0]);
+    if (observed == NULL || abi != MIVUBI_PRIVATE_DRIVER_ABI ||
+        available_wchars < required_wchars) return 0;
+    for (size_t i = 0; i < required_wchars; ++i) {
+        if (observed[i] != required[i]) return 0;
+    }
+    return 1;
+}
+/* API_GET_VERSION accepts a WCHAR[16]. The marker must fit, including NUL. */
+#endif
 #include "log_buff.h"
 #define KERNEL_MODE
 #include "verify.h"
@@ -561,6 +596,10 @@ _FX BOOLEAN Api_FastIo_DEVICE_CONTROL(
 
 _FX NTSTATUS Api_GetVersion(PROCESS *proc, ULONG64 *parms)
 {
+#if defined(MIVUBI_PRIVATE_ISOLATION_BUILD)
+    // Change only the private fork's GET_VERSION response, not its ABI.
+    const WCHAR *Driver_Version = MIVUBI_PRIVATE_DRIVER_ID;
+#endif
     API_GET_VERSION_ARGS *args = (API_GET_VERSION_ARGS *)parms;
 
     if (args->string.val != NULL) {
@@ -1122,8 +1161,9 @@ _FX NTSTATUS Api_ProcessExemptionControl(PROCESS *proc, ULONG64 *parms)
 
 	if (proc) // is caller sandboxed?
 		return STATUS_NOT_IMPLEMENTED;
-    else if (!MyIsCallerSigned()) 
-        status = STATUS_ACCESS_DENIED;
+
+    if (!MyIsCallerSigned())
+        return STATUS_ACCESS_DENIED;
 
 	if (pArgs->process_id.val == 0)
 		return STATUS_INVALID_PARAMETER;

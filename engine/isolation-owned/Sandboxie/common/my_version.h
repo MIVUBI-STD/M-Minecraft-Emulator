@@ -26,7 +26,7 @@
 
 #define VERSION_MJR		5
 #define VERSION_MIN 	73
-#define VERSION_REV 	5
+#define VERSION_REV 	6
 #define VERSION_UPD 	0
 
 #if VERSION_UPD > 0
@@ -37,6 +37,8 @@
   #define MY_VERSION_STRING STR(VERSION_MJR.VERSION_MIN.VERSION_REV)
 #endif
 #define MY_ABI_VERSION  0x57230
+#define MIVUBI_PRIVATE_ISOLATION_BUILD 0x4D495655
+#define MIVUBI_PRIVATE_ISOLATION_ABI   0x57230
 
 // These #defines are used by either Resource Compiler or NSIS installer
 #define SBIE_INSTALLER_PATH		"..\\Bin\\"

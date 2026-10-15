@@ -23,6 +23,12 @@
 #include "global.h"
 #include "core/dll/sbiedll.h"
 #include "common/defines.h"
+#include "common/my_version.h"
+
+// MIVUBI private source build: match core driver/service/DLL/launcher ABI.
+#if !defined(MIVUBI_PRIVATE_ISOLATION_BUILD) || MIVUBI_PRIVATE_ISOLATION_BUILD != 0x4D495655 || MY_ABI_VERSION != MIVUBI_PRIVATE_ISOLATION_ABI
+#error MIVUBI_isolation_build_requires_matching_pinned_core
+#endif
 #include <wchar.h>
 
 //---------------------------------------------------------------------------
@@ -135,6 +141,12 @@ int DoUpdate(void)
     	status = SbieDll_UpdateConf(
                     op, passwd, CmdVerb(1), CmdVerb(2), CmdVerb(3));
 
+#if defined(MIVUBI_PRIVATE_ISOLATION_BUILD)
+    // Stop on ordinary update failures BEFORE the upstream password check.
+    // Keep 0 success, 1 command-line and 2 wrong-password. Return 3 on error.
+    if (status != 0 && status != 0xC000006AL)
+        return 3;
+#endif
     if (status == 0xC000006AL/*STATUS_WRONG_PASSWORD*/) { 
 
         printf("Password Invalid");

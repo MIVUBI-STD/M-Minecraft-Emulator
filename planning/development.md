@@ -1,5 +1,48 @@
 # Current Development Handoff — M-Minecraft-Emulator
 
+## MIVUBI v1.18.6 full owned source and native migration — 15 October 2026
+
+**Current canonical source is real editable C/C++, not an external
+Sandboxie wrapper:** `engine/isolation-owned/` has **1,627/1,627**
+v1.18.6 source files. The independent untouched upstream reference
+`engine/isolation-candidates/sandboxie-v1.18.6/`
+still exactly matches official tree
+`f690477c07a40810f479f53973334ceae7e0ab13`.
+The approved v1.18.5 private transformation was checked against authentic
+v1.18.6 source, generated **24 source hunks in 11 actual C/C++ files**,
+then its full edited bytes were staged directly into the owned Git source.
+Git tree inspection confirms exactly 11 modified blobs, 1,616 unchanged
+original blobs, **zero missing/extra files and zero mode mismatches**.
+Original licensing headers and notices remain.
+
+**Source routing:** `engine/isolation-native/owned-runtime/build-profile-v1186.json`
+defines the selected source groups for kernel, service, DLL, launcher,
+configuration, COM helpers and package exclusions for upstream UIs.
+`tooling/isolation-source/verify-owned-v1186.mjs`
+is the new read-only exact-source verifier. Old v1.18.5 tools
+must not silently become the current build path. The historical Git
+commits preserve the older partial source; no second active source
+authority or provider has been introduced.
+
+**Only source-evidence claimed here:** V8 execution of the canonical
+private source transformation against all 11 original v1.18.6 files
+PASS (24 hunks); recursive Git tree compare PASS; new verifier tests
+authored but not independently executed in this ChatGPT/GitHub source
+context. **Still NOT_EXECUTED:** real full-native MSVC/WDK compile,
+kernel signing/loading, driver/service coexistence/ownership,
+Windows profile and login validation, Minecraft client stability
+and four simultaneous independent accounts. Official Client 02
+sandbox, original installed Sandboxie, identities and world data
+remain untouched.
+
+**Next single task:** run the strict v1.18.6 owned-source verifier in
+a complete checkout and prepare a *Windows native build-only* entry
+that compiles Win32 support, x64 service/DLL/Start, then WDK kernel
+without signing, installing, selecting a provider or invoking the old
+v1.18.5 build route. Only real compiler/linker observations can close
+that next gate.
+
+
 ## Full v1.18.6 source import completed — 15 October 2026
 
 **Current user request:** import every source file from the supplied

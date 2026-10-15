@@ -28,6 +28,41 @@
 #include "core/drv/api_defs.h"
 #include "core/svc/msgids.h"
 #include "common/my_version.h"
+
+// MIVUBI private source build: match core driver/service/DLL/launcher ABI.
+#if !defined(MIVUBI_PRIVATE_ISOLATION_BUILD) || MIVUBI_PRIVATE_ISOLATION_BUILD != 0x4D495655 || MY_ABI_VERSION != MIVUBI_PRIVATE_ISOLATION_ABI
+#error MIVUBI_isolation_build_requires_matching_pinned_core
+#endif
+
+/* Shared identity for the MIVUBI-owned Sandboxie-derived core.
+ * Included verbatim in the pinned private driver API and Start.exe sources.
+ * This is runtime identification, NOT signing/attestation or a new ABI.
+ */
+#ifndef MIVUBI_OWNED_CORE_IDENTITY_H
+#define MIVUBI_OWNED_CORE_IDENTITY_H
+#define MIVUBI_PRIVATE_DRIVER_ID L"5.73.5-MIVU"
+#define MIVUBI_PRIVATE_DRIVER_ABI 0x57230U
+#include <stddef.h>
+#include <wchar.h>
+/* API_GET_VERSION supplies at most WCHAR[16], possibly without a terminator
+ * when the device is malformed or foreign. Never run unbounded wcscmp over
+ * a driver-provided buffer. Compare the terminator within the caller's
+ * explicitly provided WCHAR capacity, with no CRT string reads.
+ */
+static inline int MivubiOwnedDriverMatches(const wchar_t *observed,
+                                           size_t available_wchars,
+                                           unsigned long abi) {
+    static const wchar_t required[] = MIVUBI_PRIVATE_DRIVER_ID;
+    const size_t required_wchars = sizeof(required) / sizeof(required[0]);
+    if (observed == NULL || abi != MIVUBI_PRIVATE_DRIVER_ABI ||
+        available_wchars < required_wchars) return 0;
+    for (size_t i = 0; i < required_wchars; ++i) {
+        if (observed[i] != required[i]) return 0;
+    }
+    return 1;
+}
+/* API_GET_VERSION accepts a WCHAR[16]. The marker must fit, including NUL. */
+#endif
 #include "core/low/lowdata.h"
 
 extern SBIELOW_DATA* SbieApi_data;
@@ -53,6 +88,48 @@ static NTSTATUS SbieApi_IoctlTrace(ULONG64 *parms);
 
 
 HANDLE SbieApi_DeviceHandle = INVALID_HANDLE_VALUE;
+#if defined(MIVUBI_PRIVATE_ISOLATION_BUILD)
+// Bind ordinary private DLL calls to the opened driver BEFORE sending
+// any non-version ioctl. Query once per opened handle, not per game call.
+// SbieDll can receive calls on multiple threads. The approval cache
+// must use atomic accesses; this does not serialize upstream handle I/O.
+static PVOID volatile MivubiVerifiedDeviceHandle = INVALID_HANDLE_VALUE;
+static HANDLE MivubiReadVerifiedDeviceHandle(void)
+{
+    return (HANDLE)InterlockedCompareExchangePointer(
+        &MivubiVerifiedDeviceHandle, INVALID_HANDLE_VALUE,
+        INVALID_HANDLE_VALUE);
+}
+static void MivubiResetVerifiedDeviceHandle(void)
+{
+    InterlockedExchangePointer(
+        &MivubiVerifiedDeviceHandle, INVALID_HANDLE_VALUE);
+}
+static NTSTATUS MivubiVerifyOpenedDevice(void)
+{
+    WCHAR version[16] = {0};
+    ULONG abi = 0;
+    __declspec(align(8)) ULONG64 args[API_NUM_ARGS];
+    API_GET_VERSION_ARGS *versionArgs = (API_GET_VERSION_ARGS *)args;
+    IO_STATUS_BLOCK ioStatus;
+    NTSTATUS status;
+    memzero(args, sizeof(args));
+    versionArgs->func_code = API_GET_VERSION;
+    versionArgs->string.val = version;
+    versionArgs->abi_ver.val = &abi;
+    if (__sys_NtDeviceIoControlFile)
+        status = __sys_NtDeviceIoControlFile(
+            SbieApi_DeviceHandle, NULL, NULL, NULL, &ioStatus,
+            API_SBIEDRV_CTLCODE, args, sizeof(ULONG64) * 8, NULL, 0);
+    else
+        status = NtDeviceIoControlFile(
+            SbieApi_DeviceHandle, NULL, NULL, NULL, &ioStatus,
+            API_SBIEDRV_CTLCODE, args, sizeof(ULONG64) * 8, NULL, 0);
+    if (!NT_SUCCESS(status)) return status;
+    return MivubiOwnedDriverMatches(version, 16, abi)
+        ? STATUS_SUCCESS : STATUS_REVISION_MISMATCH;
+}
+#endif
 
 // SboxDll does not link in the CRT. Instead, it piggybacks onto the CRT routines that are in ntdll.dll.
 // However, the ntdll.lib from the 7600 DDK does not export everything we need. So we must use runtime dynamic linking.
@@ -103,6 +180,16 @@ _FX NTSTATUS SbieApi_Ioctl(ULONG64 *parms)
     UNICODE_STRING uni;
     IO_STATUS_BLOCK MyIoStatusBlock;
 
+#if defined(MIVUBI_PRIVATE_ISOLATION_BUILD)
+    // Avoid the upstream close-path fallthrough to parms[0].
+    if (parms == NULL) {
+        if (SbieApi_DeviceHandle != INVALID_HANDLE_VALUE)
+            NtClose(SbieApi_DeviceHandle);
+        SbieApi_DeviceHandle = INVALID_HANDLE_VALUE;
+        MivubiResetVerifiedDeviceHandle();
+        return STATUS_SUCCESS;
+    }
+#endif
     if (parms == NULL) { // close request as used by kmdutil
         if(SbieApi_DeviceHandle != INVALID_HANDLE_VALUE)
             NtClose(SbieApi_DeviceHandle);
@@ -117,6 +204,10 @@ _FX NTSTATUS SbieApi_Ioctl(ULONG64 *parms)
     }
 
     if (SbieApi_DeviceHandle == INVALID_HANDLE_VALUE) {
+#if defined(MIVUBI_PRIVATE_ISOLATION_BUILD)
+        // Reopening even with a reused HANDLE value revokes prior trust.
+        MivubiResetVerifiedDeviceHandle();
+#endif
 
         RtlInitUnicodeString(&uni, API_DEVICE_NAME);
         InitializeObjectAttributes(
@@ -142,6 +233,15 @@ _FX NTSTATUS SbieApi_Ioctl(ULONG64 *parms)
     } else {
 
         //
+#if defined(MIVUBI_PRIVATE_ISOLATION_BUILD)
+        if (parms[0] != API_GET_VERSION &&
+                MivubiReadVerifiedDeviceHandle() != SbieApi_DeviceHandle) {
+            status = MivubiVerifyOpenedDevice();
+            if (!NT_SUCCESS(status)) return status;
+            InterlockedExchangePointer(
+                &MivubiVerifiedDeviceHandle, SbieApi_DeviceHandle);
+        }
+#endif
         // note that all requests are synchronous which means
         // NtDeviceIoControlFile will wait until SbieDrv has finished
         // processing a request before sending the next request
@@ -244,11 +344,29 @@ _FX LONG SbieApi_GetVersionEx(
 
     memzero(parms, sizeof(parms));
     args->func_code = API_GET_VERSION;
+#if defined(MIVUBI_PRIVATE_ISOLATION_BUILD)
+    WCHAR mivubiVersion[16] = {0};
+    ULONG mivubiAbi = 0;
+    args->string.val = mivubiVersion;
+    args->abi_ver.val = &mivubiAbi;
+#else
     args->string.val = version_string;
     args->abi_ver.val = abi_version;
+#endif
 
     status = SbieApi_Ioctl(parms);
 
+#if defined(MIVUBI_PRIVATE_ISOLATION_BUILD)
+    // Gate GetVersionEx even when the caller requested NULL outputs.
+    if (NT_SUCCESS(status)) {
+        if (!MivubiOwnedDriverMatches(mivubiVersion, 16, mivubiAbi))
+            status = STATUS_REVISION_MISMATCH;
+        else {
+            if (version_string) wcscpy(version_string, mivubiVersion);
+            if (abi_version) *abi_version = mivubiAbi;
+        }
+    }
+#endif
     if (! NT_SUCCESS(status)){
         if (version_string) wcscpy(version_string, L"unknown");
         if (abi_version) *abi_version = 0;

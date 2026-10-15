@@ -27,6 +27,118 @@
 #include "common/defines.h"
 #include "core/svc/SbieIniWire.h"
 #include "common/my_version.h"
+
+// MIVUBI private source build: match core driver/service/DLL/launcher ABI.
+#if !defined(MIVUBI_PRIVATE_ISOLATION_BUILD) || MIVUBI_PRIVATE_ISOLATION_BUILD != 0x4D495655 || MY_ABI_VERSION != MIVUBI_PRIVATE_ISOLATION_ABI
+#error MIVUBI_isolation_build_requires_matching_pinned_core
+#endif
+
+/* Shared identity for the MIVUBI-owned Sandboxie-derived core.
+ * Included verbatim in the pinned private driver API and Start.exe sources.
+ * This is runtime identification, NOT signing/attestation or a new ABI.
+ */
+#ifndef MIVUBI_OWNED_CORE_IDENTITY_H
+#define MIVUBI_OWNED_CORE_IDENTITY_H
+#define MIVUBI_PRIVATE_DRIVER_ID L"5.73.5-MIVU"
+#define MIVUBI_PRIVATE_DRIVER_ABI 0x57230U
+#include <stddef.h>
+#include <wchar.h>
+/* API_GET_VERSION supplies at most WCHAR[16], possibly without a terminator
+ * when the device is malformed or foreign. Never run unbounded wcscmp over
+ * a driver-provided buffer. Compare the terminator within the caller's
+ * explicitly provided WCHAR capacity, with no CRT string reads.
+ */
+static inline int MivubiOwnedDriverMatches(const wchar_t *observed,
+                                           size_t available_wchars,
+                                           unsigned long abi) {
+    static const wchar_t required[] = MIVUBI_PRIVATE_DRIVER_ID;
+    const size_t required_wchars = sizeof(required) / sizeof(required[0]);
+    if (observed == NULL || abi != MIVUBI_PRIVATE_DRIVER_ABI ||
+        available_wchars < required_wchars) return 0;
+    for (size_t i = 0; i < required_wchars; ++i) {
+        if (observed[i] != required[i]) return 0;
+    }
+    return 1;
+}
+/* API_GET_VERSION accepts a WCHAR[16]. The marker must fit, including NUL. */
+#endif
+
+/* MIVUBI-owned Start.exe profile admission. Portable, dependency-free C++17.
+ * This source is inlined into the reviewed upstream Start.cpp fork patch.
+ * It does not authenticate Microsoft signatures, attest a driver, or create boxes.
+ */
+struct MivubiOwnedLaunch {
+    const wchar_t* box;
+    wchar_t* command;
+};
+
+enum class MivubiOwnedDecision { NotOwned, Rejected, Admitted };
+
+static bool MivubiAsciiEqual(wchar_t a, wchar_t b) {
+    if (a >= L'A' && a <= L'Z') a += (L'a' - L'A');
+    if (b >= L'A' && b <= L'Z') b += (L'a' - L'A');
+    return a == b;
+}
+
+static bool MivubiAsciiName(const wchar_t* begin, const wchar_t* end,
+                            const wchar_t* expected) {
+    while (begin != end && *expected) {
+        if (!MivubiAsciiEqual(*begin++, *expected++)) return false;
+    }
+    return begin == end && *expected == L'\0';
+}
+
+static MivubiOwnedDecision MivubiParseOwnedStart(wchar_t* cmd,
+                                                MivubiOwnedLaunch* result) {
+    if (!cmd || !result) return MivubiOwnedDecision::Rejected;
+    static const wchar_t prefix[] = L"/mivubi_client:";
+    for (unsigned i = 0; i < sizeof(prefix) / sizeof(prefix[0]) - 1; ++i) {
+        if (cmd[i] == L'\0' || cmd[i] != prefix[i])
+            return MivubiOwnedDecision::NotOwned;
+    }
+    wchar_t* p = cmd + (sizeof(prefix) / sizeof(prefix[0]) - 1);
+    // Examine one character at a time. Short-circuit at the first NUL:
+    // a truncated command must not read p[1], p[2] or p[3] past its buffer.
+    if (p[0] != L'0') return MivubiOwnedDecision::Rejected;
+    if (p[1] != L'2' && p[1] != L'3' && p[1] != L'4')
+        return MivubiOwnedDecision::Rejected;
+    if (p[2] != L' ' || p[3] != L'"') return MivubiOwnedDecision::Rejected;
+    const wchar_t* box = p[1] == L'2' ? L"MivubiEdu02" :
+                         p[1] == L'3' ? L"MivubiEdu03" : L"MivubiEdu04";
+    wchar_t* command = p + 3;
+    const wchar_t* file = command + 1;
+    const wchar_t* end = file;
+    unsigned length = 0;
+    while (*end && *end != L'"' && length <= 1024) { ++end; ++length; }
+    if (*end != L'"' || end[1] != L'\0' || length < 4 || length > 1024 ||
+        !((file[0] >= L'A' && file[0] <= L'Z') ||
+          (file[0] >= L'a' && file[0] <= L'z')) ||
+        file[1] != L':' || file[2] != L'\\') return MivubiOwnedDecision::Rejected;
+    const wchar_t* component = file + 3;
+    const wchar_t* basename = component;
+    for (const wchar_t* it = component; it != end; ++it) {
+        wchar_t c = *it;
+        if (c < L' ' || c == L'\x7f' || c == L'/' || c == L':' ||
+            c == L'<' || c == L'>' || c == L'|' || c == L'*' ||
+            c == L'?' || c == L'"') return MivubiOwnedDecision::Rejected;
+        if (c == L'\\') {
+            if (it == component || it[-1] == L'\\' ||
+                (it - component == 1 && component[0] == L'.') ||
+                (it - component == 2 && component[0] == L'.' && component[1] == L'.'))
+                return MivubiOwnedDecision::Rejected;
+            component = it + 1;
+            basename = component;
+        }
+    }
+    if (basename == end ||
+        !((MivubiAsciiName(basename, end, L"Minecraft.Windows.exe")) ||
+          (MivubiAsciiName(basename, end, L"MinecraftEducation.exe")) ||
+          (MivubiAsciiName(basename, end, L"MinecraftEducationEdition.exe"))))
+        return MivubiOwnedDecision::Rejected;
+    result->box = box;
+    result->command = command;
+    return MivubiOwnedDecision::Admitted;
+}
 #include "msgs/msgs.h"
 #include "core/drv/api_defs.h"
 #include <psapi.h>
@@ -455,6 +567,26 @@ BOOL Parse_Command_Line(void)
     //
     //
 
+#if defined(MIVUBI_PRIVATE_ISOLATION_BUILD)
+    // MIVUBI-only opt-in: explicit, bounded client selection BEFORE restart.
+    MivubiOwnedLaunch ownedLaunch{nullptr, nullptr};
+    const MivubiOwnedDecision result = MivubiParseOwnedStart(cmd, &ownedLaunch);
+    if (result == MivubiOwnedDecision::Rejected) return FALSE;
+    if (result == MivubiOwnedDecision::Admitted) {
+        // Never route a MIVUBI-owned box through the official driver.
+        WCHAR observedVersion[16] = {0};
+        ULONG observedAbi = 0;
+        // A cold private installation may not have SbieSvc/SbieDrv running.
+        // Start the existing broker before testing the private driver ABI.
+        // The normal box validation occurs AFTER Parse_Command_Line.
+        if (!CallSbieSvcGetUser()) return FALSE;
+        if (!NT_SUCCESS(SbieApi_GetVersionEx(observedVersion, &observedAbi)) ||
+            !MivubiOwnedDriverMatches(observedVersion, 16, observedAbi))
+            return FALSE;
+        wcscpy(BoxName, ownedLaunch.box);
+        cmd = ownedLaunch.command;
+    }
+#endif
     if (_wcsicmp(cmd, L"run_sbie_ctrl") == 0 || _wcsnicmp(cmd, L"open_agent", 10) == 0) {
 
         union {

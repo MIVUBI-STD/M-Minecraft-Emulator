@@ -20,6 +20,12 @@
 // Driver Assistant, start driver
 //---------------------------------------------------------------------------
 
+#include "common/my_version.h"
+
+// MIVUBI private source build: match core driver/service/DLL/launcher ABI.
+#if !defined(MIVUBI_PRIVATE_ISOLATION_BUILD) || MIVUBI_PRIVATE_ISOLATION_BUILD != 0x4D495655 || MY_ABI_VERSION != MIVUBI_PRIVATE_ISOLATION_ABI
+#error MIVUBI_isolation_build_requires_matching_pinned_core
+#endif
 #include "core/drv/verify.h"
 
 //---------------------------------------------------------------------------
@@ -64,6 +70,15 @@ ULONG DriverAssist::StartDriverAsync(void *arg)
     bool ok = false;
 
     LONG rc = SbieApi_GetVersionEx(NULL, NULL);
+#if defined(MIVUBI_PRIVATE_ISOLATION_BUILD)
+    // Do not attempt NtLoadDriver when another Sandboxie driver is alive.
+    // The private DLL returns REVISION_MISMATCH for an official kernel.
+    if (rc == STATUS_REVISION_MISMATCH) {
+        LogEvent(MSG_9234, 0x9154, rc);
+        AbortServer();
+        return 0;
+    }
+#endif
     if (rc == 0) {
         ok = true;
         goto driver_started;

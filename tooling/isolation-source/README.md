@@ -1,4 +1,23 @@
-# Pinned upstream isolation baseline (source-only)
+# Owned Sandboxie engine source — current v1.18.6 route
+
+**Canonical editable native source:** `engine/isolation-owned/`.
+**Untouched upstream snapshot:** `engine/isolation-candidates/sandboxie-v1.18.6/`.
+Both contain 1,627 source files; the current native owner has exactly
+11 reviewed MIVUBI modifications. Run
+`npm run isolation-source:verify` before native build source work.
+See `engine/isolation-native/owned-runtime/build-profile-v1186.json`
+for component classification and non-packaged UI boundaries.
+Source verification is NOT a successful Windows build or game test.
+
+All tools described below target the **historical pinned v1.18.5**
+source baseline and must not be selected for the current v1.18.6 build.
+The old toolchain is retained for reference and regression tests only;
+never use the v1.18.5 baseline to package or start the MIVUBI v1.18.6
+runtime. The officially installed Client 02 pilot is unchanged.
+
+---
+
+# Historical pinned v1.18.5 isolation baseline (superseded)
 
 **Purpose:** reproduce Sandboxie-Plus **v1.18.5** core build inputs and record source/artifact provenance for the planned personal, educational/noncommercial **M-Isolation-Engine**. This is **not** an app installation routine, driver signing tool, fork repository, or migration command. The active Minecraft manager continues using official Sandboxie with the existing account-bearing box unchanged.
 
