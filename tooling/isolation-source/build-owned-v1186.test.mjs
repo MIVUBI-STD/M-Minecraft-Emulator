@@ -6,6 +6,10 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 const source = readFileSync(new URL('./build-owned-v1186.ps1', import.meta.url), 'utf8');
+const profile = JSON.parse(readFileSync(
+  new URL('../../engine/isolation-native/owned-runtime/build-profile-v1186.json', import.meta.url),
+  'utf8',
+));
 
 test('v1.18.6 builder checks exact owned C/C++ source before any MSBuild call', () => {
   assert.match(source, /verify-owned-v1186\.mjs/);
@@ -22,7 +26,14 @@ test('builder only compiles and captures unsigned artifacts, never installs a dr
     assert.ok(source.includes(stage), 'missing build stage '+stage);
   }
   for (const path of ['SbieDrv.sys','SbieSvc.exe','SbieDll.dll','Start.exe',
-    'SbieIni.exe','kmdutil.exe']) assert.ok(source.includes(path));
+    'SbieIni.exe','kmdutil.exe']) {
+    assert.ok(profile.requiredArtifacts.some(x => x.endsWith('/'+path)), 'missing '+path);
+  }
+  assert.match(source, /\$required = @\(\$spec\.requiredArtifacts\)/);
+  assert.match(source, /\$stages = @\(\$spec\.buildStages\)/);
+  assert.equal(profile.requiredArtifacts.length, 16);
+  assert.equal(profile.buildStages.length, 3);
+  assert.equal(profile.sourceResources.length, 5);
   assert.match(source, /Preexisting native binary would contaminate build evidence/);
   assert.match(source, /ls-files --others --ignored --exclude-standard -- engine\/isolation-owned/);
   assert.match(source, /Ignored native build outputs exist; use a fresh clean source checkout/);
@@ -81,8 +92,9 @@ test('build stages match the actual v1.18.6 solution projects and output directo
     assert.ok(props.includes('<OutDir>$(SolutionDir)Bin\\$(PlatformName)\\$(Configuration)\\</OutDir>'),
       'upstream output path drift: '+propsFile);
   }
-  assert.match(source, /Sandboxie\/Bin\/Win32\/SbieRelease\/SbieSvc\.exe/);
-  assert.match(source, /Sandboxie\/Bin\/x64\/SbieRelease\/SbieDrv\.sys/);
+  assert.ok(profile.requiredArtifacts.includes('Sandboxie/Bin/Win32/SbieRelease/SbieSvc.exe'));
+  assert.ok(profile.requiredArtifacts.includes('Sandboxie/Bin/x64/SbieRelease/SbieDrv.sys'));
+  assert.equal(new Set(profile.requiredArtifacts).size, profile.requiredArtifacts.length);
 });
 
 test('ignored native build artifacts cannot evade the clean-tree preflight', () => {
