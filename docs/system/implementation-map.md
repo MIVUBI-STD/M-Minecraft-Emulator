@@ -28,6 +28,7 @@ they must never be chosen automatically as current build or activation code.
 
 | Question / fault | Primary implementation owner | Consumer / companion |
 | --- | --- | --- |
+| User-facing Virtual Manager and internal isolation readiness | `apps/desktop/src/CompactManagerApp.svelte` + `apps/desktop/src/app/bridge/nativeFeasibilityApi.ts` | One mounted UI and one existing Rust inspector (`apps/desktop/src-tauri/src/engine/owned_isolation.rs`); v1.18.6/25 and v1.18.5/24 metadata agree, Create Virtual remains blocked until a signed owned provider exists |
 | Compile actual **v1.18.6 MIVUBI-owned** native core without installation | `engine/isolation-owned/` + `tooling/isolation-source/build-owned-v1186.ps1` | `engine/isolation-native/owned-runtime/build-profile-v1186.json`, `verify-owned-v1186.mjs` and `build-owned-v1186.test.mjs`; three-stage real Windows build remains NOT_EXECUTED |
 | Native PID/HWND candidates without accounts, tokens or VM | `apps/desktop/src-tauri/src/engine/native_clients.rs`, `apps/desktop/src/app/bridge/nativeFeasibilityApi.ts` | [Native feasibility](../validation/native-multi-instance-feasibility.md); candidate-only |
 | Active desktop and blocked legacy VM routing | `apps/desktop/src/main.ts`, `apps/desktop/src/CompactManagerApp.svelte`, `engine/runtime-core/src/command.rs` | [Legacy Retirement](./legacy-retirement.md); old Tauri handlers not registered |
