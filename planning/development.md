@@ -1,5 +1,17 @@
 # Current Development Handoff — M-Minecraft-Emulator
 
+## Per-virtual Create planning + engine readiness in the single MIVUBI app — 15 October 2026
+
+**User direction continues:** actual Create Virtual must be managed inside MIVUBI, using its Sandboxie-derived kernel/service/DLL and single Rust/Tauri operational owner, not a second SandMan UI. The original current kernel policy `mivubi_kernel_box_policy.h` admits only `MivubiEdu02/03/04`; general user-chosen sandbox names require a separately validated kernel-policy change.
+
+**Source implemented:** `engine/isolation-native/owned-runtime/minecraft-profiles.mjs` now exports `planOwnedMinecraftVirtual(client, existingBoxes)` for exactly ONE selected client 02, 03 or 04. It shares the same eight persistent compatibility settings and `Enabled=y`-last order as the legacy batch planner; duplicate/unsafe/stale names or overlong inventories are rejected. `planOwnedMinecraftProfiles` remains backward compatible but no longer defines the single-create experience. The planned output is explicitly `PRIVATE_BOX_CONFIGURATION_PLAN_NOT_EXECUTED` and never invokes SbieIni or touches host boxes.
+
+**Mounted app integration:** the existing `CompactManagerApp.svelte` includes `Check engine readiness` beside the disabled Create Virtual control, reusing `inspectOwnedServiceNames()` and the existing Rust/PowerShell read-only SCM namespace probe. `ownedVirtualCreationReason` in `app/presentation/compactManager.ts` translates all four blocked host outcomes to plain-language explanations. A disclosure shows the exactly supported internal Minecraft sandbox identities and states they have NOT been created. No extra Tauri command, new service, selector, background polling, account migration, install or active provider fallback was added. Responsive UI uses the existing `app.css`.
+
+**Verification boundary:** actual JavaScript from GitHub's current planner was exercised in V8 for 15 one-target/bulk/no-overwrite scenarios, all PASS. Readiness projection was independently exercised for five probe states, all PASS, and current source/UI/namespace correspondence was checked. Three Node unit tests and two Vitest tests were authored but not executed by their canonical Node24/Vitest runners; Svelte/Cargo/Windows/Wdk/Minecraft runtime execution remains NOT_EXECUTED. Do not claim a virtual was created, service ownership verified or driver installed.
+
+**Decisive next step:** successful Windows MSVC/WDK native compilation, signed/attested exclusive service+driver acceptance on an account-clean environment, then real per-box SbieIni `set` and `query` execution with atomic workflow accounting, duplicate prevention, safe stopped-state and confirmed readback. Only after independently observed results may the current Create Virtual control be enabled. Never issue a mutation against the current official SbieSvc/SbieDrv registration, delete boxes after ambiguous errors, or treat a staged package/SCM name as authorization.
+
 ## Virtual Manager existing-box discovery implemented — 15 October 2026
 
 **Current bounded result:** actual read-only discovery of names of boxes available to the current Windows user in the **installed official Sandboxie pilot**, now invoked from the ONE MIVUBI desktop UI. This is a functional replacement for opening SandMan merely to inspect existing box names; it is **not** successful Create Virtual, owned service activation, account authentication or game playability.
