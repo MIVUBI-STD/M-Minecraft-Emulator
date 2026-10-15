@@ -218,9 +218,13 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
     if (![3, 4].includes(process.argv.length)) {
       throw new TypeError("Usage: node evaluate-native-performance.mjs <report.json> [candidate-report.json]");
     }
-    const baseline = JSON.parse(readFileSync(process.argv[2], "utf8"));
+    // Historical Windows PowerShell 5.1 Set-Content -Encoding UTF8
+    // emitted a BOM. Normalize only that encoding marker; all JSON
+    // schema/evidence validation remains unchanged.
+    const readReport = path => JSON.parse(readFileSync(path, "utf8").replace(/^\uFEFF/, ""));
+    const baseline = readReport(process.argv[2]);
     const result = process.argv.length === 4
-      ? compareNativePerformance(baseline, JSON.parse(readFileSync(process.argv[3], "utf8")))
+      ? compareNativePerformance(baseline, readReport(process.argv[3]))
       : evaluateNativePerformance(baseline);
     process.stdout.write(JSON.stringify(result, null, 2) + "\n");
   } catch (error) {
