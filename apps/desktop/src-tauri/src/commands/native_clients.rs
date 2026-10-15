@@ -83,3 +83,13 @@ pub async fn desktop_inspect_owned_engine_host(
         .map_err(|error| format!("Owned runtime host inspection failed: {error}"))?
         .map_err(|error| error.to_string())
 }
+
+#[tauri::command]
+pub async fn desktop_discover_existing_virtuals(
+) -> Result<crate::engine::virtual_inventory::VirtualBoxInventory, String> {
+    tauri::async_runtime::spawn_blocking(
+        crate::engine::virtual_inventory::discover_existing_virtuals)
+        .await
+        .map_err(|error| format!("Virtual discovery task failed: {error}"))?
+        .map_err(|error| error.to_string())
+}
