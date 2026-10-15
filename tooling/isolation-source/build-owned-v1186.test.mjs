@@ -155,6 +155,13 @@ test('optional engine package target is refused early before expensive MSBuild w
   assert.match(source, /\$packageFolder\.StartsWith\(\$repoFolder \+ /);
   assert.match(source, /\$repoFolder\.StartsWith\(\$packageFolder \+ /);
   assert.match(source, /\$parentItem\.Attributes -band \[IO\.FileAttributes\]::ReparsePoint/);
+  assert.match(source, /\$ancestor = \$packageParent/);
+  assert.match(source, /while \(\$ancestor\)/);
+  assert.match(source, /\$parentItem = Get-Item -LiteralPath \$ancestor/);
+  assert.match(source, /\$next = Split-Path -Parent \$ancestor/);
+  assert.ok(source.indexOf('while ($ancestor)') <
+    source.indexOf('New-Item -ItemType Directory -Path $reportFolder'),
+    'junction-ancestor checks must precede all native work');
   assert.match(source, /\$node \$assembler --build-report \$output --output \$PackageDirectory/);
 });
 
