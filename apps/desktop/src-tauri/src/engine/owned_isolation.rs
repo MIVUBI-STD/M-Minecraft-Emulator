@@ -505,6 +505,10 @@ fn parse_host_probe(raw: &str) -> io::Result<OwnedHostInspection> {
     }
     let probe: OwnedHostProbe = serde_json::from_str(raw)
         .map_err(|_| rejected("owned host service probe has invalid schema"))?;
+    interpret_host_probe(probe)
+}
+
+fn interpret_host_probe(probe: OwnedHostProbe) -> io::Result<OwnedHostInspection> {
     let allowed = |s: &str| matches!(s, "PRESENT" | "ABSENT" | "UNKNOWN");
     let unknown = probe.service_registration == "UNKNOWN"
         || probe.driver_registration == "UNKNOWN";
@@ -545,21 +549,73 @@ fn parse_host_probe(raw: &str) -> io::Result<OwnedHostInspection> {
     })
 }
 
+// Windows ERROR_SERVICE_DOES_NOT_EXIST, not an ambiguous API failure.
+// Access denied, invalid handle, SCM unavailable and other statuses stay
+// UNKNOWN so no service-owner assumption can authorize a driver install.
+const SERVICE_DOES_NOT_EXIST: u32 = 1060;
+
+fn classify_service_open_error(error: u32) -> &'static str {
+    if error == SERVICE_DOES_NOT_EXIST { "ABSENT" } else { "UNKNOWN" }
+}
+
+#[cfg(windows)]
+fn read_native_service_registration(
+    manager: windows_sys::Win32::System::Services::SC_HANDLE,
+    name: &str,
+) -> &'static str {
+    use windows_sys::Win32::{
+        Foundation::GetLastError,
+        System::Services::{CloseServiceHandle, OpenServiceW, SERVICE_QUERY_STATUS},
+    };
+    let wide_name: Vec<u16> = name.encode_utf16().chain(std::iter::once(0)).collect();
+    let service = unsafe { OpenServiceW(manager, wide_name.as_ptr(), SERVICE_QUERY_STATUS) };
+    if !service.is_null() {
+        unsafe { CloseServiceHandle(service); }
+        "PRESENT"
+    } else {
+        // Must read GetLastError immediately after the failed OpenServiceW.
+        classify_service_open_error(unsafe { GetLastError() })
+    }
+}
+
+/// Direct read-only Windows SCM inspection. No PowerShell/CIM child, no
+/// WMI provider start and no repeated subprocess/stream worker allocation.
+/// SERVICE_QUERY_STATUS does not start, stop or alter any registered service.
+/// The result proves service NAMES only, never that a driver is our own.
 #[cfg(windows)]
 pub fn inspect_host_service_namespace() -> io::Result<OwnedHostInspection> {
-    use std::time::Duration;
-    // Embedded source from our repository, no user-controlled executable path
-    // and no account, token, private box or world inspection.
-    const SCRIPT: &str = include_str!(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../../../tooling/isolation-source/windows/probe-host-service-names.ps1"
-    ));
-    let output = virtual_clients_core::bounded_command_output(
-        &super::native_clients::system_powershell()?,
-        ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", SCRIPT],
-        Duration::from_secs(15),
-    )?;
-    parse_host_probe(&output)
+    use windows_sys::Win32::System::{
+        RemoteDesktop::ProcessIdToSessionId,
+        Services::{CloseServiceHandle, OpenSCManagerW, SC_MANAGER_CONNECT},
+        Threading::GetCurrentProcessId,
+    };
+    let mut session_id = 0_u32;
+    let session_known = unsafe {
+        ProcessIdToSessionId(GetCurrentProcessId(), &mut session_id)
+    } != 0;
+    let manager = unsafe {
+        OpenSCManagerW(std::ptr::null(), std::ptr::null(), SC_MANAGER_CONNECT)
+    };
+    let (service, driver) = if manager.is_null() {
+        ("UNKNOWN", "UNKNOWN")
+    } else {
+        let service = read_native_service_registration(manager, "SbieSvc");
+        let driver = read_native_service_registration(manager, "SbieDrv");
+        unsafe { CloseServiceHandle(manager); }
+        (service, driver)
+    };
+    let unknown = service == "UNKNOWN" || driver == "UNKNOWN";
+    interpret_host_probe(OwnedHostProbe {
+        schema: 1,
+        evidence_class: "WINDOWS_SERVICE_NAME_ONLY_NO_OWNER_PROOF".into(),
+        interactive_session: session_known && session_id != 0,
+        inspection_status: if unknown { "PARTIAL_UNKNOWN" } else { "OBSERVED" }.into(),
+        service_registration: service.into(),
+        driver_registration: driver.into(),
+        provider_selected: false,
+        trusted_driver_loaded: false,
+        gameplay_verified: false,
+    })
 }
 
 #[cfg(not(windows))]
