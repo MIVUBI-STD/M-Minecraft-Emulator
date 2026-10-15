@@ -11,6 +11,7 @@
   import {
     client02Presentation,
     focusCandidate,
+    ownedVirtualCreationReason,
     rowPresentation,
     safeErrorDetails,
     setupInstruction,
@@ -386,7 +387,20 @@
             on:click={discoverExistingVirtuals}>
             {busy === "discover-virtuals" ? "Checking…" : "Find existing virtuals"}
           </button>
+          <button type="button" class="cm-button cm-secondary"
+            disabled={Boolean(busy) || ownedHostBusy || ownedInspectionBusy}
+            on:click={inspectOwnedServiceNames}>
+            {ownedHostBusy ? "Checking engine…" : "Check engine readiness"}
+          </button>
         </div>
+      </section>
+      <section class="cm-create-readiness" aria-label="Create virtual requirements">
+        <p aria-live="polite">{ownedHostError || ownedVirtualCreationReason(ownedHostInspection)}</p>
+        <details>
+          <summary>Supported owned virtuals</summary>
+          <p>The current internal Minecraft preset supports three separate persistent boxes: MivubiEdu02, MivubiEdu03 and MivubiEdu04. General custom names are not yet supported by its kernel policy. These virtuals have not been created.</p>
+          <p>Minecraft login compatibility uses reduced process/COM isolation and requires explicit approval once the engine is operational.</p>
+        </details>
       </section>
       {#if existingVirtuals}
         <section class="cm-existing-virtuals" aria-label="Existing Sandboxie virtual names">
