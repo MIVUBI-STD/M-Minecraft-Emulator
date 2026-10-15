@@ -286,7 +286,13 @@ function Read-BoxPidList {
 }
 if ($trustedTools -and $serviceRunning -and $boxConfigured -eq 'YES') {
   $first = Read-BoxPidList (Invoke-BoundedReadOnlyTool $startExe ('/box:' + $BoxName + ' /listpids'))
-  $second = Read-BoxPidList (Invoke-BoundedReadOnlyTool $startExe ('/box:' + $BoxName + ' /listpids'))
+  $second = $null
+  # If the first read failed, two matching valid snapshots are impossible.
+  # Avoid launching a second GUI helper; use the existing trusted DLL
+  # fallback instead. Valid first results still require a fresh second read.
+  if ($null -ne $first) {
+    $second = Read-BoxPidList (Invoke-BoundedReadOnlyTool $startExe ('/box:' + $BoxName + ' /listpids'))
+  }
   if ($null -ne $first -and $null -ne $second -and
       $first.Pids.Count -eq $second.Pids.Count -and
       (($first.Pids -join ',') -ceq ($second.Pids -join ','))) {
