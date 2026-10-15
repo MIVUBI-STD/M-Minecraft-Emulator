@@ -48,3 +48,33 @@ test('builder resolves VS2022 deterministically and captures native MSBuild fail
   assert.match(source, /\$report\.buildStages = \$results/);
   assert.match(source, /build-result\.json/);
 });
+
+test('build stages match the actual v1.18.6 solution projects and output directories', () => {
+  const root = new URL('../../engine/isolation-owned/Sandboxie/', import.meta.url);
+  const read = name => readFileSync(new URL(name, root), 'utf8');
+  const stages = [
+    ['SandboxDll.sln', 'Win32', ['SboxSvc', 'SboxDll']],
+    ['Sandbox.sln', 'x64', ['Start', 'SbieIni', 'KmdUtil', 'SbieControl']],
+    ['SandboxDrv.sln', 'x64', ['SboxDrv']],
+  ];
+  for (const [solution, platform, projectNames] of stages) {
+    const contents = read(solution);
+    assert.ok(contents.includes('SbieRelease|'+platform),
+      'missing stage configuration: '+solution);
+    for (const project of projectNames) {
+      const line = contents.split(/\\r?\\n/).find(item => item.includes(' = "'+project+'", '));
+      assert.ok(line, 'solution omits '+project+': '+solution);
+      const id = line.match(/, "\\{([0-9a-fA-F-]{36})\\}"\\s*$/)?.[1];
+      assert.ok(id, 'unrecognized project GUID: '+project);
+      assert.ok(contents.includes('{'+id+'}.SbieRelease|'+platform+'.Build.0'),
+        project+' is not scheduled to build in '+platform);
+    }
+  }
+  for (const propsFile of ['Sandbox32.props', 'Sandbox64.props']) {
+    const props = read(propsFile);
+    assert.ok(props.includes('<OutDir>$(SolutionDir)Bin\\\\$(PlatformName)\\\\$(Configuration)\\\\</OutDir>'),
+      'upstream output path drift: '+propsFile);
+  }
+  assert.match(source, /Sandboxie\\/Bin\\/Win32\\/SbieRelease\\/SbieSvc\\.exe/);
+  assert.match(source, /Sandboxie\\/Bin\\/x64\\/SbieRelease\\/SbieDrv\\.sys/);
+});
