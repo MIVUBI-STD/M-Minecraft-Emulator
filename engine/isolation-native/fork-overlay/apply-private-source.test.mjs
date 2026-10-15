@@ -60,6 +60,10 @@ function sources() {
       "        box = Box_CreateEx(pool, boxname, sid, session, TRUE);",
       "        if (!box) return STATUS_INSUFFICIENT_RESOURCES;",
       "}",
+      "NTSTATUS Process_Api_QueryBoxPath(void) {",
+      "        box = Box_Create(Driver_Pool, boxname, TRUE);",
+      "        if (!box) return STATUS_UNSUCCESSFUL;",
+      "}",
       "",
     ].join("\n") : path === "Sandboxie/core/dll/sbieapi.c" ? [
       "// isolated fixture component: " + path,
@@ -115,13 +119,13 @@ function git(root, args, input) {
 test("generated patch includes DLL and service startup in exact core closure and preserves kernel names", () => {
   const patch = buildPrivateSourcePatch(sources());
   assert.equal((patch.match(/^diff --git/gm) ?? []).length, 10);
-  assert.equal((patch.match(/^@@ /gm) ?? []).length, 21);
+  assert.equal((patch.match(/^@@ /gm) ?? []).length, 22);
   // Git apply rejects the earlier anchor-only hunks even when the line
   // matches. Every insertion must retain a following source context line.
   assert.match(patch, /@@ -\d+,2 \+\d+,4 @@/);
   assert.match(patch, /\+#define MIVUBI_PRIVATE_ISOLATION_ABI   0x57230\n #define SBIEDRV/);
   assert.match(patch, /\+#endif\n int test_function\(void\)/);
-  assert.equal((patch.match(/^@@ -\d+,2 \+\d+,\d+ @@$/gm) ?? []).length, 20);
+  assert.equal((patch.match(/^@@ -\d+,2 \+\d+,\d+ @@$/gm) ?? []).length, 21);
   // Real upstream has seven context lines; the synthetic fixture packs
   // the same three source anchors into five. Both must be one Git hunk.
   assert.match(patch, /^@@ -\d+,(?:5|7) \+\d+,\d+ @@$/m);
@@ -131,6 +135,7 @@ test("generated patch includes DLL and service startup in exact core closure and
   assert.match(patch, /TokenObject = PsReferenceImpersonationToken/);
   assert.match(patch, /MivubiBoxNameAllowed\(boxname\)/);
   assert.match(patch, /MivubiBoxNameAllowed\(proc2->box->name\)/);
+  assert.match(patch, /box = Box_Create\(Driver_Pool, boxname, TRUE\);/);
   assert.match(patch, /STATUS_ACCESS_DENIED/);
   assert.match(patch, /MivubiVerifiedDeviceHandle/);
   assert.match(patch, /InterlockedCompareExchangePointer/);
@@ -208,6 +213,9 @@ test("entire patch applies atomically to a disposable Git checkout without renam
     const startApi = readFileSync(join(root, "Sandboxie/core/drv/process_api.c"), "utf8");
     assert.match(startApi, /return STATUS_ACCESS_DENIED;/);
     assert.match(startApi, /MivubiBoxNameAllowed\(proc2->box->name\)/);
+    const pathQuery = startApi.indexOf("box = Box_Create(Driver_Pool, boxname, TRUE)");
+    const gate = startApi.lastIndexOf("if (!MivubiBoxNameAllowed(boxname))");
+    assert.ok(pathQuery > gate && gate > startApi.indexOf("Process_Api_QueryBoxPath"));
     assert.ok(startApi.indexOf("!MivubiBoxNameAllowed(proc2->box->name)") >
       startApi.indexOf("proc2 = Process_Find"));
     assert.ok(startApi.indexOf("!MivubiBoxNameAllowed(proc2->box->name)") <
@@ -416,6 +424,28 @@ test("kernel process model-PID admission denies foreign boxes and releases its l
     ["KeLowerIrql(irql);", "/* IRQL not lowered */"],
   ]) {
     const corrupt = {...expected, [p]: code.replace(needle, replacement)};
+    assert.throws(() => verifyExactPrivateSourceBytes(upstream, corrupt),
+      /unexpected modified source bytes/);
+  }
+});
+
+test("kernel box-path queries reject unowned box names before allocation", () => {
+  const upstream = sources();
+  const expected = buildExpectedPrivateSources(upstream);
+  const path = "Sandboxie/core/drv/process_api.c";
+  const src = expected[path];
+  const query = src.indexOf("Process_Api_QueryBoxPath");
+  const gate = src.lastIndexOf("if (!MivubiBoxNameAllowed(boxname))");
+  const allocation = src.indexOf("box = Box_Create(Driver_Pool, boxname, TRUE)");
+  assert.ok(query >= 0 && gate > query && allocation > gate);
+  assert.match(src.slice(gate, allocation),
+    /if \(!MivubiBoxNameAllowed\(boxname\)\)\s+return STATUS_ACCESS_DENIED;/);
+  for (const [needle, replacement] of [
+    ["// Querying a foreign box path must not allocate a BOX first.",
+      "// the admission gate has been removed"],
+    ["if (!MivubiBoxNameAllowed(boxname))", "if (MivubiBoxNameAllowed(boxname))"],
+  ]) {
+    const corrupt = {...expected, [path]: src.replace(needle, replacement)};
     assert.throws(() => verifyExactPrivateSourceBytes(upstream, corrupt),
       /unexpected modified source bytes/);
   }

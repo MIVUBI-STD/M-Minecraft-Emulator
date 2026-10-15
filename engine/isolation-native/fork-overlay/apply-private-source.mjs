@@ -50,6 +50,15 @@ const PROCESS_CLONE_ADMISSION = [
   "        }",
   "#endif",
 ];
+const PROCESS_QUERY_BOX_ANCHOR =
+  "        box = Box_Create(Driver_Pool, boxname, TRUE);";
+const PROCESS_QUERY_ADMISSION = [
+  "#if defined(MIVUBI_PRIVATE_ISOLATION_BUILD)",
+  "        // Querying a foreign box path must not allocate a BOX first.",
+  "        if (!MivubiBoxNameAllowed(boxname))",
+  "            return STATUS_ACCESS_DENIED;",
+  "#endif",
+];
 const PROCESS_IMPERSONATION_ANCHOR =
   "        TokenObject = PsReferenceImpersonationToken(PsGetCurrentThread(),";
 const PROCESS_START_ADMISSION = [
@@ -379,11 +388,16 @@ export function buildPrivateSourcePatch(files) {
     if (path === PROCESS_API_PATH) {
       onlyOnce(files[path], PROCESS_CLONE_ANCHOR, path);
       onlyOnce(files[path], PROCESS_IMPERSONATION_ANCHOR, path);
+      onlyOnce(files[path], PROCESS_QUERY_BOX_ANCHOR, path);
       parts.push(hunk(files[path], path, PROCESS_CLONE_ANCHOR,
         PROCESS_CLONE_ADMISSION, true, additions.length, false));
       parts.push(hunk(files[path], path, PROCESS_IMPERSONATION_ANCHOR,
         PROCESS_START_ADMISSION, true,
         additions.length + PROCESS_CLONE_ADMISSION.length, false));
+      parts.push(hunk(files[path], path, PROCESS_QUERY_BOX_ANCHOR,
+        PROCESS_QUERY_ADMISSION, true,
+        additions.length + PROCESS_CLONE_ADMISSION.length +
+          PROCESS_START_ADMISSION.length, false));
     }
     if (path === DRIVER_PATH) {
       // Kernel returns a private runtime identity through the EXISTING
@@ -462,10 +476,13 @@ export function buildExpectedPrivateSources(original) {
     if (path === PROCESS_API_PATH) {
       onlyOnce(original[path], PROCESS_CLONE_ANCHOR, path);
       onlyOnce(original[path], PROCESS_IMPERSONATION_ANCHOR, path);
+      onlyOnce(original[path], PROCESS_QUERY_BOX_ANCHOR, path);
       value = value.replace(PROCESS_CLONE_ANCHOR,
         [...PROCESS_CLONE_ADMISSION, PROCESS_CLONE_ANCHOR].join(newline));
       value = value.replace(PROCESS_IMPERSONATION_ANCHOR,
         [...PROCESS_START_ADMISSION, PROCESS_IMPERSONATION_ANCHOR].join(newline));
+      value = value.replace(PROCESS_QUERY_BOX_ANCHOR,
+        [...PROCESS_QUERY_ADMISSION, PROCESS_QUERY_BOX_ANCHOR].join(newline));
     }
     if (path === DRIVER_PATH) {
       onlyOnce(original[path], DRIVER_VERSION_ANCHOR, path);

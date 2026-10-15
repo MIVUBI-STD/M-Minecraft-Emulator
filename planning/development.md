@@ -1,5 +1,27 @@
 # Current Development Handoff — M-Minecraft-Emulator
 
+## Kernel query-box-path namespace admission — 15 October 2026
+
+**Implementation:** the existing private Sandboxie kernel source now enforces
+the MIVUBI box namespace in `Process_Api_QueryBoxPath` before calling
+`Box_Create` for a non-sandboxed caller. Foreign names return
+`STATUS_ACCESS_DENIED` directly; they no longer allocate and free a
+transient BOX before surfacing an unrelated `STATUS_UNSUCCESSFUL` result.
+The earlier named-process start, model-PID clone and Box_Alloc checks remain.
+
+**Source scope:** canonical fork overlay patches ten pinned v1.18.5
+files with 22 nonoverlapping hunks. Expected-source verifier and fixture
+regression cover the extra query path. Service namespace, kernel ABI,
+driver signing and active official Sandboxie installation are unchanged.
+
+**Evidence:** authentic ten-file source transformation and byte-exact
+comparison passed in ChatGPT V8. Node test runner, full Windows WDK/MSVC
+build, signed driver loading, REA binary analysis, Minecraft gameplay and
+four-account acceptance remain NOT_EXECUTED.
+
+**Next:** integrated private Windows build and observed error-driven debugging
+in an isolated environment; no migration from the official pilot.
+
 ## Model-PID kernel clone admission — 15 October 2026
 
 **Work:** the private Sandboxie-derived `Process_Api_Start` kernel path

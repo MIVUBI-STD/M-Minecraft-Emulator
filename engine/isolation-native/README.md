@@ -8,7 +8,8 @@ Driver ABI: `0x57230`; driver version: `5.73.5`.
 ## MIVUBI kernel-enforced sandbox namespace — 15 October 2026
 
 The private fork now modifies `Sandboxie/core/drv/box.c` itself and
-also checks both process-start paths in `Sandboxie/core/drv/process_api.c`.
+also checks both process-start paths and the box-path query in
+`Sandboxie/core/drv/process_api.c`.
 For model-PID launches it rejects foreign or missing model boxes before
 `Box_Clone`, releasing the process-list lock and lowering IRQL first.
 For named launches it denies foreign names after safe copying but BEFORE
@@ -23,7 +24,7 @@ object, its C policy `mivubi_kernel_box_policy.h` allows only
 all other names. The restriction also applies when sandbox contexts
 are cloned for descendant processes, since both paths use
 `Box_Alloc`. Official upstream builds are untouched. The private
-fork closure now has ten source files (21 Git hunks).
+fork closure now has ten source files (22 Git hunks).
 
 The **actual header source** was compiled and tested in 35 native C
 accept/reject cases: GCC and Clang, Release and ASan/UBSan, all passed.
