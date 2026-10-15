@@ -216,9 +216,21 @@ describe("Compact Manager app source and command boundary", () => {
     expect(entry).toContain('mount(CompactManagerApp, { target });');
     expect(entry).not.toContain("NativeFeasibilityApp");
     expect(app).not.toContain("<aside");
-    expect(app).toContain("Instances");
+    expect(app).toContain("Virtual Manager");
     expect(app).toContain("Settings");
     expect(bootstrap).not.toContain("commands::virtual_clients::virtual_clients_");
+  });
+  it("treats Sandboxie as an internal MIVUBI capability without pretending new virtuals work", () => {
+    expect(app).toContain('aria-label="Create virtual availability"');
+    expect(app).toContain('<h1>Virtual Manager</h1>');
+    expect(app).toContain('<h2>Host · Minecraft 01</h2>');
+    expect(app).toContain('<h2>Virtual 02 · Minecraft Education</h2>');
+    expect(app).toMatch(/<button type="button" class="cm-button cm-secondary" disabled[\s\S]*?>Create virtual<\/button>/);
+    expect(app).toContain("M-Isolation-Engine · Internal runtime");
+    expect(app).toContain("MIVUBI-owned virtual creation requires a tested internal driver");
+    expect(app).toContain('ownedCandidate.upstreamCommit === "cdba7096240b93d79c5373aa81a75a1c5c71b883"');
+    expect(app).not.toContain("Create virtual requested");
+    expect(bootstrap).not.toContain("desktop_create_virtual");
   });
   it("keeps checking explicitly user-triggered and launch calls guarded", () => {
     expect(app).toContain("nativeFeasibility.inspectIsolatedClient02()");
@@ -331,7 +343,7 @@ describe("Compact Manager app source and command boundary", () => {
     expect(app).toContain('page === "settings" && settingsBackButton?.isConnected');
     expect(app).toContain('page === "instances" && checkStatusButton?.isConnected && !checkStatusButton.disabled');
     expect(app).toContain('on:click={showSettings}>Settings</button>');
-    expect(app).toContain('on:click={showInstances}>Back to Instances</button>');
+    expect(app).toContain('on:click={showInstances}>Back to Virtuals</button>');
     expect(app).toContain('openClient02DetailsFromSettings("setup")');
     expect(app).toContain('openClient02DetailsFromSettings("move")');
     expect(app).toContain('page === "instances" && expanded === "02" && detailMode === mode && client02DetailPanel?.isConnected');
