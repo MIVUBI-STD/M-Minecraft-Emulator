@@ -1,5 +1,13 @@
 # Current Development Handoff — M-Minecraft-Emulator
 
+## Source contract correction: Sandboxie section-name candidates — 16 October 2026
+
+**Confirmed owner mismatch:** `tooling/acceptance/windows/collect-virtual-boxes.ps1` runs Sandboxie `SbieIni query *`, which returns configuration **sections** (including unproven custom sections) rather than authenticated box identities. The UI was corrected earlier but the wire contract still labeled this data `BOX_NAMES_ONLY`, which could let consumers mistake it for verified boxes. The collector and existing active Rust `virtual_inventory.rs` parser, TypeScript `nativeFeasibilityApi.ts` parser/contract, and existing Vitest/Rust fixtures now agree on `SECTION_NAME_CANDIDATES`. Old `BOX_NAMES_ONLY` evidence is explicitly rejected, rather than silently upgraded, on the same read-only IPC. `boxes` remains the existing wire array key for compatibility with the mounted UI; its contents are **candidates only**. Source ownership mapping updated in `docs/system/implementation-map.md`. No new IPC command, schema version, data mutation, app provider, installer or account operation was introduced.
+
+**Actually checked:** exact `Local` GitHub readback of all five edited owner/consumer files, six cross-file contract markers, and actual V8 execution of the extracted current TypeScript parser after removing type-only annotations: 3 valid and 6 invalid examples, including old evidence, incorrect source/readiness, duplicate names and extra private fields. This is a targeted source-parser check; full Node 24 Vitest/Svelte/Tauri, Rust/Cargo and Windows/PowerShell executions are **NOT_EXECUTED**. A live box identity, signed provider, game login and four-client performance remain unverified. No user-PC test is requested before the final campaign.
+
+**Next:** continue only with source defects that can be reproduced or coherently demonstrated against the active owner. Preserve the disabled Create Virtual command, existing account-bearing Sandboxie `MinecraftClient02` and legacy VMware boundaries.
+
 ## Code-only blocker closure: repaired Sandboxie inventory PowerShell — 16 October 2026
 
 **Confirmed defect at previous `Local` HEAD:** `tooling/acceptance/windows/collect-virtual-boxes.ps1` had a literal PowerShell regex truncated at `{1,32}` and a duplicated trailing `ConvertTo-Json` output block. This was an actual malformed committed source file, not an inferred runtime issue. The proximate source-edit mechanism was reproduced in V8: JavaScript `String.replace(search, replacementString)` interprets `$'` as the suffix of the original string when a replacement contains a regex ending in `$'`. The canonical `GITHUB_RULES.md` now requires callback/splice literal editing plus committed-byte readback.
