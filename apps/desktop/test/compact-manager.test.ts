@@ -63,7 +63,8 @@ describe("Native Windows readiness probe optimization", () => {
     const win = source.split("pub fn inspect_host_service_namespace()")[1]
       ?.split("#[cfg(not(windows))]")[0] ?? "";
     expect(win).toContain("OpenSCManagerW");
-    expect(win).toContain("OpenServiceW");
+    expect(source).toContain("OpenServiceW");
+    expect(win).toContain('read_native_service_registration(manager, "SbieSvc")');
     expect(win).toContain("SC_MANAGER_CONNECT");
     expect(win).toContain("CloseServiceHandle");
     expect(win).toContain("interpret_host_probe(OwnedHostProbe");
