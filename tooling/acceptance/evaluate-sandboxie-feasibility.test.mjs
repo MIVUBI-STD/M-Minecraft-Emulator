@@ -300,7 +300,16 @@ test("source-side collector must distinguish missing box keys from failed querie
   assert.ok(source.indexOf("$readTask.Wait($remainingMs)") < source.indexOf("$process.WaitForExit($remainingMs)"));
   assert.ok(source.includes("$first = Read-BoxPidList"));
   assert.ok(source.includes("$second = Read-BoxPidList"));
+  // A failed first query cannot produce a verified two-snapshot inventory.
+  // Never launch the second Start.exe helper just to discard its result.
+  const firstRead = source.indexOf("$first = Read-BoxPidList");
+  const secondGuard = source.indexOf("if ($null -ne $first) {", firstRead);
+  const secondRead = source.indexOf("$second = Read-BoxPidList", secondGuard);
+  assert.ok(firstRead >= 0 && secondGuard > firstRead && secondRead > secondGuard);
+  assert.ok(source.includes("$second = $null"));
+  // Valid snapshots must still agree; the verified DLL fallback is preserved.
   assert.ok(source.includes("(($first.Pids -join ',') -ceq ($second.Pids -join ','))"));
+  assert.ok(source.includes("if ($membershipStatus -ne 'OBSERVED' -and"));
   assert.ok(source.includes("if ($output.Length + $received -gt 4096) { return $null }"));
   assert.ok(!source.includes("$process.StandardOutput.ReadToEndAsync()"));
   assert.ok(source.includes("$process.StandardOutput.Dispose()"));
