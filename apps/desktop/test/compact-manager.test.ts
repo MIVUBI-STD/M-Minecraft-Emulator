@@ -336,6 +336,8 @@ describe("Compact Manager app source and command boundary", () => {
     expect(app).toContain('<h2>Virtual 02 · Minecraft Education</h2>');
     expect(app).toContain('aria-label="Planned virtual clients"');
     expect(app).toContain('<h2>Planned virtuals</h2>');
+    expect(app).toContain("Available now: Host 01 (Windows) and Virtual 02");
+    expect(app).toContain("Minecraft sessions");
     expect(app).toContain('{#each ["03", "04"] as client (client)}');
     expect(app).toContain('<h3>Virtual {client} · Minecraft Education</h3>');
     expect(app).toContain('Unavailable · No session or account created');
