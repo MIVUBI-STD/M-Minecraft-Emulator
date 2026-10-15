@@ -6,6 +6,54 @@ for an explicitly requested observation; the desktop uses its read-only
 `-SummaryOnly` option. PID/window counts cannot prove licensed login,
 Minecraft rendering or multiplayer.
 
+## PresentMon frame-pacing review (offline, no game hooks)
+
+For smoother **real gameplay** and future Eco-mode decisions, use a separate
+PresentMon CSV recording from the actual Windows game session. MIVUBI does
+**not** launch PresentMon, inject a capture DLL, modify game graphics, change
+Minecraft priority or install any monitor. The offline reviewer reads only
+an operator-selected existing CSV, using the target Minecraft process ID
+from that capture:
+
+```powershell
+npm run frametime:review -- --csv "C:\captures\PresentMon.csv" --process-id 1234
+```
+
+The CSV must include \`Application\`, \`ProcessID\`,
+\`SwapChainAddress\`, and \`MsBetweenPresents\` (or the older
+\`msBetweenPresents\` case). These are actual **inter-present intervals**
+rather than displayed frame intervals or independently confirmed FPS.
+PresentMon CSV layouts have changed, including around the v2.3.1 release:
+the reviewer deliberately refuses \`FrameTime\` alone rather than treating
+a different metric as interchangeable.
+
+The input is bounded to 32 MiB, 250,000 CSV rows, and one **Minecraft** PID
+with exactly one swap chain. Mixed swap chains, PID attribution to another
+application, unsafe CSV, insufficient samples or substantial missing values
+are rejected rather than silently averaged. The output is a sanitized JSON
+summary containing interval count, missing-data coverage, mean/p50/p95/p99,
+and interval counts above 33.333 ms and 50 ms. **No raw PID, process name,
+swap-chain address, file path, login, world or frame-by-frame log is emitted.**
+The original file remains unchanged.
+
+A CSV alone is not authenticated proof of the actual Windows machine or
+active Minecraft account. Present intervals may differ from frames actually
+displayed (for example, dropped/repeated frames or frame generation).
+A single selected swap chain also does not measure other Minecraft helpers,
+GPU power/VRAM, actual on-screen FPS, game input latency or four-virtual
+stability. For a fair baseline, compare identical game versions, worlds,
+graphic settings, loading state and operator-verified captured process
+identities. Use p95/p99 regressions and long-frame counts as **diagnostic
+clues**, not an automatic optimization PASS. In particular, an idle crash
+cannot be diagnosed just from a CSV with missing frames.
+
+Source/format references:
+[PresentMon console output](https://github.com/GameTechDev/PresentMon/blob/main/README-ConsoleApplication.md)
+and [upstream CSV field layout](https://github.com/GameTechDev/PresentMon/blob/main/PresentMon/CsvOutput.cpp).
+\`npm run test:presentmon\` exercises the deterministic offline CSV and CLI
+fixtures. The test runner does not validate live Windows/ETW capture,
+Minecraft rendering or account isolation.
+
 ## Active two-client process performance sampling (manual, read-only)
 
 `collect-native-performance.ps1` is an **optional on-demand** Windows
