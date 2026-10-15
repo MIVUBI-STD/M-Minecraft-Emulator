@@ -163,7 +163,7 @@ test('owned v1.18.6 staging refuses uncommitted tracked engine resources and pro
       ' M engine/isolation-native/owned-runtime/build-profile-v1186.json',
     ]){
       f.setTrackedStatus(status);
-      await assert.rejects(f.run(),/tracked engine source\\/profile differs/);
+      await assert.rejects(f.run(),/tracked engine source\/profile differs/);
       assert.equal(existsSync(f.outputDirectory),false,
         'dirty tracked inputs must not publish a payload');
     }
@@ -184,7 +184,7 @@ test('Git detects staged and unstaged tracked engine edits, not ignored binary o
     command('config','user.email','test@example.invalid');
     command('config','user.name','MIVUBI staging test');
     mkdirSync(join(base,'engine','isolation-owned'),{recursive:true});
-    writeFileSync(join(base,'.gitignore'),'*.sys\\n');
+    writeFileSync(join(base,'.gitignore'),'*.sys\n');
     const path='engine/isolation-owned/Templates.ini';
     writeFileSync(join(base,path),'original');
     command('add','.gitignore',path);
@@ -194,8 +194,8 @@ test('Git detects staged and unstaged tracked engine edits, not ignored binary o
       '--','engine/isolation-owned');
     assert.equal(status(),'');
     writeFileSync(join(base,path),'changed');
-    assert.match(status(),/Templates\\.ini/);
+    assert.match(status(),/Templates\.ini/);
     command('add',path);
-    assert.match(status(),/Templates\\.ini/);
+    assert.match(status(),/Templates\.ini/);
   }finally{rmSync(base,{recursive:true,force:true});}
 });
