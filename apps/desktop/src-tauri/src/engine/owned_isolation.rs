@@ -499,6 +499,9 @@ pub struct OwnedHostInspection {
     pub activation_allowed: bool,
 }
 
+// Legacy JSON fixture parser retained only for regression tests. Production
+// readiness calls interpret_host_probe directly with native SCM results.
+#[cfg(test)]
 fn parse_host_probe(raw: &str) -> io::Result<OwnedHostInspection> {
     if raw.len() > 4096 {
         return Err(rejected("owned host service probe exceeded bounded size"));
