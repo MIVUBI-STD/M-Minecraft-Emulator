@@ -57,6 +57,32 @@ async function checksum(path) {
   for await (const data of createReadStream(path)) digest.update(data);
   return digest.digest('hex');
 }
+// The nine shipped configuration/license files must match Git HEAD, not just
+// a working-tree status snapshot taken before copying. Git SHA-1 blob IDs
+// include the content length prefix; file SHA-1 alone is NOT equivalent.
+async function gitBlobId(path) {
+  const size = statSync(path).size;
+  const digest = createHash('sha1').update('blob ' + size + '\0');
+  for await (const data of createReadStream(path)) digest.update(data);
+  return digest.digest('hex');
+}
+function committedResources(root, paths, readGit) {
+  const prefix = 'engine/isolation-owned/';
+  const expected = new Set(paths);
+  const rows = readGit(root, 'ls-tree', '-r', '--full-tree', 'HEAD', '--',
+    ...paths.map(path => prefix + path));
+  const blobs = new Map();
+  for (const line of rows.split('\n')) {
+    if (!line) continue;
+    const match = /^(100644|100755) blob ([a-f0-9]{40})\t(.+)$/.exec(line);
+    demand(match && match[3].startsWith(prefix), 'unrecognized tracked resource entry');
+    const path = match[3].slice(prefix.length);
+    demand(expected.has(path) && !blobs.has(path), 'unexpected or duplicate tracked resource');
+    blobs.set(path, match[2]);
+  }
+  demand(blobs.size === expected.size, 'required resources must exist in committed Git HEAD');
+  return blobs;
+}
 function destinationFor(path) {
   if (path.startsWith('Sandboxie/Bin/Win32/SbieRelease/'))
     return '32/' + path.split('/').at(-1);
@@ -194,12 +220,14 @@ export async function stageOwnedV1186({
   requireReport(report,profile,head,ownedTree);
   const reportHash = createHash('sha256').update(reportBytes).digest('hex');
   // Verify ALL inputs before touching the selected output directory.
-  const input = [
-    ...profile.requiredArtifacts, ...profile.sourceResources,
-    ...profile.originalLicensesMustBeRetained,
-  ];
+  const resources = [...profile.sourceResources, ...profile.originalLicensesMustBeRetained];
+  const input = [...profile.requiredArtifacts, ...resources];
   demand(new Set(input.map(destinationFor)).size === input.length,
     'payload destination collision');
+  // One Git tree lookup for all nine tracked resources; no extra per-file
+  // subprocesses or second source registry. The final copied bytes are
+  // checked against these pinned IDs after the copy completes.
+  const resourceBlobs = committedResources(root, resources, readGit);
   for (const rel of input) {
     const file = ordinary(sourceRoot, rel);
     if (profile.requiredArtifacts.includes(rel)) {
@@ -224,6 +252,10 @@ export async function stageOwnedV1186({
       const expected = report.artifacts.find(x => x.path === rel);
       demand(!expected || (meta.sha256 === expected.sha256 &&
         meta.sizeBytes === expected.bytes), 'copied binary changed');
+      if (resourceBlobs.has(rel)) {
+        demand(await gitBlobId(dest) === resourceBlobs.get(rel),
+          'copied resource differs from committed Git HEAD: ' + rel);
+      }
       artifacts.push(meta);
     }
     const provenance = {
