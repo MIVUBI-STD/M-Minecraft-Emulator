@@ -407,7 +407,7 @@
         </details>
       </section>
       {#if existingVirtuals}
-        <section class="cm-existing-virtuals" aria-label="Existing Sandboxie virtual names">
+        <section class="cm-existing-virtuals" aria-label="Sandboxie configuration name candidates">
           <h3>Sandboxie name candidates (read-only)</h3>
           <p>These names come from existing Sandboxie configuration sections, including disabled boxes. Known user and template sections are omitted, but names alone cannot prove a box exists or a game is running. This is not the MIVUBI-owned engine.</p>
           {#if existingVirtuals.boxes.length === 0}
