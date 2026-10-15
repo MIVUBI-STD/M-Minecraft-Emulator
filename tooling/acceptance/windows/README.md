@@ -59,6 +59,28 @@ do not enable it by default or run it at high frequency.
 Technical references: [Microsoft performance-counter sampling guidance](https://learn.microsoft.com/en-us/windows/win32/perfctrs/about-performance-counters)
 and [Microsoft known incorrect GPU Process Memory values](https://learn.microsoft.com/en-us/troubleshoot/windows-client/performance/gpu-process-memory-counters-report-wrong-value).
 
+### Capture stability and report compatibility
+
+The optional GPU query is **skipped entirely** if either selected game
+process became missing or inaccessible during the CPU/RAM capture. In that
+case both GPU hints stay `UNKNOWN`/null and no new GPU workload is added.
+This does not mislabel a missing game PID as a crash or accidentally sample
+a replacement process.
+
+The Windows PowerShell 5.1 collector now writes report JSON as UTF-8
+**without a byte-order mark**. It writes to a new GUID-named temporary file
+in the output directory, closes it, and moves the completed file to a new
+final destination; an existing report is never replaced. Failed runs only
+clean up their own temporary file. This prevents incomplete diagnostic
+captures from appearing as completed reports after ordinary write failures.
+A sudden process/OS termination can leave a temporary file; it must never
+be treated as a valid final report.
+
+The Node reviewer also accepts legacy PowerShell 5.1 captures containing a
+single UTF-8 BOM, while applying the same exact JSON schema validation.
+The compatibility fix is for evidence files **only**; it cannot change
+Minecraft, Sandboxie boxes, running drivers or account data.
+
 To review the generated JSON without declaring gameplay PASS:
 
 ```powershell
