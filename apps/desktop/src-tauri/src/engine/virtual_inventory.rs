@@ -1,5 +1,5 @@
-//! Existing Sandboxie pilot box-name inventory for the one MIVUBI desktop.
-//! Read-only: a detected box is not a created MIVUBI-owned virtual, a running
+//! Read-only Sandboxie configuration section-name candidates for the desktop.
+//! A section-name candidate is NOT proof of an actual box, a MIVUBI virtual, a running
 //! process, a verified Microsoft account, or a provider migration.
 
 use serde::{Deserialize, Serialize};
@@ -29,7 +29,7 @@ pub fn parse_virtual_inventory(raw: &str) -> io::Result<VirtualBoxInventory> {
         serde_json::from_str(raw).map_err(|_| invalid_inventory())?;
     if record.schema != 1 ||
         record.source != "EXISTING_OFFICIAL_SANDBOXIE_PILOT" ||
-        record.evidence != "BOX_NAMES_ONLY" ||
+        record.evidence != "SECTION_NAME_CANDIDATES" ||
         record.owned_provider_selected || record.gameplay_verified ||
         record.boxes.len() > 128
     {
@@ -79,7 +79,7 @@ mod tests {
         serde_json::json!({
             "schema": 1,
             "source": "EXISTING_OFFICIAL_SANDBOXIE_PILOT",
-            "evidence": "BOX_NAMES_ONLY",
+            "evidence": "SECTION_NAME_CANDIDATES",
             "boxes": names,
             "ownedProviderSelected": false,
             "gameplayVerified": false
@@ -120,6 +120,9 @@ mod tests {
             row[field] = serde_json::json!(value);
             assert!(parse_virtual_inventory(&row.to_string()).is_err());
         }
+        let mut old_schema: serde_json::Value = serde_json::from_str(&base).unwrap();
+        old_schema["evidence"] = serde_json::json!("BOX_NAMES_ONLY");
+        assert!(parse_virtual_inventory(&old_schema.to_string()).is_err());
         let mut row: serde_json::Value = serde_json::from_str(&base).unwrap();
         row["userIdentity"] = serde_json::json!("not allowed");
         assert!(parse_virtual_inventory(&row.to_string()).is_err());
