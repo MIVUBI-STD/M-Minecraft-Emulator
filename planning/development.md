@@ -1,5 +1,15 @@
 # Current Development Handoff — M-Minecraft-Emulator
 
+## Native v1.18.6 builder report safety — 16 October 2026
+
+**Confirmed source defect / owner:** `tooling/isolation-source/build-owned-v1186.ps1` formerly guarded `-ReportDirectory` only against overlapping `engine/isolation-owned`, while `-PackageDirectory` was forbidden inside the entire Git checkout. A new report directory inside `planning/`, `.git/`, another tracked repo subtree, or an external junction pointing into the checkout could therefore be created AFTER the clean-tree Git preflight and BEFORE/WHILE native compilation. That breaks source/build reproducibility and can poison later invocations or evidence. This risk comes from the exact preflight ordering and is not a proven Windows exploit.
+
+**Bounded fix:** before checking Git or invoking MSBuild, `-ReportDirectory` now refuses drive roots, paths contained by or containing the *whole repository checkout*, existing output paths, missing parent folders and ANY reparse-point ancestor of the parent. The existing later checks of 3 build stages, 16 outputs and SHA-256 report remain unchanged. `-PackageDirectory` retains its separate non-overwriting preflight. No service/driver install, signer, provider selection, privileged transport, automation or game process was modified. The active README now requires the report directory outside the entire checkout.
+
+**Proof obtained at exact source revision:** GitHub `Local` readback of the edited PowerShell source, existing `build-profile-v1186.json`, three actual `.sln` files and both output `.props`. Added a test in the existing `build-owned-v1186.test.mjs`. Seven of eight current static/source regression bodies executed and passed in the available V8 isolate with a limited strict-assert fixture adapter (NOT the canonical Node 24 test runner); the eighth disposable-Git fixture was independently executed in the available container's `git` CLI and produced its expected ignored-`.obj` observation. This does not execute Windows PowerShell, MSBuild v143, WDK, native driver signing/loading, Tauri or Minecraft. **All Windows native and gameplay tests remain NOT_EXECUTED.**
+
+**Next real dependency:** make a full actual Windows MSVC/WDK build and examine authentic output/logs at final acceptance; if no matching Windows execution context exists, keep the builder and private Create Virtual blocked. No request for intermediate testing on the user's PC.
+
 ## Owned launcher path admission parity — 16 October 2026
 
 **Reproduced cross-language defect:** `engine/isolation-native/owned-runtime/minecraft-profiles.mjs::ownedMinecraftLaunch` accepted absolute Minecraft Education executable paths with an alternate data stream colon inside a component (`C:\\folder:stream\\Minecraft.Windows.exe`) or a forward slash inside a component (`C:\\folder/other\\Minecraft.Windows.exe`). The exact native `mivubi_owned_start_policy.h::MivubiParseOwnedStart` rejects both. A valid JS plan therefore produced a command that native `Start.exe` would refuse. This was demonstrated by running the old JS function in V8 and checking the native rejection branches before mutation.
