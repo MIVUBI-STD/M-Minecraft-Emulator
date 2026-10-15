@@ -57,6 +57,25 @@ describe("MIVUBI Create Virtual readiness", () => {
   });
 });
 
+describe("Native Windows readiness probe optimization", () => {
+  it("uses direct read-only SCM calls instead of starting PowerShell/WMI", () => {
+    const source = readFileSync(new URL("../src-tauri/src/engine/owned_isolation.rs", import.meta.url), "utf8");
+    const win = source.split("pub fn inspect_host_service_namespace()")[1]
+      ?.split("#[cfg(not(windows))]")[0] ?? "";
+    expect(win).toContain("OpenSCManagerW");
+    expect(win).toContain("OpenServiceW");
+    expect(win).toContain("SC_MANAGER_CONNECT");
+    expect(win).toContain("CloseServiceHandle");
+    expect(win).toContain("interpret_host_probe(OwnedHostProbe");
+    expect(win).not.toContain("bounded_command_output");
+    expect(win).not.toContain("probe-host-service-names.ps1");
+    expect(win).not.toContain("CreateServiceW");
+    expect(win).not.toContain("StartServiceW");
+    expect(source).toContain('if error == SERVICE_DOES_NOT_EXIST { "ABSENT" } else { "UNKNOWN" }');
+    expect(source).toContain("activation_allowed: false");
+  });
+});
+
 describe("Balanced resource admission", () => {
   it("permits a single explicit request when the manager is idle", () => {
     expect(isResourceOperationBusy("", false, false)).toBe(false);
