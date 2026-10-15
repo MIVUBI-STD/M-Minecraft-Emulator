@@ -15,6 +15,10 @@ use std::{
 const PINNED_UPSTREAM: &str = "abd4c240031cfb46666daa74ca47ed4e48b561e4";
 const EXPECTED_STATE: &str = "ARTIFACTS_STAGED_NOT_INSTALLABLE";
 const PRIVATE_STATE: &str = "PRIVATE_CORE_STAGED_NOT_INSTALLABLE";
+const OWNED_V1186_STATE: &str = "MIVUBI_V1186_CORE_STAGED_NOT_INSTALLABLE";
+const OWNED_V1186_UPSTREAM: &str = "cdba7096240b93d79c5373aa81a75a1c5c71b883";
+const OWNED_V1186_TREE: &str = "f690477c07a40810f479f53973334ceae7e0ab13";
+const OWNED_V1186_MARKER: &str = "MIVUBI-owned v1.18.6 Sandboxie-derived core. NOT installable or co-installable with official Sandboxie. Do not install SbieDrv.sys or replace MinecraftClient02. See LICENSES and engine-provenance.json.\n";
 const PRIVATE_SOURCE_FILES: &[&str] = &[
     "Sandboxie/common/my_version.h",
     "Sandboxie/core/drv/api.c",
@@ -81,6 +85,14 @@ struct StagedManifest {
     source_build_marker: Option<String>,
     source_files_modified: Option<Vec<String>>,
     can_coexist_with_official_sandboxie: Option<bool>,
+    // v1.18.6 owned payload only. Legacy v1.18.5 manifests must omit these.
+    source_version: Option<String>,
+    upstream_tree: Option<String>,
+    owned_repo_head: Option<String>,
+    owned_tree: Option<String>,
+    native_modified_files: Option<u32>,
+    build_report_sha256: Option<String>,
+    compiler_sha256: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -109,6 +121,7 @@ fn expected_source_for_payload(path: &str) -> Option<String> {
             Some(format!("Sandboxie/install/{path}"))
         }
         "LICENSES/LICENSE.Plus" => Some("LICENSE.Plus".into()),
+        "LICENSES/LICENSE.Classic" => Some("LICENSE.Classic".into()),
         "LICENSES/Sandboxie/COPYING" => Some("Sandboxie/COPYING".into()),
         "LICENSES/SandboxiePlus/QSbieAPI/LICENSE" => {
             Some("SandboxiePlus/QSbieAPI/LICENSE".into())
@@ -295,12 +308,12 @@ fn verify_payload_inventory(root: &Path, declared: &HashSet<String>) -> io::Resu
     Ok(())
 }
 
-fn required_stages(stages: &[BuildStage]) -> bool {
-    let expected = [
-        ("win32-support", "Win32"),
-        ("x64-core", "x64"),
-        ("x64-kernel", "x64"),
-    ];
+fn required_stages(stages: &[BuildStage], owned_v1186: bool) -> bool {
+    let expected = if owned_v1186 {
+        [("win32-support", "Win32"), ("x64-user-core", "x64"), ("x64-wdk-kernel", "x64")]
+    } else {
+        [("win32-support", "Win32"), ("x64-core", "x64"), ("x64-kernel", "x64")]
+    };
     stages.len() == expected.len() && stages.iter().zip(expected).all(
         |(actual, (id, platform))|
             actual.id == id && actual.platform == platform && actual.state == "COMPILED"
@@ -323,7 +336,33 @@ pub fn inspect_candidate(root: &Path) -> io::Result<OwnedCandidateInspection> {
     let manifest: StagedManifest = serde_json::from_slice(&raw)
         .map_err(|_| rejected("invalid owned-engine provenance schema"))?;
     let private = manifest.state == PRIVATE_STATE;
-    let private_provenance_correct = if private {
+    let owned_v1186 = manifest.state == OWNED_V1186_STATE;
+    let hex = |value: &Option<String>, bytes: usize| value.as_ref().is_some_and(|x| {
+        x.len() == bytes && x.bytes().all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase())
+    });
+    let legacy_fields_absent = manifest.source_version.is_none()
+        && manifest.upstream_tree.is_none()
+        && manifest.owned_repo_head.is_none()
+        && manifest.owned_tree.is_none()
+        && manifest.native_modified_files.is_none()
+        && manifest.build_report_sha256.is_none()
+        && manifest.compiler_sha256.is_none();
+    let private_provenance_correct = if owned_v1186 {
+        manifest.private_core_build.is_none()
+            && manifest.private_fork_head.is_none()
+            && manifest.private_fork_tree.is_none()
+            && manifest.private_patch_sha256.is_none()
+            && manifest.source_build_marker.is_none()
+            && manifest.source_files_modified.is_none()
+            && manifest.can_coexist_with_official_sandboxie == Some(false)
+            && manifest.source_version.as_deref() == Some("v1.18.6")
+            && manifest.upstream_tree.as_deref() == Some(OWNED_V1186_TREE)
+            && hex(&manifest.owned_repo_head, 40)
+            && hex(&manifest.owned_tree, 40)
+            && manifest.native_modified_files == Some(11)
+            && hex(&manifest.build_report_sha256, 64)
+            && hex(&manifest.compiler_sha256, 64)
+    } else if private && legacy_fields_absent {
         manifest.private_core_build == Some(true)
             && manifest.private_fork_head.as_ref().is_some_and(|sha| {
                 sha.len() == 40 && sha != PINNED_UPSTREAM
@@ -346,7 +385,8 @@ pub fn inspect_candidate(root: &Path) -> io::Result<OwnedCandidateInspection> {
                     .all(|(actual, expected)| actual.as_str() == *expected)
             })
     } else {
-        manifest.private_core_build.is_none()
+        legacy_fields_absent
+            && manifest.private_core_build.is_none()
             && manifest.private_fork_head.is_none()
             && manifest.private_fork_tree.is_none()
             && manifest.private_patch_sha256.is_none()
@@ -354,16 +394,17 @@ pub fn inspect_candidate(root: &Path) -> io::Result<OwnedCandidateInspection> {
             && manifest.source_files_modified.is_none()
             && manifest.can_coexist_with_official_sandboxie.is_none()
     };
-    if manifest.schema != 1 || !(manifest.state == EXPECTED_STATE || private)
+    if manifest.schema != (if owned_v1186 { 2 } else { 1 })
+        || !(manifest.state == EXPECTED_STATE || private || owned_v1186)
         || !private_provenance_correct
         || manifest.upstream_repository != "sandboxie-plus/Sandboxie"
-        || manifest.upstream_tag != "v1.18.5"
-        || manifest.upstream_commit != PINNED_UPSTREAM
+        || manifest.upstream_tag != (if owned_v1186 { "v1.18.6" } else { "v1.18.5" })
+        || manifest.upstream_commit != (if owned_v1186 { OWNED_V1186_UPSTREAM } else { PINNED_UPSTREAM })
         || manifest.windows_kernel_driver_loaded
         || manifest.minecraft_gameplay_verified
         || manifest.sandboxie_external_dependency_removed
         || manifest.public_distribution_approved
-        || !required_stages(&manifest.build_stages)
+        || !required_stages(&manifest.build_stages, owned_v1186)
         || !(REQUIRED_FILES.len()..=48).contains(&manifest.artifacts.len())
     {
         return Err(rejected("owned-engine manifest makes unproven runtime claims"));
@@ -389,13 +430,20 @@ pub fn inspect_candidate(root: &Path) -> io::Result<OwnedCandidateInspection> {
             return Err(rejected("owned-engine artifact checksum does not match bytes"));
         }
     }
-    if !REQUIRED_FILES.iter().all(|name| seen.contains(name)) {
+    if !REQUIRED_FILES.iter().all(|name| seen.contains(name))
+        || (owned_v1186 && !seen.contains("LICENSES/LICENSE.Classic"))
+    {
         return Err(rejected("incomplete owned-engine driver/service/DLL, helpers or license closure"));
     }
     // Explicit staging marker must accompany the purported uninstalled bundle.
     let marker = safe_relative_file(root, "NOT-INSTALLABLE.txt")?;
     let marker_bytes = read_bounded_file(&marker, 1024)?;
-    if marker_bytes != expected_not_installable_marker(private).as_bytes() {
+    let expected_marker = if owned_v1186 {
+        OWNED_V1186_MARKER
+    } else {
+        expected_not_installable_marker(private)
+    };
+    if marker_bytes != expected_marker.as_bytes() {
         return Err(rejected("owned-engine safety marker is missing or modified"));
     }
     let mut declared = seen;
@@ -405,7 +453,7 @@ pub fn inspect_candidate(root: &Path) -> io::Result<OwnedCandidateInspection> {
     Ok(OwnedCandidateInspection {
         schema: 1,
         state: "CANDIDATE_INTEGRITY_VERIFIED_NOT_INSTALLABLE".into(),
-        upstream_commit: PINNED_UPSTREAM.into(),
+        upstream_commit: manifest.upstream_commit.clone(),
         verified_artifact_count: manifest.artifacts.len() as u32,
         required_artifact_count: REQUIRED_FILES.len() as u32,
         provider_selected: false,
