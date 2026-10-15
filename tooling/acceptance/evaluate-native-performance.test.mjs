@@ -33,9 +33,17 @@ test("complete CPU/RAM values still never create gameplay or performance PASS", 
   assert.equal(result.automaticPerformanceVerdict, "NOT_PROVIDED");
   assert.equal(result.fourClientReady, false);
   assert.deepEqual(result.native, {
-    observedSamples: 2, missingSamples: 0, meanHostCpuPercent: 6, maxWorkingSetMb: 120,
+    observedSamples: 2, missingSamples: 0,
+    observationCoveragePercent: 100, firstMissingAtSeconds: null,
+    meanHostCpuPercent: 6, peakHostCpuPercent: 7,
+    meanWorkingSetMb: 110, maxWorkingSetMb: 120,
   });
+  assert.equal(result.isolated.peakHostCpuPercent, 20);
+  assert.equal(result.isolated.meanWorkingSetMb, 230);
   assert.equal(result.isolated.maxWorkingSetMb, 240);
+  assert.equal(result.metricScope, "OPERATOR_SELECTED_PROCESSES_ONLY_NOT_PROCESS_TREES");
+  assert.equal(result.identityDiscontinuityInterpretation,
+    "PROCESS_MISSING_OR_INACCESSIBLE_NOT_PROOF_OF_CRASH");
 });
 
 test("inaccessible/restarted process stays unknown instead of fabricating 0 samples", () => {
@@ -47,6 +55,12 @@ test("inaccessible/restarted process stays unknown instead of fabricating 0 samp
   assert.equal(result.isolated.observedSamples, 1);
   assert.equal(result.isolated.missingSamples, 1);
   assert.equal(result.isolated.meanHostCpuPercent, 10);
+  assert.equal(result.isolated.peakHostCpuPercent, 10);
+  assert.equal(result.isolated.meanWorkingSetMb, 220);
+  assert.equal(result.isolated.observationCoveragePercent, 50);
+  assert.equal(result.isolated.firstMissingAtSeconds, 10);
+  // A missing reading is not automatically classified as a Minecraft crash.
+  assert.equal(result.automaticPerformanceVerdict, "NOT_PROVIDED");
 });
 
 test("no process observations preserve null metrics, not artificial zeros", () => {
@@ -55,7 +69,11 @@ test("no process observations preserve null metrics, not artificial zeros", () =
   r.samples.forEach(s => s.native = {status: "UNKNOWN", cpuPercentOfHost: null, workingSetMb: null});
   const result = evaluateNativePerformance(r);
   assert.equal(result.native.meanHostCpuPercent, null);
+  assert.equal(result.native.peakHostCpuPercent, null);
+  assert.equal(result.native.meanWorkingSetMb, null);
   assert.equal(result.native.maxWorkingSetMb, null);
+  assert.equal(result.native.observationCoveragePercent, 0);
+  assert.equal(result.native.firstMissingAtSeconds, 5);
 });
 
 test("reject impossible process reappearance and mismatched identity flags", () => {
@@ -88,4 +106,30 @@ test("reject PID/account injection, fabricated verdict, and invalid schema", () 
     mutate(r);
     assert.throws(() => evaluateNativePerformance(r), TypeError);
   }
+});
+
+test("zero CPU samples remain legitimate observations, not missing evidence", () => {
+  const r = sample();
+  r.samples[0].native.cpuPercentOfHost = 0;
+  r.samples[1].native.cpuPercentOfHost = 0;
+  r.samples[0].native.workingSetMb = 0;
+  const result = evaluateNativePerformance(r);
+  assert.equal(result.native.meanHostCpuPercent, 0);
+  assert.equal(result.native.peakHostCpuPercent, 0);
+  assert.equal(result.native.meanWorkingSetMb, 60);
+  assert.equal(result.native.observationCoveragePercent, 100);
+  assert.equal(result.native.firstMissingAtSeconds, null);
+  assert.equal(result.fourClientReady, false);
+});
+
+test("fractional observation coverage and first loss locate incomplete samples", () => {
+  const r = sample();
+  r.sampleCount = 3;
+  r.samples.push({ elapsedSeconds: 15,
+    native: {status: "OBSERVED", cpuPercentOfHost: 3, workingSetMb: 90},
+    isolated: {status: "UNKNOWN", cpuPercentOfHost: null, workingSetMb: null},
+  });
+  r.isolatedProcessIdentityLost = true;
+  assert.equal(evaluateNativePerformance(r).isolated.observationCoveragePercent, 66.67);
+  assert.equal(evaluateNativePerformance(r).isolated.firstMissingAtSeconds, 15);
 });
