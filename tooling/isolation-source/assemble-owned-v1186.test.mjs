@@ -11,6 +11,8 @@ import { tmpdir } from 'node:os';
 import { stageOwnedV1186 } from './assemble-owned-v1186.mjs';
 
 const sha = value => createHash('sha256').update(value).digest('hex');
+const gitBlobId = value => createHash('sha1')
+  .update('blob ' + value.length + '\0').update(value).digest('hex');
 const HEAD='a'.repeat(40);
 const TREE='b'.repeat(40);
 const profile = JSON.parse(readFileSync(
@@ -35,8 +37,9 @@ function fixture() {
     const bytes=file('engine/isolation-owned/'+path);
     return {path,bytes:bytes.length,sha256:sha(bytes)};
   });
+  const resourceBlobs = new Map();
   for (const path of [...profile.sourceResources,...profile.originalLicensesMustBeRetained]) {
-    file('engine/isolation-owned/'+path);
+    resourceBlobs.set(path, gitBlobId(file('engine/isolation-owned/'+path)));
   }
   const report={
     schema:1,state:'NATIVE_BUILD_ARTIFACTS_CAPTURED_NOT_INSTALLABLE',
@@ -54,6 +57,7 @@ function fixture() {
   const save=()=>writeFileSync(buildReport,JSON.stringify(report));
   save();
   let trackedStatus = '';
+  let afterTrackedStatus = () => {};
   const adapters={
     verifySource:()=>({head:HEAD,ownedTree:TREE,nativeModifiedFiles:11}),
     readGit:(_root,...args)=>{
@@ -63,14 +67,25 @@ function fixture() {
       if(key==='rev-parse HEAD:engine/isolation-owned')return TREE;
       if(key==='rev-parse HEAD:engine/isolation-candidates/sandboxie-v1.18.6')
         return profile.pristineSourceTree;
-      if(key==='status --porcelain=v1 --untracked-files=no -- engine/isolation-owned engine/isolation-native/owned-runtime/build-profile-v1186.json')
-        return trackedStatus;
+      if(key==='status --porcelain=v1 --untracked-files=no -- engine/isolation-owned engine/isolation-native/owned-runtime/build-profile-v1186.json') {
+        const status = trackedStatus;
+        afterTrackedStatus();
+        return status;
+      }
+      if(args[0]==='ls-tree' && args[1]==='-r' &&
+          args[2]==='--full-tree' && args[3]==='HEAD' && args[4]==='--') {
+        const prefix='engine/isolation-owned/';
+        assert.deepEqual(args.slice(5),[...resourceBlobs.keys()].map(p=>prefix+p));
+        return [...resourceBlobs].map(([path,hash])=>
+          '100644 blob '+hash+'\t'+prefix+path).join('\n');
+      }
       throw Error('Unexpected Git command in fixture: '+key);
     },
   };
   return {
     base,repository,outputDirectory,buildReport,report,save,
     setTrackedStatus:(status)=>{ trackedStatus=status; },
+    afterTrackedStatus:(action)=>{ afterTrackedStatus=action; },
     run:()=>stageOwnedV1186({repository,buildReport,outputDirectory},adapters),
     clean:()=>rmSync(base,{force:true,recursive:true}),
   };
@@ -198,4 +213,28 @@ test('Git detects staged and unstaged tracked engine edits, not ignored binary o
     command('add',path);
     assert.match(status(),/Templates\.ini/);
   }finally{rmSync(base,{recursive:true,force:true});}
+});
+
+test('committed resource blob binding rejects a config edited after a clean Git status',async()=>{
+  const f=fixture();try{
+    f.afterTrackedStatus(()=>{
+      f.afterTrackedStatus(()=>{});
+      writeFileSync(join(f.repository,'engine/isolation-owned',
+        ...profile.sourceResources[0].split('/')), 'uncommitted late edit');
+    });
+    await assert.rejects(f.run(), /copied resource differs from committed Git HEAD/);
+    assert.equal(existsSync(f.outputDirectory),false);
+  }finally{f.clean();}
+});
+
+test('committed resource blob binding rejects modified license despite a clean early snapshot',async()=>{
+  const f=fixture();try{
+    f.afterTrackedStatus(()=>{
+      f.afterTrackedStatus(()=>{});
+      writeFileSync(join(f.repository,'engine/isolation-owned/LICENSE.Plus'),
+        'replaced licensing text');
+    });
+    await assert.rejects(f.run(), /copied resource differs from committed Git HEAD: LICENSE.Plus/);
+    assert.equal(existsSync(f.outputDirectory),false);
+  }finally{f.clean();}
 });
