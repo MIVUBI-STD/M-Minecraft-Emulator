@@ -82,8 +82,8 @@ submodule or official installation.
 ~~~powershell
 # From this application's root, after separately bootstrapping source:
 node engine/isolation-native/fork-overlay/apply-private-source.mjs --fork-root 'D:\Source\M-Isolation-Engine'
-# The overlay is STAGED. Review exactly seven files / nine hunks and commit
-# the standalone fork as one direct child of pinned v1.18.5:
+# The overlay is STAGED. Review all modified native paths, then commit
+# the standalone fork in a linear branch descending from pinned v1.18.5:
 git -C 'D:\Source\M-Isolation-Engine' diff --cached --check
 git -C 'D:\Source\M-Isolation-Engine' diff --cached --stat
 git -C 'D:\Source\M-Isolation-Engine' commit -m "feat: MIVUBI controlled three-client launch"
@@ -160,8 +160,8 @@ from upstream, with licenses and attributions preserved.
 Patch preparation intentionally stages seven files in a separate full-history
 checkout for human review. **A staged patch with HEAD still at upstream is not
 a private Git commit.** Review the staged changes and commit exactly those seven
-files on `isolation/baseline-v1.18.5`. The commit must be one direct child of the
-pinned v1.18.5 source, with a clean index and worktree. Then verify:
+files on `isolation/baseline-v1.18.5`. The source history must descend linearly from the
+pinned v1.18.5 source, with a clean index and worktree. Additional source fixes may be committed normally, but merge commits and intermediate changes outside the ten authorized native files are rejected. Final source bytes must still match the canonical fork overlay. Then verify:
 
 ~~~powershell
 node engine/isolation-native/fork-overlay/apply-private-source.mjs --verify-committed --fork-root 'D:\Source\M-Isolation-Engine'

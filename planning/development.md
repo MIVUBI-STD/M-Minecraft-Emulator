@@ -1,5 +1,26 @@
 # Current Development Handoff — M-Minecraft-Emulator
 
+## Unblocked iterative private native builds — 15 October 2026
+
+The previous private fork verifier required one single direct-child commit
+of Sandboxie v1.18.5. That forced rewriting Git history to record each new
+compiler or linker fix, blocking normal native build/debug iterations.
+The verifier now accepts a linear chain of source-only commits descending
+from the pinned upstream revision; it rejects merges and unauthorized paths
+in **every intermediate commit**. The final committed source still must
+match the canonical exact 10-file overlay with a clean checkout. Existing
+build scripts, candidate ABI and package staging retain this one verifier.
+
+**Executed:** a four-case real disposable-Git reproduction on ChatGPT Linux
+demonstrated controlled multi-commit acceptance and failure on merges,
+unapproved intermediate files and non-descendant ancestry. Targeted Node
+regression source is committed. This is a source workflow blocker removed,
+not a signed Windows driver or engine runtime acceptance.
+
+**Next:** run the existing private MSBuild pipeline, save first real Windows
+compile/link failures, and commit the concrete kernel/service/DLL fixes
+linearly without squashing the previously verified source history.
+
 ## Kernel query-box-path namespace admission — 15 October 2026
 
 **Implementation:** the existing private Sandboxie kernel source now enforces

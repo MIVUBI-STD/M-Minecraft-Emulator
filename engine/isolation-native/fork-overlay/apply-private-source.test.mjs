@@ -4,7 +4,7 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync, readFileSync } from "nod
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { spawnSync } from "node:child_process";
-import { buildPrivateSourcePatch, buildExpectedPrivateSources, verifyExactPrivateSourceBytes, SOURCE_FILES } from "./apply-private-source.mjs";
+import { buildPrivateSourcePatch, buildExpectedPrivateSources, verifyExactPrivateSourceBytes, verifyLinearPrivateForkHistory, SOURCE_FILES } from "./apply-private-source.mjs";
 
 const header = [
   "// Source fixture matching pinned upstream literal identifiers",
@@ -252,6 +252,53 @@ test("entire patch applies atomically to a disposable Git checkout without renam
       /private marker already/);
   } finally {
     rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("private fork allows linear native revisions, rejects unrelated history and merges", () => {
+  const root = mkdtempSync(join(tmpdir(), "owned-linear-history-"));
+  try {
+    git(root, ["init", "-b", "main"]);
+    git(root, ["config", "user.name", "MIVUBI Test"]);
+    git(root, ["config", "user.email", "test@example.invalid"]);
+    for (const path of SOURCE_FILES.slice(0, 3)) {
+      const file = join(root, ...path.split("/"));
+      mkdirSync(dirname(file), {recursive: true});
+      writeFileSync(file, "// Pinned fixture\n");
+    }
+    git(root, ["add", "."]);
+    git(root, ["commit", "-m", "Pinned baseline"]);
+    const pin = git(root, ["rev-parse", "HEAD"]);
+    git(root, ["checkout", "-b", "isolation/baseline-v1.18.5"]);
+    const change = path => {
+      const target = join(root, ...path.split("/"));
+      writeFileSync(target, readFileSync(target, "utf8") + "// approved fix\n");
+      git(root, ["add", "--", path]);
+      git(root, ["commit", "-m", "Native source fix"]);
+      return git(root, ["rev-parse", "HEAD"]);
+    };
+    change(SOURCE_FILES[0]);
+    const approved = change(SOURCE_FILES[1]);
+    assert.equal(verifyLinearPrivateForkHistory(root, pin, approved), 2);
+    assert.throws(() => verifyLinearPrivateForkHistory(root, approved, pin),
+      /private fork is not a descendant/);
+
+    // Reject even a later reverted unapproved intermediate revision.
+    writeFileSync(join(root, "unrelated.txt"), "bad history");
+    git(root, ["add", "--", "unrelated.txt"]);
+    git(root, ["commit", "-m", "Unapproved source"]);
+    assert.throws(() => verifyLinearPrivateForkHistory(
+      root, pin, git(root, ["rev-parse", "HEAD"])), /unapproved source path/);
+    git(root, ["reset", "--hard", approved]);
+
+    git(root, ["checkout", "-b", "side", pin]);
+    change(SOURCE_FILES[2]);
+    git(root, ["checkout", "isolation/baseline-v1.18.5"]);
+    git(root, ["merge", "--no-ff", "-m", "Merge", "side"]);
+    assert.throws(() => verifyLinearPrivateForkHistory(
+      root, pin, git(root, ["rev-parse", "HEAD"])), /linear single-parent/);
+  } finally {
+    rmSync(root, {recursive: true, force: true});
   }
 });
 

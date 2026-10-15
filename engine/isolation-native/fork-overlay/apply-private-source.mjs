@@ -549,7 +549,39 @@ function gitRaw(root, args) {
   return result.stdout || "";
 }
 
-/** Bind a private build to one clean, committed, exact upstream-derived patch. */
+/**
+ * Permit iterative Windows compiler fixes without rewriting the first fork
+ * commit. Inspect EVERY intermediate revision, not only the final diff.
+ * The final complete source bytes are still checked independently below.
+ */
+export function verifyLinearPrivateForkHistory(root, pin, head,
+                                               approvedPaths = SOURCE_FILES) {
+  assert(/^[a-f0-9]{40}$/.test(pin) && /^[a-f0-9]{40}$/.test(head) &&
+    pin !== head, "invalid private fork revisions");
+  assert(git(root, ["merge-base", pin, head]) === pin,
+    "private fork is not a descendant of pinned upstream");
+  const revisions = gitRaw(root,
+    ["rev-list", "--topo-order", "--parents", pin + ".." + head])
+    .trim().split("\n").filter(Boolean).map(line => line.trim().split(" "));
+  assert(revisions.length > 0 && revisions[0][0] === head,
+    "private fork history is missing a committed revision");
+  for (let index = 0; index < revisions.length; ++index) {
+    const [commit, parent, ...extra] = revisions[index];
+    assert(/^[a-f0-9]{40}$/.test(commit) &&
+      /^[a-f0-9]{40}$/.test(parent) && extra.length === 0 &&
+      parent === (revisions[index + 1]?.[0] ?? pin),
+      "private fork must be a linear single-parent descendant");
+    const touched = gitRaw(root, ["diff-tree", "--no-commit-id",
+      "--name-only", "-r", "--no-renames", commit])
+      .trim().split("\n").filter(Boolean);
+    assert(touched.length > 0 && touched.every(path =>
+      approvedPaths.includes(path)),
+      "private fork revision changes an unapproved source path");
+  }
+  return revisions.length;
+}
+
+/** Bind a private build to a clean, committed, exact upstream-derived patch. */
 export function verifyCommittedPrivateFork(rootDirectory) {
   assert(typeof rootDirectory === "string" && rootDirectory.trim(),
     "checkout location required");
@@ -566,9 +598,8 @@ export function verifyCommittedPrivateFork(rootDirectory) {
   const head = git(root, ["rev-parse", "HEAD"]);
   assert(head !== PIN && /^[a-f0-9]{40}$/.test(head),
     "a distinct private fork commit is required");
-  const parents = git(root, ["rev-list", "--parents", "-n", "1", "HEAD"]).split(" ");
-  assert(parents.length === 2 && parents[0] === head && parents[1] === PIN,
-    "private commit must be a single direct child of pinned upstream");
+  // Real compiler fixes are separate commits on the same controlled branch.
+  verifyLinearPrivateForkHistory(root, PIN, head);
   const changed = git(root, ["diff", "--name-only", PIN, head])
     .split("\n").filter(Boolean);
   assert(changed.length === SOURCE_FILES.length &&
