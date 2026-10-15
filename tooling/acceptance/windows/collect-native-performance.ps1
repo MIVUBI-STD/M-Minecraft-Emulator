@@ -199,7 +199,7 @@ if ($GpuSnapshot) {
 }
 # Hints are not account, FPS, frametime or actual VRAM proof.
 $report = [ordered]@{
-  schema = if ($GpuSnapshot) { 2 } else { 1 }
+  schema = 1
   scope = 'NATIVE_SANDBOXIE_PROCESS_PERFORMANCE'
   evidenceOrigin = 'WINDOWS_HOST'
   attribution = 'OPERATOR_SELECTED_UNVERIFIED_PIDS'
@@ -215,7 +215,10 @@ $report = [ordered]@{
   samples = @($samples.ToArray())
   missingEvidence = @('ACCOUNT_ISOLATION', 'GAMEPLAY_RENDERING', 'FRAME_TIMES', 'GPU_VRAM', 'MULTIPLAYER', 'INPUT_RESPONSIVENESS')
 }
-if ($GpuSnapshot) { $report['gpuDiagnostic'] = $gpuDiagnostic }
+if ($GpuSnapshot) {
+  $report['schema'] = 2
+  $report['gpuDiagnostic'] = $gpuDiagnostic
+}
 $stamp = $beginUtc.ToString('yyyyMMddTHHmmssfffffffZ')
 $file = Join-Path $OutputDirectory ('native-process-performance-' + $stamp + '.json')
 if (Test-Path -LiteralPath $file) {
