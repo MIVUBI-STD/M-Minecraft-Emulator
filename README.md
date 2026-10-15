@@ -2,6 +2,25 @@
 
 **Product goal:** four concurrent, independently playable Minecraft Education **Windows desktop** sessions with four separately licensed accounts on one Windows PC. The **single active engineering route** is **Minecraft Instance Manager**: native Client 01 and isolated Client 02 in the persistent Sandboxie Plus box `MinecraftClient02`. Four accounts remain the long-term goal. Two-account playability was operator-confirmed on 14 October 2026, followed by a boxed-client idle crash; stable two-client and four-client acceptance remain unproven. The previous VMware implementation remains as **inactive legacy source**: VM mutation commands are paused and its UI is unmounted. All existing account-bearing guest data is preserved. The official Sandboxie two-client pilot has limited success evidence, not stable completion or independent owned-engine proof.
 
+## Product definition — integrated Virtual Manager
+
+**MIVUBI is the application that manages virtual sandboxes**. The original
+Sandboxie-derived C/C++ driver, service and DLL belong to its internal
+isolation engine; Rust/Tauri is the single virtual lifecycle authority and
+Svelte provides one simplified user interface. Users should eventually
+create, configure, launch and manage virtuals entirely in MIVUBI rather than
+opening SandMan/Sandboxie Plus. Minecraft Education is the first supported
+profile, not the definition of a virtual.
+
+**Current implementation limit:** the Virtual Manager UI and current
+version-aware owned package inspection are integrated, but the app still
+uses the official Sandboxie Client 02 compatibility pilot. The internal
+owned driver/service have not been built, signed, installed or validated.
+The **Create virtual** action correctly remains unavailable: no visible
+virtual may be called created or ready until its actual sandbox configuration
+is written to and confirmed by a trusted running engine. Existing account
+data is never migrated/deleted as part of UI cleanup.
+
 ## Branch authority
 
 ```text
