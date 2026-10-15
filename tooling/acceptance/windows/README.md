@@ -26,9 +26,27 @@ To review the generated JSON without declaring gameplay PASS:
 npm run native-performance:review -- "C:\path\to\native-process-performance-....json"
 ```
 
+The same reviewer can compare an existing baseline and candidate capture
+**offline**, without launching another sampler or additional background agent:
+
+```powershell
+npm run native-performance:review -- "C:\\path\\baseline.json" "C:\\path\\candidate.json"
+```
+
+The reviewer now reports observation coverage, the first missing sample
+time, mean/peak selected-process CPU and mean/peak working set. A process
+reported UNKNOWN could have exited, become inaccessible or been replaced;
+this is **not** automatic proof of a crash. A pair of reports must match their
+CPU-count, requested duration, sampling interval, sample count and observed
+duration, with both selected processes continuously readable, before the
+reviewer emits *numeric differences* (candidate minus baseline). Even then
+the comparison is **descriptive only**: matching CPU counts do not establish
+the same physical PC or workload. It cannot infer FPS, GPU demand, full
+sandbox descendant-process cost or confirmed Minecraft optimization.
+
 `npm run test:native-performance` checks the offline reviewer's schema,
-privacy, missing-data and false-PASS constraints. Authored tests do not prove
-that the Windows sampler has actually executed.
+privacy, missing-data, numeric comparison and false-PASS constraints.
+Authored tests do not prove that the Windows sampler has actually executed.
 
 The command is **not executable until real client processes are available**.
 It captures relative elapsed times, per-process working set and process CPU
