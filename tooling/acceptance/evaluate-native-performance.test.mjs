@@ -190,3 +190,88 @@ test("invalid evidence in either comparison input fails closed", () => {
   impossible.samples[1].isolated.status = "UNKNOWN";
   assert.throws(() => compareNativePerformance(sample(), impossible), TypeError);
 });
+
+const gpuHint = (status, engine, dedicated) => ({
+  status,
+  threeDEngineMaximumInstancePercent: engine,
+  dedicatedMemoryMaximumInstanceMb: dedicated,
+});
+const withGpu = () => ({
+  ...sample(),
+  schema: 2,
+  gpuDiagnostic: {
+    evidenceClass: "WINDOWS_GPU_COUNTER_HINT_NOT_FRAME_PROOF",
+    native: gpuHint("OBSERVED", 4.5, 256),
+    isolated: gpuHint("OBSERVED", 12, 300),
+  },
+});
+
+test("optional GPU hints do not change old CPU/RAM report structure", () => {
+  const legacy = evaluateNativePerformance(sample());
+  assert.equal("gpuDiagnostic" in legacy, false);
+  assert.equal("gpuPerformanceVerified" in legacy, false);
+  assert.equal(legacy.interpretation, "PROCESS_TELEMETRY_ONLY");
+  assert.equal(legacy.native.meanHostCpuPercent, 6);
+});
+
+test("GPU snapshot stays an unverified Windows counter hint, never gameplay proof", () => {
+  const result = evaluateNativePerformance(withGpu());
+  assert.equal(result.gpuDiagnostic.interpretation,
+    "ONE_TIME_WINDOWS_COUNTER_HINT_UNVERIFIED");
+  assert.equal(result.gpuDiagnostic.native.threeDEngineMaximumInstancePercent, 4.5);
+  assert.equal(result.gpuDiagnostic.isolated.dedicatedMemoryMaximumInstanceMb, 300);
+  assert.equal(result.gpuPerformanceVerified, false);
+  assert.equal(result.gpuCounterMemoryMayBeStale, true);
+  assert.equal(result.frameTimingVerified, false);
+  assert.equal(result.fourClientReady, false);
+  assert.equal(result.automaticPerformanceVerdict, "NOT_PROVIDED");
+  assert.ok(result.missingEvidence.includes("GPU_VRAM"));
+  assert.ok(result.missingEvidence.includes("FRAME_TIMES"));
+});
+
+test("missing GPU counters remain null UNKNOWN while CPU/RAM evidence survives", () => {
+  const report = withGpu();
+  report.gpuDiagnostic.native = gpuHint("UNKNOWN", null, null);
+  report.gpuDiagnostic.isolated = gpuHint("UNKNOWN", null, null);
+  const result = evaluateNativePerformance(report);
+  assert.equal(result.gpuDiagnostic.native.status, "UNKNOWN");
+  assert.equal(result.gpuDiagnostic.native.threeDEngineMaximumInstancePercent, null);
+  assert.equal(result.native.meanHostCpuPercent, 6);
+  assert.equal(result.gpuPerformanceVerified, false);
+});
+
+test("schema-2 rejects malformed, unsafe, overclaimed and unexpected GPU evidence", () => {
+  const changes = [
+    r => r.gpuDiagnostic.native.status = "READY",
+    r => r.gpuDiagnostic.native.threeDEngineMaximumInstancePercent = 150,
+    r => r.gpuDiagnostic.native.dedicatedMemoryMaximumInstanceMb = -1,
+    r => r.gpuDiagnostic.native.dedicatedMemoryMaximumInstanceMb = 1e12,
+    r => r.gpuDiagnostic.native.dedicatedMemoryMaximumInstanceMb = Number.NaN,
+    r => r.gpuDiagnostic.native.frameTimes = [16],
+    r => r.gpuDiagnostic.native.status = "UNKNOWN",
+    r => r.gpuDiagnostic.evidenceClass = "GPU_FPS_VERIFIED",
+    r => r.gpuDiagnostic.native = {},
+    r => r.gpuDiagnostic.capturedPid = 123,
+    r => r.gpuDiagnostic.isolated.threeDEngineMaximumInstancePercent = null,
+    r => r.schema = 1,
+    r => r.missingEvidence = r.missingEvidence.filter(x => x !== "GPU_VRAM"),
+  ];
+  for (const mutate of changes) {
+    const r = withGpu();
+    mutate(r);
+    assert.throws(() => evaluateNativePerformance(r), TypeError);
+  }
+});
+
+test("cross-schema CPU/RAM reports do not emit numeric improvement comparisons", () => {
+  const result = compareNativePerformance(sample(), withGpu());
+  assert.equal(result.conditions.sameReportSchema, false);
+  assert.equal(result.comparableForNumericDifference, false);
+  assert.equal(result.differences, null);
+  assert.equal(result.improvementVerified, false);
+  const pair = compareNativePerformance(withGpu(), withGpu());
+  assert.equal(pair.conditions.sameReportSchema, true);
+  assert.equal(pair.comparableForNumericDifference, true);
+  assert.equal(pair.improvementVerified, false);
+  assert.equal(pair.differences.native.meanHostCpuPercentagePointDifference, 0);
+});
