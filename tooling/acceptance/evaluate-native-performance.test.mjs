@@ -1,4 +1,9 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { evaluateNativePerformance, compareNativePerformance } from "./evaluate-native-performance.mjs";
@@ -295,4 +300,42 @@ test("opt-in GPU counter capture is one-shot and leaves default collector overhe
     ?.split("# Capture duration excludes the optional diagnostic query.")[0] ?? "";
   assert.ok(loopBody.length > 0);
   assert.doesNotMatch(loopBody, /Get-Counter|Read-GpuSnapshot/);
+});
+
+test("historical Windows PowerShell UTF8 BOM and no-BOM captures work through the real Node CLI", () => {
+  const folder = mkdtempSync(join(tmpdir(), "mivubi-native-performance-"));
+  try {
+    const old = join(folder, "windows-powershell-5.1-bom.json");
+    const current = join(folder, "native-no-bom.json");
+    writeFileSync(old, "\uFEFF" + JSON.stringify(sample()), "utf8");
+    writeFileSync(current, JSON.stringify(sample()), "utf8");
+    const executable = fileURLToPath(new URL("./evaluate-native-performance.mjs", import.meta.url));
+    const single = spawnSync(process.execPath, [executable, old], {
+      encoding: "utf8", timeout: 10000, maxBuffer: 1024 * 1024,
+    });
+    assert.equal(single.status, 0, single.stderr || "BOM single capture failed");
+    assert.equal(JSON.parse(single.stdout).native.meanHostCpuPercent, 6);
+    const pair = spawnSync(process.execPath, [executable, old, current], {
+      encoding: "utf8", timeout: 10000, maxBuffer: 1024 * 1024,
+    });
+    assert.equal(pair.status, 0, pair.stderr || "mixed BOM/non-BOM pair failed");
+    const compared = JSON.parse(pair.stdout);
+    assert.equal(compared.comparableForNumericDifference, true);
+    assert.equal(compared.improvementVerified, false);
+    assert.equal(compared.differences.native.meanWorkingSetMbDifference, 0);
+  } finally {
+    rmSync(folder, { recursive: true, force: true });
+  }
+});
+
+test("Windows GPU diagnostics skip identity-loss captures and write BOM-less reports exclusively", () => {
+  const collector = readFileSync(new URL("./windows/collect-native-performance.ps1", import.meta.url), "utf8");
+  assert.match(collector, /if \(\$nativeLost -or \$isolatedLost\)/);
+  assert.match(collector, /if \(\$GpuSnapshot\) \{[\s\S]*?if \(\$nativeLost -or \$isolatedLost\)/);
+  assert.match(collector, /\[System\.Text\.UTF8Encoding\]::new\(\$false\)/);
+  assert.match(collector, /\[System\.IO\.FileMode\]::CreateNew/);
+  assert.match(collector, /\[System\.IO\.FileShare\]::None/);
+  assert.match(collector, /if \(-not \$written\)/);
+  assert.doesNotMatch(collector, /Set-Content -LiteralPath \$file/);
+  assert.doesNotMatch(collector, /FileMode\]::Create\b/);
 });
