@@ -11,6 +11,7 @@
   import {
     client02Presentation,
     focusCandidate,
+    isResourceOperationBusy,
     ownedVirtualCreationReason,
     rowPresentation,
     safeErrorDetails,
@@ -54,6 +55,9 @@
   // UI-only revision: IPC completion must not undo later user navigation.
   let navigationRevision = 0;
 
+  // Balanced policy is the current actual behavior, not a game FPS/RAM limit.
+  // All expensive helpers are explicitly requested and serialized by the UI.
+  $: resourceOperationBusy = isResourceOperationBusy(busy, ownedHostBusy, ownedInspectionBusy);
   $: base02 = client02Presentation(observation, selectedExecutable, licenseConfirmed);
   $: issue01 = issues["01"] ?? null;
   $: issue02 = issues["02"] ?? null;
@@ -161,7 +165,7 @@
   }
 
   async function checkStatus() {
-    if (busy) return;
+    if (isResourceOperationBusy(busy, ownedHostBusy, ownedInspectionBusy)) return;
     const requestRevision = navigationRevision;
     busy = "check";
     clearFeedback("02");
@@ -183,7 +187,7 @@
   }
 
   async function openMinecraft01() {
-    if (busy) return;
+    if (isResourceOperationBusy(busy, ownedHostBusy, ownedInspectionBusy)) return;
     const requestRevision = navigationRevision;
     busy = "open-01";
     clearFeedback("01");
@@ -200,7 +204,7 @@
   }
 
   async function selectMinecraft() {
-    if (busy) return;
+    if (isResourceOperationBusy(busy, ownedHostBusy, ownedInspectionBusy)) return;
     const requestRevision = navigationRevision;
     busy = "select";
     try {
@@ -228,7 +232,7 @@
   }
 
   async function openMinecraft02() {
-    if (busy || !observation || !selectedExecutable || !licenseConfirmed || base02.action !== "open") return;
+    if (isResourceOperationBusy(busy, ownedHostBusy, ownedInspectionBusy) || !observation || !selectedExecutable || !licenseConfirmed || base02.action !== "open") return;
     const requestRevision = navigationRevision;
     const requestedPanel = expanded;
     const requestedMode = detailMode;
@@ -252,7 +256,7 @@
 
   async function switchMinecraft02() {
     const target = focusCandidate(observation);
-    if (busy || !target || base02.action !== "switch") return;
+    if (isResourceOperationBusy(busy, ownedHostBusy, ownedInspectionBusy) || !target || base02.action !== "switch") return;
     const requestRevision = navigationRevision;
     busy = "switch";
     clearFeedback("02");
@@ -272,7 +276,7 @@
 
   async function moveMinecraft02() {
     const target = focusCandidate(observation);
-    if (busy || !target || !base02.canMove) return;
+    if (isResourceOperationBusy(busy, ownedHostBusy, ownedInspectionBusy) || !target || !base02.canMove) return;
     const requestRevision = navigationRevision;
     const requestedPanel = expanded;
     const requestedMode = detailMode;
@@ -296,7 +300,7 @@
 
   function choosePrimary(id: InstanceId, origin: HTMLButtonElement) {
     const action = id === "01" ? row01.action : row02.action;
-    if (busy) return;
+    if (isResourceOperationBusy(busy, ownedHostBusy, ownedInspectionBusy)) return;
     if (id === "01" && action === "open") { void openMinecraft01(); return; }
     if (id === "02" && action === "open") { void openMinecraft02(); return; }
     if (id === "02" && action === "switch") { void switchMinecraft02(); return; }
@@ -306,7 +310,7 @@
   }
 
   async function discoverExistingVirtuals() {
-    if (busy || ownedHostBusy || ownedInspectionBusy) return;
+    if (isResourceOperationBusy(busy, ownedHostBusy, ownedInspectionBusy) || ownedHostBusy || ownedInspectionBusy) return;
     busy = "discover-virtuals";
     existingVirtuals = null;
     existingVirtualsError = "";
@@ -321,7 +325,7 @@
   }
 
   async function inspectOwnedServiceNames() {
-    if (busy || ownedHostBusy || ownedInspectionBusy) return;
+    if (isResourceOperationBusy(busy, ownedHostBusy, ownedInspectionBusy) || ownedHostBusy || ownedInspectionBusy) return;
     ownedHostBusy = true;
     ownedHostInspection = null;
     ownedHostError = "";
@@ -335,7 +339,7 @@
   }
 
   async function inspectStagedOwnedEngine() {
-    if (busy || ownedInspectionBusy) return;
+    if (isResourceOperationBusy(busy, ownedHostBusy, ownedInspectionBusy) || ownedInspectionBusy) return;
     ownedInspectionBusy = true;
     ownedCandidate = null;
     ownedInspectionError = "";
@@ -367,7 +371,7 @@
       <header class="cm-toolbar">
         <h1>Virtual Manager</h1>
         <div class="cm-toolbar-actions">
-          <button class="cm-button cm-secondary" type="button" bind:this={checkStatusButton} disabled={Boolean(busy)} on:click={checkStatus}>
+          <button class="cm-button cm-secondary" type="button" bind:this={checkStatusButton} disabled={resourceOperationBusy} on:click={checkStatus}>
             <span class="cm-refresh-icon" aria-hidden="true">↻</span>
             {busy === "check" ? "Checking…" : "Check status"}
           </button>
@@ -383,12 +387,12 @@
         <div class="cm-virtual-actions">
           <button type="button" class="cm-button cm-secondary" disabled
             title="Internal isolation engine is not yet installed and verified">Create virtual</button>
-          <button type="button" class="cm-button cm-secondary" disabled={Boolean(busy)}
+          <button type="button" class="cm-button cm-secondary" disabled={resourceOperationBusy}
             on:click={discoverExistingVirtuals}>
             {busy === "discover-virtuals" ? "Checking…" : "Find existing virtuals"}
           </button>
           <button type="button" class="cm-button cm-secondary"
-            disabled={Boolean(busy) || ownedHostBusy || ownedInspectionBusy}
+            disabled={resourceOperationBusy}
             on:click={inspectOwnedServiceNames}>
             {ownedHostBusy ? "Checking engine…" : "Check engine readiness"}
           </button>
@@ -430,7 +434,7 @@
             </div>
             <div class="cm-row-actions">
               {#if row01.action}
-                <button class="cm-button cm-primary" type="button" disabled={Boolean(busy)}
+                <button class="cm-button cm-primary" type="button" disabled={resourceOperationBusy}
                   on:click={(event) => choosePrimary("01", event.currentTarget)} aria-expanded={row01.action === "issue" ? expanded === "01" : undefined} aria-controls={row01.action === "issue" ? "cm-details-01" : undefined}>{primaryLabel(row01.action)}</button>
               {/if}
               {#if issue01}
@@ -462,7 +466,7 @@
             </div>
             <div class="cm-row-actions">
               {#if row02.action}
-                <button type="button" class="cm-button cm-primary" disabled={Boolean(busy)}
+                <button type="button" class="cm-button cm-primary" disabled={resourceOperationBusy}
                   on:click={(event) => choosePrimary("02", event.currentTarget)} aria-expanded={row02.action === "issue" || row02.action === "setup" ? expanded === "02" : undefined} aria-controls={row02.action === "issue" || row02.action === "setup" ? "cm-details-02" : undefined}>{primaryLabel(row02.action)}</button>
               {/if}
               {#if row02.action === "switch" || expanded === "02"}
@@ -498,11 +502,11 @@
                     <span class="cm-field-label">Installed Minecraft Education</span>
                     <div class="cm-field-row">
                       <span class="cm-file-state">{selectedExecutable ? "Minecraft selected" : "No installation selected"}</span>
-                      <button class="cm-button cm-secondary" type="button" disabled={Boolean(busy)} on:click={selectMinecraft}>Browse…</button>
+                      <button class="cm-button cm-secondary" type="button" disabled={resourceOperationBusy} on:click={selectMinecraft}>Browse…</button>
                     </div>
                   </div>
                   <label class="cm-checkbox">
-                    <input type="checkbox" bind:checked={licenseConfirmed} disabled={Boolean(busy)}/>
+                    <input type="checkbox" bind:checked={licenseConfirmed} disabled={resourceOperationBusy}/>
                     I confirm Sandboxie Plus is licensed for this use and MinecraftClient02 is a persistent box.
                   </label>
                   <p class="cm-assist">Sign in separately in each Minecraft window. This app never requests Microsoft credentials.</p>
@@ -514,7 +518,7 @@
                   <button type="button" class:cm-selected={moveSide === "LEFT"} aria-pressed={moveSide === "LEFT"} on:click={() => (moveSide = "LEFT")}>Left</button>
                   <button type="button" class:cm-selected={moveSide === "RIGHT"} aria-pressed={moveSide === "RIGHT"} on:click={() => (moveSide = "RIGHT")}>Right</button>
                 </div>
-                <button class="cm-button cm-primary" type="button" disabled={Boolean(busy)} on:click={moveMinecraft02}>Apply</button>
+                <button class="cm-button cm-primary" type="button" disabled={resourceOperationBusy} on:click={moveMinecraft02}>Apply</button>
                 <p class="cm-assist">Only Minecraft 02 is moved. Restore a maximized or minimized window before applying.</p>
               {:else}
                 <h3>About Minecraft 02</h3>
@@ -553,7 +557,7 @@
           <h2>M-Isolation-Engine · Internal runtime</h2>
           <p>The Sandboxie-derived C/C++ core belongs to MIVUBI. Inspecting its packaged files is diagnostic only; a compiled, signed and installed engine is required before Create virtual can become available.</p>
           <button type="button" class="cm-button cm-secondary"
-            disabled={Boolean(busy) || ownedInspectionBusy || ownedHostBusy}
+            disabled={resourceOperationBusy}
             on:click={inspectStagedOwnedEngine}>
             {ownedInspectionBusy ? "Inspecting candidate…" : "Inspect engine candidate"}
           </button>
@@ -564,7 +568,7 @@
             <p class="cm-warning" role="alert">{ownedInspectionError}</p>
           {/if}
           <button type="button" class="cm-button cm-secondary"
-            disabled={Boolean(busy) || ownedInspectionBusy || ownedHostBusy}
+            disabled={resourceOperationBusy}
             on:click={inspectOwnedServiceNames}>
             {ownedHostBusy ? "Inspecting Windows…" : "Check engine service names"}
           </button>
