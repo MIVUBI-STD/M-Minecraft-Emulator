@@ -162,6 +162,13 @@ export async function stageOwnedV1186({
   const ownedTree = readGit(root,'rev-parse','HEAD:engine/isolation-owned');
   demand(readGit(root,'rev-parse','HEAD:engine/isolation-candidates/sandboxie-v1.18.6') ===
     profile.pristineSourceTree, 'pinned upstream candidate changed');
+  // The source verifier attests committed Git blobs, but this assembler
+  // copies resources, licenses and compiled outputs from the working tree.
+  // Never bind uncommitted edits to a verified HEAD. Allow ignored native
+  // binaries from the completed build; those have separate report hashes.
+  demand(readGit(root,'status','--porcelain=v1','--untracked-files=no','--',
+    'engine/isolation-owned', PROFILE) === '',
+    'tracked engine source/profile differs from verified Git HEAD');
   if (verifySource) {
     const result = verifySource(root);
     demand(result?.head === head && result?.ownedTree === ownedTree &&
