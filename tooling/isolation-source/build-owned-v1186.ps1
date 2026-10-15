@@ -28,6 +28,35 @@ if ($reportFolder.Equals($sourceFull, [StringComparison]::OrdinalIgnoreCase) -or
     $sourceFull.StartsWith($reportFolder + '\', [StringComparison]::OrdinalIgnoreCase)) {
   throw 'Build report may not overlap native source.'
 }
+# The optional assembler refuses existing targets and destinations within
+# the repository. Reject those predictable failures BEFORE spending time on
+# three native MSBuild stages. The assembler remains the final path verifier.
+if ($PackageDirectory) {
+  $packageAbsolute = [IO.Path]::GetFullPath($PackageDirectory)
+  $rootPath = [IO.Path]::GetPathRoot($packageAbsolute)
+  if ($packageAbsolute.TrimEnd('\').Equals($rootPath.TrimEnd('\'),
+      [StringComparison]::OrdinalIgnoreCase)) {
+    throw 'Engine package output must not be a drive root.'
+  }
+  $packageFolder = $packageAbsolute.TrimEnd('\')
+  $repoFolder = [IO.Path]::GetFullPath($repo).TrimEnd('\')
+  if ($packageFolder.Equals($repoFolder, [StringComparison]::OrdinalIgnoreCase) -or
+      $packageFolder.StartsWith($repoFolder + '\', [StringComparison]::OrdinalIgnoreCase) -or
+      $repoFolder.StartsWith($packageFolder + '\', [StringComparison]::OrdinalIgnoreCase)) {
+    throw 'Engine package output must be outside the repository checkout.'
+  }
+  if (Test-Path -LiteralPath $packageFolder) {
+    throw 'Engine package destination already exists; refuse replacement.'
+  }
+  $packageParent = Split-Path -Parent $packageFolder
+  if (-not (Test-Path -LiteralPath $packageParent -PathType Container)) {
+    throw 'Engine package destination parent must exist before native compilation.'
+  }
+  $parentItem = Get-Item -LiteralPath $packageParent -Force -ErrorAction Stop
+  if (($parentItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+    throw 'Engine package parent must not be a Windows reparse point.'
+  }
+}
 $git = (Get-Command git.exe -ErrorAction Stop).Source
 $node = (Get-Command node.exe -ErrorAction Stop).Source
 # A plain PowerShell session usually has no msbuild.exe on PATH. Resolve the
