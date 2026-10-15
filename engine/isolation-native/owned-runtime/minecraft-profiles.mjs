@@ -21,6 +21,10 @@ const SETTINGS = Object.freeze([
   // Enable LAST: never present a partially configured box as ready.
   Object.freeze(["Enabled", "y"]),
 ]);
+// A new Sandboxie section might otherwise be enabled before its other
+// settings are written. In the FUTURE exclusive-engine executor, disarm
+// the target first and verify the readback before writing any other key.
+const INITIAL_DISABLED = Object.freeze(["Enabled", "n"]);
 const GAME_BINARIES = new Set([
   "minecraft.windows.exe", "minecrafteducation.exe",
   "minecrafteducationedition.exe",
@@ -95,13 +99,16 @@ function configurationPlan(profiles) {
         arguments: ["set", box, key, value],
       }))),
     guardedSteps: profiles.flatMap(({client, box}) =>
-      SETTINGS.flatMap(([key, value]) => [
+      [INITIAL_DISABLED, ...SETTINGS].flatMap(([key, value]) => [
         {client, operation: "SET", executable: "SbieIni.exe",
           arguments: ["set", box, key, value]},
         {client, operation: "REQUIRE_READBACK", executable: "SbieIni.exe",
           arguments: ["query", box, key], expectedValue: value},
       ])),
+    // A partial write can leave an existing configuration section. Without
+    // proven ownership, never auto-rollback, erase or retry it.
     stopOnReadbackMismatch: true,
+    partialConfigurationRequiresManualReview: true,
     automaticDeletionPermitted: false,
     hostChanged: false,
     accountIsolationVerified: false,
