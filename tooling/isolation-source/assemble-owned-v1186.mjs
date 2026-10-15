@@ -138,7 +138,7 @@ function requireReport(report, profile, head, ownedTree) {
 }
 export async function stageOwnedV1186({
   repository = REPO, buildReport, outputDirectory,
-}, { verifySource = null } = {}) {
+}, { verifySource = null, readGit = git } = {}) {
   demand(typeof buildReport === 'string' && buildReport.length > 0 &&
     typeof outputDirectory === 'string' && outputDirectory.length > 0,
     'provide report path and new payload output directory');
@@ -156,11 +156,11 @@ export async function stageOwnedV1186({
     !inside(sourceRoot, target) && !inside(target, sourceRoot),
     'payload must be outside the source checkout');
   demand(!exists(target), 'destination already exists');
-  demand(git(root, 'branch', '--show-current') === 'Local',
+  demand(readGit(root, 'branch', '--show-current') === 'Local',
     'only reviewed Local branch is supported');
-  const head = git(root,'rev-parse','HEAD');
-  const ownedTree = git(root,'rev-parse','HEAD:engine/isolation-owned');
-  demand(git(root,'rev-parse','HEAD:engine/isolation-candidates/sandboxie-v1.18.6') ===
+  const head = readGit(root,'rev-parse','HEAD');
+  const ownedTree = readGit(root,'rev-parse','HEAD:engine/isolation-owned');
+  demand(readGit(root,'rev-parse','HEAD:engine/isolation-candidates/sandboxie-v1.18.6') ===
     profile.pristineSourceTree, 'pinned upstream candidate changed');
   if (verifySource) {
     const result = verifySource(root);
