@@ -188,14 +188,20 @@ test("owned configuration plans verify every setting before advancing or enablin
   for (const client of ["02", "03", "04"]) {
     const result = planOwnedMinecraftVirtual(client, []);
     assert.equal(result.commands.length, 8, "retain the historical write-only plan");
-    assert.equal(result.guardedSteps.length, 16, "eight writes and eight readbacks");
+    assert.equal(result.guardedSteps.length, 18, "disable/readback then eight write/readback pairs");
     assert.equal(result.stopOnReadbackMismatch, true);
     assert.equal(result.automaticDeletionPermitted, false);
+    assert.equal(result.partialConfigurationRequiresManualReview, true);
     assert.equal(result.settingsReadbackVerified, false);
     assert.equal(result.driverInstalled, false);
+    assert.deepEqual(result.guardedSteps[0].arguments,
+      ["set", "MivubiEdu" + client, "Enabled", "n"]);
+    assert.deepEqual(result.guardedSteps[1].arguments,
+      ["query", "MivubiEdu" + client, "Enabled"]);
+    assert.equal(result.guardedSteps[1].expectedValue, "n");
     for (let i = 0; i < 8; i++) {
-      const write = result.guardedSteps[i * 2];
-      const read = result.guardedSteps[i * 2 + 1];
+      const write = result.guardedSteps[2 + i * 2];
+      const read = result.guardedSteps[3 + i * 2];
       assert.equal(write.operation, "SET");
       assert.equal(read.operation, "REQUIRE_READBACK");
       assert.equal(write.client, client);
@@ -206,12 +212,12 @@ test("owned configuration plans verify every setting before advancing or enablin
       assert.equal(read.expectedValue, write.arguments[3]);
       assert.deepEqual(result.commands[i].arguments, write.arguments);
     }
-    assert.equal(result.guardedSteps[14].arguments[2], "Enabled");
-    assert.equal(result.guardedSteps[14].arguments[3], "y");
-    assert.equal(result.guardedSteps[15].expectedValue, "y");
+    assert.equal(result.guardedSteps[16].arguments[2], "Enabled");
+    assert.equal(result.guardedSteps[16].arguments[3], "y");
+    assert.equal(result.guardedSteps[17].expectedValue, "y");
   }
   const bulk = planOwnedMinecraftProfiles([]);
-  assert.equal(bulk.guardedSteps.length, 48);
+  assert.equal(bulk.guardedSteps.length, 54);
   const singles = ["02", "03", "04"].flatMap(
     client => planOwnedMinecraftVirtual(client, []).guardedSteps);
   assert.deepEqual(bulk.guardedSteps, singles);
@@ -222,7 +228,9 @@ test("owned configuration plans verify every setting before advancing or enablin
 test("owned readback comparison accepts only complete ordered matching values", () => {
   for (const client of ["02", "03", "04"]) {
     const plan = planOwnedMinecraftVirtual(client, []);
-    const readings = plan.guardedSteps
+    // Final-state validation excludes the initial disable/readback pair:
+    // the final observable Enabled value is y, not the historical n.
+    const readings = plan.guardedSteps.slice(2)
       .filter(step => step.operation === "REQUIRE_READBACK")
       .map(step => ({
         client, box: step.arguments[1], key: step.arguments[2],
@@ -261,4 +269,25 @@ test("owned readback comparison accepts only complete ordered matching values", 
     }
   }
   assert.throws(() => matchesOwnedMinecraftReadback("05", []));
+});
+
+test("no mid-setup ENABLE or cleanup/retry is permitted in the source-only plan", () => {
+  for (const client of ["02", "03", "04"]) {
+    const steps = planOwnedMinecraftVirtual(client, []).guardedSteps;
+    const writes = steps.filter(step => step.operation === "SET");
+    assert.deepEqual(writes.filter(step => step.arguments[2] === "Enabled")
+      .map(step => step.arguments[3]), ["n", "y"]);
+    assert.equal(writes[0].arguments[2], "Enabled");
+    assert.equal(writes[0].arguments[3], "n");
+    assert.equal(writes.at(-1).arguments[2], "Enabled");
+    assert.equal(writes.at(-1).arguments[3], "y");
+    assert.ok(steps.every(step => step.executable === "SbieIni.exe" &&
+      (step.operation === "SET" || step.operation === "REQUIRE_READBACK")));
+    const plan = planOwnedMinecraftVirtual(client, []);
+    assert.equal(plan.hostChanged, false);
+    assert.equal(plan.driverInstalled, false);
+    assert.equal(plan.accountIsolationVerified, false);
+    assert.equal(plan.automaticDeletionPermitted, false);
+    assert.equal(plan.partialConfigurationRequiresManualReview, true);
+  }
 });
