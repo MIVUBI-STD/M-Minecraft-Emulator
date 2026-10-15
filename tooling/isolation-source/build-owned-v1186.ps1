@@ -77,29 +77,25 @@ if ($proof.head -cne $head -or $proof.nativeModifiedFiles -ne 11 -or
     $proof.installationPermitted -ne $false) {
   throw 'Unexpected source verifier result.'
 }
-$stages = @(
-  @{ id='win32-support'; sln='Sandboxie/SandboxDll.sln'; platform='Win32' },
-  @{ id='x64-user-core'; sln='Sandboxie/Sandbox.sln'; platform='x64' },
-  @{ id='x64-wdk-kernel'; sln='Sandboxie/SandboxDrv.sln'; platform='x64' }
-)
-$required = @(
-  'Sandboxie/Bin/Win32/SbieRelease/SbieSvc.exe',
-  'Sandboxie/Bin/Win32/SbieRelease/SbieDll.dll',
-  'Sandboxie/Bin/x64/SbieRelease/SbieDrv.sys',
-  'Sandboxie/Bin/x64/SbieRelease/SbieSvc.exe',
-  'Sandboxie/Bin/x64/SbieRelease/SbieDll.dll',
-  'Sandboxie/Bin/x64/SbieRelease/Start.exe',
-  'Sandboxie/Bin/x64/SbieRelease/SbieIni.exe',
-  'Sandboxie/Bin/x64/SbieRelease/kmdutil.exe',
-  'Sandboxie/Bin/x64/SbieRelease/SbieMsg.dll',
-  'Sandboxie/Bin/x64/SbieRelease/SandboxieRpcSs.exe',
-  'Sandboxie/Bin/x64/SbieRelease/SandboxieDcomLaunch.exe',
-  'Sandboxie/Bin/x64/SbieRelease/SandboxieCrypto.exe',
-  'Sandboxie/Bin/x64/SbieRelease/SandboxieBITS.exe',
-  'Sandboxie/Bin/x64/SbieRelease/SandboxieWUAU.exe',
-  'Sandboxie/Bin/x64/SbieRelease/SbieCtrl.exe',
-  'Sandboxie/Bin/x64/SbieRelease/SboxHostDll.dll'
-)
+# One native build profile is shared with the v1.18.6 packaging owner.
+# Do not keep a second hard-coded list of outputs in this builder.
+$stages = @($spec.buildStages)
+$required = @($spec.requiredArtifacts)
+if ($stages.Count -ne 3 -or $required.Count -ne 16 -or
+    $spec.sourceResources.Count -ne 5 -or $spec.enginePayloadState -cne 'MIVUBI_V1186_CORE_STAGED_NOT_INSTALLABLE') {
+  throw 'Incomplete owned v1.18.6 build/payload profile.'
+}
+$expectedStages = @('win32-support|Sandboxie/SandboxDll.sln|Win32',
+                    'x64-user-core|Sandboxie/Sandbox.sln|x64',
+                    'x64-wdk-kernel|Sandboxie/SandboxDrv.sln|x64')
+for ($i = 0; $i -lt $expectedStages.Count; $i++) {
+  $actual = "$($stages[$i].id)|$($stages[$i].sln)|$($stages[$i].platform)"
+  if ($actual -cne $expectedStages[$i]) { throw 'Unexpected native solution order.' }
+}
+if (@($required | Select-Object -Unique).Count -ne 16 -or
+    @($required | Where-Object { $_ -cnotmatch '^Sandboxie/Bin/(Win32|x64)/SbieRelease/[A-Za-z0-9._-]+$' }).Count -ne 0) {
+  throw 'Unexpected or duplicate native build artifact paths.'
+}
 foreach ($rel in $required) {
   $path = Join-Path $source ($rel -replace '/', '\')
   if (Test-Path -LiteralPath $path) {
