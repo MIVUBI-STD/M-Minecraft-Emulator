@@ -389,7 +389,7 @@
             title="Internal isolation engine is not yet installed and verified">Create virtual</button>
           <button type="button" class="cm-button cm-secondary" disabled={resourceOperationBusy}
             on:click={discoverExistingVirtuals}>
-            {busy === "discover-virtuals" ? "Checking…" : "Find existing virtuals"}
+            {busy === "discover-virtuals" ? "Checking…" : "Inspect Sandboxie names"}
           </button>
           <button type="button" class="cm-button cm-secondary"
             disabled={resourceOperationBusy}
