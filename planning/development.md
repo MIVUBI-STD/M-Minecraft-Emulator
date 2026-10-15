@@ -1,5 +1,17 @@
 # Current Development Handoff — M-Minecraft-Emulator
 
+## Code-only batch: owned payload integrity and explicit box inventory — 16 October 2026
+
+**Scope and source owners:** (1) `tooling/isolation-source/assemble-owned-v1186.mjs` plus its existing `.test.mjs`; (2) `engine/isolation-native/owned-runtime/minecraft-profiles.mjs` plus its existing `.test.mjs`. All changes are source-only on `Local`; the active official Sandboxie backend, MIVUBI native driver, Minecraft game, credentials and account-bearing boxes are untouched.
+
+**Closed source defect A — time-of-check/source provenance:** tracked Git status alone could not prove that config/license bytes stayed unchanged between the check and the final copy. The assembler now reads the nine required committed blob identities from **one** `git ls-tree -r --full-tree HEAD` call and checks the actual copied files against canonical Git blob SHA-1 (including the `blob <length>\\0` prefix). Compiled binaries continue to use the existing SHA-256 build-report checks. A dirty-worktree refusal remains in place. Existing regression fixtures now bind the nine committed resources and include two late-change rejection cases for `Templates.ini` and `LICENSE.Plus`; no new checker, monitor or daemon was added.
+
+**Closed source defect B — missing box inventory:** `planOwnedMinecraftVirtual` and the historical bulk planner used to default an **omitted** `existingBoxes` parameter to `[]`, silently treating an unavailable inventory as an empty host. Both require an explicitly supplied, bounded list now; null/undefined/malformed inventories fail closed. Existing explicit empty-list planning remains unchanged and still is **not** proof that any Windows host is actually empty. No box configuration executor or driver activation was enabled.
+
+**Actual proof obtained this batch:** GitHub exact-source readback and clean latest-head commit checks; Git tree API confirmed all nine resource/license blobs present in `Local`; V8 ran the actual committed-resource tree parser for 1 valid and 5 invalid cases; V8 ran the exact updated owned-profile module functions for 5 allowed and 11 disallowed cases. Native Node 22 and Git `hash-object` produced identical Git blob SHA-1 on a disposable test fixture. V8 parsed the edited assembler/test source after removing imports solely for syntax-checking. These are limited, explicit checks — **the complete Node 24 test suite, Tauri/Svelte/Rust checks, Windows PowerShell, MSVC/WDK build, signing/loading, and real Minecraft gameplay are still NOT_EXECUTED**.
+
+**Next concrete source-only sequence:** review remaining engine build-stage output/ABI assumptions against pinned native solution files; audit the owned-profile configuration transaction boundaries and negative tests without creating or modifying live boxes; then prepare a single final Windows validation campaign. Do not lift the Create Virtual or package/install guards on source proof alone.
+
 ## Code-first completion policy — 16 October 2026
 
 **User directive:** finish every source-verifiable implementation task first; do **not** require or request incremental local-PC Minecraft testing. Reserve Windows/WDK driver loading, account sign-in, idle-crash reproduction, four-game soak, GPU/FPS measurement and installer/install lifecycle acceptance as one final operator test campaign, clearly marked **NOT_EXECUTED** until it happens. GitHub source edits do NOT convert these outcomes to PASS.
