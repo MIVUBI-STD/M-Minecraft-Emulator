@@ -26,6 +26,21 @@ test('builder only compiles and captures unsigned artifacts, never installs a dr
   assert.match(source, /driverLoaded = \$false/);
   assert.match(source, /installPermitted = \$false/);
   assert.match(source, /activeProviderChanged = \$false/);
-  assert.doesNotMatch(source, /\b(Start-Service|New-Service|sc\.exe|pnputil|signtool|bcdedit|Start-Process)\b/i);
+  assert.doesNotMatch(source, /\b(Start-Service|New-Service|sc\.exe|pnputil|signtool|bcdedit)\b/i);
   assert.match(source, /Report destination exists; use a new directory/);
+});
+
+test('builder resolves VS2022 deterministically and captures native MSBuild failure evidence', () => {
+  assert.match(source, /Visual Studio\/Installer\/vswhere\.exe/);
+  assert.match(source, /-version '\[17\.0,18\.0\)'/);
+  assert.match(source, /MSBuild\/Current\/Bin\/MSBuild\.exe/);
+  assert.doesNotMatch(source, /Get-Command msbuild\.exe/);
+  assert.match(source, /Start-Process -FilePath \$msbuild/);
+  assert.match(source, /-RedirectStandardOutput \$stdout/);
+  assert.match(source, /-RedirectStandardError \$stderr/);
+  assert.match(source, /stageResult\.exitCode = \[int\]\$process\.ExitCode/);
+  assert.match(source, /stageResult\.launchFailure = \$_\.Exception\.Message/);
+  assert.match(source, /\/nodeReuse:false/);
+  assert.match(source, /\$report\.buildStages = \$results/);
+  assert.match(source, /build-result\.json/);
 });
