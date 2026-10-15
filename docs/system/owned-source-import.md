@@ -139,9 +139,9 @@ upstream tag `v1.18.6` commit `cdba7096240b93d79c5373aa81a75a1c5c71b883`
 tree `f690477c07a40810f479f53973334ceae7e0ab13`.
 
 The `Local` branch now has a **separate partial** versioned candidate at
-`engine/isolation-candidates/sandboxie-v1.18.6/`: 723 original source files
+`engine/isolation-candidates/sandboxie-v1.18.6/`: 827 original source files
 with exact Git SHA/mode parity. The active older partial copy at
-`engine/isolation-owned/` is left unchanged. The remaining 904 files still need to be transferred. The full source has NOT yet
+`engine/isolation-owned/` is left unchanged. The remaining 800 files still need to be transferred. The full source has NOT yet
 been committed to GitHub. This candidate is source only, NOT built or active.
 
 `tooling/isolation-source/import-v1186-archive.py` is an executable Python
@@ -163,3 +163,10 @@ python tooling/isolation-source/import-v1186-archive.py \\
 The `Sandboxie-Plus-x64-v1.18.6.exe` upload is an **installer**, not source.
 It was not executed or redistributed. No driver, service, account or Minecraft
 world data is touched by the source-only migration.
+
+### Exact artifact audit — 15 October 2026
+
+- ZIP SHA-256: `22d8b004d4fe8dcf05654c4704a8b121c730352c1b406d2f1dad564dea451b33`. A fresh disposable local Git reconstruction of all 1,627 tracked archive files returned the official tag tree `f690477c07a40810f479f53973334ceae7e0ab13` (PASS). ZIP extraction alone does not push to GitHub.
+- Installer `Sandboxie-Plus-x64-v1.18.6.exe`: size 24,914,432 bytes; SHA-256 `3ad29e1ec18618ee9aa4ef4e21ab0548cf2188b94c05c41cb7a07b5d2d0270e2`, identical to the digest of the x64 v1.18.6 asset published at https://github.com/sandboxie-plus/Sandboxie/releases/tag/v1.18.6. It is a signed-release **reference artifact**, not an executable of the customized MIVUBI fork; no install or execution took place.
+- GitHub `Local` migration remains **827/1,627 source files** (50.83%); all staged source blob SHAs/modes match upstream. No partial source tree may be declared build-ready. Legacy non-UTF-8 upstream reports must be copied from exact raw archive bytes using the approved importer, not a lossy GitHub text response.
+- Do not commit the third-party installer to the application runtime or point production launches to it; preserve original licenses and old source until license/build/driver/acceptance review.

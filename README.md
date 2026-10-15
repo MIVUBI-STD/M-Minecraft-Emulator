@@ -9,15 +9,11 @@ Local → active development / source authority
 main  → reviewed stable/release authority
 ```
 
-## Full Sandboxie source ownership — partial import in progress
+## Source ownership — active v1.18.6 migration
 
-[Complete owned source import](docs/system/owned-source-import.md) provides a
-resumable, fail-closed source-import workflow to finish copying **all** pinned Sandboxie Plus/Classic
-tracked source, tools and licenses into `engine/isolation-owned/`, then apply
-the MIVUBI changes directly to that owned source. The `Local` branch currently contains 314/1,624 pinned upstream source blobs;
-the remaining source, owned native patch, and Windows build are NOT complete.
-No private compiled Windows driver is claimed. The existing upstream submodule remains
-a pinned, read-only reference until the exact subtree import is completed.
+The authentic Sandboxie v1.18.6 source candidate is being imported as ordinary editable Git files under `engine/isolation-candidates/sandboxie-v1.18.6/`. At the latest audit it contains **827 of 1,627 files** (50.83%), and the independently verified complete original source ZIP is available to the resumable, fail-closed importer at `tooling/isolation-source/import-v1186-archive.py`. **This is source-transfer progress, not build or gameplay readiness.**
+
+The separate partial `engine/isolation-owned/` v1.18.5 snapshot and the installed licensed official Sandboxie pilot have not been modified or switched. The remaining source and MIVUBI-owned native patch migration, signed Windows driver/service/DLL/launcher build, and real Minecraft acceptance are **NOT_EXECUTED**. See [complete owned source import](docs/system/owned-source-import.md) and [current handoff](planning/development.md).
 
 ## Start here
 

@@ -1,14 +1,18 @@
 # Current Development Handoff — M-Minecraft-Emulator
 
-## v1.18.6 source migration checkpoint — 15 October 2026
+## Source and artifact verification — 15 October 2026 (latest Local audit)
 
-**Committed actual source, not just documents:** `engine/isolation-candidates/sandboxie-v1.18.6/` now contains **723 of 1,627** genuine upstream v1.18.6 files. SHA and Git file mode parity were validated across the entire candidate tree before the latest `Local` commit. The 723 include complete kernel driver, DLL, privileged service, low-level injection, application launcher and config code; complete shared/common, COM helpers, QSbieAPI, Classic control (110 files), Classic app resource binaries (34 files), and Sandboxie/install support. There are **904 missing**, primarily SandMan/Plus utilities, upstream repo metadata and additional tooling. Full remote GitHub import is NOT complete. Existing `engine/isolation-owned/` v1.18.5 source remains untouched.
+**GitHub-owned v1.18.6 candidate: 827 / 1,627 files (50.83%), 800 absent.** This import adds **104 genuine original files** to the prior 723-file commit, including SandMan launcher/process/box-monitor source, MiscHelpers archive/common code, repository metadata and original assets. Every one of the 827 staged candidate file paths matched the official v1.18.6 blob SHA and Git file mode in a recursive tree audit. Upstream source tree: `f690477c07a40810f479f53973334ceae7e0ab13` (tag commit `cdba7096240b93d79c5373aa81a75a1c5c71b883`). The candidate remains **incomplete**; do not promote or build it as the owned private engine yet.
 
-**Upgrade caution:** 40 source files changed and three were added between v1.18.5 and v1.18.6. In the existing eleven-source-file MIVUBI private overlay, at least `Sandboxie/common/my_version.h` and `Sandboxie/core/drv/api.c` changed upstream, so version-specific patch revalidation is required before any switch. No native Windows driver build, signing, installation or Minecraft gameplay acceptance was performed.
+**Original ZIP, independently inspected:** the user-supplied archive contains 1,627 files, SHA-256 `22d8b004d4fe8dcf05654c4704a8b121c730352c1b406d2f1dad564dea451b33`. Independent extraction and `git write-tree` yielded the exact official tree `f690477c07a40810f479f53973334ceae7e0ab13`, PASS. This verifies local archive completeness, not remote import completion.
 
-**Exact target:** upstream tree `f690477c07a40810f479f53973334ceae7e0ab13`. The already committed ZIP importer `tooling/isolation-source/import-v1186-archive.py` was tested against the exact uploaded ZIP (source blob `b8e3c500597103ea9d0a5f60b1b44fb7199a41c6`) in a disposable Git repo, but this local success does not imply all 1,627 files were pushed to GitHub.
+**Original installer, inspect-only:** `Sandboxie-Plus-x64-v1.18.6.exe` (24,914,432 bytes) SHA-256 `3ad29e1ec18618ee9aa4ef4e21ab0548cf2188b94c05c41cb7a07b5d2d0270e2`. These bytes exactly match GitHub's published v1.18.6 release asset digest. Installer was **not executed, installed or committed** and is not MIVUBI's private compiled engine.
 
-**Next:** move the remaining 904 files as ordinary Git blobs and verify full candidate subtree parity before attempting to rebase the MIVUBI patch.
+**Transfer constraint:** GitHub connector text transport is not byte-faithful for some legacy non-UTF-8 translation/report files. Never silently replace a source blob with a re-encoded copy. Use the already committed `tooling/isolation-source/import-v1186-archive.py` with the exact ZIP in a clean `Local` checkout for the remaining byte-exact import, then verify the complete candidate subtree hash. The older `engine/isolation-owned/` v1.18.5 copy and installed official Sandboxie are untouched.
+
+**Runtime proof remains NOT_EXECUTED:** MIVUBI v1.18.6 overlay port/review, MSVC+WDK build, signing, driver/service loading, Windows lifecycle, two-client stability and four-client Minecraft Education acceptance. The locally observed official two-client pilot is not an owned-engine acceptance.
+
+**Next single task:** complete the remaining 800 upstream files as byte-exact writable Git objects and prove the candidate subtree equals the pinned official tree; only afterward port and test the 11-source-file MIVUBI private overlay.
 
 ## Uploaded v1.18.6 full source and actual candidate migration — 15 October 2026
 
