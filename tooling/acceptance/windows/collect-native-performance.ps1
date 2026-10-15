@@ -231,25 +231,33 @@ if ($GpuSnapshot) {
 }
 $stamp = $beginUtc.ToString('yyyyMMddTHHmmssfffffffZ')
 $file = Join-Path $OutputDirectory ('native-process-performance-' + $stamp + '.json')
-# Windows PowerShell 5.1's Set-Content -Encoding UTF8 writes a BOM, which
-# Node JSON.parse rejects. Serialize before opening the destination and write
-# UTF-8 without a BOM. FileMode.CreateNew also refuses a concurrent writer:
-# Test-Path + Set-Content was a check/use race and could overwrite evidence.
+# Windows PowerShell 5.1's Set-Content -Encoding UTF8 emits a BOM
+# that strict Node JSON.parse rejects. Commit only a COMPLETE UTF8-no-BOM
+# file: create an exclusive temporary file beside the final destination,
+# flush/close it, then move it into place WITHOUT replacing existing reports.
+# The same-directory move prevents an interrupted write leaving a fake final.
 $json = $report | ConvertTo-Json -Depth 7
 $utf8NoBom = [System.Text.UTF8Encoding]::new($false)
 $bytes = $utf8NoBom.GetBytes($json + [Environment]::NewLine)
-$stream = [System.IO.File]::Open($file, [System.IO.FileMode]::CreateNew,
-  [System.IO.FileAccess]::Write, [System.IO.FileShare]::None)
-$written = $false
+$temporary = Join-Path $OutputDirectory ('.mivubi-native-performance-' +
+  [Guid]::NewGuid().ToString('N') + '.tmp')
+$stream = $null
 try {
+  $stream = [System.IO.File]::Open($temporary, [System.IO.FileMode]::CreateNew,
+    [System.IO.FileAccess]::Write, [System.IO.FileShare]::None)
   $stream.Write($bytes, 0, $bytes.Length)
   $stream.Flush()
-  $written = $true
-} finally {
   $stream.Dispose()
-  if (-not $written) {
-    # Only the destination created by THIS invocation may be removed.
-    [System.IO.File]::Delete($file)
+  $stream = $null
+  # File.Move (two arguments) refuses an existing destination; do not use
+  # Move-Item -Force or File.Copy here. The original report is never replaced.
+  [System.IO.File]::Move($temporary, $file)
+} finally {
+  if ($null -ne $stream) { $stream.Dispose() }
+  # This invocation owns ONLY the GUID-named staging file. A failed move
+  # never removes or mutates an existing final report.
+  if ([System.IO.File]::Exists($temporary)) {
+    try { [System.IO.File]::Delete($temporary) } catch { }
   }
 }
 [ordered]@{
