@@ -13,6 +13,12 @@ This is a **navigation guide**, not a second registry or copy of implementation 
 
 ## Locate work by problem
 
+For the complete pinned source copy and first direct MIVUBI native modifications,
+use [Owned full-source import](./owned-source-import.md); the source owner
+becomes `engine/isolation-owned/` **only once the Git subtree import has
+actually succeeded**. Until then, the existing pinned upstream Gitlink and
+native overlay remain the committed source inputs.
+
 | Question / fault | Primary implementation owner | Consumer / companion |
 | --- | --- | --- |
 | Native PID/HWND candidates without accounts, tokens or VM | `apps/desktop/src-tauri/src/engine/native_clients.rs`, `apps/desktop/src/app/bridge/nativeFeasibilityApi.ts` | [Native feasibility](../validation/native-multi-instance-feasibility.md); candidate-only |

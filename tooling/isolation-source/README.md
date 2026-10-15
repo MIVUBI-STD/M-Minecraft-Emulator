@@ -2,6 +2,18 @@
 
 **Purpose:** reproduce Sandboxie-Plus **v1.18.5** core build inputs and record source/artifact provenance for the planned personal, educational/noncommercial **M-Isolation-Engine**. This is **not** an app installation routine, driver signing tool, fork repository, or migration command. The active Minecraft manager continues using official Sandboxie with the existing account-bearing box unchanged.
 
+## Full-source import path (owned Git subtree, not a wrapper)
+
+The new [owned source import procedure](../../docs/system/owned-source-import.md)
+copies **every tracked upstream Sandboxie v1.18.5 file** from the exact pinned
+Git seed into a writable `engine/isolation-owned/` directory of this
+application. It then applies the existing native 11-file MIVUBI patch directly
+to the copied source in a separate normal `Local` commit. Its four
+disposable-Git integration tests passed; the real 1,624-file transfer has
+not run on GitHub because unrelated repository tree objects cannot be
+linked by the available GitHub API. Neither script modifies the official
+installed Sandboxie or claims a compiled/verified Windows driver.
+
 ## What is pinned
 
 - Full upstream repository: <https://github.com/sandboxie-plus/Sandboxie>

@@ -9,6 +9,16 @@ Local → active development / source authority
 main  → reviewed stable/release authority
 ```
 
+## Full Sandboxie source ownership — source import prepared
+
+[Complete owned source import](docs/system/owned-source-import.md) provides a
+tested Git subtree workflow to copy **all** pinned Sandboxie Plus/Classic
+tracked source, tools and licenses into `engine/isolation-owned/`, then apply
+the MIVUBI changes directly to that owned source. The source import must be
+executed against the real pinned checkout; no new remote GitHub fork or
+compiled Windows driver is claimed. The existing upstream submodule remains
+a pinned, read-only reference until the exact subtree import is completed.
+
 ## Start here
 
 For ChatGPT + GitHub development, the authoritative route is:

@@ -1,5 +1,39 @@
 # Current Development Handoff — M-Minecraft-Emulator
 
+## Complete upstream source ownership — 15 October 2026
+
+**User decision:** stop developing only a small external Sandboxie overlay;
+copy the *entire* authentic Sandboxie Plus / Classic v1.18.5 tracked source
+tree into the existing `Local` repository, then modify native code directly.
+The new `tooling/isolation-source/import-full-sandboxie.mjs` uses a
+full-history pinned upstream Git seed and `git subtree add --squash` to
+create a normal writable `engine/isolation-owned/` directory in `Local`.
+It compares the imported complete Git tree SHA to the upstream tag's
+tree SHA. A second command `apply-owned-sandboxie.mjs` applies and
+commits the existing 11-file MIVUBI native changes directly inside the
+imported COPY; the pinned upstream seed and account-bearing host are not
+mutated. This is the future native source owner after actual import.
+
+**Executed:** four positive/negative real local Git subtree/patch integration
+tests passed on disposable fixture repositories in the ChatGPT Linux
+container, including exact imported Git tree parity, independent source
+editability, a clean Local boundary and a second committed engine patch.
+The Git blobs of the four committed JS scripts/tests matched their
+container-executed `git hash-object` source blobs.
+
+**Not done:** the 1,624 authentic upstream tracked files have **not yet been
+transferred into the remote MIVUBI GitHub repository**. The available
+GitHub connector cannot create a fork or reference unrelated upstream
+tree objects (GitHub returned 422), while the ChatGPT container has
+no GitHub network/DNS. The user-approved one-time Git subtree import
+is implemented, not executed against the real upstream checkout. No
+MSVC/WDK build, signed driver, service activation or Minecraft private
+engine runtime is claimed. See `docs/system/owned-source-import.md`.
+
+**Next:** perform the single full-source Git subtree import from the
+initialized pinned source checkout, then apply the native code as a regular
+owned Git commit; only then build and debug real MSVC/WDK outputs.
+
 ## Private Minecraft Education login configuration parity — 15 October 2026
 
 **Observed mismatch corrected in source:** the operator-confirmed
