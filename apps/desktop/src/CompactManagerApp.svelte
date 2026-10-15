@@ -386,6 +386,7 @@
         </div>
         <div class="cm-virtual-actions">
           <button type="button" class="cm-button cm-secondary" disabled
+            aria-describedby="cm-create-reason"
             title="Internal isolation engine is not yet installed and verified">Create virtual</button>
           <button type="button" class="cm-button cm-secondary" disabled={resourceOperationBusy}
             on:click={discoverExistingVirtuals}>
@@ -399,7 +400,7 @@
         </div>
       </section>
       <section class="cm-create-readiness" aria-label="Create virtual requirements">
-        <p aria-live="polite">{ownedHostError || ownedVirtualCreationReason(ownedHostInspection)}</p>
+        <p id="cm-create-reason" aria-live="polite">Create Virtual unavailable: {ownedHostError || ownedVirtualCreationReason(ownedHostInspection)}</p>
         <details>
           <summary>Supported owned virtuals</summary>
           <p>The current internal Minecraft preset supports three separate persistent boxes: MivubiEdu02, MivubiEdu03 and MivubiEdu04. General custom names are not yet supported by its kernel policy. These virtuals have not been created.</p>
@@ -438,7 +439,7 @@
                   on:click={(event) => choosePrimary("01", event.currentTarget)} aria-expanded={row01.action === "issue" ? expanded === "01" : undefined} aria-controls={row01.action === "issue" ? "cm-details-01" : undefined}>{primaryLabel(row01.action)}</button>
               {/if}
               {#if issue01}
-                <button class="cm-link" type="button" aria-expanded={expanded === "01"} aria-controls="cm-details-01" on:click={(event) => toggleDetails("01", "issue", event.currentTarget)}>Details</button>
+                <button class="cm-link" type="button" aria-label="Minecraft 01 error details" aria-expanded={expanded === "01"} aria-controls="cm-details-01" on:click={(event) => toggleDetails("01", "issue", event.currentTarget)}>Details</button>
               {/if}
             </div>
           </div>
@@ -470,7 +471,7 @@
                   on:click={(event) => choosePrimary("02", event.currentTarget)} aria-expanded={row02.action === "issue" || row02.action === "setup" ? expanded === "02" : undefined} aria-controls={row02.action === "issue" || row02.action === "setup" ? "cm-details-02" : undefined}>{primaryLabel(row02.action)}</button>
               {/if}
               {#if row02.action === "switch" || expanded === "02"}
-                <button class="cm-link" type="button" aria-expanded={expanded === "02"}
+                <button class="cm-link" type="button" aria-label="Minecraft 02 details" aria-expanded={expanded === "02"}
                   aria-controls="cm-details-02" on:click={(event) => toggleDetails("02", row02.action === "switch" ? "move" : "info", event.currentTarget)}>Details</button>
               {/if}
             </div>
@@ -532,6 +533,21 @@
             </div>
           {/if}
         </div>
+      </section>
+      <section class="cm-future-virtuals" aria-label="Planned virtual clients">
+        <h2>Planned virtuals</h2>
+        <p>Clients 03 and 04 cannot be created or launched yet. A built, signed and verified MIVUBI isolation engine is required.</p>
+        {#each ["03", "04"] as client (client)}
+          <div class="cm-instance cm-planned-instance">
+            <div class="cm-row">
+              <span class="cm-monitor" aria-hidden="true"></span>
+              <div class="cm-row-copy">
+                <h3>Virtual {client} · Minecraft Education</h3>
+                <p>Unavailable · No session or account created</p>
+              </div>
+            </div>
+          </div>
+        {/each}
       </section>
       <footer class="cm-footer">
         {#if lastCheck}
