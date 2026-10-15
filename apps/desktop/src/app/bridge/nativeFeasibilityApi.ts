@@ -323,19 +323,20 @@ export function parseOwnedHostInspection(value: unknown): OwnedHostInspection {
 export interface VirtualBoxInventory {
   schema: 1;
   source: "EXISTING_OFFICIAL_SANDBOXIE_PILOT";
-  evidence: "BOX_NAMES_ONLY";
+  evidence: "SECTION_NAME_CANDIDATES";
   boxes: string[];
   ownedProviderSelected: false;
   gameplayVerified: false;
 }
 
-// Display names only. These are NOT MIVUBI-owned created/ready virtuals.
+// Configuration section-name candidates only. These are NOT authenticated boxes,
+// MIVUBI-owned virtuals or evidence of gameplay readiness.
 export function parseVirtualBoxInventory(value: unknown): VirtualBoxInventory {
   if (!isRecord(value) || !hasOnly(value, [
     "schema", "source", "evidence", "boxes", "ownedProviderSelected", "gameplayVerified",
   ]) || value.schema !== 1 ||
     value.source !== "EXISTING_OFFICIAL_SANDBOXIE_PILOT" ||
-    value.evidence !== "BOX_NAMES_ONLY" ||
+    value.evidence !== "SECTION_NAME_CANDIDATES" ||
     value.ownedProviderSelected !== false || value.gameplayVerified !== false ||
     !Array.isArray(value.boxes) || value.boxes.length > 128) {
     throw new TypeError("Untrusted existing virtual inventory.");
