@@ -229,6 +229,19 @@ test("owned readback comparison accepts only complete ordered matching values", 
         value: step.expectedValue,
       }));
     assert.equal(matchesOwnedMinecraftReadback(client, readings), true);
+    // A forged record with inherited required values must not be admitted
+    // just because it happens to have four unrelated own properties.
+    const inherited = Object.assign(Object.create({...readings[0]}), {
+      noise1: 1, noise2: 2, noise3: 3, noise4: 4,
+    });
+    assert.equal(matchesOwnedMinecraftReadback(client,
+      [inherited, ...readings.slice(1)]), false);
+    const oneInherited = Object.assign(Object.create({client}), {
+      box: readings[0].box, key: readings[0].key,
+      value: readings[0].value, unrelated: true,
+    });
+    assert.equal(matchesOwnedMinecraftReadback(client,
+      [oneInherited, ...readings.slice(1)]), false);
     for (const corrupt of [
       rows => rows.pop(),
       rows => rows.reverse(),
