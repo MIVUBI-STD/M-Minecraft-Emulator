@@ -116,3 +116,34 @@ pub async fn desktop_discover_existing_virtuals(
         .map_err(|error| format!("Virtual discovery task failed: {error}"))?
         .map_err(|error| error.to_string())
 }
+
+#[cfg(test)]
+mod resource_admission_tests {
+    use super::admit_resource_operation;
+    use std::{cell::Cell, io, sync::Mutex};
+
+    #[test]
+    fn simultaneous_heavy_request_fails_before_running_a_second_helper() {
+        let gate = Mutex::new(());
+        let existing = gate.lock().unwrap();
+        let invoked = Cell::new(false);
+        let error = admit_resource_operation(&gate, || {
+            invoked.set(true);
+            Ok(())
+        }).unwrap_err();
+        assert_eq!(error.kind(), io::ErrorKind::WouldBlock);
+        assert!(!invoked.get(), "must not spawn an overlapping Windows helper");
+        drop(existing);
+        assert_eq!(admit_resource_operation(&gate, || Ok(7)).unwrap(), 7);
+    }
+
+    #[test]
+    fn a_failed_helper_releases_admission_for_the_next_explicit_action() {
+        let gate = Mutex::new(());
+        let error = admit_resource_operation(&gate, || -> io::Result<()> {
+            Err(io::Error::other("collector failed"))
+        }).unwrap_err();
+        assert_eq!(error.kind(), io::ErrorKind::Other);
+        assert_eq!(admit_resource_operation(&gate, || Ok("ready")).unwrap(), "ready");
+    }
+}
