@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import { evaluateNativePerformance, compareNativePerformance } from "./evaluate-native-performance.mjs";
 
@@ -274,4 +275,23 @@ test("cross-schema CPU/RAM reports do not emit numeric improvement comparisons",
   assert.equal(pair.comparableForNumericDifference, true);
   assert.equal(pair.improvementVerified, false);
   assert.equal(pair.differences.native.meanHostCpuPercentagePointDifference, 0);
+});
+
+test("opt-in GPU counter capture is one-shot and leaves default collector overhead unchanged", () => {
+  const collector = readFileSync(new URL("./windows/collect-native-performance.ps1", import.meta.url), "utf8");
+  assert.match(collector, /\[switch\]\$GpuSnapshot/);
+  assert.match(collector, /if \(\$GpuSnapshot\) \{[\s\S]*?Read-GpuSnapshot/);
+  assert.match(collector, /\$report\['gpuDiagnostic'\] = \$gpuDiagnostic/);
+  assert.match(collector, /schema = if \(\$GpuSnapshot\) \{ 2 \} else \{ 1 \}/);
+  assert.match(collector, /Get-Counter[\s\S]*?-MaxSamples 2/);
+  assert.match(collector, /ExpectedStartTicks \$item\.started/);
+  assert.match(collector, /status = 'UNKNOWN'/);
+  assert.match(collector, /durationObservedSeconds = \$durationWithoutGpu/);
+  assert.doesNotMatch(collector, /Start-Process|Start-Service|Stop-Process|Stop-Service|Set-Process/);
+  assert.doesNotMatch(collector, /Set-ItemProperty|Set-GpuPreference|taskkill/);
+  // No GPU counter collection happens inside the CPU/RAM sampling loop.
+  const loopBody = collector.split("while ($timer.Elapsed.TotalSeconds < $DurationSeconds) {")[1]
+    ?.split("# Capture duration excludes the optional diagnostic query.")[0] ?? "";
+  assert.ok(loopBody.length > 0);
+  assert.doesNotMatch(loopBody, /Get-Counter|Read-GpuSnapshot/);
 });
