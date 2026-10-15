@@ -117,6 +117,9 @@ test("rejects arbitrary code, paths, client IDs, UNC, args, and shell",()=>{
     "C:\\Minecraft.Windows.exe\u0000",
     "C:\\Notepad.exe","C:\\foo\\..\\Minecraft.Windows.exe",
     "C:/Minecraft.Windows.exe","C:\\Minecraft.Windows.exe|powershell",
+    "C:\\folder:stream\\Minecraft.Windows.exe",
+    "C:\\folder/other\\Minecraft.Windows.exe",
+    "C:\\folder\\subdir:ads\\Minecraft.Windows.exe",
   ]) {
     assert.throws(()=>ownedMinecraftLaunch("02",path),path);
   }
@@ -133,6 +136,8 @@ test("control contract and owned Start parser share the same profile namespace",
   assert.match(policy,/MivubiParseOwnedStart/);
   assert.match(policy,/end\[1\] != L'/);
   assert.match(policy,/MinecraftEducationEdition\.exe/);
+  assert.ok(policy.includes("c == L':'"));
+  assert.ok(policy.includes("c == L'/'"));
   assert.doesNotMatch(source,/SbieDrv2|SbieSvc2|disable.*signing/i);
 });
 
