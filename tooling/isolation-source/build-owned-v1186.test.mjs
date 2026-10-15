@@ -62,9 +62,9 @@ test('build stages match the actual v1.18.6 solution projects and output directo
     assert.ok(contents.includes('SbieRelease|'+platform),
       'missing stage configuration: '+solution);
     for (const project of projectNames) {
-      const line = contents.split(/\\r?\\n/).find(item => item.includes(' = "'+project+'", '));
+      const line = contents.split(/\r?\n/).find(item => item.includes(' = "'+project+'", '));
       assert.ok(line, 'solution omits '+project+': '+solution);
-      const id = line.match(/, "\\{([0-9a-fA-F-]{36})\\}"\\s*$/)?.[1];
+      const id = line.match(/, "\{([0-9a-fA-F-]{36})\}"\s*$/)?.[1];
       assert.ok(id, 'unrecognized project GUID: '+project);
       assert.ok(contents.includes('{'+id+'}.SbieRelease|'+platform+'.Build.0'),
         project+' is not scheduled to build in '+platform);
@@ -72,9 +72,9 @@ test('build stages match the actual v1.18.6 solution projects and output directo
   }
   for (const propsFile of ['Sandbox32.props', 'Sandbox64.props']) {
     const props = read(propsFile);
-    assert.ok(props.includes('<OutDir>$(SolutionDir)Bin\\\\$(PlatformName)\\\\$(Configuration)\\\\</OutDir>'),
+    assert.ok(props.includes('<OutDir>$(SolutionDir)Bin\\$(PlatformName)\\$(Configuration)\\</OutDir>'),
       'upstream output path drift: '+propsFile);
   }
-  assert.match(source, /Sandboxie\\/Bin\\/Win32\\/SbieRelease\\/SbieSvc\\.exe/);
-  assert.match(source, /Sandboxie\\/Bin\\/x64\\/SbieRelease\\/SbieDrv\\.sys/);
+  assert.match(source, /Sandboxie\/Bin\/Win32\/SbieRelease\/SbieSvc\.exe/);
+  assert.match(source, /Sandboxie\/Bin\/x64\/SbieRelease\/SbieDrv\.sys/);
 });
