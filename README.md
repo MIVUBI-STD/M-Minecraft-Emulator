@@ -34,6 +34,19 @@ runtime pruning without a native build closure.
 
 **New build-only entrypoint:** `tooling/isolation-source/build-owned-v1186.ps1` is a version-pinned Windows MSBuild/WDK compiler path for the actual MIVUBI-owned v1.18.6 source. It verifies exact source before the build, rejects stale native outputs, and saves Win32/x64/WDK logs and hashes in a new report directory. It **never signs, loads, installs, launches or selects** the private driver. The script is authored but **has not run on Windows**.
 
+**Owned v1.18.6 implementation path:** the source, build and read-only
+desktop inspection are now joined through one chain:
+`engine/isolation-owned/` → `tooling/isolation-source/build-owned-v1186.ps1`
+→ `tooling/isolation-source/assemble-owned-v1186.mjs`
+→ `apps/desktop/src-tauri/src/engine/owned_isolation.rs`.
+The exact build/payload inventory belongs to
+`engine/isolation-native/owned-runtime/build-profile-v1186.json`.
+`npm run isolation-source:assemble` selects this v1.18.6 pipeline, not the
+older v1.18.5 assembler. See [native build-to-desktop instructions](tooling/isolation-source/README.md).
+No successfully built, signed, installed or playable private Windows engine is
+claimed by this source integration. The installed official Client 02 remains
+the only active provider.
+
 ## Start here
 
 For ChatGPT + GitHub development, the authoritative route is:
