@@ -578,6 +578,15 @@
           {#if ownedHostError}<p class="cm-warning" role="alert">{ownedHostError}</p>{/if}
         </div>
         <div class="cm-setting-group">
+          <h2>Performance</h2>
+          <p><strong>Balanced · Active</strong> — resource-intensive manager operations are handled one at a time. Status checks and engine inspection run only when requested.</p>
+          <p>This policy avoids overlapping PowerShell probes and file hashing. It does not restrict Minecraft CPU, RAM or GPU usage or change game graphics settings.</p>
+          <details>
+            <summary>Eco and Performance modes</summary>
+            <p>Not available yet. These modes require Windows and Minecraft Education frame-time, GPU and memory testing before any game resource policy can be enabled.</p>
+          </details>
+        </div>
+        <div class="cm-setting-group">
           <h2>Window preferences</h2>
           <p>Move a detected Minecraft 02 window using its instance details. Other layouts are not available yet.</p>
           {#if moveEligible}<button type="button" class="cm-button cm-secondary" on:click={() => openClient02DetailsFromSettings("move")}>Move window</button>{/if}
