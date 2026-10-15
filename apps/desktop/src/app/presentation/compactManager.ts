@@ -3,7 +3,25 @@ import {
   isSandboxieBoxPrepared,
   type IsolatedClientObservation,
   type ProcessIdentityCandidate,
+  type OwnedHostInspection,
 } from "../bridge/nativeFeasibilityApi.js";
+
+// One user-facing explanation of the existing read-only Windows host probe.
+// This is not a create authorization or proof that any installed SbieSvc is
+// MIVUBI-owned. Every possible observed state remains blocked.
+export function ownedVirtualCreationReason(host: OwnedHostInspection | null): string {
+  if (!host) return "Internal engine not checked. The private driver is not yet installed or validated.";
+  switch (host.state) {
+    case "BLOCKED_SERVICE_NAMESPACE_IN_USE":
+      return "Sandboxie service or driver names are already registered. They may belong to the official installation; MIVUBI will not replace them.";
+    case "BLOCKED_SERVICE_PROBE_UNKNOWN":
+      return "Windows could not verify the service and driver names. Creating a virtual is blocked.";
+    case "BLOCKED_NON_INTERACTIVE_SESSION":
+      return "Open MIVUBI in an interactive Windows desktop session to inspect the engine.";
+    case "BLOCKED_UNVERIFIED_OWNED_DRIVER":
+      return "Service names are available, but no signed and verified MIVUBI driver has been activated.";
+  }
+}
 
 export type InstanceAction = "open" | "switch" | "setup" | "issue" | null;
 export type StateTone = "neutral" | "warning" | "success";
