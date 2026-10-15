@@ -19,12 +19,12 @@ from that capture:
 npm run frametime:review -- --csv "C:\captures\PresentMon.csv" --process-id 1234
 ```
 
-The CSV must include \`Application\`, \`ProcessID\`,
-\`SwapChainAddress\`, and \`MsBetweenPresents\` (or the older
-\`msBetweenPresents\` case). These are actual **inter-present intervals**
+The CSV must include `Application`, `ProcessID`,
+`SwapChainAddress`, and `MsBetweenPresents` (or the older
+`msBetweenPresents` case). These are actual **inter-present intervals**
 rather than displayed frame intervals or independently confirmed FPS.
 PresentMon CSV layouts have changed, including around the v2.3.1 release:
-the reviewer deliberately refuses \`FrameTime\` alone rather than treating
+the reviewer deliberately refuses `FrameTime` alone rather than treating
 a different metric as interchangeable.
 
 The input is bounded to 32 MiB, 250,000 CSV rows, and one **Minecraft** PID
@@ -50,7 +50,7 @@ cannot be diagnosed just from a CSV with missing frames.
 Source/format references:
 [PresentMon console output](https://github.com/GameTechDev/PresentMon/blob/main/README-ConsoleApplication.md)
 and [upstream CSV field layout](https://github.com/GameTechDev/PresentMon/blob/main/PresentMon/CsvOutput.cpp).
-\`npm run test:presentmon\` exercises the deterministic offline CSV and CLI
+`npm run test:presentmon` exercises the deterministic offline CSV and CLI
 fixtures. The test runner does not validate live Windows/ETW capture,
 Minecraft rendering or account isolation.
 
