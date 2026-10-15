@@ -15,24 +15,53 @@ test("three functional MIVUBI boxes have stable distinct identities", () => {
 
 test("private box setup plan uses only exact non-destructive persistent settings", () => {
   const result = planOwnedMinecraftProfiles(["DefaultBox","MinecraftClient02"]);
-  assert.equal(result.commands.length, 12);
+  assert.equal(result.commands.length, 24);
   assert.equal(result.hostChanged, false);
   assert.equal(result.driverInstalled, false);
+  assert.equal(result.compatibilityProfile,
+    "MINECRAFT_EDUCATION_APP_COMPARTMENT_OPENCOM");
+  assert.equal(result.reducedSecurityIsolation, true);
+  assert.equal(result.requiresExplicitOperatorApproval, true);
+  assert.equal(result.settingsReadbackVerified, false);
   for(let i=0; i<3; i++){
-    const steps=result.commands.slice(i*4, i*4+4);
+    const steps=result.commands.slice(i*8, i*8+8);
     assert.deepEqual(steps.map(step=>step.arguments[2]),
-      ["AutoDelete","AutoRemove","OpenCredentials","Enabled"]);
-    assert.equal(steps[3].arguments[3],"y","enable the owned box only after configuration");
+      ["AutoDelete","AutoRemove","NoSecurityIsolation","DropAdminRights",
+        "Template","OpenCredentials","OpenProtectedStorage","Enabled"]);
+    assert.deepEqual(steps.map(step=>step.arguments[3]),
+      ["n","n","y","y","OpenCOM","n","n","y"]);
+    assert.equal(steps[7].arguments[3],"y","enable the owned box only after configuration");
   }
   for(const cmd of result.commands) {
     assert.equal(cmd.executable, "SbieIni.exe");
     assert.deepEqual(cmd.arguments.slice(0,2), ["set",cmd.arguments[1]]);
     assert.ok(/^MivubiEdu0[234]$/.test(cmd.arguments[1]));
     assert.ok([["Enabled","y"],["AutoDelete","n"],
-      ["AutoRemove","n"],["OpenCredentials","n"]]
+      ["AutoRemove","n"],["NoSecurityIsolation","y"],
+      ["DropAdminRights","y"],["Template","OpenCOM"],
+      ["OpenCredentials","n"],["OpenProtectedStorage","n"]]
       .some(([k,v])=>k===cmd.arguments[2]&&v===cmd.arguments[3]));
     assert.equal(cmd.arguments.length,4);
   }
+});
+
+test("owned compatibility mode matches the previously successful local test", () => {
+  const plan = planOwnedMinecraftProfiles([]);
+  const expected = {
+    NoSecurityIsolation: "y", DropAdminRights: "y",
+    Template: "OpenCOM", AutoDelete: "n", AutoRemove: "n",
+    OpenCredentials: "n", OpenProtectedStorage: "n", Enabled: "y",
+  };
+  for (const client of ["02", "03", "04"]) {
+    const settings = Object.fromEntries(plan.commands
+      .filter(x=>x.client===client)
+      .map(x=>x.arguments.slice(2,4)));
+    assert.deepEqual(settings, expected);
+  }
+  assert.equal(new Set(plan.commands.map(x=>x.arguments[1])).size, 3);
+  assert.ok(plan.commands.every(x=>x.arguments[1] === "MivubiEdu"+x.client));
+  assert.equal(plan.hostChanged, false);
+  assert.equal(plan.settingsReadbackVerified, false);
 });
 
 test("existing named boxes never get silently reconfigured", () => {

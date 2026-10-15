@@ -1,5 +1,30 @@
 # Current Development Handoff — M-Minecraft-Emulator
 
+## Private Minecraft Education login configuration parity — 15 October 2026
+
+**Observed mismatch corrected in source:** the operator-confirmed
+two-account Sandboxie 1.18.5 pilot signed in only after applying
+`NoSecurityIsolation=y`, `DropAdminRights=y`,
+`Template=OpenCOM`, and `OpenProtectedStorage=n`
+alongside persistent storage and closed credential settings. The
+private Client 02–04 `SbieIni.exe` profile planner previously
+omitted those settings, risking recurrence of HRESULT `0x80070424`
+even if the MIVUBI Windows driver compiled successfully.
+
+The canonical `minecraft-profiles.mjs` now reproduces the proven
+localtest configuration on three **new** isolated boxes, with
+`Enabled=y` last; tests cover all expected values and ordering.
+The plan explicitly marks reduced security isolation, requires
+operator approval, and does not claim settings read-back or login.
+Existing occupied boxes and accounts remain untouched.
+
+**Executed proof:** portable JS plan was evaluated in ChatGPT against
+expected three-box/24-command contract; this does not prove WAM/SSO
+behavior, actual SbieIni calls or Windows source compilation.
+
+**Next:** compile full private native runtime and verify authorized
+box settings plus login in an isolated Windows environment.
+
 ## Native SbieIni configuration error signaling — 15 October 2026
 
 **Functional defect:** pinned Sandboxie v1.18.5 `SbieIni.exe` always

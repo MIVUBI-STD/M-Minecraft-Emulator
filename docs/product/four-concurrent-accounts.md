@@ -9,6 +9,26 @@ lifecycle: ACTIVE
 
 # Four concurrent Minecraft Education Windows desktop clients
 
+## Education login compatibility parity — private profile plan (15 October 2026)
+
+The private Client 02–04 profile planner now includes the exact box
+compatibility settings that made the official Sandboxie Plus 1.18.5
+two-account local test usable: `NoSecurityIsolation=y`,
+`DropAdminRights=y`, `Template=OpenCOM`, `AutoDelete=n`,
+`AutoRemove=n`, `OpenCredentials=n`, and
+`OpenProtectedStorage=n`; `Enabled=y` is applied last. Previously
+the private planner omitted the first four compatibility settings,
+risking a repeat of the `0x80070424` Education sign-in failure even
+after successful driver compilation.
+
+**Tradeoff:** `NoSecurityIsolation` (App Compartment) and `OpenCOM`
+reduce containment; they are compatibility choices, not secure account
+identity guarantees. The plan requires explicit operator approval,
+never reconfigures an existing box, does not execute commands or copy
+credentials, and records read-back verification as false. A working
+private driver and service, live box setting read-back, and independent
+Minecraft sign-in remain unproven.
+
 ## First owned-fork feature — source only (14 October 2026)
 
 The MIVUBI private fork now includes a functional native C++ source
