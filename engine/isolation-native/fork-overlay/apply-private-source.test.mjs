@@ -433,7 +433,7 @@ test("private launcher and driver reject unreviewed runtime-identity edits", () 
   assert.ok(edited[launcher].includes('MivubiOwnedDriverMatches'));
   assert.equal(verifyExactPrivateSourceBytes(original, edited), true);
   const driverEdited = {...edited, [driver]:
-    edited[driver].replace("MIVUBI_PRIVATE_DRIVER_ID", "L\"5.73.5\"")};
+    edited[driver].replace("MIVUBI_PRIVATE_DRIVER_ID", "L\"5.73.6\"")};
   assert.throws(() => verifyExactPrivateSourceBytes(original, driverEdited),
     /unexpected modified source bytes/);
   const launcherEdited = {...edited, [launcher]:

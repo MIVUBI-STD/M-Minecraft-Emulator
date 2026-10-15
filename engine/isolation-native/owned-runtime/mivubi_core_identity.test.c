@@ -9,11 +9,11 @@ _Static_assert(MIVUBI_PRIVATE_DRIVER_ABI == 0x57230U,
                "Pinned Sandboxie driver ABI changed unexpectedly");
 
 int main(void) {
-    const wchar_t *official = L"5.73.5";
+    const wchar_t *official = L"5.73.6";
     const wchar_t *private_driver = MIVUBI_PRIVATE_DRIVER_ID;
     wchar_t observed[16] = {0};
     if (wcscmp(private_driver, official) == 0) return 1;
-    if (wcscmp(private_driver, L"5.73.5-MIVU") != 0) return 2;
+    if (wcscmp(private_driver, L"5.73.6-MIVU") != 0) return 2;
     if (wcslen(private_driver) >= sizeof(observed) / sizeof(observed[0])) return 3;
     wcscpy(observed, private_driver);
     if (wcscmp(observed, MIVUBI_PRIVATE_DRIVER_ID) != 0) return 4;

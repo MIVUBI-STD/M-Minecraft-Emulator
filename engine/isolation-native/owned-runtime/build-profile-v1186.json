@@ -61,5 +61,7 @@
     "installerApproved": false,
     "gameplayValidated": false
   },
-  "notes": "Source layout is not a deployable bill of materials. Compile the complete dependency closure before reducing runtime payloads; do not infer native ABI correctness from source SHA equality."
+  "notes": "Source layout is not a deployable bill of materials. Compile the complete dependency closure before reducing runtime payloads; do not infer native ABI correctness from source SHA equality.",
+  "privateDriverIdentity": "5.73.6-MIVU",
+  "driverAbi": "0x57230"
 }

@@ -33,7 +33,7 @@ or prove that the full Windows private core runs.
 This is product-specific **Windows-native source** for the prospective M-Isolation-Engine.
 It consumes the original Sandboxie-Plus v1.18.5 `Sandboxie/common/my_version.h`
 from pinned upstream commit `abd4c240031cfb46666daa74ca47ed4e48b561e4`.
-Driver ABI: `0x57230`; driver version: `5.73.5`.
+Driver ABI: `0x57230`; driver version: `5.73.6`.
 
 ## MIVUBI kernel-enforced sandbox namespace — 15 October 2026
 
@@ -319,7 +319,7 @@ kernel-driver authenticity.
 *opened device handle* belongs to the MIVUBI kernel before its first
 non-`API_GET_VERSION` ioctl. It sends the existing `API_GET_VERSION` ioctl
 directly on that handle using upstream's synchronous native ioctl path,
-checks the pinned ABI and `5.73.5-MIVU` identity, then caches approval
+checks the pinned ABI and `5.73.6-MIVU` identity, then caches approval
 for that handle only. Subsequent game/process ioctls do **not** pay for
 a version probe on every call. When the DLL closes or reopens the
 device handle, cached approval is explicitly reset—including handle-value
@@ -369,7 +369,7 @@ SbieDll version API and the correct asynchronous service startup owner**:
   identity. Driver startup after a genuinely absent kernel follows the
   existing upstream sequence.
 - `Sandboxie/core/drv/api.c`: retains the private version marker
-  `5.73.5-MIVU` and pinned ABI `0x57230` on its existing version API.
+  `5.73.6-MIVU` and pinned ABI `0x57230` on its existing version API.
   Private `Start.exe` still checks both before accepting an owned launch.
 
 The approved fork closure now changes **eight** exact upstream files,
@@ -388,7 +388,7 @@ Sandboxie with identical `SbieSvc`/`SbieDrv` names.
 The first **kernel-facing functional source change** is now included in
 the eight-file MIVUBI private overlay. The pinned upstream kernel
 `Sandboxie/core/drv/api.c` replies to its EXISTING `API_GET_VERSION`
-request with the MIVUBI-specific version string `5.73.5-MIVU`,
+request with the MIVUBI-specific version string `5.73.6-MIVU`,
 preserving the original driver ABI `0x57230`, ioctl ID, buffer layout,
 and upstream behavior for an unmodified build. The shared
 [`mivubi_core_identity.h`](./owned-runtime/mivubi_core_identity.h)
