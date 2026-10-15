@@ -1,5 +1,15 @@
 # Current Development Handoff — M-Minecraft-Emulator
 
+## Product direction: direct, minimal Sandboxie/Minecraft optimization — 15 October 2026
+
+**User clarification (highest current priority):** do not overdevelop. Optimize the original Sandboxie-derived engine and Minecraft Education only where there is a real simple safe improvement. No new performance dashboards, monitoring agents, extra modes, collectors or abstractions. Prefer keeping proven functionality and stable licensed Minecraft accounts over speculative resource savings.
+
+**One bounded source fix committed:** `tooling/acceptance/windows/collect-sandboxie-feasibility.ps1` no longer starts a second `Start.exe /listpids` helper when the first query failed. A valid first snapshot STILL triggers the second query, whose exact PID inventory must match; UNKNOWN and the existing trusted DLL fallback remain unchanged. No original Sandboxie C/C++, driver, config, Minecraft graphics or game processes were modified. Updated an existing regression instead of introducing a new test infrastructure.
+
+**Verified:** seven representative first/second snapshot decision cases agree with previous admission behavior; source static checks confirm second helper guarded, dual snapshot check and DLL fallback preserved. Windows PowerShell/real client runtime and measured CPU/RAM improvement are **NOT_EXECUTED**. The effect is elimination of one unnecessary helper invocation on failed first queries, not a demonstrated percentage improvement.
+
+**Next:** stop adding performance tools. Only change another Sandboxie core/launch hot path after finding actual safe repeated work or runtime bottleneck; Minecraft savings should use supported in-game visual settings chosen deliberately without modifying account/world files. Prioritize two-client idle crash and real owned-engine build/stability evidence.
+
 ## PresentMon offline frame pacing diagnostics, runtime unchanged — 15 October 2026
 
 **Continuing user priority:** make CPU/RAM/GPU optimization evidence-driven while **preserving current Minecraft/Sandboxie stability**. No driver install, service/control mutation, game process priority, graphics/FPS cap, DLL hook or continuous sampler was introduced.
