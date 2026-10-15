@@ -120,8 +120,12 @@ export function matchesOwnedMinecraftReadback(client, readings) {
   if (!Array.isArray(readings) || readings.length !== SETTINGS.length) return false;
   return SETTINGS.every(([key, value], index) => {
     const row = readings[index];
+    // Every required field must be OWNED by this record. An inherited
+    // client/box/key/value with four unrelated own keys is not readback.
+    const fields = ["client", "box", "key", "value"];
     return row !== null && typeof row === "object" && !Array.isArray(row) &&
-      Object.keys(row).length === 4 &&
+      Object.keys(row).length === fields.length &&
+      fields.every(field => Object.hasOwn(row, field)) &&
       row.client === client && row.box === box &&
       row.key === key && row.value === value;
   });
