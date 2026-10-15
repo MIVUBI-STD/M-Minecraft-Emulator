@@ -335,7 +335,10 @@ test("Windows GPU diagnostics skip identity-loss captures and write BOM-less rep
   assert.match(collector, /\[System\.Text\.UTF8Encoding\]::new\(\$false\)/);
   assert.match(collector, /\[System\.IO\.FileMode\]::CreateNew/);
   assert.match(collector, /\[System\.IO\.FileShare\]::None/);
-  assert.match(collector, /if \(-not \$written\)/);
+  assert.match(collector, /\[System\.IO\.File\]::Move\(\$temporary, \$file\)/);
+  assert.match(collector, /\[Guid\]::NewGuid\(\)/);
+  assert.match(collector, /\[System\.IO\.File\]::Delete\(\$temporary\)/);
+  assert.doesNotMatch(collector, /\[System\.IO\.File\]::Delete\(\$file\)/);
   assert.doesNotMatch(collector, /Set-Content -LiteralPath \$file/);
   assert.doesNotMatch(collector, /FileMode\]::Create\b/);
 });
