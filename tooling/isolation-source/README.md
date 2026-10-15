@@ -1,3 +1,7 @@
+## v1.18.6 native build-only route (source authored, Windows run pending)
+
+The active compile-only entrypoint is `build-owned-v1186.ps1`. It consumes the full editable `engine/isolation-owned/` v1.18.6 source after exact Git proof, reads `engine/isolation-native/owned-runtime/build-profile-v1186.json`, invokes Win32 → x64 → WDK MSBuild, and keeps immutable stage logs plus artifact SHA-256 values under a new report directory. It never installs, signs or loads a kernel driver, and never selects a runtime provider. **No successful Windows compile is claimed.** The v1.18.5 scripts below remain archived references and must not validate or package v1.18.6.
+
 # Owned Sandboxie engine source — current v1.18.6 route
 
 **Canonical editable native source:** `engine/isolation-owned/`.

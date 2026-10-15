@@ -1,5 +1,13 @@
 # Current Development Handoff — M-Minecraft-Emulator
 
+## v1.18.6 native build-only entrypoint authored — 15 October 2026
+
+**Implemented:** `tooling/isolation-source/build-owned-v1186.ps1` compiles the **actual current** `engine/isolation-owned/` v1.18.6 native source, not a separate old v1.18.5 fork or official-installed Sandboxie. It first runs `verify-owned-v1186.mjs` against a clean exact `Local` HEAD and requires 1,627 source files, exactly 11 approved native edits, complete upstream source tree parity, the `5.73.6-MIVU` version/ABI profile, and unused report path. It checks for stale required binary outputs before running Win32 `SandboxDll.sln`, x64 `Sandbox.sln`, and x64 WDK `SandboxDrv.sln` in the documented order. It records separate MSBuild logs, bounded stage exit codes and SHA-256 of the sixteen required native artifacts. It does not sign/load/install any driver or activate a provider; emitted evidence remains `NATIVE_BUILD_ARTIFACTS_CAPTURED_NOT_INSTALLABLE` even after compilation.
+
+**Execution ceiling:** source authored and bounded static regression tests added; this ChatGPT session does NOT have Windows MSBuild/WDK, therefore **Windows native compilation/linking, staging into a runtime manifest, code signing, driver loading, Minecraft login and gameplay remain NOT_EXECUTED**. Do not interpret a committed script as a passed build. Existing v1.18.5 `build-private.ps1` and old manifests remain historical and cannot validate the new version.
+
+**Next:** execute `tooling/isolation-source/build-owned-v1186.ps1 -ReportDirectory <new-empty-report-directory>` on an authorized Windows build environment, inspect the first genuine compiler/linker failures, and apply any corrections to the current owned native files only. Do not touch the official account-bearing Sandboxie pilot.
+
 ## MIVUBI v1.18.6 full owned source and native migration — 15 October 2026
 
 **Current canonical source is real editable C/C++, not an external

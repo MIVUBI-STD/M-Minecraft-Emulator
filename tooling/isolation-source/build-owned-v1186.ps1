@@ -1,0 +1,138 @@
+# Compile-only v1.18.6 MIVUBI native engine. NEVER installs, signs or starts drivers.
+[CmdletBinding()]
+param(
+  [Parameter(Mandatory=$true)][string]$ReportDirectory
+)
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+if ($env:OS -cne 'Windows_NT') { throw 'Native MSVC/WDK build requires Windows.' }
+$repo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
+$source = Join-Path $repo 'engine/isolation-owned'
+$profile = Join-Path $repo 'engine/isolation-native/owned-runtime/build-profile-v1186.json'
+$verifier = Join-Path $repo 'tooling/isolation-source/verify-owned-v1186.mjs'
+$reportFolder = [IO.Path]::GetFullPath($ReportDirectory).TrimEnd('\')
+if (-not (Test-Path -LiteralPath $source -PathType Container)) {
+  throw 'Complete owned native source is missing.'
+}
+if (Test-Path -LiteralPath $reportFolder) {
+  throw 'Report destination exists; use a new directory to preserve build evidence.'
+}
+$reportParent = Split-Path -Parent $reportFolder
+if (-not (Test-Path -LiteralPath $reportParent -PathType Container)) {
+  throw 'Report destination parent does not exist.'
+}
+$sourceFull = [IO.Path]::GetFullPath($source).TrimEnd('\')
+if ($reportFolder.Equals($sourceFull, [StringComparison]::OrdinalIgnoreCase) -or
+    $reportFolder.StartsWith($sourceFull + '\', [StringComparison]::OrdinalIgnoreCase) -or
+    $sourceFull.StartsWith($reportFolder + '\', [StringComparison]::OrdinalIgnoreCase)) {
+  throw 'Build report may not overlap native source.'
+}
+$git = (Get-Command git.exe -ErrorAction Stop).Source
+$node = (Get-Command node.exe -ErrorAction Stop).Source
+$msbuild = (Get-Command msbuild.exe -ErrorAction Stop).Source
+$branch = (& $git -C $repo branch --show-current | Out-String).Trim()
+if ($LASTEXITCODE -ne 0 -or $branch -cne 'Local') { throw 'Build requires branch Local.' }
+$dirty = (& $git -C $repo status --porcelain=v1 --untracked-files=all | Out-String).Trim()
+if ($LASTEXITCODE -ne 0 -or $dirty) { throw 'Working tree must be clean; refuse mixed-source build.' }
+$head = (& $git -C $repo rev-parse HEAD | Out-String).Trim()
+if ($LASTEXITCODE -ne 0 -or $head -notmatch '^[a-f0-9]{40}$') {
+  throw 'Cannot establish exact Git HEAD.'
+}
+$spec = Get-Content -LiteralPath $profile -Encoding UTF8 -Raw | ConvertFrom-Json
+if ($spec.sourceVersion -cne 'v1.18.6' -or $spec.privateDriverIdentity -cne '5.73.6-MIVU' -or
+    $spec.driverAbi -cne '0x57230' -or
+    $spec.pristineSourceTree -cne 'f690477c07a40810f479f53973334ceae7e0ab13' -or
+    $spec.canonicalEditableSource -cne 'engine/isolation-owned' -or
+    $spec.status -cne 'SOURCE_PATCHED_NOT_BUILT') {
+  throw 'Incorrect or unreviewed v1.18.6 source build profile.'
+}
+$rawProof = (& $node $verifier | Out-String).Trim()
+if ($LASTEXITCODE -ne 0) { throw 'Exact modified-source proof failed; refusing MSBuild.' }
+$proof = $rawProof | ConvertFrom-Json -ErrorAction Stop
+if ($proof.head -cne $head -or $proof.nativeModifiedFiles -ne 11 -or
+    $proof.sourceFiles -ne 1627 -or
+    $proof.state -cne 'MIVUBI_V1186_NATIVE_SOURCE_PATCHED_NOT_BUILT' -or
+    $proof.installationPermitted -ne $false) {
+  throw 'Unexpected source verifier result.'
+}
+$stages = @(
+  @{ id='win32-support'; sln='Sandboxie/SandboxDll.sln'; platform='Win32' },
+  @{ id='x64-user-core'; sln='Sandboxie/Sandbox.sln'; platform='x64' },
+  @{ id='x64-wdk-kernel'; sln='Sandboxie/SandboxDrv.sln'; platform='x64' }
+)
+$required = @(
+  'Sandboxie/Bin/Win32/SbieRelease/SbieSvc.exe',
+  'Sandboxie/Bin/Win32/SbieRelease/SbieDll.dll',
+  'Sandboxie/Bin/x64/SbieRelease/SbieDrv.sys',
+  'Sandboxie/Bin/x64/SbieRelease/SbieSvc.exe',
+  'Sandboxie/Bin/x64/SbieRelease/SbieDll.dll',
+  'Sandboxie/Bin/x64/SbieRelease/Start.exe',
+  'Sandboxie/Bin/x64/SbieRelease/SbieIni.exe',
+  'Sandboxie/Bin/x64/SbieRelease/kmdutil.exe',
+  'Sandboxie/Bin/x64/SbieRelease/SbieMsg.dll',
+  'Sandboxie/Bin/x64/SbieRelease/SandboxieRpcSs.exe',
+  'Sandboxie/Bin/x64/SbieRelease/SandboxieDcomLaunch.exe',
+  'Sandboxie/Bin/x64/SbieRelease/SandboxieCrypto.exe',
+  'Sandboxie/Bin/x64/SbieRelease/SandboxieBITS.exe',
+  'Sandboxie/Bin/x64/SbieRelease/SandboxieWUAU.exe',
+  'Sandboxie/Bin/x64/SbieRelease/SbieCtrl.exe',
+  'Sandboxie/Bin/x64/SbieRelease/SboxHostDll.dll'
+)
+foreach ($rel in $required) {
+  $path = Join-Path $source ($rel -replace '/', '\')
+  if (Test-Path -LiteralPath $path) {
+    throw "Preexisting native binary would contaminate build evidence: $rel"
+  }
+}
+New-Item -ItemType Directory -Path $reportFolder -ErrorAction Stop | Out-Null
+$results = @()
+$report = [ordered]@{
+  schema = 1
+  state = 'BUILD_FAILED_OR_INCOMPLETE'
+  sourceVersion = 'v1.18.6'
+  repoHead = $head
+  upstreamTree = [string]$proof.upstreamTree
+  ownedTree = [string]$proof.ownedTree
+  nativeModifiedFiles = 11
+  buildStages = @()
+  artifacts = @()
+  driverBuilt = $false
+  driverSigned = $false
+  driverLoaded = $false
+  installPermitted = $false
+  activeProviderChanged = $false
+  minecraftGameplayVerified = $false
+}
+try {
+  foreach ($stage in $stages) {
+    $solution = Join-Path $source ($stage.sln -replace '/', '\')
+    if (-not (Test-Path -LiteralPath $solution -PathType Leaf)) {
+      throw "Missing source solution: $($stage.sln)"
+    }
+    $log = Join-Path $reportFolder ($stage.id + '.log')
+    & $msbuild /t:Build $solution /p:Configuration=SbieRelease ("/p:Platform=" + $stage.platform) /maxcpucount:8 *>&1 |
+      Out-File -LiteralPath $log -Encoding UTF8 -NoClobber
+    $code = $LASTEXITCODE
+    $results += [ordered]@{ stage=$stage.id; platform=$stage.platform; exitCode=$code; log=($stage.id + '.log') }
+    if ($code -ne 0) { throw "MSBuild failed: $($stage.id); see $log" }
+  }
+  $artifacts = @()
+  foreach ($rel in $required) {
+    $path = Join-Path $source ($rel -replace '/', '\')
+    if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
+      throw "Required newly built native artifact missing: $rel"
+    }
+    $f = Get-Item -LiteralPath $path
+    $digest = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant()
+    $artifacts += [ordered]@{ path=$rel; bytes=$f.Length; sha256=$digest }
+  }
+  $report.artifacts = $artifacts
+  $report.driverBuilt = $true
+  $report.state = 'NATIVE_BUILD_ARTIFACTS_CAPTURED_NOT_INSTALLABLE'
+}
+finally {
+  $report.buildStages = $results
+  $output = Join-Path $reportFolder 'build-result.json'
+  $report | ConvertTo-Json -Depth 8 | Out-File -LiteralPath $output -Encoding UTF8 -NoClobber
+}
+Write-Output "Build-only result written to $reportFolder; no driver or service was installed."

@@ -1,5 +1,11 @@
 # MIVUBI native isolation ABI probe — source-first
 
+## Current v1.18.6 compile-only path
+
+The real editable `engine/isolation-owned/` source is now eligible for **build-only** review through `tooling/isolation-source/build-owned-v1186.ps1`. The script requires exact v1.18.6 Git/source identity, clean inputs and fresh output paths, then compiles Win32 support, x64 core and x64 WDK driver to a report without signing, installation or activation. No Windows build has been executed yet. The official installed Sandboxie service/driver and account-bearing Client 02 remain the only active pilot.
+
+
+
 ## Private SbieIni update status fix — 15 October 2026
 
 The pinned upstream `Sandboxie/apps/ini/update.c` returns exit code zero

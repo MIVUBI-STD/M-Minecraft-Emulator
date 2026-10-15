@@ -32,6 +32,8 @@ historical source and must not be used for the current engine. Follow
 for required build components and excluded app UIs; this does not approve
 runtime pruning without a native build closure.
 
+**New build-only entrypoint:** `tooling/isolation-source/build-owned-v1186.ps1` is a version-pinned Windows MSBuild/WDK compiler path for the actual MIVUBI-owned v1.18.6 source. It verifies exact source before the build, rejects stale native outputs, and saves Win32/x64/WDK logs and hashes in a new report directory. It **never signs, loads, installs, launches or selects** the private driver. The script is authored but **has not run on Windows**.
+
 ## Start here
 
 For ChatGPT + GitHub development, the authoritative route is:
