@@ -455,7 +455,7 @@ pub fn inspect_candidate(root: &Path) -> io::Result<OwnedCandidateInspection> {
         state: "CANDIDATE_INTEGRITY_VERIFIED_NOT_INSTALLABLE".into(),
         upstream_commit: manifest.upstream_commit.clone(),
         verified_artifact_count: manifest.artifacts.len() as u32,
-        required_artifact_count: REQUIRED_FILES.len() as u32,
+        required_artifact_count: (REQUIRED_FILES.len() + usize::from(owned_v1186)) as u32,
         provider_selected: false,
         driver_load_verified: false,
         gameplay_verified: false,
@@ -718,6 +718,7 @@ mod tests {
         let inspected = inspect_candidate(&c.0).unwrap();
         assert_eq!(inspected.upstream_commit, OWNED_V1186_UPSTREAM);
         assert_eq!(inspected.verified_artifact_count, 25);
+        assert_eq!(inspected.required_artifact_count, 25);
         assert!(!inspected.provider_selected && !inspected.install_permitted
             && !inspected.driver_load_verified && !inspected.gameplay_verified);
         for (key, wrong) in [
