@@ -1,5 +1,15 @@
 # Current Development Handoff — M-Minecraft-Emulator
 
+## Native v1.18.6 compiler/evidence corrections — 15 October 2026
+
+**Implemented in `Local` source:** `build-owned-v1186.ps1` now resolves VS2022 MSBuild explicitly through installed `vswhere.exe` (17.x), instead of requiring a developer-shell PATH entry. Each Win32 / x64 / WDK stage runs as an explicitly waited compiler child process with separate immutable stdout/stderr files and the actual `Process.ExitCode` captured in `build-result.json`; a launch exception records `launchFailure` and fails the build. MSBuild node reuse is disabled to avoid leaving compiler workers after exit. The report now includes the selected compiler file version and SHA-256 beside exact Git head/source trees and all sixteen required artifact hashes.
+
+**Source contract audit:** inspected actual v1.18.6 `SandboxDll.sln` / `Sandbox.sln` / `SandboxDrv.sln` project GUID-to-`Build.0` mappings: required service, DLL, Start, Ini, KmdUtil, classic control (build-time reference only) and kernel targets are scheduled in their expected stages. Both `Sandbox32.props` and `Sandbox64.props` use the binary paths expected by the builder. Added an in-place regression against these real solution/property-sheet files to `build-owned-v1186.test.mjs`, which is now included in the existing canonical `test:isolation-source` command. Classic control being a compilation target does **not** authorize packaging a second Sandboxie UI.
+
+**Evidence:** exact GitHub source review, actual solution/props comparisons and 30 builder regular-expression assertions evaluated in the available JavaScript context; these are **not** a successful Node test suite or PowerShell/Windows build. Four Node test bodies are authored; full `node --test`, VS2022/WDK compilation/linking, driver signing/loading, profile read-back and Minecraft gameplay are **NOT_EXECUTED**. Do not claim Windows pass or promote to package/installation on this evidence.
+
+**Next single engineering gate:** obtain a real build-only `build-result.json` and stage stdout/stderr logs from the current clean `Local` checkout, then fix the **first observed** compiler/linker/WDK error in its canonical source owner. No official Sandboxie mutation, driver activation or provider cutover.
+
 ## Active implementation sequence — MIVUBI owned isolation engine (15 October 2026)
 
 **Product end state:** one ordinary Windows Minecraft Education Client 01 plus three independently licensed isolated Clients 02–04, controlled by one lightweight Minecraft Instance Manager. This is an owned **Sandboxie-derived** Windows isolation core, not a clean-room Sandboxie replacement, a new full guest-VM platform, or a second app lifecycle manager. Preserve upstream license notices and source attribution. Only `Local` is the development authority.
