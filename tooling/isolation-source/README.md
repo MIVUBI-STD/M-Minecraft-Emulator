@@ -31,7 +31,7 @@ On an authorized Windows build-only environment, the **documented source
 contract** is:
 
 ```powershell
-# An empty report destination, outside engine/isolation-owned:
+# A new report destination outside the entire Git checkout (no junction ancestors):
 .\tooling\isolation-source\build-owned-v1186.ps1 -ReportDirectory 'D:\MIVUBIReports\native-v1186'
 
 # Optional compile-and-package in one operation, also requiring a fresh
