@@ -236,7 +236,7 @@ $file = Join-Path $OutputDirectory ('native-process-performance-' + $stamp + '.j
 # UTF-8 without a BOM. FileMode.CreateNew also refuses a concurrent writer:
 # Test-Path + Set-Content was a check/use race and could overwrite evidence.
 $json = $report | ConvertTo-Json -Depth 7
-$utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+$utf8NoBom = [System.Text.UTF8Encoding]::new($false)
 $bytes = $utf8NoBom.GetBytes($json + [Environment]::NewLine)
 $stream = [System.IO.File]::Open($file, [System.IO.FileMode]::CreateNew,
   [System.IO.FileAccess]::Write, [System.IO.FileShare]::None)
