@@ -338,6 +338,10 @@ describe("Compact Manager app source and command boundary", () => {
     expect(app).toContain('existingVirtuals = null;');
     expect(app).toContain("No virtuals were changed.");
     expect(app).toContain("Sandboxie name candidates (read-only)");
+    expect(app).toContain('aria-label="Sandboxie configuration name candidates"');
+    expect(app).toContain("Inspect Sandboxie names");
+    expect(app).not.toContain("No enabled boxes were reported");
+    expect(app).not.toContain("Find existing virtuals");
     expect(app).toContain("Known user and template sections are omitted");
     expect(app).toContain("names alone cannot prove a box exists");
     expect(app).toContain('{#each existingVirtuals.boxes as boxName (boxName)}');
