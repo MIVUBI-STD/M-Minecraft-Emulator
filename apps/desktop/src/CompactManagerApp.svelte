@@ -381,7 +381,7 @@
 
       <section class="cm-virtual-overview" aria-label="Create virtual availability">
         <div>
-          <h2>Your virtuals</h2>
+          <h2>Minecraft sessions</h2>
           <p>Use this app to manage Windows and isolated sessions. The internal Sandboxie-derived engine must pass Windows driver and service validation before new virtuals can be created.</p>
         </div>
         <div class="cm-virtual-actions">
