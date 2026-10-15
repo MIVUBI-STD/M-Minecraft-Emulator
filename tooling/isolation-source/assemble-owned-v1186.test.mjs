@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
+import { spawnSync } from 'node:child_process';
 import {
   existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync,
   writeFileSync,
@@ -52,6 +53,7 @@ function fixture() {
   };
   const save=()=>writeFileSync(buildReport,JSON.stringify(report));
   save();
+  let trackedStatus = '';
   const adapters={
     verifySource:()=>({head:HEAD,ownedTree:TREE,nativeModifiedFiles:11}),
     readGit:(_root,...args)=>{
@@ -61,11 +63,14 @@ function fixture() {
       if(key==='rev-parse HEAD:engine/isolation-owned')return TREE;
       if(key==='rev-parse HEAD:engine/isolation-candidates/sandboxie-v1.18.6')
         return profile.pristineSourceTree;
+      if(key==='status --porcelain=v1 --untracked-files=no -- engine/isolation-owned engine/isolation-native/owned-runtime/build-profile-v1186.json')
+        return trackedStatus;
       throw Error('Unexpected Git command in fixture: '+key);
     },
   };
   return {
     base,repository,outputDirectory,buildReport,report,save,
+    setTrackedStatus:(status)=>{ trackedStatus=status; },
     run:()=>stageOwnedV1186({repository,buildReport,outputDirectory},adapters),
     clean:()=>rmSync(base,{force:true,recursive:true}),
   };
@@ -148,4 +153,49 @@ test('untrusted source HEAD, tree, report and path mismatch fail closed',async()
       assert.equal(existsSync(f.outputDirectory),false);
     }
   }finally{f.clean();}
+});
+
+test('owned v1.18.6 staging refuses uncommitted tracked engine resources and profile', async()=>{
+  const f=fixture();try{
+    for(const status of [
+      ' M engine/isolation-owned/Sandboxie/install/Templates.ini',
+      'M  engine/isolation-owned/Sandboxie/core/dll/sbieapi.c',
+      ' M engine/isolation-native/owned-runtime/build-profile-v1186.json',
+    ]){
+      f.setTrackedStatus(status);
+      await assert.rejects(f.run(),/tracked engine source\\/profile differs/);
+      assert.equal(existsSync(f.outputDirectory),false,
+        'dirty tracked inputs must not publish a payload');
+    }
+    f.setTrackedStatus('');
+    assert.equal((await f.run()).artifactCount,25);
+  }finally{f.clean();}
+});
+
+test('Git detects staged and unstaged tracked engine edits, not ignored binary outputs',()=>{
+  const base=mkdtempSync(join(tmpdir(),'mivubi-own-git-status-'));
+  const command=(...args)=>{
+    const result=spawnSync('git',args,{cwd:base,encoding:'utf8'});
+    assert.equal(result.status,0,result.stderr||'git fixture command failed');
+    return result.stdout.trim();
+  };
+  try{
+    command('init','-q');
+    command('config','user.email','test@example.invalid');
+    command('config','user.name','MIVUBI staging test');
+    mkdirSync(join(base,'engine','isolation-owned'),{recursive:true});
+    writeFileSync(join(base,'.gitignore'),'*.sys\\n');
+    const path='engine/isolation-owned/Templates.ini';
+    writeFileSync(join(base,path),'original');
+    command('add','.gitignore',path);
+    command('commit','-qm','baseline');
+    writeFileSync(join(base,'engine/isolation-owned/SbieDrv.sys'),'build product');
+    const status=()=>command('status','--porcelain=v1','--untracked-files=no',
+      '--','engine/isolation-owned');
+    assert.equal(status(),'');
+    writeFileSync(join(base,path),'changed');
+    assert.match(status(),/Templates\\.ini/);
+    command('add',path);
+    assert.match(status(),/Templates\\.ini/);
+  }finally{rmSync(base,{recursive:true,force:true});}
 });
