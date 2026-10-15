@@ -411,7 +411,7 @@
           <h3>Existing Sandboxie boxes (read-only)</h3>
           <p>These names come from the installed Sandboxie compatibility pilot, not the MIVUBI-owned engine. Detection does not mean a game is running.</p>
           {#if existingVirtuals.boxes.length === 0}
-            <p>No enabled boxes were reported for the current Windows user.</p>
+            <p>No Sandboxie box sections were reported for the current Windows user.</p>
           {:else}
             <ul>
               {#each existingVirtuals.boxes as boxName (boxName)}
