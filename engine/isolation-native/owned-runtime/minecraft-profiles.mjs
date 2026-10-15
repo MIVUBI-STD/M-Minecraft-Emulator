@@ -97,11 +97,12 @@ function configurationPlan(profiles) {
 }
 
 /** A SINGLE supported sandbox target, never an eager three-box creation.
- * The caller must independently observe the occupied names through its OWN
- * verified engine, not the installed official Sandboxie compatibility pilot.
+ * The caller must explicitly pass independently observed occupied names through
+ * its OWN verified engine, not the installed official Sandboxie pilot. Omitting
+ * inventory must never silently mean an empty and safe host.
  * This is source-only planning: no executable or driver is invoked.
  */
-export function planOwnedMinecraftVirtual(client, existingBoxes = []) {
+export function planOwnedMinecraftVirtual(client, existingBoxes) {
   const box = requireProfile(client);
   const occupied = occupiedNames(existingBoxes);
   if (occupied.has(box.toLowerCase())) {
@@ -115,7 +116,7 @@ export function planOwnedMinecraftVirtual(client, existingBoxes = []) {
  * shares the EXACT per-box profile and remains nonexecuting. The desktop
  * should use one-target planning for a single Create Virtual request.
  */
-export function planOwnedMinecraftProfiles(existingBoxes = []) {
+export function planOwnedMinecraftProfiles(existingBoxes) {
   const occupied = occupiedNames(existingBoxes);
   const profiles = ownedMinecraftProfiles();
   if (profiles.some(p => occupied.has(p.box.toLowerCase()))) {
