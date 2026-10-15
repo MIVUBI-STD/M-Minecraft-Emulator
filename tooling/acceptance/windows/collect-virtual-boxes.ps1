@@ -16,15 +16,19 @@ if ($install.Count -ne 1) { throw 'Official Sandboxie installation unavailable o
 $ini = Join-Path $install[0] 'SbieIni.exe'
 $signature = Get-AuthenticodeSignature -LiteralPath $ini -ErrorAction Stop
 if ($signature.Status -ne 'Valid') { throw 'Installed Sandboxie query tool has untrusted signature.' }
-# Upstream SbieIni accepts query /boxes *; this lists box names available for
-# the current user. It is NOT proof that a process is running or signed in.
-$names = @(& $ini query /boxes '*' 2>$null)
-if ($LASTEXITCODE -ne 0 -or $names.Count -gt 128) {
+# Verified upstream query.c: "query /boxes *" silently skips disabled
+# boxes via SbieApi_IsBoxEnabled. An occupied but disabled name must remain
+# visible; "query *" enumerates the sections and prints GlobalSettings first.
+# This is a read-only official-pilot inventory, never owned-engine authority.
+$sections = @(& $ini query '*' 2>$null)
+if ($LASTEXITCODE -ne 0 -or $sections.Count -lt 1 -or
+    $sections.Count -gt 129 -or
+    ([string]$sections[0]).Trim() -cne 'GlobalSettings') {
   throw 'Cannot reliably enumerate existing Sandboxie boxes.'
 }
 $seen = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
 $boxes = @()
-foreach ($item in $names) {
+foreach ($item in @($sections | Select-Object -Skip 1)) {
   $name = ([string]$item).Trim()
   if ($name -cnotmatch '^[a-zA-Z0-9_]{1,32}$' -or -not $seen.Add($name)) {
     throw 'Unexpected or duplicate Sandboxie box name.'
