@@ -23,6 +23,36 @@ function sampleMetrics(value) {
     throw new TypeError("Observed CPU/RAM must be finite nonnegative values.");
   }
 }
+// Experimental Windows GPU performance counter hints are NOT verified
+// renderer utilization, actual VRAM allocation, FPS or frametimes.
+// Windows has documented stale GPU Process Memory counter values.
+function validateGpuHint(value) {
+  if (!exactly(value, [
+    "status", "threeDEngineMaximumInstancePercent",
+    "dedicatedMemoryMaximumInstanceMb",
+  ]) || !["OBSERVED", "UNKNOWN"].includes(value.status)) {
+    throw new TypeError("Invalid optional GPU diagnostic hint.");
+  }
+  const engine = value.threeDEngineMaximumInstancePercent;
+  const dedicated = value.dedicatedMemoryMaximumInstanceMb;
+  if (value.status === "UNKNOWN") {
+    if (engine !== null || dedicated !== null) {
+      throw new TypeError("Unknown GPU hints must use null, not zero.");
+    }
+  } else if (!finite(engine) || engine < 0 || engine > 100 ||
+      !finite(dedicated) || dedicated < 0 || dedicated > 1048576) {
+    throw new TypeError("Invalid GPU counter hint value.");
+  }
+}
+function validateGpuDiagnostic(value) {
+  if (!exactly(value, ["evidenceClass", "native", "isolated"]) ||
+      value.evidenceClass !== "WINDOWS_GPU_COUNTER_HINT_NOT_FRAME_PROOF") {
+    throw new TypeError("Unrecognized optional GPU evidence.");
+  }
+  validateGpuHint(value.native);
+  validateGpuHint(value.isolated);
+}
+
 function metrics(samples, key) {
   // This is ONE operator-selected process, not its full descendant tree.
   // Missing readings may mean exit, inaccessibility or restart, not a crash.
@@ -53,8 +83,9 @@ export function evaluateNativePerformance(report) {
     "automaticVerdict", "capturedAtUtc", "durationRequestedSeconds",
     "durationObservedSeconds", "sampleIntervalSeconds", "hostLogicalCpus",
     "sampleCount", "nativeProcessIdentityLost", "isolatedProcessIdentityLost",
-    "samples", "missingEvidence"];
-  if (!exactly(report, fields) || report.schema !== 1 ||
+    "samples", "missingEvidence",
+    ...(report?.schema === 2 ? ["gpuDiagnostic"] : [])];
+  if (!exactly(report, fields) || ![1, 2].includes(report.schema) ||
       report.scope !== "NATIVE_SANDBOXIE_PROCESS_PERFORMANCE" ||
       report.evidenceOrigin !== "WINDOWS_HOST" ||
       report.attribution !== "OPERATOR_SELECTED_UNVERIFIED_PIDS" ||
@@ -78,6 +109,7 @@ export function evaluateNativePerformance(report) {
       !missing.every((flag, index) => report.missingEvidence[index] === flag)) {
     throw new TypeError("Unrecognized or inconsistent native performance report.");
   }
+  if (report.schema === 2) validateGpuDiagnostic(report.gpuDiagnostic);
   let lastTime = -1;
   let nativeLostInSamples = false;
   let isolatedLostInSamples = false;
@@ -119,6 +151,16 @@ export function evaluateNativePerformance(report) {
     identityDiscontinuityObserved: report.nativeProcessIdentityLost || report.isolatedProcessIdentityLost,
     identityDiscontinuityInterpretation: "PROCESS_MISSING_OR_INACCESSIBLE_NOT_PROOF_OF_CRASH",
     metricScope: "OPERATOR_SELECTED_PROCESSES_ONLY_NOT_PROCESS_TREES",
+    ...(report.schema === 2 ? {
+      gpuDiagnostic: {
+        interpretation: "ONE_TIME_WINDOWS_COUNTER_HINT_UNVERIFIED",
+        native: { ...report.gpuDiagnostic.native },
+        isolated: { ...report.gpuDiagnostic.isolated },
+      },
+      gpuPerformanceVerified: false,
+      gpuCounterMemoryMayBeStale: true,
+      frameTimingVerified: false,
+    } : {}),
     missingEvidence: [...missing],
   };
 }
@@ -133,6 +175,7 @@ export function compareNativePerformance(baseline, candidate) {
   const before = evaluateNativePerformance(baseline);
   const after = evaluateNativePerformance(candidate);
   const conditions = {
+    sameReportSchema: baseline.schema === candidate.schema,
     equalRequestedDuration: baseline.durationRequestedSeconds === candidate.durationRequestedSeconds,
     equalSampleInterval: baseline.sampleIntervalSeconds === candidate.sampleIntervalSeconds,
     equalLogicalCpus: baseline.hostLogicalCpus === candidate.hostLogicalCpus,
