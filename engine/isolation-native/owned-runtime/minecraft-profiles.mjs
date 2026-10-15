@@ -40,6 +40,10 @@ function requireGameExe(executable) {
   if (typeof executable !== "string" || executable.length > 1024 ||
       !/^[A-Za-z]:\\/.test(executable) ||
       /[\u0000-\u001f\u007f"'<>|*?]/.test(executable) ||
+      // The native Start.cpp parser also rejects colon/forward slash after
+      // the drive prefix. A syntactically accepted JS plan must never create
+      // a raw command line that the private launcher itself refuses.
+      /[:/]/.test(executable.slice(2)) ||
       executable.split("\\").some(part => part === ".." || part === "." || part.length === 0)) {
     throw new Error("MIVUBI private launch requires a canonical absolute Windows Education EXE");
   }
