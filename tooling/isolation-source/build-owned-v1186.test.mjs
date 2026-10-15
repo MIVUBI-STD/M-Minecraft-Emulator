@@ -71,7 +71,11 @@ test('build stages match the actual v1.18.6 solution projects and output directo
   const read = name => readFileSync(new URL(name, root), 'utf8');
   const stages = [
     ['SandboxDll.sln', 'Win32', ['SboxSvc', 'SboxDll']],
-    ['Sandbox.sln', 'x64', ['Start', 'SbieIni', 'KmdUtil', 'SbieControl']],
+    ['Sandbox.sln', 'x64', [
+      'SboxSvc', 'SboxDll', 'Start', 'SbieIni', 'KmdUtil', 'SboxMsg',
+      'SandboxRpcSs', 'SboxDcomLaunch', 'SandboxCrypto', 'SandboxBITS',
+      'SandboxWUAU', 'SbieControl', 'SboxHostDll',
+    ]],
     ['SandboxDrv.sln', 'x64', ['SboxDrv']],
   ];
   for (const [solution, platform, projectNames] of stages) {
@@ -95,6 +99,42 @@ test('build stages match the actual v1.18.6 solution projects and output directo
   assert.ok(profile.requiredArtifacts.includes('Sandboxie/Bin/Win32/SbieRelease/SbieSvc.exe'));
   assert.ok(profile.requiredArtifacts.includes('Sandboxie/Bin/x64/SbieRelease/SbieDrv.sys'));
   assert.equal(new Set(profile.requiredArtifacts).size, profile.requiredArtifacts.length);
+});
+
+test('build-only stages reject incomplete outputs before starting the next expensive stage', () => {
+  const dirs = {
+    'win32-support': profile.requiredArtifacts.filter(path =>
+      path.startsWith('Sandboxie/Bin/Win32/SbieRelease/')),
+    'x64-user-core': profile.requiredArtifacts.filter(path =>
+      path.startsWith('Sandboxie/Bin/x64/SbieRelease/') &&
+      !path.endsWith('/SbieDrv.sys')),
+    'x64-wdk-kernel': profile.requiredArtifacts.filter(path =>
+      path.endsWith('/SbieDrv.sys')),
+  };
+  assert.deepEqual(Object.fromEntries(
+    Object.entries(dirs).map(([name, files]) => [name, files.length])),
+    { 'win32-support': 2, 'x64-user-core': 13, 'x64-wdk-kernel': 1 });
+  assert.equal(new Set(Object.values(dirs).flat()).size, profile.requiredArtifacts.length);
+  assert.match(source, /\$stageRequired = @\(\$required \| Where-Object/);
+  assert.match(source, /\$expectedStageCount = switch \(\$stage\.id\)/);
+  assert.match(source, /\$stageRequired\.Count -ne \$expectedStageCount/);
+  assert.match(source, /Native stage \$\(\$stage\.id\) succeeded but required output is missing/);
+  assert.match(source, /Native stage \$\(\$stage\.id\) produced an empty required output/);
+  assert.ok(source.indexOf('foreach ($rel in $stageRequired)') <
+    source.indexOf('  $artifacts = @()'),
+    'fail-fast stage gate must precede full payload artifact collection');
+  // The full output hash loop remains a separate final integrity check.
+  assert.match(source, /\$digest = \(Get-FileHash -LiteralPath \$path -Algorithm SHA256\)/);
+  // The upstream x64 main solution intentionally does not build the driver.
+  const main = readFileSync(
+    new URL('../../engine/isolation-owned/Sandboxie/Sandbox.sln', import.meta.url), 'utf8');
+  const driver = main.split(/\r?\n/).find(line =>
+    line.includes(' = "SboxDrv", '));
+  assert.ok(driver, 'upstream driver project not found');
+  const guid = driver.match(/, "\{([0-9a-fA-F-]{36})\}"\s*$/)?.[1];
+  assert.ok(guid, 'unrecognized upstream driver project GUID');
+  assert.ok(!main.includes('{'+guid+'}.SbieRelease|x64.Build.0'),
+    'x64 stage unexpectedly builds driver; reconsider stage ownership');
 });
 
 test('ignored native build artifacts cannot evade the clean-tree preflight', () => {
