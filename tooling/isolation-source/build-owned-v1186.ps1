@@ -29,7 +29,21 @@ if ($reportFolder.Equals($sourceFull, [StringComparison]::OrdinalIgnoreCase) -or
 }
 $git = (Get-Command git.exe -ErrorAction Stop).Source
 $node = (Get-Command node.exe -ErrorAction Stop).Source
-$msbuild = (Get-Command msbuild.exe -ErrorAction Stop).Source
+# A plain PowerShell session usually has no msbuild.exe on PATH. Resolve the
+# VS2022 tool explicitly; this avoids accidentally using an older PATH binary.
+$programFilesX86 = [Environment]::GetFolderPath('ProgramFilesX86')
+$vswhere = Join-Path $programFilesX86 'Microsoft Visual Studio/Installer/vswhere.exe'
+if (-not (Test-Path -LiteralPath $vswhere -PathType Leaf)) {
+  throw 'Visual Studio 2022 vswhere.exe is missing; install VS2022 C++/MSBuild.'
+}
+$installation = (& $vswhere -latest -products '*' -version '[17.0,18.0)' -requires Microsoft.Component.MSBuild -property installationPath | Select-Object -First 1)
+if ($LASTEXITCODE -ne 0 -or -not $installation) {
+  throw 'No Visual Studio 2022 installation with MSBuild was found.'
+}
+$msbuild = Join-Path ([string]$installation).Trim() 'MSBuild/Current/Bin/MSBuild.exe'
+if (-not (Test-Path -LiteralPath $msbuild -PathType Leaf)) {
+  throw 'The selected VS2022 installation does not contain MSBuild.exe.'
+}
 $branch = (& $git -C $repo branch --show-current | Out-String).Trim()
 if ($LASTEXITCODE -ne 0 -or $branch -cne 'Local') { throw 'Build requires branch Local.' }
 $dirty = (& $git -C $repo status --porcelain=v1 --untracked-files=all | Out-String).Trim()
@@ -109,12 +123,40 @@ try {
     if (-not (Test-Path -LiteralPath $solution -PathType Leaf)) {
       throw "Missing source solution: $($stage.sln)"
     }
-    $log = Join-Path $reportFolder ($stage.id + '.log')
-    & $msbuild /t:Build $solution /p:Configuration=SbieRelease ("/p:Platform=" + $stage.platform) /maxcpucount:8 *>&1 |
-      Out-File -LiteralPath $log -Encoding UTF8 -NoClobber
-    $code = $LASTEXITCODE
-    $results += [ordered]@{ stage=$stage.id; platform=$stage.platform; exitCode=$code; log=($stage.id + '.log') }
-    if ($code -ne 0) { throw "MSBuild failed: $($stage.id); see $log" }
+    # PowerShell 5.1 may elevate an MSBuild stderr line into a terminating
+    # ErrorRecord when ErrorActionPreference=Stop. Run the compiler as a child
+    # process instead: always capture its REAL exit code and both streams.
+    $stdoutName = $stage.id + '.stdout.log'
+    $stderrName = $stage.id + '.stderr.log'
+    $stdout = Join-Path $reportFolder $stdoutName
+    $stderr = Join-Path $reportFolder $stderrName
+    $arguments = @(
+      ('"' + $solution + '"'),
+      '/t:Build',
+      '/p:Configuration=SbieRelease',
+      ("/p:Platform=" + $stage.platform),
+      '/maxcpucount:8',
+      '/nodeReuse:false',
+      '/nologo'
+    )
+    $stageResult = [ordered]@{
+      stage=$stage.id; platform=$stage.platform; exitCode=$null
+      stdoutLog=$stdoutName; stderrLog=$stderrName
+    }
+    $results += $stageResult
+    try {
+      $process = Start-Process -FilePath $msbuild -WorkingDirectory $source -ArgumentList $arguments `
+        -NoNewWindow -PassThru -Wait -RedirectStandardOutput $stdout `
+        -RedirectStandardError $stderr -ErrorAction Stop
+      $stageResult.exitCode = [int]$process.ExitCode
+    }
+    catch {
+      $stageResult.launchFailure = $_.Exception.Message
+      throw
+    }
+    if ($stageResult.exitCode -ne 0) {
+      throw "MSBuild failed: $($stage.id) (exit $($stageResult.exitCode)); see $stdout and $stderr"
+    }
   }
   $artifacts = @()
   foreach ($rel in $required) {
