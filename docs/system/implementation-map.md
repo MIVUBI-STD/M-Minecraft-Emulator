@@ -13,15 +13,22 @@ This is a **navigation guide**, not a second registry or copy of implementation 
 
 ## Locate work by problem
 
-For the complete pinned source copy and first direct MIVUBI native modifications,
-use [Owned full-source import](./owned-source-import.md); the source owner
-is migrating into `engine/isolation-owned/` (314/1,624 pinned blobs at the
-2026-10-15 core-service checkpoint). The pinned upstream Gitlink remains the exact
-reference; the native overlay remains the unapplied MIVUBI patch owner until
-the complete owned subtree matches the upstream Git tree SHA.
+**Current native source (15 October 2026):** the editable Sandboxie-derived
+v1.18.6 implementation is **complete as source** in `engine/isolation-owned/`
+(1,627 files, 11 directly modified C/C++ files). The unmodified reference is
+`engine/isolation-candidates/sandboxie-v1.18.6/`. The active exact-source
+verifier is `tooling/isolation-source/verify-owned-v1186.mjs` and the
+**build-only** Windows entrypoint is `tooling/isolation-source/build-owned-v1186.ps1`.
+Neither native compilation, driver installation nor owned-engine gameplay
+has been demonstrated. See [current implementation sequence](../../planning/development.md).
+The pinned v1.18.5 Gitlink, independent fork scripts, overlays, assemblers
+and Windows transaction prototypes listed elsewhere in this guide are
+**historical/reference-only** until they are explicitly migrated to v1.18.6;
+they must never be chosen automatically as current build or activation code.
 
 | Question / fault | Primary implementation owner | Consumer / companion |
 | --- | --- | --- |
+| Compile actual **v1.18.6 MIVUBI-owned** native core without installation | `engine/isolation-owned/` + `tooling/isolation-source/build-owned-v1186.ps1` | `engine/isolation-native/owned-runtime/build-profile-v1186.json`, `verify-owned-v1186.mjs` and `build-owned-v1186.test.mjs`; three-stage real Windows build remains NOT_EXECUTED |
 | Native PID/HWND candidates without accounts, tokens or VM | `apps/desktop/src-tauri/src/engine/native_clients.rs`, `apps/desktop/src/app/bridge/nativeFeasibilityApi.ts` | [Native feasibility](../validation/native-multi-instance-feasibility.md); candidate-only |
 | Active desktop and blocked legacy VM routing | `apps/desktop/src/main.ts`, `apps/desktop/src/CompactManagerApp.svelte`, `engine/runtime-core/src/command.rs` | [Legacy Retirement](./legacy-retirement.md); old Tauri handlers not registered |
 | Prove two Minecraft Education Desktop sessions can run natively without VMs | `tooling/acceptance/windows/collect-native-feasibility.ps1`, `tooling/acceptance/evaluate-native-feasibility.mjs` | [Native feasibility](../validation/native-multi-instance-feasibility.md); historical alternative, not selected launch architecture |
