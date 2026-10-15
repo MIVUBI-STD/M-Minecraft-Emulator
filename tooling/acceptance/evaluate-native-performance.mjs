@@ -24,16 +24,27 @@ function sampleMetrics(value) {
   }
 }
 function metrics(samples, key) {
-  const observed = samples.map(sample => sample[key]).filter(x => x.status === "OBSERVED");
+  // This is ONE operator-selected process, not its full descendant tree.
+  // Missing readings may mean exit, inaccessibility or restart, not a crash.
+  const observed = samples.filter(sample => sample[key].status === "OBSERVED");
+  const firstMissing = samples.find(sample => sample[key].status === "UNKNOWN");
+  const mean = (field) => observed.length
+    ? Number((observed.reduce((total, sample) => total + sample[key][field], 0) /
+        observed.length).toFixed(2))
+    : null;
   return {
     observedSamples: observed.length,
     missingSamples: samples.length - observed.length,
-    meanHostCpuPercent: observed.length
-      ? Number((observed.reduce((sum, x) => sum + x.cpuPercentOfHost, 0) / observed.length).toFixed(2))
+    observationCoveragePercent: Number((100 * observed.length / samples.length).toFixed(2)),
+    firstMissingAtSeconds: firstMissing?.elapsedSeconds ?? null,
+    meanHostCpuPercent: mean("cpuPercentOfHost"),
+    peakHostCpuPercent: observed.length
+      ? Math.max(...observed.map(sample => sample[key].cpuPercentOfHost))
       : null,
+    meanWorkingSetMb: mean("workingSetMb"),
     maxWorkingSetMb: observed.length
-      ? Math.max(...observed.map(x => x.workingSetMb))
-      : null
+      ? Math.max(...observed.map(sample => sample[key].workingSetMb))
+      : null,
   };
 }
 
@@ -106,6 +117,8 @@ export function evaluateNativePerformance(report) {
     native,
     isolated,
     identityDiscontinuityObserved: report.nativeProcessIdentityLost || report.isolatedProcessIdentityLost,
+    identityDiscontinuityInterpretation: "PROCESS_MISSING_OR_INACCESSIBLE_NOT_PROOF_OF_CRASH",
+    metricScope: "OPERATOR_SELECTED_PROCESSES_ONLY_NOT_PROCESS_TREES",
     missingEvidence: [...missing],
   };
 }
