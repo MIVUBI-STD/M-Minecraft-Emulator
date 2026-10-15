@@ -40,10 +40,13 @@ $installation = (& $vswhere -latest -products '*' -version '[17.0,18.0)' -requir
 if ($LASTEXITCODE -ne 0 -or -not $installation) {
   throw 'No Visual Studio 2022 installation with MSBuild was found.'
 }
-$msbuild = Join-Path ([string]$installation).Trim() 'MSBuild/Current/Bin/MSBuild.exe'
+$installationRoot = ([string]$installation).Trim()
+$msbuild = Join-Path $installationRoot 'MSBuild/Current/Bin/MSBuild.exe'
 if (-not (Test-Path -LiteralPath $msbuild -PathType Leaf)) {
   throw 'The selected VS2022 installation does not contain MSBuild.exe.'
 }
+$msbuildFile = Get-Item -LiteralPath $msbuild
+$msbuildDigest = (Get-FileHash -LiteralPath $msbuild -Algorithm SHA256).Hash.ToLowerInvariant()
 $branch = (& $git -C $repo branch --show-current | Out-String).Trim()
 if ($LASTEXITCODE -ne 0 -or $branch -cne 'Local') { throw 'Build requires branch Local.' }
 $dirty = (& $git -C $repo status --porcelain=v1 --untracked-files=all | Out-String).Trim()
@@ -105,6 +108,11 @@ $report = [ordered]@{
   state = 'BUILD_FAILED_OR_INCOMPLETE'
   sourceVersion = 'v1.18.6'
   repoHead = $head
+  compiler = [ordered]@{
+    path = $msbuild
+    fileVersion = [string]$msbuildFile.VersionInfo.FileVersion
+    sha256 = $msbuildDigest
+  }
   upstreamTree = [string]$proof.upstreamTree
   ownedTree = [string]$proof.ownedTree
   nativeModifiedFiles = 11
