@@ -52,9 +52,18 @@ if ($PackageDirectory) {
   if (-not (Test-Path -LiteralPath $packageParent -PathType Container)) {
     throw 'Engine package destination parent must exist before native compilation.'
   }
-  $parentItem = Get-Item -LiteralPath $packageParent -Force -ErrorAction Stop
-  if (($parentItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
-    throw 'Engine package parent must not be a Windows reparse point.'
+  # A junction anywhere in the parent chain could redirect an apparently
+  # outside-checkout package path into the repository after MSBuild completes.
+  # Check every ancestor now; the assembler still performs final realpath proof.
+  $ancestor = $packageParent
+  while ($ancestor) {
+    $parentItem = Get-Item -LiteralPath $ancestor -Force -ErrorAction Stop
+    if (($parentItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+      throw 'Engine package parent must not be a Windows reparse point.'
+    }
+    $next = Split-Path -Parent $ancestor
+    if (-not $next -or $next -eq $ancestor) { break }
+    $ancestor = $next
   }
 }
 $git = (Get-Command git.exe -ErrorAction Stop).Source
