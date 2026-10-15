@@ -41,6 +41,19 @@ function sources() {
       "    return box;",
       "}",
       "",
+    ].join("\n") : path === "Sandboxie/core/drv/process_api.c" ? [
+      "// isolated kernel process API fixture",
+      '#include "common/my_version.h"',
+      "NTSTATUS Process_Api_Start(void) {",
+      "        if (! Api_CopyBoxNameFromUser(boxname, (WCHAR *)user_box_parm))",
+      "            return STATUS_INVALID_PARAMETER;",
+      "        TokenObject = PsReferenceImpersonationToken(PsGetCurrentThread(),",
+      "                    &CopyOnOpen, &EffectiveOnly, &ImpersonationLevel);",
+      "        if (!TokenObject) return STATUS_NO_IMPERSONATION_TOKEN;",
+      "        box = Box_CreateEx(pool, boxname, sid, session, TRUE);",
+      "        if (!box) return STATUS_INSUFFICIENT_RESOURCES;",
+      "}",
+      "",
     ].join("\n") : path === "Sandboxie/core/dll/sbieapi.c" ? [
       "// isolated fixture component: " + path,
       '#include "common/my_version.h"',
@@ -94,19 +107,21 @@ function git(root, args, input) {
 
 test("generated patch includes DLL and service startup in exact core closure and preserves kernel names", () => {
   const patch = buildPrivateSourcePatch(sources());
-  assert.equal((patch.match(/^diff --git/gm) ?? []).length, 9);
-  assert.equal((patch.match(/^@@ /gm) ?? []).length, 18);
+  assert.equal((patch.match(/^diff --git/gm) ?? []).length, 10);
+  assert.equal((patch.match(/^@@ /gm) ?? []).length, 20);
   // Git apply rejects the earlier anchor-only hunks even when the line
   // matches. Every insertion must retain a following source context line.
   assert.match(patch, /@@ -\d+,2 \+\d+,4 @@/);
   assert.match(patch, /\+#define MIVUBI_PRIVATE_ISOLATION_ABI   0x57230\n #define SBIEDRV/);
   assert.match(patch, /\+#endif\n int test_function\(void\)/);
-  assert.equal((patch.match(/^@@ -\d+,2 \+\d+,\d+ @@$/gm) ?? []).length, 17);
+  assert.equal((patch.match(/^@@ -\d+,2 \+\d+,\d+ @@$/gm) ?? []).length, 19);
   // Real upstream has seven context lines; the synthetic fixture packs
   // the same three source anchors into five. Both must be one Git hunk.
   assert.match(patch, /^@@ -\d+,(?:5|7) \+\d+,\d+ @@$/m);
   assert.match(patch, /MivubiVerifyOpenedDevice/);
   assert.match(patch, /Sandboxie\/core\/drv\/box.c/);
+  assert.match(patch, /Sandboxie\/core\/drv\/process_api.c/);
+  assert.match(patch, /TokenObject = PsReferenceImpersonationToken/);
   assert.match(patch, /MivubiBoxNameAllowed\(boxname\)/);
   assert.match(patch, /STATUS_ACCESS_DENIED/);
   assert.match(patch, /MivubiVerifiedDeviceHandle/);
@@ -182,6 +197,12 @@ test("entire patch applies atomically to a disposable Git checkout without renam
     assert.match(boxed, /STATUS_ACCESS_DENIED/);
     assert.ok(boxed.indexOf("if (!MivubiBoxNameAllowed(boxname))") <
       boxed.indexOf("BOX *box = Mem_Alloc"));
+    const startApi = readFileSync(join(root, "Sandboxie/core/drv/process_api.c"), "utf8");
+    assert.match(startApi, /return STATUS_ACCESS_DENIED;/);
+    assert.ok(startApi.indexOf("if (!MivubiBoxNameAllowed(boxname))") >
+      startApi.indexOf("Api_CopyBoxNameFromUser(boxname"));
+    assert.ok(startApi.indexOf("if (!MivubiBoxNameAllowed(boxname))") <
+      startApi.indexOf("TokenObject = PsReferenceImpersonationToken"));
     const dll = readFileSync(join(root, "Sandboxie/core/dll/sbieapi.c"), "utf8");
     assert.match(dll, /MivubiOwnedDriverMatches\(mivubiVersion, 16, mivubiAbi\)/);
     assert.match(dll, /MivubiVerifyOpenedDevice/);
@@ -362,6 +383,29 @@ test("kernel Box_Alloc rejects unowned names before BOX allocation", () => {
     "if (MivubiBoxNameAllowed(boxname))")};
   assert.throws(() => verifyExactPrivateSourceBytes(original, replaced),
     /unexpected modified source bytes/);
+});
+
+test("kernel process-start returns access denied before impersonation", () => {
+  const upstream = sources();
+  const expected = buildExpectedPrivateSources(upstream);
+  const p = "Sandboxie/core/drv/process_api.c";
+  const code = expected[p];
+  const copy = code.indexOf("Api_CopyBoxNameFromUser(boxname");
+  const deny = code.indexOf("if (!MivubiBoxNameAllowed(boxname))");
+  const token = code.indexOf("TokenObject = PsReferenceImpersonationToken");
+  assert.ok(copy >= 0 && deny > copy && token > deny);
+  assert.match(code, /if \(!MivubiBoxNameAllowed\(boxname\)\)\s+return STATUS_ACCESS_DENIED;/);
+  assert.match(code, /return STATUS_INVALID_PARAMETER;/);
+  assert.match(code, /return STATUS_INSUFFICIENT_RESOURCES;/);
+  for (const [before, after] of [
+    ["if (!MivubiBoxNameAllowed(boxname))",
+      "if (MivubiBoxNameAllowed(boxname))"],
+    ["return STATUS_ACCESS_DENIED;", "return STATUS_INSUFFICIENT_RESOURCES;"],
+  ]) {
+    const corrupt = {...expected, [p]: code.replace(before, after)};
+    assert.throws(() => verifyExactPrivateSourceBytes(upstream, corrupt),
+      /unexpected modified source bytes/);
+  }
 });
 
 test("wrong ABI, unexpected service identity and duplicate compiler anchors fail closed", () => {

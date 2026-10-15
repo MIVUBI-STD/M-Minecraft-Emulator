@@ -1,5 +1,41 @@
 # Current Development Handoff — M-Minecraft-Emulator
 
+## Kernel Process_Api_Start policy fix — 15 October 2026
+
+**Implementation:** the MIVUBI Sandboxie-derived kernel source now checks
+`MivubiBoxNameAllowed(boxname)` in upstream
+`Sandboxie/core/drv/process_api.c` immediately after
+`Api_CopyBoxNameFromUser`, before looking up an impersonation token or
+allocating a BOX. Forbidden requested box names return
+`STATUS_ACCESS_DENIED` (not misleading `STATUS_INSUFFICIENT_RESOURCES`).
+Valid box names retain the original token/session/Box_CreateEx path.
+The existing lower-level `Box_Alloc` denial remains active for
+create/clone paths. This change adds a tenth exact pinned upstream
+source file, producing 20 nonoverlapping Git hunks; the Rust inspector,
+private assembler and source regression tests share the updated list.
+
+**Executed evidence:** actual upstream v1.18.5 file bytes were used for
+the exact-source transformation and strict byte check: 10 paths, 20
+hunks, PASS. Ten authored pure JavaScript source regression tests ran
+in ChatGPT V8 and passed, including altered status/gate detection.
+The canonical `mivubi_kernel_box_policy.h` has a matching Git hash
+`cdd280a784ccb67e9f6d4c56b0f20cde0fa86921` in the ChatGPT
+container. A C smoke test using that exact header passed GCC/Clang and
+compiled with clang-cl to a Windows x64 COFF object.
+
+**Limits:** this does not compile the complete Sandboxie driver,
+service, DLL or Start.exe. Model-PID clone failures still rely on the
+lower-level Box_Alloc gate and existing upstream error mapping; the
+new explicit STATUS_ACCESS_DENIED targets the named-box start path.
+Actual Windows WDK/MSVC, signing, service load, process isolation,
+REA binary inspection and Minecraft account tests are NOT_EXECUTED.
+Keep the official Sandboxie installation, accounts and worlds intact.
+
+**Next:** build and debug the real integrated Windows private kernel
+and service in a disposable exclusive environment. Do not return to
+metadata-only work unless needed to correct a blocking implementation.
+
+
 ## New native kernel function: whitelist BOX creation — 15 October 2026
 
 **Work:** substantive MIVUBI-owned Sandboxie engine implementation,

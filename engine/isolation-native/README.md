@@ -7,6 +7,13 @@ Driver ABI: `0x57230`; driver version: `5.73.5`.
 
 ## MIVUBI kernel-enforced sandbox namespace — 15 October 2026
 
+The private fork now modifies `Sandboxie/core/drv/box.c` itself
+and also checks named launches at `Sandboxie/core/drv/process_api.c`.
+The second check occurs after validated box-name copying but BEFORE
+service-token impersonation or any BOX allocation. Invalid MIVUBI box
+names now return `STATUS_ACCESS_DENIED` directly, instead of being
+misreported as insufficient memory when Box_Alloc returned NULL.
+
 The private fork now modifies `Sandboxie/core/drv/box.c` itself.
 Immediately before `Box_Alloc` allocates an actual kernel `BOX`
 object, its C policy `mivubi_kernel_box_policy.h` allows only
@@ -15,7 +22,7 @@ object, its C policy `mivubi_kernel_box_policy.h` allows only
 all other names. The restriction also applies when sandbox contexts
 are cloned for descendant processes, since both paths use
 `Box_Alloc`. Official upstream builds are untouched. The private
-fork closure now has nine source files (18 Git hunks).
+fork closure now has ten source files (20 Git hunks).
 
 The **actual header source** was compiled and tested in 35 native C
 accept/reject cases: GCC and Clang, Release and ASan/UBSan, all passed.

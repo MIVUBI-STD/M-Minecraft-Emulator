@@ -34,6 +34,18 @@ const MARKERS = [
 const START_PATH = "Sandboxie/apps/start/start.cpp";
 const DRIVER_PATH = "Sandboxie/core/drv/api.c";
 const BOX_PATH = "Sandboxie/core/drv/box.c";
+const PROCESS_API_PATH = "Sandboxie/core/drv/process_api.c";
+const PROCESS_INCLUDE_ANCHOR = '#include "common/my_version.h"';
+const PROCESS_IMPERSONATION_ANCHOR =
+  "        TokenObject = PsReferenceImpersonationToken(PsGetCurrentThread(),";
+const PROCESS_START_ADMISSION = [
+  "#if defined(MIVUBI_PRIVATE_ISOLATION_BUILD)",
+  "        // A deliberately forbidden box is an access denial, not OOM.",
+  "        // Reject BEFORE querying a service impersonation token or BOX alloc.",
+  "        if (!MivubiBoxNameAllowed(boxname))",
+  "            return STATUS_ACCESS_DENIED;",
+  "#endif",
+];
 const BOX_INCLUDE_ANCHOR = '#include "box.h"';
 const BOX_ALLOC_ANCHOR = "    BOX *box = Mem_Alloc(pool, sizeof(BOX));";
 const BOX_POLICY = readFileSync(
@@ -217,6 +229,7 @@ export const SOURCE_FILES = Object.freeze([
   "Sandboxie/common/my_version.h",
   "Sandboxie/core/drv/api.c",
   "Sandboxie/core/drv/box.c",
+  "Sandboxie/core/drv/process_api.c",
   "Sandboxie/core/dll/sbieapi.c",
   "Sandboxie/core/svc/DriverAssist.cpp",
   "Sandboxie/core/svc/DriverAssistStart.cpp",
@@ -331,11 +344,14 @@ export function buildPrivateSourcePatch(files) {
     assert(!files[path].includes("MIVUBI_PRIVATE_ISOLATION_BUILD"),
       "private marker already present: " + path);
     const includeAnchor = path === SVC_START_PATH ? SVC_INCLUDE_ANCHOR :
-      path === BOX_PATH ? BOX_INCLUDE_ANCHOR : ANCHOR;
+      path === BOX_PATH ? BOX_INCLUDE_ANCHOR :
+      path === PROCESS_API_PATH ? PROCESS_INCLUDE_ANCHOR : ANCHOR;
     const additions = path === START_PATH
       ? [...GUARD, "", ...CORE_IDENTITY, "", ...START_POLICY]
       : path === BOX_PATH
         ? ['#include "common/my_version.h"', ...GUARD, "", ...BOX_POLICY]
+      : path === PROCESS_API_PATH
+        ? [...GUARD, "", ...BOX_POLICY]
       : path === DRIVER_PATH || path === DLL_PATH
         ? [...GUARD, "", ...CORE_IDENTITY]
       : path === SVC_START_PATH ? SVC_START_INCLUDE : GUARD;
@@ -345,6 +361,11 @@ export function buildPrivateSourcePatch(files) {
       onlyOnce(files[path], BOX_ALLOC_ANCHOR, path);
       parts.push(hunk(files[path], path, BOX_ALLOC_ANCHOR,
         BOX_ADMISSION, true, additions.length, false));
+    }
+    if (path === PROCESS_API_PATH) {
+      onlyOnce(files[path], PROCESS_IMPERSONATION_ANCHOR, path);
+      parts.push(hunk(files[path], path, PROCESS_IMPERSONATION_ANCHOR,
+        PROCESS_START_ADMISSION, true, additions.length, false));
     }
     if (path === DRIVER_PATH) {
       // Kernel returns a private runtime identity through the EXISTING
@@ -400,11 +421,14 @@ export function buildExpectedPrivateSources(original) {
   for (const [index, path] of SOURCE_FILES.entries()) {
     const anchor = index === 0 ? VERSION_ANCHOR
       : path === SVC_START_PATH ? SVC_INCLUDE_ANCHOR
-      : path === BOX_PATH ? BOX_INCLUDE_ANCHOR : ANCHOR;
+      : path === BOX_PATH ? BOX_INCLUDE_ANCHOR :
+      path === PROCESS_API_PATH ? PROCESS_INCLUDE_ANCHOR : ANCHOR;
     const additions = index === 0 ? MARKERS
       : path === START_PATH ? [...GUARD, "", ...CORE_IDENTITY, "", ...START_POLICY]
       : path === BOX_PATH
         ? ['#include "common/my_version.h"', ...GUARD, "", ...BOX_POLICY]
+      : path === PROCESS_API_PATH
+        ? [...GUARD, "", ...BOX_POLICY]
       : path === DRIVER_PATH || path === DLL_PATH
         ? [...GUARD, "", ...CORE_IDENTITY]
       : path === SVC_START_PATH ? SVC_START_INCLUDE : GUARD;
@@ -416,6 +440,11 @@ export function buildExpectedPrivateSources(original) {
       onlyOnce(original[path], BOX_ALLOC_ANCHOR, path);
       value = value.replace(BOX_ALLOC_ANCHOR,
         [...BOX_ADMISSION, BOX_ALLOC_ANCHOR].join(newline));
+    }
+    if (path === PROCESS_API_PATH) {
+      onlyOnce(original[path], PROCESS_IMPERSONATION_ANCHOR, path);
+      value = value.replace(PROCESS_IMPERSONATION_ANCHOR,
+        [...PROCESS_START_ADMISSION, PROCESS_IMPERSONATION_ANCHOR].join(newline));
     }
     if (path === DRIVER_PATH) {
       onlyOnce(original[path], DRIVER_VERSION_ANCHOR, path);
