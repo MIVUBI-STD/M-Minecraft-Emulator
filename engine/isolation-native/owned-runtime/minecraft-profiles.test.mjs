@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
-import {ownedMinecraftProfiles, planOwnedMinecraftProfiles, ownedMinecraftLaunch}
+import {ownedMinecraftProfiles, planOwnedMinecraftProfiles, planOwnedMinecraftVirtual, ownedMinecraftLaunch}
   from "./minecraft-profiles.mjs";
 
 test("three functional MIVUBI boxes have stable distinct identities", () => {
@@ -120,4 +120,52 @@ test("control contract and owned Start parser share the same profile namespace",
   assert.match(policy,/end\[1\] != L'/);
   assert.match(policy,/MinecraftEducationEdition\.exe/);
   assert.doesNotMatch(source,/SbieDrv2|SbieSvc2|disable.*signing/i);
+});
+
+test("one Create Virtual target plans only one native box, with Enabled last", () => {
+  for (const client of ["02", "03", "04"]) {
+    const result = planOwnedMinecraftVirtual(client, ["MinecraftClient02", "OtherBox"]);
+    assert.deepEqual(result.profiles.map(p => p.client), [client]);
+    assert.deepEqual(result.profiles.map(p => p.box), ["MivubiEdu" + client]);
+    assert.equal(result.commands.length, 8);
+    assert.ok(result.commands.every(cmd =>
+      cmd.client === client && cmd.executable === "SbieIni.exe" &&
+      cmd.arguments[1] === "MivubiEdu" + client));
+    assert.deepEqual(result.commands.map(cmd => cmd.arguments[2]),
+      ["AutoDelete", "AutoRemove", "NoSecurityIsolation", "DropAdminRights",
+        "Template", "OpenCredentials", "OpenProtectedStorage", "Enabled"]);
+    assert.deepEqual(result.commands.map(cmd => cmd.arguments[3]),
+      ["n", "n", "y", "y", "OpenCOM", "n", "n", "y"]);
+    assert.equal(result.settingsReadbackVerified, false);
+    assert.equal(result.requiresExplicitOperatorApproval, true);
+    assert.equal(result.hostChanged, false);
+    assert.equal(result.driverInstalled, false);
+    assert.equal(result.accountIsolationVerified, false);
+  }
+});
+
+test("single Create Virtual rejects stale, duplicate and foreign target inventories", () => {
+  for (const client of ["01", "05", "2", "__proto__", "", null, 2]) {
+    assert.throws(() => planOwnedMinecraftVirtual(client, []));
+  }
+  for (const existing of [
+    ["MivubiEdu02"],
+    ["mivubiedu02"],
+    ["OtherBox", "otherbox"],
+    ["Bad Box"],
+    ["../DefaultBox"],
+    Array.from({length:257}, (_,i) => "Box" + i),
+  ]) {
+    assert.throws(() => planOwnedMinecraftVirtual("02", existing));
+  }
+  assert.deepEqual(
+    planOwnedMinecraftVirtual("03", ["MivubiEdu02"]).profiles.map(x => x.client), ["03"]);
+});
+
+test("bulk compatibility plan stays identical to three independently planned boxes", () => {
+  const bulk = planOwnedMinecraftProfiles(["OtherBox"]);
+  const individual = ["02", "03", "04"]
+    .flatMap(client => planOwnedMinecraftVirtual(client, ["OtherBox"]).commands);
+  assert.deepEqual(bulk.commands, individual);
+  assert.equal(bulk.commands.length, 24);
 });
