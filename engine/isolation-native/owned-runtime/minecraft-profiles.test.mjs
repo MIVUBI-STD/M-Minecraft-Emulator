@@ -235,7 +235,7 @@ test("owned readback comparison accepts only complete ordered matching values", 
       rows => { rows[0].value = "UNKNOWN"; },
       rows => { rows[0].key = rows[1].key; },
       rows => { rows[0].box = "MinecraftClient02"; },
-      rows => { rows[0].client = "03"; },
+      rows => { rows[0].client = client === "03" ? "02" : "03"; },
       rows => { rows[0].privateAccount = "never accepted"; },
       rows => { rows[0].value = true; },
     ]) {
