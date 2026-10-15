@@ -137,6 +137,31 @@ test('build-only stages reject incomplete outputs before starting the next expen
     'x64 stage unexpectedly builds driver; reconsider stage ownership');
 });
 
+test('native build report destination is outside the checkout and has no junction ancestors', () => {
+  const guard = source.indexOf("$reportAbsolute = [IO.Path]::GetFullPath($ReportDirectory)");
+  const preflight = source.indexOf("Build report must be outside the repository checkout.");
+  const gitCheck = source.indexOf("$dirty = (& $git -C $repo status");
+  const reportCreation = source.indexOf("New-Item -ItemType Directory -Path $reportFolder");
+  const compile = source.indexOf("foreach ($stage in $stages)");
+  assert.ok(guard >= 0 && guard < preflight && preflight < gitCheck);
+  assert.ok(preflight < reportCreation && reportCreation < compile,
+    'a dirtying report directory must be rejected before either Git proof or MSBuild');
+  assert.match(source, /\$reportRoot = \[IO\.Path\]::GetPathRoot\(\$reportAbsolute\)/);
+  assert.match(source, /Build report destination must not be a drive root/);
+  assert.match(source, /\$reportFolder\.Equals\(\$repoFolder/);
+  assert.match(source, /\$reportFolder\.StartsWith\(\$repoFolder \+ /);
+  assert.match(source, /\$repoFolder\.StartsWith\(\$reportFolder \+ /);
+  assert.match(source, /\$ancestor = \$reportParent/);
+  assert.match(source, /while \(\$ancestor\) \{/);
+  assert.match(source, /\$parentItem = Get-Item -LiteralPath \$ancestor -Force/);
+  assert.match(source, /\$next = Split-Path -Parent \$ancestor/);
+  assert.match(source, /Build report parent must not be a Windows reparse point/);
+  assert.equal((source.match(/Build report must be outside the repository checkout/g) || []).length, 1);
+  // The optional package output must remain separately preflighted.
+  assert.match(source, /Engine package output must be outside the repository checkout/);
+  assert.doesNotMatch(source, /Build report may not overlap native source/);
+});
+
 test('optional engine package target is refused early before expensive MSBuild work', () => {
   const gate = source.indexOf('$packageAbsolute = [IO.Path]::GetFullPath($PackageDirectory)');
   const compiler = source.indexOf('foreach ($stage in $stages)');
