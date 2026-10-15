@@ -4,6 +4,7 @@ import {
   client02Presentation, focusCandidate, rowPresentation,
   safeErrorDetails, setupInstruction, shouldClearPickerIssue,
   ownedVirtualCreationReason,
+  isResourceOperationBusy,
 } from "../src/app/presentation/compactManager.js";
 import type { IsolatedClientObservation, OwnedHostInspection } from "../src/app/bridge/nativeFeasibilityApi.js";
 
@@ -53,6 +54,51 @@ describe("MIVUBI Create Virtual readiness", () => {
     expect(app).toContain("These virtuals have not been created.");
     expect(app).toContain('title="Internal isolation engine is not yet installed and verified">Create virtual</button>');
     expect(app).not.toContain("desktop_create_virtual");
+  });
+});
+
+describe("Balanced resource admission", () => {
+  it("permits a single explicit request when the manager is idle", () => {
+    expect(isResourceOperationBusy("", false, false)).toBe(false);
+  });
+
+  it("blocks overlapping Windows helpers and package hashing independently", () => {
+    for (const state of [
+      ["check", false, false],
+      ["open-01", false, false],
+      ["open-02", false, false],
+      ["move", false, false],
+      ["discover-virtuals", false, false],
+      ["", true, false],
+      ["", false, true],
+      ["check", true, true],
+    ] as const) {
+      expect(isResourceOperationBusy(...state)).toBe(true);
+    }
+  });
+
+  it("guards every runtime action and disables action buttons during costly inspection", () => {
+    const application = readFileSync(new URL("../src/CompactManagerApp.svelte", import.meta.url), "utf8");
+    expect(application).toContain(
+      '$: resourceOperationBusy = isResourceOperationBusy(busy, ownedHostBusy, ownedInspectionBusy);');
+    expect(application).not.toContain("disabled={Boolean(busy)}");
+    expect(application).not.toContain("if (busy) return;");
+    expect(application).not.toContain("if (busy ||");
+    expect(application).not.toContain("setInterval(");
+    expect(application).not.toContain("setTimeout(");
+    expect(application).not.toContain("onMount(");
+    for (const action of [
+      "checkStatus", "openMinecraft01", "selectMinecraft", "openMinecraft02",
+      "switchMinecraft02", "moveMinecraft02", "discoverExistingVirtuals",
+      "inspectOwnedServiceNames", "inspectStagedOwnedEngine",
+    ]) {
+      const body = application.split(`async function ${action}()`)[1]
+        ?.split("  async function ")[0] ?? "";
+      expect(body).toContain("isResourceOperationBusy(busy, ownedHostBusy, ownedInspectionBusy)");
+    }
+    expect(application).toContain("disabled={resourceOperationBusy}");
+    // This UI admission protects from overlapping helpers, not against
+    // a compromised direct IPC caller; backend launch guards remain separate.
   });
 });
 
