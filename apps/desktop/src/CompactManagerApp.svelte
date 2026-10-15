@@ -382,7 +382,7 @@
       <section class="cm-virtual-overview" aria-label="Create virtual availability">
         <div>
           <h2>Minecraft sessions</h2>
-          <p>Use this app to manage Windows and isolated sessions. The internal Sandboxie-derived engine must pass Windows driver and service validation before new virtuals can be created.</p>
+          <p>Available now: Host 01 (Windows) and Virtual 02 (existing Sandboxie Plus box). Virtuals 03 and 04 cannot run until the private Windows isolation engine is built and verified.</p>
         </div>
         <div class="cm-virtual-actions">
           <button type="button" class="cm-button cm-secondary" disabled
