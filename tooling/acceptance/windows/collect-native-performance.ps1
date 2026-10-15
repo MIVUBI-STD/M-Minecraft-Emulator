@@ -10,6 +10,7 @@ param(
   [int]$DurationSeconds = 3600,
   [ValidateRange(1, 60)]
   [int]$SampleIntervalSeconds = 5,
+  [switch]$GpuSnapshot,
   [string]$OutputDirectory = ''
 )
 
@@ -66,6 +67,81 @@ function Process-Sample {
   }
 }
 
+# Optional GPU counters are hints, not physical VRAM or FPS proof.
+# This costs no counter queries unless -GpuSnapshot was explicitly selected.
+function Unknown-GpuHint {
+  return [ordered]@{ status = 'UNKNOWN'; threeDEngineMaximumInstancePercent = $null;
+    dedicatedMemoryMaximumInstanceMb = $null }
+}
+function Read-GpuSnapshot {
+  param([int]$FirstPid, [int]$SecondPid,
+        [long]$FirstStartTicks, [long]$SecondStartTicks)
+  $result = [ordered]@{
+    evidenceClass = 'WINDOWS_GPU_COUNTER_HINT_NOT_FRAME_PROOF'
+    native = (Unknown-GpuHint)
+    isolated = (Unknown-GpuHint)
+  }
+  try {
+    # Only one counter query for the entire manual run; two samples are
+    # necessary for rate-based utilization values.
+    $sets = @(Get-Counter -Counter @(
+      '\GPU Engine(*)\Utilization Percentage',
+      '\GPU Process Memory(*)\Dedicated Usage'
+    ) -SampleInterval 1 -MaxSamples 2 -ErrorAction Stop)
+    if ($sets.Count -ne 2) { return $result }
+    $observed = @{}
+    foreach ($candidate in @($FirstPid, $SecondPid)) {
+      $observed[[string]$candidate] = [ordered]@{ engine = @(); dedicated = @() }
+    }
+    foreach ($counter in @($sets[-1].CounterSamples)) {
+      $path = [string]$counter.Path
+      if ($path -notmatch '(?i)\(pid_([0-9]+)_') { continue }
+      [long]$counterPid = 0
+      if (-not [long]::TryParse($Matches[1], [ref]$counterPid)) { continue }
+      $key = [string]$counterPid
+      if (-not $observed.ContainsKey($key)) { continue }
+      $value = [double]$counter.CookedValue
+      if ([double]::IsNaN($value) -or [double]::IsInfinity($value) -or $value -lt 0) {
+        continue
+      }
+      if ($path -match '(?i)\\gpu engine\(' -and
+          $path -match '(?i)engtype_3d' -and $value -le 100) {
+        $observed[$key].engine += $value
+      } elseif ($path -match '(?i)\\gpu process memory\(' -and
+                $path -match '(?i)\\dedicated usage$') {
+        $observed[$key].dedicated += ($value / 1MB)
+      }
+    }
+    foreach ($item in @(
+      @{ role='native'; pid=$FirstPid; started=$FirstStartTicks },
+      @{ role='isolated'; pid=$SecondPid; started=$SecondStartTicks }
+    )) {
+      # Refuse counter values if PID was recycled during the optional query.
+      if ($null -eq (Read-Target -ProcessId $item.pid -ExpectedStartTicks $item.started)) {
+        continue
+      }
+      $counterData = $observed[[string]$item.pid]
+      if ($counterData.engine.Count -eq 0 -or $counterData.dedicated.Count -eq 0) {
+        continue
+      }
+      $result[$item.role] = [ordered]@{
+        status = 'OBSERVED'
+        # Not total GPU use: largest 3D engine instance in the last sample.
+        threeDEngineMaximumInstancePercent = [math]::Round(
+          [double]($counterData.engine | Measure-Object -Maximum).Maximum, 2)
+        # Not actual aggregate VRAM: this Windows counter can be stale.
+        dedicatedMemoryMaximumInstanceMb = [math]::Round(
+          [double]($counterData.dedicated | Measure-Object -Maximum).Maximum, 2)
+      }
+    }
+  } catch {
+    # Missing/localized PDH counters and GPU driver limitations are UNKNOWN.
+    $result.native = Unknown-GpuHint
+    $result.isolated = Unknown-GpuHint
+  }
+  return $result
+}
+
 $baselineNative = Read-Target -ProcessId $NativePid
 $baselineIsolated = Read-Target -ProcessId $IsolatedPid
 if ($null -eq $baselineNative -or $null -eq $baselineIsolated) {
@@ -115,16 +191,22 @@ while ($timer.Elapsed.TotalSeconds -lt $DurationSeconds) {
   $previousSecond = $elapsed
 }
 
-# This is process telemetry, not account, GPU, frame pacing or multiplayer proof.
+# Capture duration excludes the optional diagnostic query.
+$durationWithoutGpu = [math]::Round($timer.Elapsed.TotalSeconds, 2)
+$gpuDiagnostic = $null
+if ($GpuSnapshot) {
+  $gpuDiagnostic = Read-GpuSnapshot -FirstPid $NativePid -SecondPid $IsolatedPid -FirstStartTicks $baselineNative.startTicks -SecondStartTicks $baselineIsolated.startTicks
+}
+# Hints are not account, FPS, frametime or actual VRAM proof.
 $report = [ordered]@{
-  schema = 1
+  schema = if ($GpuSnapshot) { 2 } else { 1 }
   scope = 'NATIVE_SANDBOXIE_PROCESS_PERFORMANCE'
   evidenceOrigin = 'WINDOWS_HOST'
   attribution = 'OPERATOR_SELECTED_UNVERIFIED_PIDS'
   automaticVerdict = 'NOT_PROVIDED'
   capturedAtUtc = $beginUtc.ToString('o')
   durationRequestedSeconds = $DurationSeconds
-  durationObservedSeconds = [math]::Round($timer.Elapsed.TotalSeconds, 2)
+  durationObservedSeconds = $durationWithoutGpu
   sampleIntervalSeconds = $SampleIntervalSeconds
   hostLogicalCpus = $logicalCpus
   sampleCount = $samples.Count
@@ -133,6 +215,7 @@ $report = [ordered]@{
   samples = @($samples.ToArray())
   missingEvidence = @('ACCOUNT_ISOLATION', 'GAMEPLAY_RENDERING', 'FRAME_TIMES', 'GPU_VRAM', 'MULTIPLAYER', 'INPUT_RESPONSIVENESS')
 }
+if ($GpuSnapshot) { $report.gpuDiagnostic = $gpuDiagnostic }
 $stamp = $beginUtc.ToString('yyyyMMddTHHmmssfffffffZ')
 $file = Join-Path $OutputDirectory ('native-process-performance-' + $stamp + '.json')
 if (Test-Path -LiteralPath $file) {
