@@ -45,6 +45,13 @@ function sources() {
       "// isolated kernel process API fixture",
       '#include "common/my_version.h"',
       "NTSTATUS Process_Api_Start(void) {",
+      "        proc2 = Process_Find((HANDLE)(-user_box_parm), &irql);",
+      "        if (proc2 && !proc2->terminated)",
+      "            box = Box_Clone(Driver_Pool, proc2->box);",
+      "        ExReleaseResourceLite(Process_ListLock);",
+      "        KeLowerIrql(irql);",
+      "        if (!proc2) return STATUS_INVALID_CID;",
+      "        if (!box) return STATUS_INSUFFICIENT_RESOURCES;",
       "        if (! Api_CopyBoxNameFromUser(boxname, (WCHAR *)user_box_parm))",
       "            return STATUS_INVALID_PARAMETER;",
       "        TokenObject = PsReferenceImpersonationToken(PsGetCurrentThread(),",
@@ -108,13 +115,13 @@ function git(root, args, input) {
 test("generated patch includes DLL and service startup in exact core closure and preserves kernel names", () => {
   const patch = buildPrivateSourcePatch(sources());
   assert.equal((patch.match(/^diff --git/gm) ?? []).length, 10);
-  assert.equal((patch.match(/^@@ /gm) ?? []).length, 20);
+  assert.equal((patch.match(/^@@ /gm) ?? []).length, 21);
   // Git apply rejects the earlier anchor-only hunks even when the line
   // matches. Every insertion must retain a following source context line.
   assert.match(patch, /@@ -\d+,2 \+\d+,4 @@/);
   assert.match(patch, /\+#define MIVUBI_PRIVATE_ISOLATION_ABI   0x57230\n #define SBIEDRV/);
   assert.match(patch, /\+#endif\n int test_function\(void\)/);
-  assert.equal((patch.match(/^@@ -\d+,2 \+\d+,\d+ @@$/gm) ?? []).length, 19);
+  assert.equal((patch.match(/^@@ -\d+,2 \+\d+,\d+ @@$/gm) ?? []).length, 20);
   // Real upstream has seven context lines; the synthetic fixture packs
   // the same three source anchors into five. Both must be one Git hunk.
   assert.match(patch, /^@@ -\d+,(?:5|7) \+\d+,\d+ @@$/m);
@@ -123,6 +130,7 @@ test("generated patch includes DLL and service startup in exact core closure and
   assert.match(patch, /Sandboxie\/core\/drv\/process_api.c/);
   assert.match(patch, /TokenObject = PsReferenceImpersonationToken/);
   assert.match(patch, /MivubiBoxNameAllowed\(boxname\)/);
+  assert.match(patch, /MivubiBoxNameAllowed\(proc2->box->name\)/);
   assert.match(patch, /STATUS_ACCESS_DENIED/);
   assert.match(patch, /MivubiVerifiedDeviceHandle/);
   assert.match(patch, /InterlockedCompareExchangePointer/);
@@ -199,6 +207,12 @@ test("entire patch applies atomically to a disposable Git checkout without renam
       boxed.indexOf("BOX *box = Mem_Alloc"));
     const startApi = readFileSync(join(root, "Sandboxie/core/drv/process_api.c"), "utf8");
     assert.match(startApi, /return STATUS_ACCESS_DENIED;/);
+    assert.match(startApi, /MivubiBoxNameAllowed\(proc2->box->name\)/);
+    assert.ok(startApi.indexOf("!MivubiBoxNameAllowed(proc2->box->name)") >
+      startApi.indexOf("proc2 = Process_Find"));
+    assert.ok(startApi.indexOf("!MivubiBoxNameAllowed(proc2->box->name)") <
+      startApi.indexOf("box = Box_Clone"));
+    assert.match(startApi, /ExReleaseResourceLite\(Process_ListLock\);\s+KeLowerIrql\(irql\);\s+return STATUS_ACCESS_DENIED;/);
     assert.ok(startApi.indexOf("if (!MivubiBoxNameAllowed(boxname))") >
       startApi.indexOf("Api_CopyBoxNameFromUser(boxname"));
     assert.ok(startApi.indexOf("if (!MivubiBoxNameAllowed(boxname))") <
@@ -383,6 +397,28 @@ test("kernel Box_Alloc rejects unowned names before BOX allocation", () => {
     "if (MivubiBoxNameAllowed(boxname))")};
   assert.throws(() => verifyExactPrivateSourceBytes(original, replaced),
     /unexpected modified source bytes/);
+});
+
+test("kernel process model-PID admission denies foreign boxes and releases its lock", () => {
+  const upstream = sources();
+  const expected = buildExpectedPrivateSources(upstream);
+  const p = "Sandboxie/core/drv/process_api.c";
+  const code = expected[p];
+  const lookup = code.indexOf("proc2 = Process_Find");
+  const check = code.indexOf("!MivubiBoxNameAllowed(proc2->box->name)");
+  const clone = code.indexOf("box = Box_Clone");
+  assert.ok(lookup >= 0 && check > lookup && clone > check);
+  assert.match(code, /if \(proc2 && !proc2->terminated &&\s+\(!proc2->box \|\| !MivubiBoxNameAllowed\(proc2->box->name\)\)\) \{\s+ExReleaseResourceLite\(Process_ListLock\);\s+KeLowerIrql\(irql\);\s+return STATUS_ACCESS_DENIED;\s+\}/);
+  for (const [needle, replacement] of [
+    ["!MivubiBoxNameAllowed(proc2->box->name)",
+      "MivubiBoxNameAllowed(proc2->box->name)"],
+    ["ExReleaseResourceLite(Process_ListLock);", "/* lock leaked */"],
+    ["KeLowerIrql(irql);", "/* IRQL not lowered */"],
+  ]) {
+    const corrupt = {...expected, [p]: code.replace(needle, replacement)};
+    assert.throws(() => verifyExactPrivateSourceBytes(upstream, corrupt),
+      /unexpected modified source bytes/);
+  }
 });
 
 test("kernel process-start returns access denied before impersonation", () => {

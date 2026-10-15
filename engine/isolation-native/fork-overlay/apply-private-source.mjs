@@ -36,6 +36,20 @@ const DRIVER_PATH = "Sandboxie/core/drv/api.c";
 const BOX_PATH = "Sandboxie/core/drv/box.c";
 const PROCESS_API_PATH = "Sandboxie/core/drv/process_api.c";
 const PROCESS_INCLUDE_ANCHOR = '#include "common/my_version.h"';
+const PROCESS_CLONE_ANCHOR =
+  "        if (proc2 && !proc2->terminated)";
+const PROCESS_CLONE_ADMISSION = [
+  "#if defined(MIVUBI_PRIVATE_ISOLATION_BUILD)",
+  "        // A model process can carry a box from outside the owned namespace.",
+  "        // Process_Find holds Process_ListLock and elevated IRQL here.",
+  "        if (proc2 && !proc2->terminated &&",
+  "                (!proc2->box || !MivubiBoxNameAllowed(proc2->box->name))) {",
+  "            ExReleaseResourceLite(Process_ListLock);",
+  "            KeLowerIrql(irql);",
+  "            return STATUS_ACCESS_DENIED;",
+  "        }",
+  "#endif",
+];
 const PROCESS_IMPERSONATION_ANCHOR =
   "        TokenObject = PsReferenceImpersonationToken(PsGetCurrentThread(),";
 const PROCESS_START_ADMISSION = [
@@ -363,9 +377,13 @@ export function buildPrivateSourcePatch(files) {
         BOX_ADMISSION, true, additions.length, false));
     }
     if (path === PROCESS_API_PATH) {
+      onlyOnce(files[path], PROCESS_CLONE_ANCHOR, path);
       onlyOnce(files[path], PROCESS_IMPERSONATION_ANCHOR, path);
+      parts.push(hunk(files[path], path, PROCESS_CLONE_ANCHOR,
+        PROCESS_CLONE_ADMISSION, true, additions.length, false));
       parts.push(hunk(files[path], path, PROCESS_IMPERSONATION_ANCHOR,
-        PROCESS_START_ADMISSION, true, additions.length, false));
+        PROCESS_START_ADMISSION, true,
+        additions.length + PROCESS_CLONE_ADMISSION.length, false));
     }
     if (path === DRIVER_PATH) {
       // Kernel returns a private runtime identity through the EXISTING
@@ -442,7 +460,10 @@ export function buildExpectedPrivateSources(original) {
         [...BOX_ADMISSION, BOX_ALLOC_ANCHOR].join(newline));
     }
     if (path === PROCESS_API_PATH) {
+      onlyOnce(original[path], PROCESS_CLONE_ANCHOR, path);
       onlyOnce(original[path], PROCESS_IMPERSONATION_ANCHOR, path);
+      value = value.replace(PROCESS_CLONE_ANCHOR,
+        [...PROCESS_CLONE_ADMISSION, PROCESS_CLONE_ANCHOR].join(newline));
       value = value.replace(PROCESS_IMPERSONATION_ANCHOR,
         [...PROCESS_START_ADMISSION, PROCESS_IMPERSONATION_ANCHOR].join(newline));
     }

@@ -1,5 +1,31 @@
 # Current Development Handoff — M-Minecraft-Emulator
 
+## Model-PID kernel clone admission — 15 October 2026
+
+**Work:** the private Sandboxie-derived `Process_Api_Start` kernel path
+now rejects an unowned model PID's sandbox before calling `Box_Clone`.
+The gate checks the existing model process's box name, and releases
+`Process_ListLock` plus restores IRQL on the rejection path.
+It returns `STATUS_ACCESS_DENIED`, rather than misclassifying the
+denial from lower-level `Box_Alloc` as insufficient resources.
+The prior explicit named-box admission and allocation-level denial remain.
+
+**Source scope:** existing pinned 10-file private fork closure;
+the process API gains one nonoverlapping patch hunk (21 total).
+The canonical source assembler, strict expected-byte verifier, and
+fixture-based regression tests all share this source owner.
+No new driver ABI, service namespace, installer action, or provider switch.
+
+**Proof boundary:** static source review of actual pinned upstream
+`Process_Api_Start` and repository regression assertions. Node test suite,
+full Windows WDK/MSVC compile, signed driver loading, REA binary inspection,
+and Minecraft runtime acceptance have not been run in this change.
+Existing official Sandboxie, account data, and world files are untouched.
+
+**Next:** full private Windows WDK/MSVC build in an authorized isolated
+environment; fix actual compiler/linker/runtime errors before any cutover.
+
+
 ## Kernel Process_Api_Start policy fix — 15 October 2026
 
 **Implementation:** the MIVUBI Sandboxie-derived kernel source now checks
