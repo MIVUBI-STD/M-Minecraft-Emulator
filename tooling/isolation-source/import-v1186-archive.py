@@ -71,7 +71,7 @@ def import_archive(repo, archive_path, expected_head):
     repo = repo.resolve(strict=True)
     archive_path = archive_path.resolve(strict=True)
     guard(re.fullmatch("[0-9a-f]{40}", expected_head) is not None, "expected HEAD SHA missing")
-    guard(git(repo, "rev-parse", "--show-toplevel").decode().strip() == str(repo),
+    guard(Path(git(repo, "rev-parse", "--show-toplevel").decode().strip()).resolve(strict=True) == repo,
           "invalid Git repository root")
     guard(git(repo, "branch", "--show-current").decode().strip() == "Local", "not Local branch")
     guard(git(repo, "rev-parse", "HEAD").decode().strip() == expected_head, "Local HEAD changed")
