@@ -5,7 +5,7 @@ import { parseVirtualBoxInventory } from "../src/app/bridge/nativeFeasibilityApi
 const inventory = (boxes: string[] = []) => ({
   schema: 1,
   source: "EXISTING_OFFICIAL_SANDBOXIE_PILOT",
-  evidence: "BOX_NAMES_ONLY",
+  evidence: "SECTION_NAME_CANDIDATES",
   boxes,
   ownedProviderSelected: false,
   gameplayVerified: false,
@@ -34,6 +34,7 @@ describe("existing virtual names in one MIVUBI desktop", () => {
     for (const altered of [
       { source: "MIVUBI_OWNED_ENGINE" },
       { evidence: "BOXES_READY" },
+      { evidence: "BOX_NAMES_ONLY" },
       { ownedProviderSelected: true },
       { gameplayVerified: true },
       { schema: 2 },
@@ -71,6 +72,7 @@ describe("Sandboxie box discovery completeness", () => {
     expect(collector.match(/\} \| ConvertTo-Json -Depth 3 -Compress/g)).toHaveLength(1);
     expect(collector.match(/\$boxes \+= \$name/g)).toHaveLength(1);
     // A displayed official box name is never owned-provider or game proof.
+    expect(collector).toContain("evidence = 'SECTION_NAME_CANDIDATES'");
     expect(collector).toContain("ownedProviderSelected = $false");
     expect(collector).toContain("gameplayVerified = $false");
   });
