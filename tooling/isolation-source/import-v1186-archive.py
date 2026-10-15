@@ -29,8 +29,8 @@ def guard(ok, why):
         raise ValueError("Sandboxie source import refused: " + why)
 
 
-def git(repo, *args):
-    p = subprocess.run(["git", "-C", str(repo), *args], capture_output=True, check=False)
+def git(repo, *args, input=None):
+    p = subprocess.run(["git", "-C", str(repo), *args], input=input, capture_output=True, check=False)
     guard(p.returncode == 0, f"Git {args[0]} failed: {p.stderr.decode(errors='replace')[:350]}")
     return p.stdout
 
@@ -114,7 +114,10 @@ def import_archive(repo, archive_path, expected_head):
         if relative == "Installer/Languages.iss" and os.name != "nt":
             dest.chmod(0o755)
         guard(blob_hash(dest.read_bytes()) == digest, "copied file bytes mismatch")
-    git(repo, "-c", "core.autocrlf=false", "add", "-f", "--", OWNED)
+    # Preserve committed blobs already checked out with Windows line endings.
+    paths = b"".join((OWNED + "/" + relative).encode("utf-8") + b"\0" for relative, _ in missing)
+    git(repo, "-c", "core.autocrlf=false", "add", "-f",
+        "--pathspec-from-file=-", "--pathspec-file-nul", input=paths)
     git(repo, "update-index", "--chmod=+x", "--", OWNED + "/Installer/Languages.iss")
     staged_root = git(repo, "write-tree").decode().strip()
     staged_tree = git(repo, "rev-parse", staged_root + ":" + OWNED).decode().strip()

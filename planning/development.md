@@ -1,5 +1,48 @@
 # Current Development Handoff — M-Minecraft-Emulator
 
+## Full v1.18.6 source import completed — 15 October 2026
+
+**Current user request:** import every source file from the supplied
+Sandboxie-1.18.6.zip into Local to begin the owned-engine rebuild. The checkout
+was fast-forwarded from the prior Windows handoff to GitHub
+`036b87be2077f88216c1bc96cd2d58ea06b3ebf9` before continuing its existing
+827-file candidate. The remaining **800 files** have now been added at
+`engine/isolation-candidates/sandboxie-v1.18.6/`, for **1,627/1,627 upstream
+files** as ordinary editable Git blobs. No source groups, translations,
+installer source, tools, resources or original licenses were omitted.
+
+**Decisive proof:** the complete staged candidate Git tree equals official
+v1.18.6 tree `f690477c07a40810f479f53973334ceae7e0ab13`, pinned upstream
+commit `cdba7096240b93d79c5373aa81a75a1c5c71b883`. ZIP SHA-256 remains
+`22d8b004d4fe8dcf05654c4704a8b121c730352c1b406d2f1dad564dea451b33`.
+The candidate's upstream files and license headers are unchanged.
+Historical partial-import counts below are superseded by this full tree.
+
+**Importer corrections and executed checks:** Windows Git's forward-slash
+root path initially failed the raw-string root comparison; resolved Path
+comparison fixes that. Inherited parent `text=auto` also normalized one new
+upstream header's original CRLF bytes. The root attributes now defer this
+snapshot to upstream's own explicit text rules, preserving its original
+blobs. The importer stages only missing paths via a NUL-delimited pathspec,
+avoiding Windows argument-length limits and re-adding existing blobs.
+An actual Windows partial-import fixture with the parent attributes reached
+the official 1,627-file tree, left a clean checkout and passed an idempotent
+second invocation. No upstream source was edited to bypass tree validation.
+
+**Installer reference:** the supplied EXE remains outside tracked source.
+Its SHA-256 is
+`3ad29e1ec18618ee9aa4ef4e21ab0548cf2188b94c05c41cb7a07b5d2d0270e2`,
+size 24,914,432 bytes, Authenticode Valid / NOVASYNC LABS PTE. LTD.
+It was not executed, installed or uploaded. Upstream workflow files are
+preserved inside the candidate only, not activated as repository workflows.
+
+**Next:** port/review the existing v1.18.5 11-file MIVUBI native overlay
+against the complete v1.18.6 candidate before selecting a build/runtime
+cutover. The older owned tree and official account-bearing installation are
+preserved. Full source import is PASS; private v1.18.6 build, signing,
+driver/service load, crash repair, resource savings and gameplay remain
+NOT_EXECUTED. Importing source alone does not fix the reported slow process.
+
 ## Source and artifact verification — 15 October 2026 (latest Local audit)
 
 **GitHub-owned v1.18.6 candidate: 827 / 1,627 files (50.83%), 800 absent.** This import adds **104 genuine original files** to the prior 723-file commit, including SandMan launcher/process/box-monitor source, MiscHelpers archive/common code, repository metadata and original assets. Every one of the 827 staged candidate file paths matched the official v1.18.6 blob SHA and Git file mode in a recursive tree audit. Upstream source tree: `f690477c07a40810f479f53973334ceae7e0ab13` (tag commit `cdba7096240b93d79c5373aa81a75a1c5c71b883`). The candidate remains **incomplete**; do not promote or build it as the owned private engine yet.
