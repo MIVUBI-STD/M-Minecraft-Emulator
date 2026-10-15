@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { evaluateNativePerformance } from "./evaluate-native-performance.mjs";
+import { evaluateNativePerformance, compareNativePerformance } from "./evaluate-native-performance.mjs";
 
 const sample = () => ({
   schema: 1,
@@ -132,4 +132,61 @@ test("fractional observation coverage and first loss locate incomplete samples",
   r.isolatedProcessIdentityLost = true;
   assert.equal(evaluateNativePerformance(r).isolated.observationCoveragePercent, 66.67);
   assert.equal(evaluateNativePerformance(r).isolated.firstMissingAtSeconds, 15);
+});
+
+test("paired complete reports produce differences but never an optimization verdict", () => {
+  const baseline = sample();
+  const candidate = sample();
+  candidate.samples[0].native.cpuPercentOfHost = 3;
+  candidate.samples[1].native.cpuPercentOfHost = 5;
+  candidate.samples[0].native.workingSetMb = 90;
+  candidate.samples[1].native.workingSetMb = 100;
+  candidate.samples[0].isolated.cpuPercentOfHost = 8;
+  candidate.samples[1].isolated.cpuPercentOfHost = 14;
+  const result = compareNativePerformance(baseline, candidate);
+  assert.equal(result.comparableForNumericDifference, true);
+  assert.equal(result.performanceVerdict, "NOT_PROVIDED");
+  assert.equal(result.improvementVerified, false);
+  assert.equal(result.sameHostVerified, false);
+  assert.equal(result.sameWorkloadVerified, false);
+  assert.equal(result.fullProcessTreeMeasured, false);
+  assert.deepEqual(result.differences.native, {
+    meanHostCpuPercentagePointDifference: -2,
+    peakHostCpuPercentagePointDifference: -2,
+    meanWorkingSetMbDifference: -15,
+    maxWorkingSetMbDifference: -20,
+  });
+  assert.equal(result.differences.isolated.meanHostCpuPercentagePointDifference, -4);
+  assert.equal(result.baseline.fourClientReady, false);
+  assert.equal(result.candidate.fourClientReady, false);
+});
+
+test("mismatched host, duration, interval, count or identity loss suppress differences", () => {
+  const variants = [
+    r => r.hostLogicalCpus = 16,
+    r => r.durationRequestedSeconds = 120,
+    r => r.sampleIntervalSeconds = 6,
+    r => { r.sampleCount = 1; r.samples = r.samples.slice(0, 1); },
+    r => r.durationObservedSeconds = 70,
+    r => { r.nativeProcessIdentityLost = true;
+      r.samples[1].native = {status: "UNKNOWN", cpuPercentOfHost: null, workingSetMb: null}; },
+  ];
+  for (const mutate of variants) {
+    const candidate = sample();
+    mutate(candidate);
+    const result = compareNativePerformance(sample(), candidate);
+    assert.equal(result.comparableForNumericDifference, false);
+    assert.equal(result.differences, null);
+    assert.equal(result.improvementVerified, false);
+  }
+});
+
+test("invalid evidence in either comparison input fails closed", () => {
+  const invalid = sample();
+  invalid.accountEmail = "must-never-enter-report@example.invalid";
+  assert.throws(() => compareNativePerformance(sample(), invalid), TypeError);
+  assert.throws(() => compareNativePerformance(invalid, sample()), TypeError);
+  const impossible = sample();
+  impossible.samples[1].isolated.status = "UNKNOWN";
+  assert.throws(() => compareNativePerformance(sample(), impossible), TypeError);
 });
