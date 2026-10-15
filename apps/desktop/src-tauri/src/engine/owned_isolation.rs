@@ -697,6 +697,47 @@ mod tests {
     }
 
     #[test]
+    fn native_scm_error_classification_is_strict_and_non_destructive() {
+        assert_eq!(classify_service_open_error(1060), "ABSENT");
+        // Error 5 = access denied, 6 = invalid handle, 123 = bad name,
+        // 0 = non-error/unspecified; NONE proves service absence.
+        for error in [0, 5, 6, 123, 87, 1722, u32::MAX] {
+            assert_eq!(classify_service_open_error(error), "UNKNOWN");
+        }
+    }
+
+    #[test]
+    fn direct_scm_results_keep_the_legacy_public_host_contract_blocked() {
+        for (service, driver, interactive, expected) in [
+            ("ABSENT", "ABSENT", true, "BLOCKED_UNVERIFIED_OWNED_DRIVER"),
+            ("PRESENT", "ABSENT", true, "BLOCKED_SERVICE_NAMESPACE_IN_USE"),
+            ("ABSENT", "PRESENT", true, "BLOCKED_SERVICE_NAMESPACE_IN_USE"),
+            ("UNKNOWN", "ABSENT", true, "BLOCKED_SERVICE_PROBE_UNKNOWN"),
+            ("ABSENT", "ABSENT", false, "BLOCKED_NON_INTERACTIVE_SESSION"),
+        ] {
+            let probe = OwnedHostProbe {
+                schema: 1,
+                evidence_class: "WINDOWS_SERVICE_NAME_ONLY_NO_OWNER_PROOF".into(),
+                interactive_session: interactive,
+                inspection_status: if service == "UNKNOWN" || driver == "UNKNOWN" {
+                    "PARTIAL_UNKNOWN"
+                } else {
+                    "OBSERVED"
+                }.into(),
+                service_registration: service.into(),
+                driver_registration: driver.into(),
+                provider_selected: false,
+                trusted_driver_loaded: false,
+                gameplay_verified: false,
+            };
+            let result = interpret_host_probe(probe).unwrap();
+            assert_eq!(result.state, expected);
+            assert!(!result.activation_allowed && !result.trusted_driver_loaded
+                && !result.provider_selected && !result.gameplay_verified);
+        }
+    }
+
+    #[test]
     fn no_service_names_still_does_not_authorize_install_or_launch() {
         let result = parse_host_probe(&host_probe("ABSENT", "ABSENT", true)).unwrap();
         assert_eq!(result.state, "BLOCKED_UNVERIFIED_OWNED_DRIVER");
