@@ -1,6 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 const source = readFileSync(new URL('./build-owned-v1186.ps1', import.meta.url), 'utf8');
 
@@ -21,6 +24,8 @@ test('builder only compiles and captures unsigned artifacts, never installs a dr
   for (const path of ['SbieDrv.sys','SbieSvc.exe','SbieDll.dll','Start.exe',
     'SbieIni.exe','kmdutil.exe']) assert.ok(source.includes(path));
   assert.match(source, /Preexisting native binary would contaminate build evidence/);
+  assert.match(source, /ls-files --others --ignored --exclude-standard -- engine\/isolation-owned/);
+  assert.match(source, /Ignored native build outputs exist; use a fresh clean source checkout/);
   assert.match(source, /NATIVE_BUILD_ARTIFACTS_CAPTURED_NOT_INSTALLABLE/);
   assert.match(source, /driverSigned = \$false/);
   assert.match(source, /driverLoaded = \$false/);
@@ -47,6 +52,7 @@ test('builder resolves VS2022 deterministically and captures native MSBuild fail
   assert.match(source, /\/nodeReuse:false/);
   assert.match(source, /\$report\.buildStages = \$results/);
   assert.match(source, /build-result\.json/);
+  assert.match(source, /\$report\.failureReason = \$_\.Exception\.Message/);
 });
 
 test('build stages match the actual v1.18.6 solution projects and output directories', () => {
@@ -77,4 +83,31 @@ test('build stages match the actual v1.18.6 solution projects and output directo
   }
   assert.match(source, /Sandboxie\/Bin\/Win32\/SbieRelease\/SbieSvc\.exe/);
   assert.match(source, /Sandboxie\/Bin\/x64\/SbieRelease\/SbieDrv\.sys/);
+});
+
+test('ignored native build artifacts cannot evade the clean-tree preflight', () => {
+  const fixture = mkdtempSync(join(tmpdir(), 'mivubi-native-build-'));
+  const command = (...args) => {
+    const result = spawnSync('git', args, { cwd: fixture, encoding: 'utf8' });
+    assert.equal(result.status, 0, result.stderr || 'git fixture failed');
+    return result.stdout.trim();
+  };
+  try {
+    command('init', '-q');
+    command('config', 'user.email', 'test@example.invalid');
+    command('config', 'user.name', 'MIVUBI build test');
+    const core = join(fixture, 'engine', 'isolation-owned', 'Sandboxie', 'core');
+    mkdirSync(core, { recursive: true });
+    writeFileSync(join(fixture, '.gitignore'), '*.obj\n');
+    writeFileSync(join(core, 'test.c'), 'int native_source;\n');
+    command('add', '.gitignore', 'engine/isolation-owned/Sandboxie/core/test.c');
+    command('commit', '-qm', 'fixture');
+    writeFileSync(join(core, 'stale.obj'), 'stale compiler data');
+    assert.equal(command('status', '--porcelain=v1', '--untracked-files=all'), '');
+    assert.match(command('ls-files', '--others', '--ignored', '--exclude-standard',
+      '--', 'engine/isolation-owned'), /stale\.obj/);
+    assert.match(source, /ls-files --others --ignored --exclude-standard -- engine\/isolation-owned/);
+  } finally {
+    rmSync(fixture, { recursive: true, force: true });
+  }
 });
