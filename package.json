@@ -17,7 +17,7 @@
     "check:runtime": "cargo check --locked --all-targets --manifest-path engine/runtime-core/Cargo.toml",
     "test:runtime": "cargo test --locked --all-targets --manifest-path engine/runtime-core/Cargo.toml",
     "format:runtime": "cargo fmt --manifest-path engine/runtime-core/Cargo.toml --all --check",
-    "verify:source": "npm run verify:repository -- --g0 && npm run test:localtest && npm run test:feasibility && npm run test:isolation-source && npm run test:native-feasibility && npm run test:sandboxie-feasibility && npm run test:native-performance && npm run check:desktop && npm run check:runtime && npm run test:runtime && npm run format:runtime",
+    "verify:source": "npm run verify:repository -- --g0 && npm run test:localtest && npm run test:feasibility && npm run test:isolation-source && npm run test:native-feasibility && npm run test:sandboxie-feasibility && npm run test:native-performance && npm run test:presentmon && npm run check:desktop && npm run check:runtime && npm run test:runtime && npm run format:runtime",
     "package:windows": "npm --prefix apps/desktop run build:app",
     "test:feasibility": "node --test tooling/acceptance/evaluate-client-feasibility.test.mjs",
     "feasibility:review": "node tooling/acceptance/evaluate-client-feasibility.mjs",
@@ -43,6 +43,8 @@
     "isolation-native:test": "ctest --test-dir workspace/isolation-native-build -C Release --output-on-failure",
     "isolation-source:assemble-private": "node tooling/isolation-source/assemble-private-engine.mjs",
     "isolation-native:test-owned-start": "cmake -S engine/isolation-native/owned-runtime -B workspace/owned-start-policy -DCMAKE_BUILD_TYPE=Release && cmake --build workspace/owned-start-policy --config Release && ctest --test-dir workspace/owned-start-policy -C Release --output-on-failure",
-    "isolation-source:verify-legacy-v1185": "node tooling/isolation-source/validate-baseline.mjs tooling/isolation-source/upstream-baseline.json"
+    "isolation-source:verify-legacy-v1185": "node tooling/isolation-source/validate-baseline.mjs tooling/isolation-source/upstream-baseline.json",
+    "test:presentmon": "node --test tooling/acceptance/analyze-presentmon.test.mjs",
+    "frametime:review": "node tooling/acceptance/analyze-presentmon.mjs"
   }
 }
