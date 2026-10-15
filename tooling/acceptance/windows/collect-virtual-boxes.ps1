@@ -48,7 +48,7 @@ foreach ($item in @($sections | Select-Object -Skip 1)) {
 [ordered]@{
   schema = 1
   source = 'EXISTING_OFFICIAL_SANDBOXIE_PILOT'
-  evidence = 'BOX_NAMES_ONLY'
+  evidence = 'SECTION_NAME_CANDIDATES'
   boxes = @($boxes | Sort-Object -CaseSensitive)
   ownedProviderSelected = $false
   gameplayVerified = $false
