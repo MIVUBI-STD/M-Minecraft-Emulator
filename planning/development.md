@@ -1,5 +1,22 @@
 # Current Development Handoff — M-Minecraft-Emulator
 
+## Code-first completion policy — 16 October 2026
+
+**User directive:** finish every source-verifiable implementation task first; do **not** require or request incremental local-PC Minecraft testing. Reserve Windows/WDK driver loading, account sign-in, idle-crash reproduction, four-game soak, GPU/FPS measurement and installer/install lifecycle acceptance as one final operator test campaign, clearly marked **NOT_EXECUTED** until it happens. GitHub source edits do NOT convert these outcomes to PASS.
+
+**Completed source correction on `Local`:** `tooling/isolation-source/assemble-owned-v1186.mjs` now refuses tracked working-tree modifications anywhere under `engine/isolation-owned/` or the v1.18.6 build profile before copying artifacts/resources/licenses. The verifier previously attested committed HEAD bytes, whereas the assembler copied some uncommitted on-disk inputs. Ignored compiled binaries remain allowed because the build report hashes those independently. The existing assembler regression suite was extended for dirty tracked inputs and a real Git staged/unstaged/ignored binary fixture; no engine, game, account, Windows driver, provider or box configuration was changed.
+
+**Proof actually executed:** source read-back from GitHub; V8 syntax parsing of the edited assembler/test source with module imports removed for parsing only; independent real Git command fixture under local Linux Git, confirming ignored binary output is permitted and tracked staged/unstaged source changes are detected. This is **NOT** the full Node 24 test runner, a Windows native build, a compiled/signable driver or a Minecraft result. The two new regression test bodies were authored, not executed by the pinned Node 24 suite.
+
+**Next code-only work queue, in order:**
+1. Inspect the exact current v1.18.6 owned native build and assembler source for real build-stage errors or missing artifacts. Patch only reproducible source contradictions; retain the standalone build-only/no-install policy and existing source tests.
+2. Close owned engine's account-safe provider configuration/launch integration in source only where driver/service ownership is independently enforceable. Keep Create Virtual blocked and official Client 02 selected until an exclusively signed tested owned driver exists; never add an unconditional activation path.
+3. Reconcile the four-client UI/API contracts against actual supported box identities (02/03/04), preserve already running official accounts, and add negative tests for duplicate/unknown sessions and rollback. Do not mark four-client support available.
+4. Run every available portable source test in a compatible environment where possible and record exact command/runtime/exit code; no fake Node24/Rust/MSVC PASS. Prepare one final consolidated Windows acceptance checklist rather than repeated per-commit local requests.
+
+**Current unresolved runtime risk:** the 14 October official Client 02 idle crash has no proven root cause. A bounded A/B/C reproduction protocol is recorded in `docs/validation/native-pilot-localtest.md`; execution is deferred under this directive. The source change above does **not** fix or explain that crash.
+
+
 ## Product direction: direct, minimal Sandboxie/Minecraft optimization — 15 October 2026
 
 **User clarification (highest current priority):** do not overdevelop. Optimize the original Sandboxie-derived engine and Minecraft Education only where there is a real simple safe improvement. No new performance dashboards, monitoring agents, extra modes, collectors or abstractions. Prefer keeping proven functionality and stable licensed Minecraft accounts over speculative resource savings.
