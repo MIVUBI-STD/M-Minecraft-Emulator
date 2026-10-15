@@ -350,6 +350,10 @@ describe("Compact Manager app source and command boundary", () => {
     expect(app).toContain("Create Virtual unavailable:");
     expect(app).toContain('aria-label="Minecraft 01 error details"');
     expect(app).toContain('aria-label="Minecraft 02 details"');
+    expect(app).toContain("Check status · 02");
+    expect(app).toContain("Inspects Virtual 02 only; Host 01 is not checked");
+    expect(app).toContain('aria-pressed={moveSide === "LEFT"} disabled={resourceOperationBusy}');
+    expect(app).toContain('aria-pressed={moveSide === "RIGHT"} disabled={resourceOperationBusy}');
     expect(app).toContain('tabindex="-1" bind:this={client02DetailPanel}');
   });
   it("lists read-only Sandboxie section candidates without authorizing virtual creation", () => {
