@@ -282,7 +282,8 @@ test("opt-in GPU counter capture is one-shot and leaves default collector overhe
   assert.match(collector, /\[switch\]\$GpuSnapshot/);
   assert.match(collector, /if \(\$GpuSnapshot\) \{[\s\S]*?Read-GpuSnapshot/);
   assert.match(collector, /\$report\['gpuDiagnostic'\] = \$gpuDiagnostic/);
-  assert.match(collector, /schema = if \(\$GpuSnapshot\) \{ 2 \} else \{ 1 \}/);
+  assert.match(collector, /schema = 1/);
+  assert.match(collector, /\$report\['schema'\] = 2/);
   assert.match(collector, /Get-Counter[\s\S]*?-MaxSamples 2/);
   assert.match(collector, /ExpectedStartTicks \$item\.started/);
   assert.match(collector, /status = 'UNKNOWN'/);
