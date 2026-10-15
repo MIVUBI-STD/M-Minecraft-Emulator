@@ -60,6 +60,11 @@ describe("Sandboxie box discovery completeness", () => {
     expect(collector).toContain("([string]$sections[0]).Trim() -cne 'GlobalSettings'");
     expect(collector).toContain("Select-Object -Skip 1");
     expect(collector).toContain("$sections.Count -gt 129");
+    // The same upstream all-section enumeration also includes non-box
+    // UserSettings_* and Template_* sections; never label those as boxes.
+    expect(collector).toContain("if ($name -imatch '^(Template_|UserSettings_)'");
+    expect(collector).toContain("$name -ieq 'TemplateSettings'");
+    expect(collector).toContain("Unknown custom sections do not prove box identity");
     // A displayed official box name is never owned-provider or game proof.
     expect(collector).toContain("ownedProviderSelected = $false");
     expect(collector).toContain("gameplayVerified = $false");
