@@ -331,6 +331,27 @@ describe("Compact Manager app source and command boundary", () => {
     expect(app).not.toContain("Create virtual requested");
     expect(bootstrap).not.toContain("desktop_create_virtual");
   });
+  it("shows all four client slots without pretending future clients can launch", () => {
+    expect(app).toContain('<h2>Host · Minecraft 01</h2>');
+    expect(app).toContain('<h2>Virtual 02 · Minecraft Education</h2>');
+    expect(app).toContain('aria-label="Planned virtual clients"');
+    expect(app).toContain('<h2>Planned virtuals</h2>');
+    expect(app).toContain('{#each ["03", "04"] as client (client)}');
+    expect(app).toContain('<h3>Virtual {client} · Minecraft Education</h3>');
+    expect(app).toContain('Unavailable · No session or account created');
+    expect(app).toContain('Clients 03 and 04 cannot be created or launched yet.');
+    expect(app).not.toContain("openMinecraft03");
+    expect(app).not.toContain("openMinecraft04");
+    expect(bootstrap).not.toContain("desktop_create_virtual");
+  });
+  it("explains disabled Create Virtual for keyboard and screen-reader users", () => {
+    expect(app).toContain('aria-describedby="cm-create-reason"');
+    expect(app).toContain('id="cm-create-reason" aria-live="polite"');
+    expect(app).toContain("Create Virtual unavailable:");
+    expect(app).toContain('aria-label="Minecraft 01 error details"');
+    expect(app).toContain('aria-label="Minecraft 02 details"');
+    expect(app).toContain('tabindex="-1" bind:this={client02DetailPanel}');
+  });
   it("lists read-only Sandboxie section candidates without authorizing virtual creation", () => {
     expect(app).toContain("async function discoverExistingVirtuals()");
     expect(app).toContain("nativeFeasibility.discoverExistingVirtuals()");
