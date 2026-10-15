@@ -167,6 +167,37 @@ try {
     if ($stageResult.exitCode -ne 0) {
       throw "MSBuild failed: $($stage.id) (exit $($stageResult.exitCode)); see $stdout and $stderr"
     }
+    # Every build stage must produce its own complete output set before the
+    # next expensive MSBuild invocation. Derive names from the SINGLE pinned
+    # profile; Sandbox.sln does not schedule SboxDrv in SbieRelease|x64.
+    $stageRequired = @($required | Where-Object {
+      if ($stage.id -ceq 'win32-support') {
+        $_.StartsWith('Sandboxie/Bin/Win32/SbieRelease/', [StringComparison]::Ordinal)
+      } elseif ($stage.id -ceq 'x64-user-core') {
+        $_.StartsWith('Sandboxie/Bin/x64/SbieRelease/', [StringComparison]::Ordinal) -and
+          -not $_.EndsWith('/SbieDrv.sys', [StringComparison]::Ordinal)
+      } else {
+        $_.EndsWith('/SbieDrv.sys', [StringComparison]::Ordinal)
+      }
+    })
+    $expectedStageCount = switch ($stage.id) {
+      'win32-support' { 2 }
+      'x64-user-core' { 13 }
+      'x64-wdk-kernel' { 1 }
+      default { throw "Unknown native build stage: $($stage.id)" }
+    }
+    if ($stageRequired.Count -ne $expectedStageCount) {
+      throw "Unexpected native build-stage inventory: $($stage.id)"
+    }
+    foreach ($rel in $stageRequired) {
+      $built = Join-Path $source ($rel -replace '/', '\\')
+      if (-not (Test-Path -LiteralPath $built -PathType Leaf)) {
+        throw "Native stage $($stage.id) succeeded but required output is missing: $rel"
+      }
+      if ((Get-Item -LiteralPath $built).Length -le 0) {
+        throw "Native stage $($stage.id) produced an empty required output: $rel"
+      }
+    }
   }
   $artifacts = @()
   foreach ($rel in $required) {
