@@ -1,5 +1,16 @@
 # Current Development Handoff — M-Minecraft-Emulator
 
+## Code-only batch: readback identity and disabled-box enumeration — 16 October 2026
+
+**Exact source defects confirmed and fixed on `Local`:**
+
+- `engine/isolation-native/owned-runtime/minecraft-profiles.mjs` accepted a readback object with four unrelated own keys and all required identity/value properties inherited from its prototype. Verified by actual V8 execution before the change. `matchesOwnedMinecraftReadback` now requires own `client`, `box`, `key`, `value` properties in addition to exact shape, order, count and expected values. The existing `minecraft-profiles.test.mjs` includes both full-inheritance and partial-inheritance negative cases for all three clients.
+- `tooling/acceptance/windows/collect-virtual-boxes.ps1` previously ran official `SbieIni query /boxes *`. Its pinned upstream `engine/isolation-owned/Sandboxie/apps/ini/query.c::DoListSections` shows this filters out boxes when `SbieApi_IsBoxEnabled` reports disabled. Name inventory could therefore omit a real disabled/colliding box. The read-only collector now invokes `query *`, requires the exact `GlobalSettings` header, removes that header, bounds the remainder to 128 boxes and preserves duplicate/name rejection. The existing desktop `virtual-inventory.test.ts` pins this behavior to the inspected upstream source. This **does not** convert official Sandboxie inventory into owned-engine proof or authorize Create Virtual.
+
+**Evidence ceiling:** GitHub exact source readback, actual V8 function execution of 3 good per-client readback cases and 6 forged-prototype negative cases (all expected), and source-level confirmation of upstream `query.c` filtering with collector/test routes. Full pinned Node24/Vitest/Rust, Windows PowerShell execution, actual box inventory on Windows, engine build/install/signing and four-account Minecraft acceptance are **NOT_EXECUTED**. The old missing `node:test` import impression was from a truncated output excerpt; exact file preamble has the correct import and no test-import change was necessary.
+
+**Next code-first priority:** examine remaining genuine backend/launcher safety faults or exact build blockers before introducing new abstractions. Preserve official account-bearing `MinecraftClient02`, keep Create Virtual disabled and do not equate an empty or disabled-inclusive official inventory with owned provider readiness. User PC testing remains deferred to one final Windows campaign.
+
 ## Code-only owned virtual readback and package ancestor safety — 16 October 2026
 
 **User directive unchanged:** perform source-verifiable implementation work in GitHub `Local` now, defer target Windows/Minecraft testing to the final campaign. A new code path or authored test is not evidence of operating four playable accounts.
