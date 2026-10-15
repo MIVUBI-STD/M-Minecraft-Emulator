@@ -51,6 +51,11 @@ $branch = (& $git -C $repo branch --show-current | Out-String).Trim()
 if ($LASTEXITCODE -ne 0 -or $branch -cne 'Local') { throw 'Build requires branch Local.' }
 $dirty = (& $git -C $repo status --porcelain=v1 --untracked-files=all | Out-String).Trim()
 if ($LASTEXITCODE -ne 0 -or $dirty) { throw 'Working tree must be clean; refuse mixed-source build.' }
+# Git status excludes ignored native compiler intermediates (.obj/.lib/.pdb).
+# Refuse a reused checkout instead of attributing stale files to this build.
+$ignoredNative = (& $git -C $repo ls-files --others --ignored --exclude-standard -- engine/isolation-owned | Out-String).Trim()
+if ($LASTEXITCODE -ne 0) { throw 'Cannot establish absence of ignored native build files.' }
+if ($ignoredNative) { throw 'Ignored native build outputs exist; use a fresh clean source checkout.' }
 $head = (& $git -C $repo rev-parse HEAD | Out-String).Trim()
 if ($LASTEXITCODE -ne 0 -or $head -notmatch '^[a-f0-9]{40}$') {
   throw 'Cannot establish exact Git HEAD.'
@@ -179,6 +184,10 @@ try {
   $report.artifacts = $artifacts
   $report.driverBuilt = $true
   $report.state = 'NATIVE_BUILD_ARTIFACTS_CAPTURED_NOT_INSTALLABLE'
+}
+catch {
+  $report.failureReason = $_.Exception.Message
+  throw
 }
 finally {
   $report.buildStages = $results
