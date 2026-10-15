@@ -34,6 +34,10 @@ test('builder resolves VS2022 deterministically and captures native MSBuild fail
   assert.match(source, /Visual Studio\/Installer\/vswhere\.exe/);
   assert.match(source, /-version '\[17\.0,18\.0\)'/);
   assert.match(source, /MSBuild\/Current\/Bin\/MSBuild\.exe/);
+  assert.match(source, /\$msbuildDigest = \(Get-FileHash -LiteralPath \$msbuild -Algorithm SHA256\)/);
+  assert.match(source, /compiler = \[ordered\]@\{/);
+  assert.match(source, /fileVersion = \[string\]\$msbuildFile\.VersionInfo\.FileVersion/);
+  assert.match(source, /sha256 = \$msbuildDigest/);
   assert.doesNotMatch(source, /Get-Command msbuild\.exe/);
   assert.match(source, /Start-Process -FilePath \$msbuild/);
   assert.match(source, /-RedirectStandardOutput \$stdout/);
