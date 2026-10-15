@@ -1,5 +1,17 @@
 # Current Development Handoff — M-Minecraft-Emulator
 
+## Code-only owned virtual readback and package ancestor safety — 16 October 2026
+
+**User directive unchanged:** perform source-verifiable implementation work in GitHub `Local` now, defer target Windows/Minecraft testing to the final campaign. A new code path or authored test is not evidence of operating four playable accounts.
+
+**Builder source correction:** the existing `tooling/isolation-source/build-owned-v1186.ps1` package-target preflight checked only the immediate parent for `ReparsePoint`. An ancestor junction could redirect a lexical outside-repository output into another location, postponing rejection until after MSBuild. The preflight now walks the existing parent chain and rejects any junction/reparse-point ancestor **before creating a report directory or compiling**. The existing assembler remains the final realpath and no-overwrite authority. Extended its existing `build-owned-v1186.test.mjs` regression, without modifying driver installation or game state.
+
+**Owned box configuration contract correction:** `engine/isolation-native/owned-runtime/minecraft-profiles.mjs` previously returned only eight write commands per Client 02/03/04 and flagged `settingsReadbackVerified=false`, while its comments required each setting to be verified. It now also returns `guardedSteps` generated from the same eight canonical settings: for each setting, `SET` followed by `REQUIRE_READBACK` with an exact expected value. The final write remains `Enabled=y`, followed by its readback. Source-only policy flags demand stopping on mismatch and prohibit automatic deletion. A strict pure comparator `matchesOwnedMinecraftReadback(client, readings)` rejects missing, duplicate, reordered, foreign-box, foreign-client, extra/private-field and mismatched records. Neither the plan nor comparator authenticates the host; only a future independently verified owned provider may execute operations. The historical write-only `commands` output remains for existing source consumers and is NOT an approved executable transaction.
+
+**Proof actually obtained:** read back exact edited GitHub source; checked placement of ancestor-path validation before native work and confirmed no install/activation calls added. In V8, executed the exact owned-profile module with three valid client readbacks and 42 negative readback cases; all conditions matched expectations. Updated the existing `minecraft-profiles.test.mjs` with ordered readback and malformed data cases. This is **NOT** a complete Node 24 test-suite execution, Windows PowerShell parser/runtime verification, actual native compilation, signed driver/service acceptance, box modification, Microsoft login or Minecraft crash resolution.
+
+**Next source-only task:** inspect adapter integration constraints and account-preserving failure behavior for owned box create/launch without enabling the currently blocked Create Virtual UI, preparing one consolidated final Windows test plan. Preserve official `MinecraftClient02` and all licensed accounts; do not auto-delete, auto-migrate, auto-retry or silently change Sandboxie profile isolation settings.
+
 ## Code-only native build stage and output preflight — 16 October 2026
 
 **User directive preserved:** no incremental Windows/PC testing. Keep exact source proof distinct from successful Windows compilation, signed kernel/service activation, account safety, idle-crash diagnosis and four-client Minecraft acceptance.
