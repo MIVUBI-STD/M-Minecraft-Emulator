@@ -100,8 +100,19 @@ function sources() {
       "    }",
       "}",
       "",
+    ].join("\n") : path === "Sandboxie/apps/ini/update.c" ? [
+      "// isolated SbieIni updater fixture",
+      '#include "common/defines.h"',
+      "int DoUpdate(void) {",
+      "    ULONG status = SbieDll_UpdateConf();",
+      "    if (status == 0xC000006AL/*STATUS_WRONG_PASSWORD*/) { ",
+      "",
+      "        return ERRLVL_PASSWD;",
+      "    }",
+      "    return 0;",
+      "}",
+      "",
     ].join("\n") : [
-      "// isolated fixture component: " + path,
       '#include "common/my_version.h"',
       "int test_function(void) { return 0; }",
       "",
@@ -118,14 +129,14 @@ function git(root, args, input) {
 
 test("generated patch includes DLL and service startup in exact core closure and preserves kernel names", () => {
   const patch = buildPrivateSourcePatch(sources());
-  assert.equal((patch.match(/^diff --git/gm) ?? []).length, 10);
-  assert.equal((patch.match(/^@@ /gm) ?? []).length, 22);
+  assert.equal((patch.match(/^diff --git/gm) ?? []).length, 11);
+  assert.equal((patch.match(/^@@ /gm) ?? []).length, 24);
   // Git apply rejects the earlier anchor-only hunks even when the line
   // matches. Every insertion must retain a following source context line.
   assert.match(patch, /@@ -\d+,2 \+\d+,4 @@/);
   assert.match(patch, /\+#define MIVUBI_PRIVATE_ISOLATION_ABI   0x57230\n #define SBIEDRV/);
   assert.match(patch, /\+#endif\n int test_function\(void\)/);
-  assert.equal((patch.match(/^@@ -\d+,2 \+\d+,\d+ @@$/gm) ?? []).length, 21);
+  assert.equal((patch.match(/^@@ -\d+,2 \+\d+,\d+ @@$/gm) ?? []).length, 23);
   // Real upstream has seven context lines; the synthetic fixture packs
   // the same three source anchors into five. Both must be one Git hunk.
   assert.match(patch, /^@@ -\d+,(?:5|7) \+\d+,\d+ @@$/m);
@@ -163,6 +174,9 @@ test("generated patch includes DLL and service startup in exact core closure and
   assert.match(patch, /MivubiOwnedDriverMatches\(version, 16, abi\)/);
   assert.match(patch, /STATUS_REVISION_MISMATCH/);
   assert.match(patch, /DriverAssistStart\.cpp/);
+  assert.match(patch, /Sandboxie\/apps\/ini\/update\.c/);
+  assert.match(patch, /if \(status != 0 && status != 0xC000006AL\)/);
+  assert.match(patch, /return 3;/);
   assert.ok(patch.includes("mivubi_client:"));
   assert.ok(patch.includes("MivubiEdu02"));
   assert.ok(patch.includes("MinecraftEducationEdition.exe"));
@@ -245,6 +259,10 @@ test("entire patch applies atomically to a disposable Git checkout without renam
     const driver = readFileSync(join(root, "Sandboxie/core/drv/api.c"), "utf8");
     assert.match(driver, /const WCHAR \*Driver_Version = MIVUBI_PRIVATE_DRIVER_ID/);
     assert.match(feature, /end\[1\] != L'/);
+    const ini = readFileSync(join(root, "Sandboxie/apps/ini/update.c"), "utf8");
+    assert.match(ini, /if \(status != 0 && status != 0xC000006AL\)\s+return 3;/);
+    assert.ok(ini.indexOf("if (status != 0 && status != 0xC000006AL)") <
+      ini.indexOf("return ERRLVL_PASSWD"));
     const editedHeader = readFileSync(join(root, SOURCE_FILES[0]), "utf8");
     assert.ok(editedHeader.includes('L"SbieDrv"'));
     assert.ok(editedHeader.includes('L"SbieSvc"'));
@@ -364,6 +382,24 @@ test("Git applies the private patch to a Windows-style CRLF checkout", () => {
   } finally {
     rmSync(root, {recursive: true, force: true});
   }
+});
+
+test("private SbieIni reports configuration update failures through its exit code", () => {
+  const original = sources();
+  const edited = buildExpectedPrivateSources(original);
+  const path = "Sandboxie/apps/ini/update.c";
+  const code = edited[path];
+  const error = code.indexOf("if (status != 0 && status != 0xC000006AL)");
+  const password = code.indexOf("return ERRLVL_PASSWD");
+  const success = code.lastIndexOf("    return 0;");
+  assert.ok(error > 0 && password > error && success > password);
+  assert.match(code.slice(error, password),
+    /if \(status != 0 && status != 0xC000006AL\)\s+return 3;/);
+  for (const altered of [
+    code.replace("if (status != 0 && status != 0xC000006AL)", "if (status == 0)"),
+    code.replace("        return 3;", "        return 0;"),
+  ]) assert.throws(() => verifyExactPrivateSourceBytes(original,
+    {...edited, [path]: altered}), /unexpected modified source bytes/);
 });
 
 test("private Start.exe bootstraps its broker before first driver identity query", () => {

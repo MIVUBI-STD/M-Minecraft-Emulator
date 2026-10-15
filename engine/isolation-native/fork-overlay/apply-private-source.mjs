@@ -86,6 +86,18 @@ const BOX_ADMISSION = [
   "    }",
   "#endif",
 ];
+const INI_UPDATE_PATH = "Sandboxie/apps/ini/update.c";
+const INI_INCLUDE_ANCHOR = '#include "common/defines.h"';
+const INI_RESULT_ANCHOR =
+  "    if (status == 0xC000006AL/*STATUS_WRONG_PASSWORD*/) { ";
+const INI_ERROR_RETURN = [
+  "#if defined(MIVUBI_PRIVATE_ISOLATION_BUILD)",
+  "    // Stop on ordinary update failures BEFORE the upstream password check.",
+  "    // Keep 0 success, 1 command-line and 2 wrong-password. Return 3 on error.",
+  "    if (status != 0 && status != 0xC000006AL)",
+  "        return 3;",
+  "#endif",
+];
 const DLL_PATH = "Sandboxie/core/dll/sbieapi.c";
 const SVC_START_PATH = "Sandboxie/core/svc/DriverAssistStart.cpp";
 const DLL_ARG_ANCHOR = "    args->string.val = version_string;";
@@ -262,6 +274,7 @@ export const SOURCE_FILES = Object.freeze([
   "Sandboxie/core/svc/DriverAssistStart.cpp",
   "Sandboxie/apps/start/start.cpp",
   "Sandboxie/apps/ini/main.c",
+  INI_UPDATE_PATH,
   "Sandboxie/install/kmdutil/kmdutil.c",
 ]);
 
@@ -372,7 +385,8 @@ export function buildPrivateSourcePatch(files) {
       "private marker already present: " + path);
     const includeAnchor = path === SVC_START_PATH ? SVC_INCLUDE_ANCHOR :
       path === BOX_PATH ? BOX_INCLUDE_ANCHOR :
-      path === PROCESS_API_PATH ? PROCESS_INCLUDE_ANCHOR : ANCHOR;
+      path === PROCESS_API_PATH ? PROCESS_INCLUDE_ANCHOR :
+      path === INI_UPDATE_PATH ? INI_INCLUDE_ANCHOR : ANCHOR;
     const additions = path === START_PATH
       ? [...GUARD, "", ...CORE_IDENTITY, "", ...START_POLICY]
       : path === BOX_PATH
@@ -381,7 +395,9 @@ export function buildPrivateSourcePatch(files) {
         ? [...GUARD, "", ...BOX_POLICY]
       : path === DRIVER_PATH || path === DLL_PATH
         ? [...GUARD, "", ...CORE_IDENTITY]
-      : path === SVC_START_PATH ? SVC_START_INCLUDE : GUARD;
+      : path === SVC_START_PATH ? SVC_START_INCLUDE
+      : path === INI_UPDATE_PATH
+        ? ['#include "common/my_version.h"', ...GUARD] : GUARD;
     parts.push(hunk(files[path], path, includeAnchor, additions,
       path === SVC_START_PATH));
     if (path === BOX_PATH) {
@@ -438,6 +454,11 @@ export function buildPrivateSourcePatch(files) {
       parts.push(hunk(files[path], path, SVC_START_ANCHOR,
         SERVICE_FOREIGN_DRIVER, false, additions.length, false));
     }
+    if (path === INI_UPDATE_PATH) {
+      onlyOnce(files[path], INI_RESULT_ANCHOR, path);
+      parts.push(hunk(files[path], path, INI_RESULT_ANCHOR,
+        INI_ERROR_RETURN, true, additions.length, false));
+    }
     if (path === START_PATH) {
       // Functional C++ admission is shared with native regression tests.
       onlyOnce(files[path], START_PARSE_ANCHOR, path);
@@ -458,7 +479,8 @@ export function buildExpectedPrivateSources(original) {
     const anchor = index === 0 ? VERSION_ANCHOR
       : path === SVC_START_PATH ? SVC_INCLUDE_ANCHOR
       : path === BOX_PATH ? BOX_INCLUDE_ANCHOR :
-      path === PROCESS_API_PATH ? PROCESS_INCLUDE_ANCHOR : ANCHOR;
+      path === PROCESS_API_PATH ? PROCESS_INCLUDE_ANCHOR :
+      path === INI_UPDATE_PATH ? INI_INCLUDE_ANCHOR : ANCHOR;
     const additions = index === 0 ? MARKERS
       : path === START_PATH ? [...GUARD, "", ...CORE_IDENTITY, "", ...START_POLICY]
       : path === BOX_PATH
@@ -467,7 +489,9 @@ export function buildExpectedPrivateSources(original) {
         ? [...GUARD, "", ...BOX_POLICY]
       : path === DRIVER_PATH || path === DLL_PATH
         ? [...GUARD, "", ...CORE_IDENTITY]
-      : path === SVC_START_PATH ? SVC_START_INCLUDE : GUARD;
+      : path === SVC_START_PATH ? SVC_START_INCLUDE
+      : path === INI_UPDATE_PATH
+        ? ['#include "common/my_version.h"', ...GUARD] : GUARD;
     const newline = original[path].includes("\r\n") ? "\r\n" : "\n";
     let value = original[path].replace(anchor,
       (path === SVC_START_PATH ? [...additions, anchor] : [anchor, ...additions])
@@ -518,6 +542,11 @@ export function buildExpectedPrivateSources(original) {
       onlyOnce(original[path], SVC_START_ANCHOR, path);
       value = value.replace(SVC_START_ANCHOR,
         [SVC_START_ANCHOR, ...SERVICE_FOREIGN_DRIVER].join(newline));
+    }
+    if (path === INI_UPDATE_PATH) {
+      onlyOnce(original[path], INI_RESULT_ANCHOR, path);
+      value = value.replace(INI_RESULT_ANCHOR,
+        [...INI_ERROR_RETURN, INI_RESULT_ANCHOR].join(newline));
     }
     if (path === START_PATH) {
       onlyOnce(original[path], START_PARSE_ANCHOR, path);

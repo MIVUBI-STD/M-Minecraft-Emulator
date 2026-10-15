@@ -1,5 +1,27 @@
 # Current Development Handoff — M-Minecraft-Emulator
 
+## Native SbieIni configuration error signaling — 15 October 2026
+
+**Functional defect:** pinned Sandboxie v1.18.5 `SbieIni.exe` always
+returned exit code 0 for most `SbieDll_UpdateConf` or
+`SbieApi_UpdateConf` failures, so a caller could falsely consider
+a persistent Minecraft client sandbox configured.
+
+**Change:** the private native `Sandboxie/apps/ini/update.c` now
+returns 3 when the update API fails, retaining exit code 0 for success,
+1 for invalid syntax and 2 for wrong password. The canonical overlay
+extends to 11 upstream source files and 24 nonoverlapping hunks;
+read-only Rust payload inspection and source tests reflect the same closure.
+
+**Evidence boundary:** private source transformation and negative error-code
+assertions can be executed against genuine upstream bytes without affecting
+official Sandboxie. Native Windows MSVC/WDK binary build, service/driver
+loading, persisted profile read-back and Minecraft gameplay remain
+NOT_EXECUTED.
+
+**Next:** compile and execute the full private Windows core and verify
+SbieIni exit codes and read-back in an exclusive lab.
+
 ## Private Start.exe cold-boot launcher fix — 15 October 2026
 
 **Functional integration issue:** the opt-in MIVUBI `Start.exe` mode

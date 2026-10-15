@@ -1,5 +1,20 @@
 # MIVUBI native isolation ABI probe — source-first
 
+## Private SbieIni update status fix — 15 October 2026
+
+The pinned upstream `Sandboxie/apps/ini/update.c` returns exit code zero
+for non-password configuration failures, even when the underlying update
+API returns an error. The private fork now returns **3** for such failures,
+preserving **0** for success, **1** for malformed commands and **2** for
+wrong passwords. The canonical source overlay now modifies 11 upstream files
+(24 patch hunks), including the actual updater compiled into `SbieIni.exe`.
+The Rust private candidate inspector uses the same 11-file source closure.
+
+This fixes error signaling needed by persistent `MivubiEdu02/03/04` box
+provisioning; it does not prove settings are persisted until a Windows
+runtime read-back test is performed.
+
+
 ## Cold-start native Start.exe broker bootstrap — 15 October 2026
 
 The private `/mivubi_client:02/03/04` mode now invokes the existing
