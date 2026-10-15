@@ -60,6 +60,8 @@ To continue work in another chat, recover the named topic from `planning/develop
 
 Update canonical owner plus necessary callers/tests/docs in a coherent logical commit. Prefer correcting an existing owner over creating another abstraction. Preserve each Virtual's account-bearing disks and snapshots; reprovision is explicitly destructive and must not be a side effect of routine setup. Release/update identity, Guest Agent wire contract, installed product identifier and disk paths require an explicit migration review, not a source-folder tidy-up.
 
+When composing GitHub source-file replacements in JavaScript, preserve literal replacement bytes: `String.replace(search, replacementString)` interprets `$'`, `$&` and related sequences, which can silently corrupt PowerShell regex or source text. Use a callback replacer (`replace(search, () => replacement)`) or exact splice, then fetch the committed blob and verify the complete affected expression and file ending. A successful GitHub write is not syntactic proof.
+
 Use categorized commits (`refactor(repo): ...`, `fix(runtime): ...`, `test(desktop): ...`, `docs(system): ...`). Record continuity at significant milestones in `planning/development.md`. Git history preserves old source naming; do not leave obsolete code mirrors just for traceability.
 
 ### Commit-based continuity
