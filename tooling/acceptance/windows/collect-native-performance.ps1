@@ -195,7 +195,17 @@ while ($timer.Elapsed.TotalSeconds -lt $DurationSeconds) {
 $durationWithoutGpu = [math]::Round($timer.Elapsed.TotalSeconds, 2)
 $gpuDiagnostic = $null
 if ($GpuSnapshot) {
-  $gpuDiagnostic = Read-GpuSnapshot -FirstPid $NativePid -SecondPid $IsolatedPid -FirstStartTicks $baselineNative.startTicks -SecondStartTicks $baselineIsolated.startTicks
+  if ($nativeLost -or $isolatedLost) {
+    # Identity was lost during the timed CPU capture. Avoid the extra GPU
+    # counter query: a PID might now belong to an unrelated process.
+    $gpuDiagnostic = [ordered]@{
+      evidenceClass = 'WINDOWS_GPU_COUNTER_HINT_NOT_FRAME_PROOF'
+      native = (Unknown-GpuHint)
+      isolated = (Unknown-GpuHint)
+    }
+  } else {
+    $gpuDiagnostic = Read-GpuSnapshot -FirstPid $NativePid -SecondPid $IsolatedPid -FirstStartTicks $baselineNative.startTicks -SecondStartTicks $baselineIsolated.startTicks
+  }
 }
 # Hints are not account, FPS, frametime or actual VRAM proof.
 $report = [ordered]@{
@@ -221,10 +231,27 @@ if ($GpuSnapshot) {
 }
 $stamp = $beginUtc.ToString('yyyyMMddTHHmmssfffffffZ')
 $file = Join-Path $OutputDirectory ('native-process-performance-' + $stamp + '.json')
-if (Test-Path -LiteralPath $file) {
-  throw 'A report already exists at the generated destination; refusing overwrite.'
+# Windows PowerShell 5.1's Set-Content -Encoding UTF8 writes a BOM, which
+# Node JSON.parse rejects. Serialize before opening the destination and write
+# UTF-8 without a BOM. FileMode.CreateNew also refuses a concurrent writer:
+# Test-Path + Set-Content was a check/use race and could overwrite evidence.
+$json = $report | ConvertTo-Json -Depth 7
+$utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+$bytes = $utf8NoBom.GetBytes($json + [Environment]::NewLine)
+$stream = [System.IO.File]::Open($file, [System.IO.FileMode]::CreateNew,
+  [System.IO.FileAccess]::Write, [System.IO.FileShare]::None)
+$written = $false
+try {
+  $stream.Write($bytes, 0, $bytes.Length)
+  $stream.Flush()
+  $written = $true
+} finally {
+  $stream.Dispose()
+  if (-not $written) {
+    # Only the destination created by THIS invocation may be removed.
+    [System.IO.File]::Delete($file)
+  }
 }
-$report | ConvertTo-Json -Depth 7 | Set-Content -LiteralPath $file -Encoding UTF8
 [ordered]@{
   report = $file
   sampleCount = $samples.Count
