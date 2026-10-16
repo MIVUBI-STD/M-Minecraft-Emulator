@@ -146,18 +146,18 @@ export function client02Presentation(
 
 export function rowPresentation(
   id: InstanceId,
-  inspected: boolean,
   isolated: InstanceRowView,
   busy: string,
   issue: UiIssue | null,
   notice: UiNotice | null,
 ): InstanceRowView {
   const base = id === "01"
-    ? { status: inspected ? "Status unconfirmed" : "Not checked",
+    ? { status: "Not checked",
         tone: "neutral" as const, action: "open" as const,
         details: "The app can request Windows to open Minecraft Education. It cannot confirm the native game window.", canMove: false }
     : isolated;
-  // Check status observes isolated Client 02, not native Client 01.
+  // Host 01 has NO inspection route in this mounted pilot. A Virtual 02
+  // observation never changes its status; only its own feedback can do so.
   if (busy === "check" && id === "02") return { ...base, status: "Checking…", tone: "neutral", action: null, canMove: false };
   // The file dialog may change the selected EXE and reset licence consent.
   // Suppress a misleading Ready to open / Open action while it is unresolved.
