@@ -349,7 +349,8 @@ describe("Compact Manager app source and command boundary", () => {
   it("explains disabled Create Virtual for keyboard and screen-reader users", () => {
     expect(app).toContain('aria-describedby="cm-create-reason"');
     expect(app).toContain('id="cm-create-reason" aria-live="polite"');
-    expect(app).toContain("Create Virtual unavailable:");
+    expect(app).toContain("Create Virtual unavailable.");
+    expect(app).toContain("has not completed Windows validation.");
     expect(app).toContain('aria-label="Minecraft 01 error details"');
     expect(app).toContain('aria-label="Minecraft 02 details"');
     expect(app).toContain("Check status · 02");
@@ -357,6 +358,40 @@ describe("Compact Manager app source and command boundary", () => {
     expect(app).toContain('aria-pressed={moveSide === "LEFT"} disabled={resourceOperationBusy}');
     expect(app).toContain('aria-pressed={moveSide === "RIGHT"} disabled={resourceOperationBusy}');
     expect(app).toContain('tabindex="-1" bind:this={client02DetailPanel}');
+  });
+  it("keeps the four Minecraft slots primary and puts technical Sandboxie controls only in Settings Diagnostics", () => {
+    const overview = app.split('<section class="cm-virtual-overview"')[1]
+      ?.split('<section class="cm-list"')[0] ?? "";
+    expect(overview).toContain("Minecraft sessions");
+    expect(overview).toContain("Create Virtual unavailable.");
+    expect(overview).toContain("Settings → Diagnostics");
+    expect(overview).not.toContain("Inspect Sandboxie names");
+    expect(overview).not.toContain("Check engine readiness");
+    expect(overview).not.toContain("MivubiEdu02");
+    const diagnostics = app.indexOf('<details class="cm-diagnostics">');
+    const help = app.indexOf("<h2>Help</h2>");
+    expect(diagnostics).toBeGreaterThan(help);
+    for (const marker of [
+      '<summary>Diagnostics</summary>',
+      'on:click={discoverExistingVirtuals}',
+      'on:click={inspectStagedOwnedEngine}',
+      'on:click={inspectOwnedServiceNames}',
+      '{#if existingVirtuals}',
+      '{#if existingVirtualsError}',
+      'ownedVirtualCreationReason(ownedHostInspection)',
+      'Supported owned virtuals',
+    ]) {
+      expect(app.indexOf(marker)).toBeGreaterThan(diagnostics);
+    }
+    for (const action of [
+      'on:click={discoverExistingVirtuals}',
+      'on:click={inspectStagedOwnedEngine}',
+      'on:click={inspectOwnedServiceNames}',
+    ]) {
+      expect(app.split(action)).toHaveLength(2);
+    }
+    expect(app).toContain("These checks do not create, install, migrate or sign in to any virtual.");
+    expect(bootstrap).not.toContain("desktop_create_virtual");
   });
   it("lists read-only Sandboxie section candidates without authorizing virtual creation", () => {
     expect(app).toContain("async function discoverExistingVirtuals()");
