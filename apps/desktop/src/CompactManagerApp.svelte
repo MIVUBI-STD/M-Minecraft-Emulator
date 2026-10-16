@@ -388,43 +388,12 @@
           <button type="button" class="cm-button cm-secondary" disabled
             aria-describedby="cm-create-reason"
             title="Internal isolation engine is not yet installed and verified">Create virtual</button>
-          <button type="button" class="cm-button cm-secondary" disabled={resourceOperationBusy}
-            on:click={discoverExistingVirtuals}>
-            {busy === "discover-virtuals" ? "Checking…" : "Inspect Sandboxie names"}
-          </button>
-          <button type="button" class="cm-button cm-secondary"
-            disabled={resourceOperationBusy}
-            on:click={inspectOwnedServiceNames}>
-            {ownedHostBusy ? "Checking engine…" : "Check engine readiness"}
-          </button>
         </div>
       </section>
-      <section class="cm-create-readiness" aria-label="Create virtual requirements">
+      <section class="cm-create-readiness" aria-label="Virtual creation availability">
         <p id="cm-create-reason" aria-live="polite">Create Virtual unavailable: {ownedHostError || ownedVirtualCreationReason(ownedHostInspection)}</p>
-        <details>
-          <summary>Supported owned virtuals</summary>
-          <p>The current internal Minecraft preset supports three separate persistent boxes: MivubiEdu02, MivubiEdu03 and MivubiEdu04. General custom names are not yet supported by its kernel policy. These virtuals have not been created.</p>
-          <p>Minecraft login compatibility uses reduced process/COM isolation and requires explicit approval once the engine is operational.</p>
-        </details>
+
       </section>
-      {#if existingVirtuals}
-        <section class="cm-existing-virtuals" aria-label="Sandboxie configuration name candidates">
-          <h3>Sandboxie name candidates (read-only)</h3>
-          <p>These names come from existing Sandboxie configuration sections, including disabled boxes. Known user and template sections are omitted, but names alone cannot prove a box exists or a game is running. This is not the MIVUBI-owned engine.</p>
-          {#if existingVirtuals.boxes.length === 0}
-            <p>No Sandboxie box-name candidates were reported for the current Windows user.</p>
-          {:else}
-            <ul>
-              {#each existingVirtuals.boxes as boxName (boxName)}
-                <li>{boxName}</li>
-              {/each}
-            </ul>
-          {/if}
-        </section>
-      {/if}
-      {#if existingVirtualsError}
-        <p class="cm-warning cm-existing-error" role="alert">{existingVirtualsError}</p>
-      {/if}
       <section class="cm-list" aria-label="Virtual sessions">
         <div class="cm-instance">
           <div class="cm-row">
@@ -570,28 +539,66 @@
           <button type="button" class="cm-button cm-secondary" on:click={() => openClient02DetailsFromSettings("setup")}>Set up Minecraft 02</button>
         </div>
         <div class="cm-setting-group">
-          <h2>M-Isolation-Engine · Internal runtime</h2>
-          <p>The Sandboxie-derived C/C++ core belongs to MIVUBI. Inspecting its packaged files is diagnostic only; a compiled, signed and installed engine is required before Create virtual can become available.</p>
-          <button type="button" class="cm-button cm-secondary"
-            disabled={resourceOperationBusy}
-            on:click={inspectStagedOwnedEngine}>
-            {ownedInspectionBusy ? "Inspecting candidate…" : "Inspect engine candidate"}
-          </button>
-          {#if ownedCandidate}
-            <p aria-live="polite">Engine package {ownedCandidate.upstreamCommit === "cdba7096240b93d79c5373aa81a75a1c5c71b883" ? "v1.18.6" : "v1.18.5"}: checksums match {ownedCandidate.verifiedArtifactCount} declared files and source paths, with no additional entries observed. Files could change after inspection. This does not authenticate the build or prove driver compatibility. Not installable; the official Sandboxie provider remains active.</p>
+          <details class="cm-diagnostics">
+            <summary>Diagnostics</summary>
+            <div class="cm-diagnostics-body">
+              <p class="cm-assist">Advanced, read-only checks for the current Sandboxie Plus pilot and the not-yet-installed MIVUBI engine. These checks do not create, install, migrate or sign in to any virtual.</p>
+              <h3>Sandboxie configuration</h3>
+              <p>Inspect configuration section names from the installed pilot. Results are candidates, not verified running Minecraft sessions.</p>
+              <button type="button" class="cm-button cm-secondary"
+                disabled={resourceOperationBusy} on:click={discoverExistingVirtuals}>
+                {busy === "discover-virtuals" ? "Checking…" : "Inspect Sandboxie names"}
+              </button>
+          {#if existingVirtuals}
+            <section class="cm-existing-virtuals" aria-label="Sandboxie configuration name candidates">
+              <h3>Sandboxie name candidates (read-only)</h3>
+              <p>These names come from existing Sandboxie configuration sections, including disabled boxes. Known user and template sections are omitted, but names alone cannot prove a box exists or a game is running. This is not the MIVUBI-owned engine.</p>
+              {#if existingVirtuals.boxes.length === 0}
+                <p>No Sandboxie box-name candidates were reported for the current Windows user.</p>
+              {:else}
+                <ul>
+                  {#each existingVirtuals.boxes as boxName (boxName)}
+                    <li>{boxName}</li>
+                  {/each}
+                </ul>
+              {/if}
+            </section>
           {/if}
-          {#if ownedInspectionError}
-            <p class="cm-warning" role="alert">{ownedInspectionError}</p>
+          {#if existingVirtualsError}
+            <p class="cm-warning cm-existing-error" role="alert">{existingVirtualsError}</p>
           {/if}
-          <button type="button" class="cm-button cm-secondary"
-            disabled={resourceOperationBusy}
-            on:click={inspectOwnedServiceNames}>
-            {ownedHostBusy ? "Inspecting Windows…" : "Check engine service names"}
-          </button>
-          {#if ownedHostInspection}
-            <p aria-live="polite">Host: {ownedHostInspection.state.replaceAll("_", " ")}. Engine activation remains blocked.</p>
-          {/if}
-          {#if ownedHostError}<p class="cm-warning" role="alert">{ownedHostError}</p>{/if}
+              <h3>M-Isolation-Engine · Internal runtime</h3>
+              <p>The owned C/C++ source is not an installed or proven provider. Package and service-name inspections only gather diagnostic evidence; they do not authorize Create Virtual.</p>
+              <button type="button" class="cm-button cm-secondary"
+                disabled={resourceOperationBusy}
+                on:click={inspectStagedOwnedEngine}>
+                {ownedInspectionBusy ? "Inspecting candidate…" : "Inspect engine candidate"}
+              </button>
+              {#if ownedCandidate}
+                <p aria-live="polite">Engine package {ownedCandidate.upstreamCommit === "cdba7096240b93d79c5373aa81a75a1c5c71b883" ? "v1.18.6" : "v1.18.5"}: checksums match {ownedCandidate.verifiedArtifactCount} declared files and source paths, with no additional entries observed. Files could change after inspection. This does not authenticate the build or prove driver compatibility. Not installable; the official Sandboxie provider remains active.</p>
+              {/if}
+              {#if ownedInspectionError}
+                <p class="cm-warning" role="alert">{ownedInspectionError}</p>
+              {/if}
+              <button type="button" class="cm-button cm-secondary"
+                disabled={resourceOperationBusy}
+                on:click={inspectOwnedServiceNames}>
+                {ownedHostBusy ? "Inspecting Windows…" : "Check engine readiness"}
+              </button>
+              {#if ownedHostInspection}
+                <p aria-live="polite">Host: {ownedHostInspection.state.replaceAll("_", " ")}. Engine activation remains blocked.</p>
+              {/if}
+              {#if ownedHostError}<p class="cm-warning" role="alert">{ownedHostError}</p>{/if}
+              <div class="cm-diagnostic-presets">
+                <h3>Planned native profiles</h3>
+            <details>
+              <summary>Supported owned virtuals</summary>
+              <p>The current internal Minecraft preset supports three separate persistent boxes: MivubiEdu02, MivubiEdu03 and MivubiEdu04. General custom names are not yet supported by its kernel policy. These virtuals have not been created.</p>
+              <p>Minecraft login compatibility uses reduced process/COM isolation and requires explicit approval once the engine is operational.</p>
+            </details>
+              </div>
+            </div>
+          </details>
         </div>
         <div class="cm-setting-group">
           <h2>Performance</h2>
