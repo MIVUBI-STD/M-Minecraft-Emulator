@@ -71,7 +71,7 @@ Start with a short smoke test: verify that the manager opens, inspect the Client
 
 | Step | Action | Expected observation | Decision |
 | --- | --- | --- | --- |
-| 1 | Open **Instances** and select **Check status** before Client 02 setup or launch | Sandboxie configuration and PID membership are observed, or an actionable UNKNOWN/refusal is shown | UNKNOWN is **never** evidence of an empty box; check Sandboxie service, box settings and inspection access |
+| 1 | Open **Instances** and select **Check status** on the Minecraft 02 row (or the toolbar **Check status · 02**) before setup or launch | Sandboxie configuration and PID membership are observed, or an actionable UNKNOWN/refusal is shown | UNKNOWN is **never** evidence of an empty box; check Sandboxie service, box settings and inspection access |
 | 2 | On Minecraft 02 choose **Set up** → **Browse…**, select the installed official Education Desktop EXE and confirm Sandboxie licensing | **Open** is offered only after a positively observed empty box and complete UI setup | Correct any indicated setting and use **Check status** again; do not bypass rejected or ambiguous setup |
 | 3 | On Minecraft 01 select **Open**, then inspect the actual Education window and interact with its menu | Native game window responds to input; edition is correct | An accepted Windows Open request or outside-box PID does not authenticate Client 01 |
 | 4 | On Minecraft 02 select **Open**, then **Check status** again | An independent candidate window is observed inside `MinecraftClient02` | Sandboxie Start.exe success is only a launch request. If the result is ambiguous, inspect first and **do not auto-retry** |
