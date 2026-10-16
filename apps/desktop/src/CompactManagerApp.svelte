@@ -50,6 +50,8 @@
   let notices: Partial<Record<InstanceId, UiNotice>> = {};
   let moveSide: MoveSide = "LEFT";
   let checkStatusButton: HTMLButtonElement | undefined;
+  let host01OpenButton: HTMLButtonElement | undefined;
+  let host01DetailsButton: HTMLButtonElement | undefined;
   let settingsBackButton: HTMLButtonElement | undefined;
   let client02DetailPanel: HTMLDivElement | undefined;
   let disclosureTrigger: HTMLButtonElement | null = null;
@@ -149,6 +151,23 @@
     notices = { ...notices, [instance]: undefined };
   }
 
+  // A native Open request has no authoritative Host 01 process check here.
+  // A manual acknowledgement clears feedback, never launches or stops Minecraft.
+  function dismissHost01Feedback() {
+    if (resourceOperationBusy || page !== "instances" || expanded !== "01" ||
+        (!issues["01"] && !notices["01"])) return;
+    clearFeedback("01");
+    navigationRevision += 1;
+    expanded = null;
+    disclosureTrigger = null;
+    void tick().then(() => {
+      if (page === "instances" && expanded === null &&
+          host01OpenButton?.isConnected && !host01OpenButton.disabled) {
+        host01OpenButton.focus();
+      }
+    });
+  }
+
   function reportIssue(instance: InstanceId, title: string, message: string, error: unknown, requestRevision: number, origin?: UiIssue["origin"]) {
     issues = { ...issues, [instance]: {
       instance, title, message,
@@ -201,6 +220,14 @@
         "Check for an existing Minecraft window before trying again.", error, requestRevision);
     } finally {
       busy = "";
+      // The native Open control unmounts during the request. Move focus to
+      // its resulting review control if the user has not navigated away.
+      void tick().then(() => {
+        if (page === "instances" && requestRevision === navigationRevision &&
+            host01DetailsButton?.isConnected && !host01DetailsButton.disabled) {
+          host01DetailsButton.focus();
+        }
+      });
     }
   }
 
@@ -411,11 +438,14 @@
             </div>
             <div class="cm-row-actions">
               {#if row01.action}
-                <button class="cm-button cm-primary" type="button" disabled={resourceOperationBusy}
-                  on:click={(event) => choosePrimary("01", event.currentTarget)} aria-expanded={row01.action === "issue" ? expanded === "01" : undefined} aria-controls={row01.action === "issue" ? "cm-details-01" : undefined}>{primaryLabel(row01.action)}</button>
+                <button class="cm-button cm-primary" type="button" bind:this={host01OpenButton} disabled={resourceOperationBusy}
+                  on:click={(event) => choosePrimary("01", event.currentTarget) aria-expanded={row01.action === "issue" ? expanded === "01" : undefined} aria-controls={row01.action === "issue" ? "cm-details-01" : undefined}>{primaryLabel(row01.action)}</button>
               {/if}
-              {#if issue01}
-                <button class="cm-link" type="button" aria-label="Minecraft 01 error details" aria-expanded={expanded === "01"} aria-controls="cm-details-01" on:click={(event) => toggleDetails("01", "issue", event.currentTarget)}>Details</button>
+              {#if issue01 || notice01}
+                <button class="cm-link" type="button" bind:this={host01DetailsButton}
+                  aria-label={issue01 ? "Minecraft 01 error details" : "Minecraft 01 launch request details"}
+                  aria-expanded={expanded === "01"} aria-controls="cm-details-01"
+                  on:click={(event) => toggleDetails("01", issue01 ? "issue" : "info", event.currentTarget)}>Details</button>
               {/if}
             </div>
           </div>
@@ -425,9 +455,17 @@
                 <h3>{issue01.title}</h3>
                 <p>{issue01.message}</p>
                 {#if issue01.details}<details><summary>Advanced details</summary><p class="cm-technical">{issue01.details}</p></details>{/if}
+              {:else if notice01}
+                <h3>Open requested</h3>
+                <p>Windows accepted a request to open Minecraft 01. This app cannot confirm whether the game is still open.</p>
               {:else}
                 <h3>About Minecraft 01</h3>
                 <p>Opens the official Minecraft Education app on this PC. The manager does not check account sign-in or gameplay.</p>
+              {/if}
+              {#if issue01 || notice01}
+                <p class="cm-assist">First check Windows for an existing Minecraft Education window. Clearing this message does not stop Minecraft or verify it is closed.</p>
+                <button type="button" class="cm-button cm-secondary" disabled={resourceOperationBusy}
+                  on:click={dismissHost01Feedback}>I checked Windows · Clear message</button>
               {/if}
               <button class="cm-link" type="button" on:click={closeDetails}>Close details</button>
             </div>
