@@ -3,6 +3,7 @@
   import {
     nativeFeasibility,
     isSandboxieBoxPrepared,
+    canRequestClient02,
     type IsolatedClientObservation,
     type OwnedCandidateInspection,
     type OwnedHostInspection,
@@ -453,7 +454,9 @@
               {#if detailMode === "issue"}
                 <h3>{issue02 ? issue02.title : base02.status}</h3>
                 <p>{issue02 ? issue02.message : base02.details}</p>
-                <p class="cm-assist">Use Check status in the toolbar to inspect the current Windows session.</p>
+                <p class="cm-assist">Check Virtual 02 again before retrying any action. A failed launch request may have started the game.</p>
+                <button type="button" class="cm-button cm-secondary" disabled={resourceOperationBusy}
+                  on:click={checkStatus}>Check status · 02</button>
                 {#if issue02?.details}
                   <details><summary>Advanced details</summary><p class="cm-technical">{issue02.details}</p></details>
                 {:else if observation}
@@ -464,11 +467,15 @@
               {:else if detailMode === "setup"}
                 <h3>{setupInstruction(observation).title}</h3>
                 <p>{setupInstruction(observation).text}</p>
-                {#if !observation || !isSandboxieBoxPrepared(observation)}
-                  <p class="cm-assist">The current pilot uses an existing Sandboxie Plus box. MIVUBI-owned virtual creation requires a tested internal driver and service; this setup will not change an existing box.</p>
-                  <details><summary>Sandboxie Plus settings</summary>
-                    <p>Create and enable the persistent MinecraftClient02 box. Keep AutoDelete, AutoRemove and credential-bypass/protected-storage settings off. Never copy another Minecraft account profile.</p>
-                  </details>
+                {#if !canRequestClient02(observation)}
+                  <p class="cm-assist">Executable selection and license confirmation are shown only after Virtual 02 is verified as prepared and empty. The check does not change any account or sandbox setting.</p>
+                  {#if !observation || !isSandboxieBoxPrepared(observation)}
+                    <details><summary>Existing Sandboxie Plus setup</summary>
+                      <p>The current pilot requires a separate persistent box named MinecraftClient02 in Sandboxie Plus. Create it manually only if it does not already exist. Keep AutoDelete, AutoRemove and credential-bypass/protected-storage settings off. Never copy another Minecraft account profile. MIVUBI does not modify the box here.</p>
+                    </details>
+                  {/if}
+                  <button type="button" class="cm-button cm-secondary" disabled={resourceOperationBusy}
+                    on:click={checkStatus}>Check status · 02</button>
                 {:else}
                   <div class="cm-field">
                     <span class="cm-field-label">Installed Minecraft Education</span>
