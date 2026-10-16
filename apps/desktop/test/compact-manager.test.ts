@@ -222,6 +222,32 @@ describe("Compact Manager projections", () => {
     expect(rowPresentation("02", false, base, "", null, { instance: "02", text: "Open requested" }))
       .toMatchObject({ status: "Open requested", action: null });
   });
+  it("hides launch setup until Virtual 02 has a safely observed empty pilot box", () => {
+    const unknownMembership = { ...inspected(), membershipStatus: "UNKNOWN" as const };
+    expect(setupInstruction(unknownMembership).title).toBe("Check instance status");
+    expect(client02Presentation(unknownMembership, "selected.exe", true).action).not.toBe("open");
+    const occupied = { ...inspected(), isolatedCandidateProcesses: 1 };
+    expect(setupInstruction(occupied).title).toBe("Minecraft may already be open");
+    expect(setupInstruction(occupied).text).toContain("Do not start another copy");
+    expect(client02Presentation(occupied, "selected.exe", true).action).not.toBe("open");
+    expect(setupInstruction(inspected()).title).toBe("Select Minecraft Education");
+    const app = readFileSync(new URL("../src/CompactManagerApp.svelte", import.meta.url), "utf8");
+    const setup = app.split('{:else if detailMode === "setup"}')[1]
+      ?.split('{:else if detailMode === "move"')[0] ?? "";
+    expect(setup).toContain("{#if !canRequestClient02(observation)}");
+    const [blocked, eligible] = setup.split("{:else}");
+    expect(blocked).not.toContain("on:click={selectMinecraft}");
+    expect(blocked).not.toContain("bind:checked={licenseConfirmed}");
+    expect(blocked).toContain('on:click={checkStatus}>Check status · 02</button>');
+    expect(eligible).toContain("on:click={selectMinecraft}");
+    expect(eligible).toContain("bind:checked={licenseConfirmed}");
+    expect(app).toContain("Create it manually only if it does not already exist.");
+    const issue = app.split('{#if detailMode === "issue"}')[1]
+      ?.split('{:else if detailMode === "setup"}')[0] ?? "";
+    expect(issue).toContain('on:click={checkStatus}>Check status · 02</button>');
+    expect(issue).not.toContain("on:click={openMinecraft02}");
+    expect(app).not.toContain("desktop_create_virtual");
+  });
   it("gives user-owned setup steps without claiming configuration automation", () => {
     expect(setupInstruction({ ...inspected(), boxConfigured: "NO", boxSettingsSource: "UNKNOWN", credentialHostAccess: "UNKNOWN" }).text).toContain("Sandboxie Plus");
     expect(setupInstruction({ ...inspected(), autoDelete: "ON" }).title).toContain("sandbox data");
