@@ -132,9 +132,9 @@ describe("Compact Manager projections", () => {
       status: "Not checked", action: "check", canMove: false,
     });
     expect(missing.action).not.toBe("open");
-    expect(rowPresentation("02", false, missing, "check", null, null))
+    expect(rowPresentation("02", missing, "check", null, null))
       .toMatchObject({ status: "Checking…", action: null, canMove: false });
-    expect(rowPresentation("02", false, missing, "", {
+    expect(rowPresentation("02", missing, "", {
       instance: "02", title: "Couldn't check status", message: "Inspect again.",
     }, null)).toMatchObject({ action: "issue", canMove: false });
     const source = readFileSync(new URL("../src/CompactManagerApp.svelte", import.meta.url), "utf8");
@@ -146,8 +146,8 @@ describe("Compact Manager projections", () => {
   it("keeps native Open separate from any isolated setup or inspection blocker", () => {
     const isolation = client02Presentation({ ...inspected(), boxConfigured: "NO", boxSettingsSource: "UNKNOWN", credentialHostAccess: "UNKNOWN" }, "", false);
     expect(isolation.action).toBe("setup");
-    expect(rowPresentation("01", false, isolation, "", null, null).action).toBe("open");
-    expect(rowPresentation("02", false, isolation, "", null, null).action).toBe("setup");
+    expect(rowPresentation("01", isolation, "", null, null).action).toBe("open");
+    expect(rowPresentation("02", isolation, "", null, null).action).toBe("setup");
   });
   it("requires the entire proven-empty-box and UI setup before enabling Open", () => {
     expect(client02Presentation(inspected(), "", false).action).toBe("setup");
@@ -178,48 +178,62 @@ describe("Compact Manager projections", () => {
   });
   it("does not mark Client 01 as being checked by Client 02 inspection", () => {
     const isolated = client02Presentation(inspected(), "path", true);
-    expect(rowPresentation("01", false, isolated, "check", null, null).status).toBe("Not checked");
-    expect(rowPresentation("02", true, isolated, "check", null, null))
+    expect(rowPresentation("01", isolated, "check", null, null).status).toBe("Not checked");
+    expect(rowPresentation("01", isolated, "", null, null).status).toBe("Not checked");
+    expect(rowPresentation("02", isolated, "check", null, null))
       .toMatchObject({ status: "Checking…", action: null });
+  });
+  it("never interprets a Virtual 02 inspection as Host 01 status", () => {
+    const observation02 = client02Presentation(inspected(), "some-selected-path", true);
+    const native = rowPresentation("01", observation02, "", null, null);
+    expect(native).toMatchObject({ status: "Not checked", action: "open" });
+    const nativeFeedback = rowPresentation("01", observation02, "", null,
+      { instance: "01", text: "Open requested" });
+    expect(nativeFeedback).toMatchObject({ status: "Open requested", action: null });
+    const app = readFileSync(new URL("../src/CompactManagerApp.svelte", import.meta.url), "utf8");
+    expect(app).toContain('rowPresentation("01", base02, busy, issue01, notice01)');
+    expect(app).toContain('rowPresentation("02", base02, busy, issue02, notice02)');
+    expect(app).not.toContain("rowPresentation(\"01\", observation !== undefined");
+    expect(app).not.toContain("Status unconfirmed");
   });
   it("retains native errors while displaying isolated request outcomes", () => {
     const isolated = client02Presentation(inspected(), "path", true);
     const nativeIssue = { instance: "01" as const, title: "Native launch uncertain", message: "Look for existing window." };
     const boxedNotice = { instance: "02" as const, text: "Open requested" };
-    expect(rowPresentation("01", false, isolated, "", nativeIssue, null))
+    expect(rowPresentation("01", isolated, "", nativeIssue, null))
       .toMatchObject({ status: "Native launch uncertain", action: "issue" });
-    expect(rowPresentation("02", true, isolated, "", null, boxedNotice))
+    expect(rowPresentation("02", isolated, "", null, boxedNotice))
       .toMatchObject({ status: "Open requested", action: null });
   });
   it("does not present Client 02 as ready while executable selection is pending", () => {
     const safeBox = inspected();
     const initial = client02Presentation(safeBox, "C:/old.exe", true);
     expect(initial).toMatchObject({ status: "Ready to open", action: "open" });
-    expect(rowPresentation("02", true, initial, "select", null, null))
+    expect(rowPresentation("02", initial, "select", null, null))
       .toMatchObject({ status: "Selecting…", action: null, canMove: false });
-    expect(rowPresentation("01", false, initial, "select", null, null).status).toBe("Not checked");
+    expect(rowPresentation("01", initial, "select", null, null).status).toBe("Not checked");
     const afterChangedFile = client02Presentation(safeBox, "C:/new.exe", false);
     expect(afterChangedFile).toMatchObject({ status: "Setup required", action: "setup" });
     expect(client02Presentation(safeBox, "C:/new.exe", true))
       .toMatchObject({ status: "Ready to open", action: "open" });
     const uncertain = { instance: "02" as const, title: "Couldn't confirm if Minecraft opened",
       message: "Check status before opening another copy." };
-    expect(rowPresentation("02", true, afterChangedFile, "", uncertain, null))
+    expect(rowPresentation("02", afterChangedFile, "", uncertain, null))
       .toMatchObject({ status: uncertain.title, action: "issue", canMove: false });
     expect(client02Presentation(undefined, "C:/new.exe", true))
       .toMatchObject({ status: "Not checked", action: "check", canMove: false });
   });
   it("does not show an available action during busy and uncertain operations", () => {
     const base = client02Presentation(inspected(), "path", true);
-    expect(rowPresentation("02", true, base, "open-02", null, null)).toMatchObject({ status: "Opening…", action: null });
+    expect(rowPresentation("02", base, "open-02", null, null)).toMatchObject({ status: "Opening…", action: null });
     const issue = { instance: "02" as const, title: "Couldn't confirm if Minecraft opened", message: "Check status." };
-    expect(rowPresentation("02", false, base, "", issue, null)).toMatchObject({ action: "issue", canMove: false });
-    expect(rowPresentation("02", false, base, "", null, { instance: "02", text: "Open requested" }))
+    expect(rowPresentation("02", base, "", issue, null)).toMatchObject({ action: "issue", canMove: false });
+    expect(rowPresentation("02", base, "", null, { instance: "02", text: "Open requested" }))
       .toMatchObject({ status: "Open requested", action: null });
   });
   it("the open-request notice cannot be confused with a verified window", () => {
     const base = client02Presentation(inspected(), "path", true);
-    expect(rowPresentation("02", false, base, "", null, { instance: "02", text: "Open requested" }))
+    expect(rowPresentation("02", base, "", null, { instance: "02", text: "Open requested" }))
       .toMatchObject({ status: "Open requested", action: null });
   });
   it("hides launch setup until Virtual 02 has a safely observed empty pilot box", () => {
@@ -492,8 +506,8 @@ describe("Compact Manager app source and command boundary", () => {
     expect(app.match(/clearFeedback\("02"\);/g)).toHaveLength(4);
     expect(app).toMatch(/issues = \{ \.\.\.issues, \[instance\]: \{\s+instance, title, message,/);
     expect(app).toContain('notices = { ...notices, [instance]: undefined }');
-    expect(app).toContain('rowPresentation("01", observation !== undefined, base02, busy, issue01, notice01)');
-    expect(app).toContain('rowPresentation("02", observation !== undefined, base02, busy, issue02, notice02)');
+    expect(app).toContain('rowPresentation("01", base02, busy, issue01, notice01)');
+    expect(app).toContain('rowPresentation("02", base02, busy, issue02, notice02)');
     expect(app).not.toContain("let issue: UiIssue | null");
     expect(app).not.toContain("let notice: UiNotice | null");
     expect(app).toContain('{#if issue01}');
