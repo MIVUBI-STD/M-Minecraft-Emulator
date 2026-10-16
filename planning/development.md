@@ -1,5 +1,15 @@
 # Current Development Handoff — M-Minecraft-Emulator
 
+## Host 01 status must not inherit Virtual 02 inspection — 16 October 2026
+
+**Confirmed mounted-UI defect:** `apps/desktop/src/CompactManagerApp.svelte` passed `observation !== undefined` (ONLY a Virtual 02 Sandboxie inspection) as the `inspected` argument to `rowPresentation("01", ...)`. The `apps/desktop/src/app/presentation/compactManager.ts` projection used that shared flag to change Host 01 from `Not checked` to `Status unconfirmed`, although the active check only called `desktop_inspect_sandbox_client_02` and never inspected Host 01. This created a misleading cross-instance status transition after users checked Virtual 02.
+
+**Bounded correction:** removed the semantically invalid `inspected` parameter from the single canonical `rowPresentation` helper, updated the mounted Svelte consumers and existing regression fixtures, and always keep Host 01's BASE status `Not checked`. Host 01 own feedback remains independent: `Open requested` after a successful native Windows open *request*, or a visible issue when its request fails. Virtual 02 still displays `Checking…` and its last observed/read-only statuses, without ever converting uncertain membership to launch permission. No new IPC calls, background polling, status cache, driver, Sandboxie setting, account mutations or Create Virtual activation.
+
+**Proof on exact `Local` source:** executed eleven affected `compact-manager.test.ts` bodies in V8 with current TypeScript projection bodies extracted from GitHub, bounded dependency stubs and a limited assertion adapter; **11/11 PASS** including a new regression that explicitly checks no Host 01 status drift after Virtual 02 inspection. Another eleven direct checks of the current `rowPresentation` function and caller contracts passed. These are targeted SOURCE-derived checks, NOT a canonical Node24 Vitest, `svelte-check`, WebView2, Rust/Cargo, official Sandboxie, Windows gameplay or independent Host 01 runtime test. No User PC testing is requested before the user's consolidated final acceptance campaign.
+
+**Next:** continue only with a source-reproducible cross-instance UI/backend fault; otherwise defer target-Windows behavior to the final campaign. Protect `MinecraftClient02` and the disabled MIVUBI-owned Create Virtual route.
+
 ## Pilot EXE picker and launch evidence consistency — 16 October 2026
 
 **Confirmed UI/backend mismatch:** the official Client 02 file picker in `apps/desktop/src-tauri/src/engine/native_clients.rs::select_education_exe` previously accepted any user-selected `*.exe` and returned it unvalidated. The mounted Svelte app then said "Minecraft selected" and, given preflight+licence, could show Open; only `launch_with_official_sandboxie` invoked `validate_education_path` and rejected unrelated filenames. This created a misleading setup and delayed failure, not evidence that arbitrary binaries were actually launched: the real launch retained Windows Authenticode/ProductName validation and signed-publisher checks.
