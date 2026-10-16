@@ -196,6 +196,37 @@ describe("Compact Manager projections", () => {
     expect(app).not.toContain("rowPresentation(\"01\", observation !== undefined");
     expect(app).not.toContain("Status unconfirmed");
   });
+  it("lets users review and dismiss stale Host 01 feedback without launching or claiming stopped gameplay", () => {
+    const native = rowPresentation("01", client02Presentation(undefined, "", false), "", null,
+      { instance: "01", text: "Open requested" });
+    expect(native).toMatchObject({ status: "Open requested", action: null });
+    const blocked = rowPresentation("01", client02Presentation(undefined, "", false), "",
+      { instance: "01", title: "Couldn't confirm if Minecraft opened", message: "Check Windows" }, null);
+    expect(blocked).toMatchObject({ action: "issue", canMove: false });
+    const src = readFileSync(new URL("../src/CompactManagerApp.svelte", import.meta.url), "utf8");
+    const dismiss = src.split("function dismissHost01Feedback()")[1]
+      ?.split("function reportIssue(")[0] ?? "";
+    expect(dismiss).toContain('(!issues["01"] && !notices["01"])');
+    expect(dismiss).toContain('if (resourceOperationBusy || page !== "instances" || expanded !== "01"');
+    expect(dismiss).toContain('clearFeedback("01");');
+    expect(dismiss).toContain("navigationRevision += 1;");
+    expect(dismiss).toContain('host01OpenButton?.isConnected && !host01OpenButton.disabled');
+    expect(dismiss).not.toContain("nativeFeasibility.");
+    const hostDetails = src.split('<div id="cm-details-01"')[1]
+      ?.split('<h2>Virtual 02 · Minecraft Education</h2>')[0] ?? "";
+    expect(hostDetails).toContain('{:else if notice01}');
+    expect(hostDetails).toContain("This app cannot confirm whether the game is still open.");
+    expect(hostDetails).toContain("Clearing this message does not stop Minecraft or verify it is closed.");
+    expect(hostDetails).toContain("I checked Windows · Clear message");
+    expect(hostDetails).toContain("on:click={dismissHost01Feedback}");
+    expect(src).toContain("bind:this={host01DetailsButton}");
+    expect(src).toContain("bind:this={host01OpenButton}");
+    const launch = src.split("async function openMinecraft01()")[1]
+      ?.split("async function selectMinecraft()")[0] ?? "";
+    expect(launch).toContain('requestRevision === navigationRevision');
+    expect(launch).toContain("host01DetailsButton.focus()");
+    expect(src).not.toContain("setTimeout(");
+  });
   it("retains native errors while displaying isolated request outcomes", () => {
     const isolated = client02Presentation(inspected(), "path", true);
     const nativeIssue = { instance: "01" as const, title: "Native launch uncertain", message: "Look for existing window." };
@@ -413,7 +444,7 @@ describe("Compact Manager app source and command boundary", () => {
     expect(app).toContain('id="cm-create-reason" aria-live="polite"');
     expect(app).toContain("Create Virtual unavailable.");
     expect(app).toContain("has not completed Windows validation.");
-    expect(app).toContain('aria-label="Minecraft 01 error details"');
+    expect(app).toContain('aria-label={issue01 ? "Minecraft 01 error details" : "Minecraft 01 launch request details"}');
     expect(app).toContain('aria-label="Minecraft 02 details"');
     expect(app).toContain("Check status · 02");
     expect(app).toContain("Inspects Virtual 02 only; Host 01 is not checked");
