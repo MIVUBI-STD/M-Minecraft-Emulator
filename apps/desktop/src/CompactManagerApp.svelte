@@ -225,8 +225,12 @@
         detailMode = "setup";
       }
     } catch (error) {
+      // An invalid picked file must not retain an earlier launch selection
+      // or Sandboxie licence consent. Cancelling the dialog keeps both.
+      selectedExecutable = "";
+      licenseConfirmed = false;
       reportIssue("02", "Couldn't select Minecraft",
-        "Choose the official Minecraft Education Desktop executable.", error, requestRevision, "executable-picker");
+        "That file cannot be used as Minecraft Education. Select an installed Minecraft Education executable; its Microsoft signature is checked when opening.", error, requestRevision, "executable-picker");
     } finally {
       busy = "";
     }
@@ -478,7 +482,7 @@
                   <div class="cm-field">
                     <span class="cm-field-label">Installed Minecraft Education</span>
                     <div class="cm-field-row">
-                      <span class="cm-file-state">{selectedExecutable ? "Minecraft selected" : "No installation selected"}</span>
+                      <span class="cm-file-state">{selectedExecutable ? "File selected · Publisher checked when opening" : "No installation selected"}</span>
                       <button class="cm-button cm-secondary" type="button" disabled={resourceOperationBusy} on:click={selectMinecraft}>Browse…</button>
                     </div>
                   </div>
