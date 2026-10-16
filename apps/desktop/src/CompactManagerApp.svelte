@@ -382,7 +382,7 @@
       <section class="cm-virtual-overview" aria-label="Create virtual availability">
         <div>
           <h2>Minecraft sessions</h2>
-          <p>Available now: Host 01 (Windows) and Virtual 02 (existing Sandboxie Plus box). Virtuals 03 and 04 cannot run until the private Windows isolation engine is built and verified.</p>
+          <p>Supported today: Host 01 can request a Windows launch. Virtual 02 can be checked and opened using the existing Sandboxie Plus pilot after setup. Virtuals 03 and 04 are not available.</p>
         </div>
         <div class="cm-virtual-actions">
           <button type="button" class="cm-button cm-secondary" disabled
@@ -512,7 +512,7 @@
               <span class="cm-monitor" aria-hidden="true"></span>
               <div class="cm-row-copy">
                 <h3>Virtual {client} · Minecraft Education</h3>
-                <p>Unavailable · No session or account created</p>
+                <p>Unavailable in MIVUBI · No managed session</p>
               </div>
             </div>
           </div>
@@ -617,7 +617,7 @@
                 <h3>Planned native profiles</h3>
                 <details>
                   <summary>Supported owned virtuals</summary>
-                  <p>The current internal Minecraft preset supports three separate persistent boxes: MivubiEdu02, MivubiEdu03 and MivubiEdu04. General custom names are not yet supported by its kernel policy. These virtuals have not been created.</p>
+                  <p>The current internal Minecraft preset supports three separate persistent boxes: MivubiEdu02, MivubiEdu03 and MivubiEdu04. General custom names are not yet supported by its kernel policy. MIVUBI has not created or verified these virtuals.</p>
                   <p>Minecraft login compatibility uses reduced process/COM isolation and requires explicit approval once the engine is operational.</p>
                 </details>
               </div>
