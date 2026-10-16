@@ -439,7 +439,7 @@
             <div class="cm-row-actions">
               {#if row02.action}
                 <button type="button" class="cm-button cm-primary" disabled={resourceOperationBusy}
-                  on:click={(event) => choosePrimary("02", event.currentTarget)} aria-expanded={row02.action === "issue" || row02.action === "setup" ? expanded === "02" : undefined} aria-controls={row02.action === "issue" || row02.action === "setup" ? "cm-details-02" : undefined}>{primaryLabel(row02.action)}</button>
+                  on:click={(event) => choosePrimary("02", event.currentTarget)} aria-label={row02.action === "check" ? "Check status for Minecraft 02" : undefined} aria-expanded={row02.action === "issue" || row02.action === "setup" ? expanded === "02" : undefined} aria-controls={row02.action === "issue" || row02.action === "setup" ? "cm-details-02" : undefined}>{primaryLabel(row02.action)}</button>
               {/if}
               {#if row02.action === "switch" || expanded === "02"}
                 <button class="cm-link" type="button" aria-label="Minecraft 02 details" aria-expanded={expanded === "02"}
