@@ -572,24 +572,24 @@
                 disabled={resourceOperationBusy} on:click={discoverExistingVirtuals}>
                 {busy === "discover-virtuals" ? "Checking…" : "Inspect Sandboxie names"}
               </button>
-          {#if existingVirtuals}
-            <section class="cm-existing-virtuals" aria-label="Sandboxie configuration name candidates">
-              <h3>Sandboxie name candidates (read-only)</h3>
-              <p>These names come from existing Sandboxie configuration sections, including disabled boxes. Known user and template sections are omitted, but names alone cannot prove a box exists or a game is running. This is not the MIVUBI-owned engine.</p>
-              {#if existingVirtuals.boxes.length === 0}
-                <p>No Sandboxie box-name candidates were reported for the current Windows user.</p>
-              {:else}
-                <ul>
-                  {#each existingVirtuals.boxes as boxName (boxName)}
-                    <li>{boxName}</li>
-                  {/each}
-                </ul>
+              {#if existingVirtuals}
+                <section class="cm-existing-virtuals" aria-label="Sandboxie configuration name candidates">
+                  <h3>Sandboxie name candidates (read-only)</h3>
+                  <p>These names come from existing Sandboxie configuration sections, including disabled boxes. Known user and template sections are omitted, but names alone cannot prove a box exists or a game is running. This is not the MIVUBI-owned engine.</p>
+                  {#if existingVirtuals.boxes.length === 0}
+                    <p>No Sandboxie box-name candidates were reported for the current Windows user.</p>
+                  {:else}
+                    <ul>
+                      {#each existingVirtuals.boxes as boxName (boxName)}
+                        <li>{boxName}</li>
+                      {/each}
+                    </ul>
+                  {/if}
+                </section>
               {/if}
-            </section>
-          {/if}
-          {#if existingVirtualsError}
-            <p class="cm-warning cm-existing-error" role="alert">{existingVirtualsError}</p>
-          {/if}
+              {#if existingVirtualsError}
+                <p class="cm-warning cm-existing-error" role="alert">{existingVirtualsError}</p>
+              {/if}
               <h3>M-Isolation-Engine · Internal runtime</h3>
               <p>The owned C/C++ source is not an installed or proven provider. Package and service-name inspections only gather diagnostic evidence; they do not authorize Create Virtual.</p>
               <button type="button" class="cm-button cm-secondary"
@@ -614,11 +614,11 @@
               {#if ownedHostError}<p class="cm-warning" role="alert">{ownedHostError}</p>{/if}
               <div class="cm-diagnostic-presets">
                 <h3>Planned native profiles</h3>
-            <details>
-              <summary>Supported owned virtuals</summary>
-              <p>The current internal Minecraft preset supports three separate persistent boxes: MivubiEdu02, MivubiEdu03 and MivubiEdu04. General custom names are not yet supported by its kernel policy. These virtuals have not been created.</p>
-              <p>Minecraft login compatibility uses reduced process/COM isolation and requires explicit approval once the engine is operational.</p>
-            </details>
+                <details>
+                  <summary>Supported owned virtuals</summary>
+                  <p>The current internal Minecraft preset supports three separate persistent boxes: MivubiEdu02, MivubiEdu03 and MivubiEdu04. General custom names are not yet supported by its kernel policy. These virtuals have not been created.</p>
+                  <p>Minecraft login compatibility uses reduced process/COM isolation and requires explicit approval once the engine is operational.</p>
+                </details>
               </div>
             </div>
           </details>
