@@ -817,10 +817,27 @@ fn validate_education_path(path: &str) -> io::Result<()> {
 
 #[cfg(windows)]
 pub fn select_education_exe() -> io::Result<Option<String>> {
-    Ok(rfd::FileDialog::new()
+    // A generic *.exe picker can return Notepad or an unrelated installer.
+    // Check the SAME filename/path policy as Launch at selection time, so
+    // the UI cannot present an arbitrary EXE as Minecraft Education.
+    // Authentic Microsoft publisher/product proof is repeated at Launch.
+    rfd::FileDialog::new()
         .set_title("Select Minecraft Education executable")
         .add_filter("Windows executable", &["exe"])
-        .pick_file().map(|p| p.to_string_lossy().into_owned()))
+        .pick_file()
+        .map(|path| {
+            let executable = path.to_str().ok_or_else(|| io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "Selected executable path cannot be represented safely",
+            ))?;
+            validate_education_path(executable)?;
+            if !path.is_file() {
+                return Err(io::Error::new(io::ErrorKind::NotFound,
+                    "Selected Minecraft Education executable is unavailable"));
+            }
+            Ok(executable.to_owned())
+        })
+        .transpose()
 }
 
 #[cfg(not(windows))]
