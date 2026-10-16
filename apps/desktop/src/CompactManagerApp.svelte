@@ -64,8 +64,8 @@
   $: issue02 = issues["02"] ?? null;
   $: notice01 = notices["01"] ?? null;
   $: notice02 = notices["02"] ?? null;
-  $: row01 = rowPresentation("01", observation !== undefined, base02, busy, issue01, notice01);
-  $: row02 = rowPresentation("02", observation !== undefined, base02, busy, issue02, notice02);
+  $: row01 = rowPresentation("01", base02, busy, issue01, notice01);
+  $: row02 = rowPresentation("02", base02, busy, issue02, notice02);
   $: moveEligible = Boolean(observation && focusCandidate(observation) && base02.canMove);
 
   function closeDetails() {
