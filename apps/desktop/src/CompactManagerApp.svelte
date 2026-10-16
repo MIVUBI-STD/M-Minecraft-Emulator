@@ -178,7 +178,7 @@
       lastCheckIsCurrent = true;
       // Client 02 inspection cannot dismiss Client 01's expanded issue.
       if (page === "instances" && requestRevision === navigationRevision &&
-          expanded === "02" && detailMode === "issue") expanded = null;
+          expanded === "02" && detailMode === "issue") closeDetails();
     } catch (error) {
       reportIssue("02", "Couldn't check status",
         "The app couldn't confirm the instance status. Review Sandboxie Plus, then check again.", error, requestRevision);
@@ -474,8 +474,6 @@
                       <p>The current pilot requires a separate persistent box named MinecraftClient02 in Sandboxie Plus. Create it manually only if it does not already exist. Keep AutoDelete, AutoRemove and credential-bypass/protected-storage settings off. Never copy another Minecraft account profile. MIVUBI does not modify the box here.</p>
                     </details>
                   {/if}
-                  <button type="button" class="cm-button cm-secondary" disabled={resourceOperationBusy}
-                    on:click={checkStatus}>Check status · 02</button>
                 {:else}
                   <div class="cm-field">
                     <span class="cm-field-label">Installed Minecraft Education</span>
@@ -490,6 +488,8 @@
                   </label>
                   <p class="cm-assist">Sign in separately in each Minecraft window. This app never requests Microsoft credentials.</p>
                 {/if}
+                <button type="button" class="cm-button cm-secondary" disabled={resourceOperationBusy}
+                  on:click={checkStatus}>Check status · 02</button>
               {:else if detailMode === "move" && moveEligible}
                 <h3>Move window</h3>
                 <p>Choose where Minecraft 02 should appear on its current monitor.</p>
