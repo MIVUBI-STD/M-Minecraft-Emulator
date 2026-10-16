@@ -302,6 +302,7 @@
     const action = id === "01" ? row01.action : row02.action;
     if (isResourceOperationBusy(busy, ownedHostBusy, ownedInspectionBusy)) return;
     if (id === "01" && action === "open") { void openMinecraft01(); return; }
+    if (id === "02" && action === "check") { void checkStatus(); return; }
     if (id === "02" && action === "open") { void openMinecraft02(); return; }
     if (id === "02" && action === "switch") { void switchMinecraft02(); return; }
     // "View issue" must never close the issue when it is already visible.
@@ -356,6 +357,7 @@
   }
 
   function primaryLabel(action: string | null) {
+    if (action === "check") return "Check status";
     if (action === "open") return "Open";
     if (action === "switch") return "Switch to";
     if (action === "setup") return "Set up";
