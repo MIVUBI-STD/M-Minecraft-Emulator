@@ -318,7 +318,7 @@
       existingVirtuals = await nativeFeasibility.discoverExistingVirtuals();
     } catch {
       // No invented empty inventory: a failed query is unknown, not zero boxes.
-      existingVirtualsError = "Could not verify existing sandbox names. No virtuals were changed.";
+      existingVirtualsError = "Could not inspect Sandboxie configuration names. No virtuals were changed.";
     } finally {
       busy = "";
     }
@@ -392,7 +392,7 @@
       </section>
       <section class="cm-create-readiness" aria-label="Virtual creation availability">
         <p id="cm-create-reason" aria-live="polite">Create Virtual unavailable: {ownedHostError || ownedVirtualCreationReason(ownedHostInspection)}</p>
-
+        <p>Advanced checks are available in Settings → Diagnostics.</p>
       </section>
       <section class="cm-list" aria-label="Virtual sessions">
         <div class="cm-instance">
@@ -539,6 +539,29 @@
           <button type="button" class="cm-button cm-secondary" on:click={() => openClient02DetailsFromSettings("setup")}>Set up Minecraft 02</button>
         </div>
         <div class="cm-setting-group">
+          <h2>Performance</h2>
+          <p><strong>Balanced · Active</strong> — resource-intensive manager operations are handled one at a time. Status checks and engine inspection run only when requested.</p>
+          <p>This policy avoids overlapping PowerShell probes and file hashing. It does not restrict Minecraft CPU, RAM or GPU usage or change game graphics settings.</p>
+          <details>
+            <summary>Eco and Performance modes</summary>
+            <p>Not available yet. These modes require Windows and Minecraft Education frame-time, GPU and memory testing before any game resource policy can be enabled.</p>
+          </details>
+        </div>
+        <div class="cm-setting-group">
+          <h2>Window preferences</h2>
+          <p>Move a detected Minecraft 02 window using its instance details. Other layouts are not available yet.</p>
+          {#if moveEligible}<button type="button" class="cm-button cm-secondary" on:click={() => openClient02DetailsFromSettings("move")}>Move window</button>{/if}
+        </div>
+        <div class="cm-setting-group">
+          <h2>Help</h2>
+          <p>Use Check status to inspect your setup. Minecraft sign-in remains inside the official game.</p>
+          <details>
+            <summary>Advanced details</summary>
+            <p>Host 01: Windows installation. Virtual 02: existing persistent Sandboxie Plus box MinecraftClient02. New virtual creation is not yet active.</p>
+            <p>Process observations do not confirm accounts or playable worlds. The manager never copies credentials or game worlds.</p>
+          </details>
+        </div>
+        <div class="cm-setting-group">
           <details class="cm-diagnostics">
             <summary>Diagnostics</summary>
             <div class="cm-diagnostics-body">
@@ -598,29 +621,6 @@
             </details>
               </div>
             </div>
-          </details>
-        </div>
-        <div class="cm-setting-group">
-          <h2>Performance</h2>
-          <p><strong>Balanced · Active</strong> — resource-intensive manager operations are handled one at a time. Status checks and engine inspection run only when requested.</p>
-          <p>This policy avoids overlapping PowerShell probes and file hashing. It does not restrict Minecraft CPU, RAM or GPU usage or change game graphics settings.</p>
-          <details>
-            <summary>Eco and Performance modes</summary>
-            <p>Not available yet. These modes require Windows and Minecraft Education frame-time, GPU and memory testing before any game resource policy can be enabled.</p>
-          </details>
-        </div>
-        <div class="cm-setting-group">
-          <h2>Window preferences</h2>
-          <p>Move a detected Minecraft 02 window using its instance details. Other layouts are not available yet.</p>
-          {#if moveEligible}<button type="button" class="cm-button cm-secondary" on:click={() => openClient02DetailsFromSettings("move")}>Move window</button>{/if}
-        </div>
-        <div class="cm-setting-group">
-          <h2>Help</h2>
-          <p>Use Check status to inspect your setup. Minecraft sign-in remains inside the official game.</p>
-          <details>
-            <summary>Advanced details</summary>
-            <p>Host 01: Windows installation. Virtual 02: existing persistent Sandboxie Plus box MinecraftClient02. New virtual creation is not yet active.</p>
-            <p>Process observations do not confirm accounts or playable worlds. The manager never copies credentials or game worlds.</p>
           </details>
         </div>
       </section>
