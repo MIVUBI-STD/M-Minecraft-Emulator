@@ -468,7 +468,7 @@
                 <h3>{setupInstruction(observation).title}</h3>
                 <p>{setupInstruction(observation).text}</p>
                 {#if !canRequestClient02(observation)}
-                  <p class="cm-assist">Executable selection and license confirmation are shown only after Virtual 02 is verified as prepared and empty. The check does not change any account or sandbox setting.</p>
+                  <p class="cm-assist">Executable selection and license confirmation are available only when the last check found the sandbox prepared and no isolated process candidates. Status can change; every launch is checked again. The check does not modify accounts or sandbox settings.</p>
                   {#if !observation || !isSandboxieBoxPrepared(observation)}
                     <details><summary>Existing Sandboxie Plus setup</summary>
                       <p>The current pilot requires a separate persistent box named MinecraftClient02 in Sandboxie Plus. Create it manually only if it does not already exist. Keep AutoDelete, AutoRemove and credential-bypass/protected-storage settings off. Never copy another Minecraft account profile. MIVUBI does not modify the box here.</p>
