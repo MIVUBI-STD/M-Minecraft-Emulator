@@ -51,7 +51,7 @@ describe("MIVUBI Create Virtual readiness", () => {
     expect(app).toContain('on:click={inspectOwnedServiceNames}');
     expect(app).toContain("Check engine readiness");
     expect(app).toContain("MivubiEdu02, MivubiEdu03 and MivubiEdu04");
-    expect(app).toContain("These virtuals have not been created.");
+    expect(app).toContain("MIVUBI has not created or verified these virtuals.");
     expect(app).toContain('title="Internal isolation engine is not yet installed and verified">Create virtual</button>');
     expect(app).not.toContain("desktop_create_virtual");
   });
@@ -336,11 +336,11 @@ describe("Compact Manager app source and command boundary", () => {
     expect(app).toContain('<h2>Virtual 02 · Minecraft Education</h2>');
     expect(app).toContain('aria-label="Planned virtual clients"');
     expect(app).toContain('<h2>Planned virtuals</h2>');
-    expect(app).toContain("Available now: Host 01 (Windows) and Virtual 02");
+    expect(app).toContain("Supported today: Host 01 can request a Windows launch.");
     expect(app).toContain("Minecraft sessions");
     expect(app).toContain('{#each ["03", "04"] as client (client)}');
     expect(app).toContain('<h3>Virtual {client} · Minecraft Education</h3>');
-    expect(app).toContain('Unavailable · No session or account created');
+    expect(app).toContain('Unavailable in MIVUBI · No managed session');
     expect(app).toContain('Clients 03 and 04 cannot be created or launched yet.');
     expect(app).not.toContain("openMinecraft03");
     expect(app).not.toContain("openMinecraft04");
