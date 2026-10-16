@@ -124,7 +124,24 @@ describe("Balanced resource admission", () => {
 
 describe("Compact Manager projections", () => {
   it("does not treat a missing observation as stopped or ready", () => {
-    expect(client02Presentation(undefined, "", false)).toMatchObject({ status: "Not checked", action: null });
+    expect(client02Presentation(undefined, "", false)).toMatchObject({ status: "Not checked", action: "check", canMove: false });
+  });
+  it("offers a single explicit read-only first-use check without mistaking unknown state for readiness", () => {
+    const missing = client02Presentation(undefined, "a previously selected EXE", true);
+    expect(missing).toMatchObject({
+      status: "Not checked", action: "check", canMove: false,
+    });
+    expect(missing.action).not.toBe("open");
+    expect(rowPresentation("02", false, missing, "check", null, null))
+      .toMatchObject({ status: "Checking…", action: null, canMove: false });
+    expect(rowPresentation("02", false, missing, "", {
+      instance: "02", title: "Couldn't check status", message: "Inspect again.",
+    }, null)).toMatchObject({ action: "issue", canMove: false });
+    const source = readFileSync(new URL("../src/CompactManagerApp.svelte", import.meta.url), "utf8");
+    expect(source).toContain('if (action === "check") return "Check status"');
+    expect(source).toContain('if (id === "02" && action === "check") { void checkStatus(); return; }');
+    expect(source).toContain('row02.action === "check" ? "Check status for Minecraft 02"');
+    expect(source).not.toContain("desktop_create_virtual");
   });
   it("keeps native Open separate from any isolated setup or inspection blocker", () => {
     const isolation = client02Presentation({ ...inspected(), boxConfigured: "NO", boxSettingsSource: "UNKNOWN", credentialHostAccess: "UNKNOWN" }, "", false);
@@ -190,7 +207,7 @@ describe("Compact Manager projections", () => {
     expect(rowPresentation("02", true, afterChangedFile, "", uncertain, null))
       .toMatchObject({ status: uncertain.title, action: "issue", canMove: false });
     expect(client02Presentation(undefined, "C:/new.exe", true))
-      .toMatchObject({ status: "Not checked", action: null });
+      .toMatchObject({ status: "Not checked", action: "check", canMove: false });
   });
   it("does not show an available action during busy and uncertain operations", () => {
     const base = client02Presentation(inspected(), "path", true);
