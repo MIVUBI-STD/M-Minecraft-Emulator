@@ -546,6 +546,31 @@ describe("Compact Manager app source and command boundary", () => {
     expect(app).toContain('if (selected && page === "instances" && requestRevision === navigationRevision && expanded === "02")');
     expect(app).not.toContain("      issue = null;\n      detailMode = \"setup\";");
   });
+  it("rejects unrelated picked EXEs before UI claims Minecraft and clears stale consent on errors", () => {
+    const rust = readFileSync(new URL("../src-tauri/src/engine/native_clients.rs", import.meta.url), "utf8");
+    const picker = rust.split("#[cfg(windows)]\npub fn select_education_exe()")[1]
+      ?.split("#[cfg(not(windows))]")[0] ?? "";
+    expect(picker).toContain("validate_education_path(executable)?;");
+    expect(picker).toContain("if !path.is_file()");
+    expect(picker).toContain(".transpose()");
+    const launch = rust.split("fn launch_with_official_sandboxie(executable: String, licensed: bool)")[1]
+      ?.split("#[cfg(not(windows))]")[0] ?? "";
+    expect(launch).toContain("validate_education_path(&executable)?;");
+    expect(launch).toContain("Get-AuthenticodeSignature -LiteralPath $game");
+    const ui = app.split("async function selectMinecraft()")[1]
+      ?.split("async function openMinecraft02()")[0] ?? "";
+    const failure = ui.split("} catch (error) {")[1]
+      ?.split("} finally {")[0] ?? "";
+    expect(failure).toContain('selectedExecutable = "";');
+    expect(failure).toContain("licenseConfirmed = false;");
+    expect(failure).toContain('reportIssue("02", "Couldn\'t select Minecraft"');
+    expect(failure).toContain('"executable-picker"');
+    expect(ui.split("} catch (error) {")[0]).not.toContain('selectedExecutable = "";');
+    expect(ui.split("} catch (error) {")[0]).toContain('if (selected && selected !== selectedExecutable)');
+    expect(app).toContain("File selected · Publisher checked when opening");
+    expect(app).not.toContain('"Minecraft selected"');
+    expect(bootstrap).not.toContain("desktop_create_virtual");
+  });
   it("reconciles only picker-origin feedback and preserves ambiguous outcomes", () => {
     const picker = app.split("async function selectMinecraft()")[1]?.split("async function openMinecraft02()")[0] ?? "";
     expect(picker).toContain('shouldClearPickerIssue(issues["02"], selected)');
