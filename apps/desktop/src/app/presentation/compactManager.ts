@@ -92,6 +92,10 @@ export function setupInstruction(observation: IsolatedClientObservation | undefi
     return { title: "Check sandbox settings", text: "Some required settings could not be confirmed. Review them in Sandboxie Plus." };
   if (observation.membershipStatus !== "OBSERVED")
     return { title: "Check instance status", text: "The app could not confirm which processes belong to Minecraft 02. Check Sandboxie Plus, then check status again." };
+  if (observation.isolatedCandidateProcesses > 0)
+    return { title: "Minecraft may already be open", text: "A process was observed in MinecraftClient02. Do not start another copy. Check status again before changing launch setup." };
+  if (!canRequestClient02(observation))
+    return { title: "Check instance safety", text: "The app could not confirm an empty, safe sandbox for Minecraft 02. Check status again before configuring a launch." };
   return { title: "Select Minecraft Education", text: "Choose the installed official Minecraft Education Desktop executable, then confirm your Sandboxie Plus licence." };
 }
 
