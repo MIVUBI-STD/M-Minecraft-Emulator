@@ -39,7 +39,7 @@ export function isResourceOperationBusy(
     ownedHostInspectionBusy || ownedPackageInspectionBusy;
 }
 
-export type InstanceAction = "open" | "switch" | "setup" | "issue" | null;
+export type InstanceAction = "check" | "open" | "switch" | "setup" | "issue" | null;
 export type StateTone = "neutral" | "warning" | "success";
 export type InstanceId = "01" | "02";
 export interface InstanceRowView {
@@ -100,7 +100,7 @@ export function client02Presentation(
   executable: string,
   licensed: boolean,
 ): InstanceRowView {
-  if (!observation) return { status: "Not checked", tone: "neutral", action: null, details: "Use Check status above.", canMove: false };
+  if (!observation) return { status: "Not checked", tone: "neutral", action: "check", details: "Check Virtual 02 before setup, opening, or switching.", canMove: false };
 
   if (!observation.interactiveSession) return {
     status: "Needs attention", tone: "warning", action: "issue",
