@@ -79,7 +79,7 @@ export function focusCandidate(observation: IsolatedClientObservation | undefine
 }
 
 export function setupInstruction(observation: IsolatedClientObservation | undefined): { title: string; text: string } {
-  if (!observation) return { title: "Check the setup", text: "Select Check status to inspect this Windows session." };
+  if (!observation) return { title: "Check the setup", text: "Choose Check status on Minecraft 02 to inspect its setup." };
   if (!observation.interactiveSession) return { title: "Open a Windows desktop session", text: "Open this manager from your signed-in Windows desktop." };
   if (observation.boxConfigured === "NO") return { title: "Prepare Sandboxie Plus", text: "Create and enable a persistent box named MinecraftClient02 in Sandboxie Plus." };
   if (observation.boxConfigured !== "YES" || observation.boxSettingsSource !== "BOX_SECTION_ENUMERATED")
