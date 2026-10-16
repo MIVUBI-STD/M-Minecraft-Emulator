@@ -391,7 +391,7 @@
         </div>
       </section>
       <section class="cm-create-readiness" aria-label="Virtual creation availability">
-        <p id="cm-create-reason" aria-live="polite">Create Virtual unavailable: {ownedHostError || ownedVirtualCreationReason(ownedHostInspection)}</p>
+        <p id="cm-create-reason" aria-live="polite">Create Virtual unavailable. The private MIVUBI engine has not completed Windows validation.</p>
         <p>Advanced checks are available in Settings → Diagnostics.</p>
       </section>
       <section class="cm-list" aria-label="Virtual sessions">
@@ -592,6 +592,7 @@
               {/if}
               <h3>M-Isolation-Engine · Internal runtime</h3>
               <p>The owned C/C++ source is not an installed or proven provider. Package and service-name inspections only gather diagnostic evidence; they do not authorize Create Virtual.</p>
+              <p class="cm-assist" aria-live="polite">Engine readiness: {ownedHostError || ownedVirtualCreationReason(ownedHostInspection)}</p>
               <button type="button" class="cm-button cm-secondary"
                 disabled={resourceOperationBusy}
                 on:click={inspectStagedOwnedEngine}>
