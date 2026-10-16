@@ -238,7 +238,8 @@ describe("Compact Manager projections", () => {
     const [blocked, eligible] = setup.split("{:else}");
     expect(blocked).not.toContain("on:click={selectMinecraft}");
     expect(blocked).not.toContain("bind:checked={licenseConfirmed}");
-    expect(blocked).toContain('on:click={checkStatus}>Check status · 02</button>');
+    expect(blocked).not.toContain("on:click={selectMinecraft}");
+    expect(setup).toContain('on:click={checkStatus}>Check status · 02</button>');
     expect(eligible).toContain("on:click={selectMinecraft}");
     expect(eligible).toContain("bind:checked={licenseConfirmed}");
     expect(app).toContain("Create it manually only if it does not already exist.");
@@ -246,6 +247,10 @@ describe("Compact Manager projections", () => {
       ?.split('{:else if detailMode === "setup"}')[0] ?? "";
     expect(issue).toContain('on:click={checkStatus}>Check status · 02</button>');
     expect(issue).not.toContain("on:click={openMinecraft02}");
+    const inspector = app.split("async function checkStatus()")[1]
+      ?.split("async function openMinecraft01()")[0] ?? "";
+    expect(inspector).toContain('expanded === "02" && detailMode === "issue") closeDetails();');
+    expect(eligible).toContain('on:click={checkStatus}>Check status · 02</button>');
     expect(app).not.toContain("desktop_create_virtual");
   });
   it("gives user-owned setup steps without claiming configuration automation", () => {
@@ -475,7 +480,7 @@ describe("Compact Manager app source and command boundary", () => {
   });
   it("does not close or replace the other client's open issue details", () => {
     const inspector = app.split("async function checkStatus()")[1]?.split("async function openMinecraft01()")[0] ?? "";
-    expect(inspector).toContain('expanded === "02" && detailMode === "issue") expanded = null;');
+    expect(inspector).toContain('expanded === "02" && detailMode === "issue") closeDetails();');
     const issueReport = app.split("function reportIssue(")[1]?.split("async function checkStatus()")[0] ?? "";
     expect(issueReport).toContain('(expanded === null || expanded === instance)');
     expect(issueReport).toContain("issues = { ...issues, [instance]");
@@ -536,7 +541,7 @@ describe("Compact Manager app source and command boundary", () => {
     }
     expect(app).toContain('if (page === "instances" && requestRevision === navigationRevision &&');
     expect(app).toContain('(expanded === null || expanded === instance)');
-    expect(app).toContain('expanded === "02" && detailMode === "issue") expanded = null;');
+    expect(app).toContain('expanded === "02" && detailMode === "issue") closeDetails();');
     expect(app).toContain('requestedPanel === "02" && expanded === requestedPanel && detailMode === requestedMode');
     expect(app).toContain('if (selected && page === "instances" && requestRevision === navigationRevision && expanded === "02")');
     expect(app).not.toContain("      issue = null;\n      detailMode = \"setup\";");
