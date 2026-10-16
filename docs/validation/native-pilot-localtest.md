@@ -81,6 +81,8 @@ Start with a short smoke test: verify that the manager opens, inspect the Client
 | 8 | Close/reopen Client 02, restart Windows, select **Check status** and repeat the independent-account check | Sessions persist without account crossing or unexpected data deletion | Do not claim two-client acceptance if persistence is missing or UNKNOWN |
 | 9 | Optional 30–60-minute sustained-use observation | Note candidate processes, CPU/RAM/GPU/VRAM trends, responsiveness and crashes | Do not invent a RAM/FPS threshold; measure the same PC and Minecraft version |
 
+When opening **Set up Minecraft 02** from Settings, an inconclusive box/process check or an observed isolated process intentionally hides the executable picker and licence checkbox. Use the explicit **Check status · 02** button in that panel to inspect again; do not assume an unknown result means a stopped game. An error panel also offers a read-only status recheck; do not retry **Open** after an ambiguous launch without verifying current process membership. MIVUBI does not create, delete, enable or reconfigure the official account-bearing `MinecraftClient02` box.
+
 The optional **Switch to** and **Move window** controls apply only to an eligible observed Client 02 window. Windows may reject foreground focus; Alt+Tab is the manual fallback. This manager does not verify Client 01 sign-in, or read any account credentials.
 
 ## C. Read-only collector (optional diagnostics)
