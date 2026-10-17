@@ -462,7 +462,7 @@
             <div class="cm-row-actions">
               {#if row01.action}
                 <button class="cm-button cm-primary" type="button" bind:this={host01OpenButton} disabled={resourceOperationBusy}
-                  on:click={(event) => choosePrimary("01", event.currentTarget) aria-expanded={row01.action === "issue" ? expanded === "01" : undefined} aria-controls={row01.action === "issue" ? "cm-details-01" : undefined}>{primaryLabel(row01.action)}</button>
+                  on:click={(event) => choosePrimary("01", event.currentTarget)} aria-expanded={row01.action === "issue" ? expanded === "01" : undefined} aria-controls={row01.action === "issue" ? "cm-details-01" : undefined}>{primaryLabel(row01.action)}</button>
               {/if}
               {#if issue01 || notice01}
                 <button class="cm-link" type="button" bind:this={host01DetailsButton}

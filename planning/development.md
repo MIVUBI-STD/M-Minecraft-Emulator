@@ -1,5 +1,15 @@
 # Current Development Handoff — M-Minecraft-Emulator
 
+## Mounted Host 01 Svelte click binding repaired — 18 October 2026
+
+**Source-confirmed blocker:** the active `apps/desktop/src/CompactManagerApp.svelte` primary Host 01 button had a missing `}` after its `choosePrimary("01", event.currentTarget)` click expression. The next `aria-expanded` attribute was consequently merged into an invalid Svelte event expression. This is a source syntax error, not a Minecraft runtime issue.
+
+**Bounded correction:** close the `on:click` expression; keep the Host 01 `aria-expanded` and `aria-controls` values as independent attributes. Add regression coverage using the existing Vitest test owner and `svelte/compiler` `parse` on the exact mounted Svelte file, plus Host 01/02 binding assertions. No backend command, Sandboxie config, driver, account data or launch policy changes.
+
+**Proof ceiling:** original malformed binding confirmed from pinned GitHub `Local`; corrected expression extracted and evaluated with an actual JavaScript callback and exact-file static checks. The Svelte compiler regression was authored but not run: pinned Node 24/npm 11 and the project's installed Svelte dependencies are unavailable here. Complete Vitest/Svelte/Rust, Windows/WebView2 and gameplay acceptance remain **NOT_EXECUTED**.
+
+**Next:** run full same-SHA source verification in the supported toolchain, then proceed to a controlled Windows pilot.
+
 ## Client 02 failed Open request retains launch safeguard — 17 October 2026
 
 **Reproduced source fault:** an accepted Client 02 Open request retained a pending launch notice, but a rejected/timed-out `requestSandboxClient02()` returned to `reportIssue()` only. The next `checkStatus()` cleared that issue, and a quick empty candidate snapshot could project `Ready to open` even though an earlier Start.exe request might already have spawned Minecraft. The Rust retry gap is not an atomic game-process status proof.

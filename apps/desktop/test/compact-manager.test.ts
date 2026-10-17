@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { parse } from "svelte/compiler";
 import { readFileSync } from "node:fs";
 import {
   client02Presentation, focusCandidate, rowPresentation,
@@ -499,6 +500,18 @@ describe("Compact Manager app source and command boundary", () => {
     expect(map).toContain("Explicit **Check status** (`-ImageProof`)");
   });
 
+  it("parses the mounted Svelte component with separate Host 01 click and ARIA attributes", () => {
+    // Catch invalid markup before the first Windows localtest.
+    expect(parse(app, { filename: "CompactManagerApp.svelte" })).toBeDefined();
+    expect(app).toContain(
+      'on:click={(event) => choosePrimary("01", event.currentTarget)} aria-expanded={row01.action === "issue" ? expanded === "01" : undefined}'
+    );
+    expect(app).not.toContain(
+      'on:click={(event) => choosePrimary("01", event.currentTarget) aria-expanded='
+    );
+    expect(app).toContain('aria-controls={row01.action === "issue" ? "cm-details-01" : undefined}');
+    expect(app).toContain('on:click={(event) => choosePrimary("02", event.currentTarget)} aria-label=');
+  });
   it("mounts exactly one compact UI with no new native providers", () => {
     expect(entry).toContain('mount(CompactManagerApp, { target });');
     expect(entry).not.toContain("NativeFeasibilityApp");
