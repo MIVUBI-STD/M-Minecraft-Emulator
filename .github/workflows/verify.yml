@@ -74,7 +74,7 @@ jobs:
         shell: pwsh
         run: |
           "### Full source verification" >> $env:GITHUB_STEP_SUMMARY
-          "Commit: \`$env:GITHUB_SHA\`" >> $env:GITHUB_STEP_SUMMARY
+          "Commit: $env:GITHUB_SHA" >> $env:GITHUB_STEP_SUMMARY
           "No driver installation, Minecraft sign-in or gameplay occurred." >> $env:GITHUB_STEP_SUMMARY
 
   windows-build:
@@ -107,5 +107,5 @@ jobs:
         shell: pwsh
         run: |
           "### Windows desktop compilation" >> $env:GITHUB_STEP_SUMMARY
-          "Commit: \`$env:GITHUB_SHA\`" >> $env:GITHUB_STEP_SUMMARY
+          "Commit: $env:GITHUB_SHA" >> $env:GITHUB_STEP_SUMMARY
           "Build only. No NSIS installer, driver signing/load, Sandboxie mutation or Minecraft launch." >> $env:GITHUB_STEP_SUMMARY
