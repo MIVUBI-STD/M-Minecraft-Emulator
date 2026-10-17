@@ -1,5 +1,15 @@
 # Current Development Handoff — M-Minecraft-Emulator
 
+## Compact Manager regression assertions aligned to active UI and operator guide — 18 October 2026
+
+**Verified test blocker:** literal-source contract review at pinned `Local` discovered five deterministic failures in the existing `apps/desktop/test/compact-manager.test.ts` suite: two checks assumed an obsolete `Check status` toolbar label, one checked old owned-driver explanatory copy, and two asserted phrases that are not present in the current canonical two-client localtest guide. The mounted UI correctly labels the toolbar `Check status · 02`, distinguishes Client 01 from Client 02 inspection, and states that the owned isolation engine is not available. These were stale test expectations, not reasons to change user-facing behavior.
+
+**Bounded fix:** update only those five exact assertions in the existing test owner to match the actual rendered UI and canonical operator-guide wording; preserve checks for explicit Check status, no Host 01 authentication inference, and disabled Create Virtual. No runtime, browser UI, IPC, Sandboxie, driver, account or product policy was changed. No new test runner or duplicate source of truth was introduced.
+
+**Proof:** source-specific scripted audit inspected 128 literal `app` expectations and other bound file expectations, first identifying the five mismatches, then re-evaluating those expectations against the exact GitHub source texts with no remaining known mismatch. This is targeted static contract verification, **not** Node 24 Vitest/Svelte compiler execution; full pinned source verification, Rust, Windows/WebView2 and Minecraft runtime remain **NOT_EXECUTED**.
+
+**Next:** run complete pinned same-SHA source preflight when execution is actually available.
+
 ## Mounted Host 01 Svelte click binding repaired — 18 October 2026
 
 **Source-confirmed blocker:** the active `apps/desktop/src/CompactManagerApp.svelte` primary Host 01 button had a missing `}` after its `choosePrimary("01", event.currentTarget)` click expression. The next `aria-expanded` attribute was consequently merged into an invalid Svelte event expression. This is a source syntax error, not a Minecraft runtime issue.

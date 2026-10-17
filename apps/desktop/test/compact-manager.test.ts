@@ -459,7 +459,7 @@ describe("Compact Manager app source and command boundary", () => {
   const bootstrap = readFileSync(new URL("../src-tauri/src/app_bootstrap.rs", import.meta.url), "utf8");
   it("keeps the active Sandboxie localtest instructions aligned with mounted controls", () => {
     const guide = readFileSync(new URL("../../../docs/validation/sandboxie-two-client-feasibility.md", import.meta.url), "utf8");
-    expect(app).toContain('{busy === "check" ? "Checking…" : "Check status"}');
+    expect(app).toContain('{busy === "check" ? "Checking…" : "Check status · 02"}');
     expect(app).toContain(">Settings</button>");
     expect(app).toContain('on:click={showClient02MoveDetails}>Move window</button>');
     expect(guide).toContain(".\\DEV.cmd preflight");
@@ -480,15 +480,15 @@ describe("Compact Manager app source and command boundary", () => {
     const acceptanceSteps = localGuide.split("## B. Two-client manual acceptance sequence")[1]
       ?.split("## C. Read-only collector")[0] ?? "";
     expect(entry).toContain('mount(CompactManagerApp, { target });');
-    expect(app).toContain('{busy === "check" ? "Checking…" : "Check status"}');
+    expect(app).toContain('{busy === "check" ? "Checking…" : "Check status · 02"}');
     expect(app).toContain('on:click={showClient02MoveDetails}>Move window</button>');
     expect(localGuide).toContain(".\\DEV.cmd preflight");
     expect(localGuide).toContain(".\\DEV.cmd dev");
     for (const control of ["**Check status**", "**Set up**", "**Browse…**", "**Open**", "**Switch to**", "**Move window**"]) {
       expect(acceptanceSteps).toContain(control);
     }
-    expect(acceptanceSteps).toContain("**Check status** before Client 02 setup or launch");
-    expect(acceptanceSteps).toContain("does not authenticate Client 01");
+    expect(acceptanceSteps).toContain("**Check status** inspects Client 02 Sandboxie/process candidates;");
+    expect(acceptanceSteps).toContain("it does not establish Client 01 identity, account authentication or game playability.");
     expect(acceptanceSteps).toContain("do not auto-retry");
     expect(acceptanceSteps).not.toMatch(/Refresh both clients|Launch Client 0[12]|Launch isolated Client 02|Focus Client 02|Place Left/);
     expect(localGuide).toContain("CHECK STATUS (CLIENT 02):");
@@ -527,7 +527,7 @@ describe("Compact Manager app source and command boundary", () => {
     expect(app).toContain('<h2>Virtual 02 · Minecraft Education</h2>');
     expect(app).toMatch(/<button type="button" class="cm-button cm-secondary" disabled[\s\S]*?>Create virtual<\/button>/);
     expect(app).toContain("M-Isolation-Engine · Internal runtime");
-    expect(app).toContain("MIVUBI-owned virtual creation requires a tested internal driver");
+    expect(app).toContain("A built, signed and verified MIVUBI isolation engine is required.");
     expect(app).toContain('ownedCandidate.upstreamCommit === "cdba7096240b93d79c5373aa81a75a1c5c71b883"');
     expect(app).not.toContain("Create virtual requested");
     expect(bootstrap).not.toContain("desktop_create_virtual");
