@@ -1,5 +1,17 @@
 # Current Development Handoff — M-Minecraft-Emulator
 
+## Manual-only CI tiers prepared without default-branch changes — 18 October 2026
+
+**User decision:** keep CI strictly manually triggered. Automated `push`, pull-request, schedule and auto-release triggers are disallowed to avoid unwanted expensive runs. Preserve `Local` as the development authority and do not change `main`.
+
+**Implementation:** the existing `.github/workflows/verify.yml` now offers one `workflow_dispatch` `scope` choice with default `quick` (Linux source contracts), optional `full-source` (complete Node/Svelte/Vitest/Rust verification on Windows), and `windows-build` (frontend plus Tauri MSVC compile; never package or install). The three jobs use mutually exclusive conditions and bounded timeouts; no automatic triggering, artifacts, login flows or driver operations. The existing VMware NSIS package smoke remains historical and separate.
+
+**Important operational blocker:** GitHub requires the workflow definition on the default branch for `workflow_dispatch`. As `main` must remain README-only by current repository policy, none of these manual tiers can yet be dispatched from the Actions UI. This is a deliberate unresolved activation dependency, not a PASS or proof that CI is currently runnable. Do not bootstrap `main` without explicit separate authorization.
+
+**Proof:** source/YAML structural contract and exact `Local` readback can verify trigger and scope separation. No GitHub Actions run, full compilation, Windows, Minecraft, driver or four-account acceptance is claimed.
+
+**Next:** obtain explicit branch-policy permission for a minimal default-branch workflow registration if actual GitHub manual dispatch is desired; otherwise preserve these definitions as source-only.
+
 ## Compact Manager regression assertions aligned to active UI and operator guide — 18 October 2026
 
 **Verified test blocker:** literal-source contract review at pinned `Local` discovered five deterministic failures in the existing `apps/desktop/test/compact-manager.test.ts` suite: two checks assumed an obsolete `Check status` toolbar label, one checked old owned-driver explanatory copy, and two asserted phrases that are not present in the current canonical two-client localtest guide. The mounted UI correctly labels the toolbar `Check status · 02`, distinguishes Client 01 from Client 02 inspection, and states that the owned isolation engine is not available. These were stale test expectations, not reasons to change user-facing behavior.

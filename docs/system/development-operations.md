@@ -65,6 +65,10 @@ DEV.cmd package
 
 GitHub workflow files in `.github/workflows/` are `workflow_dispatch` only and may be invoked solely when appropriate. They are evidence tools, not a parallel source of readiness state. No push-based CI, unattended release or automatic promotion to `main`.
 
+The Local source-verification workflow has three explicitly selected manual scopes: `quick` (Linux, small Node/source tests; default), `full-source` (complete Node/Svelte/Vitest/Rust checks on Windows), and `windows-build` (Windows frontend and Tauri Rust compilation only, without installer or kernel-driver activation). Only one scope is scheduled for a manual run. The separate historical `package-smoke.yml` remains **legacy VMware packaging** and is not an approved native pilot command; do not use it as a substitute for `windows-build`. These source definitions are not proof of executed tests.
+
+**Dispatch limitation:** the source-verification workflow remains non-dispatchable through the GitHub Actions UI/API while the default branch `main` contains no matching workflow file. Keep `main` unchanged under the current branch policy. If a future authorized decision enables dispatch, review the minimum default-branch workflow registration separately; do not silently add triggers, switch the default branch, merge product code or run packaging just to activate CI.
+
 ### Manual workflow activation on this repository
 
 GitHub requires a `workflow_dispatch` workflow file to exist on the repository's **default branch** before it can be manually triggered. Currently `main` is the default and contains no workflow files; only `Local` has `verify.yml` and `package-smoke.yml`. Their YAML being syntactically present in `Local` therefore **does not mean the Actions UI or API can run them yet**. See [GitHub's manual-run requirement](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/manually-run-a-workflow).

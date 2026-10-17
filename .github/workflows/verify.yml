@@ -1,19 +1,58 @@
 name: Emulator Source Verification (manual)
 
+# Only an operator may request work. No push, pull_request or schedule triggers.
 on:
   workflow_dispatch:
+    inputs:
+      scope:
+        description: Select one verification tier
+        required: true
+        default: quick
+        type: choice
+        options:
+          - quick
+          - full-source
+          - windows-build
 
 permissions:
   contents: read
 
 concurrency:
-  group: emulator-source-${{ github.ref }}
+  group: emulator-manual-${{ github.ref }}-${{ inputs.scope }}
   cancel-in-progress: false
 
 jobs:
-  source-windows:
+  quick:
+    name: Quick source contracts (Linux)
+    if: inputs.scope == 'quick'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24.21.0
+      - name: Verify lightweight repository contracts
+        run: |
+          node --version
+          npm run verify:repository
+          npm run test:localtest
+          npm run test:feasibility
+          npm run test:native-feasibility
+          npm run test:sandboxie-feasibility
+          npm run test:presentmon
+      - name: Report exact commit and proof boundary
+        if: always()
+        run: |
+          echo "### Quick source verification" >> "$GITHUB_STEP_SUMMARY"
+          echo "Commit: \`$GITHUB_SHA\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "These source tests do not validate Windows, Minecraft, logins or driver installation." >> "$GITHUB_STEP_SUMMARY"
+
+  full:
+    name: Full source (Windows)
+    if: inputs.scope == 'full-source'
     runs-on: windows-latest
-    timeout-minutes: 40
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -21,14 +60,52 @@ jobs:
           node-version: 24.21.0
           cache: npm
           cache-dependency-path: apps/desktop/package-lock.json
-      - name: Rust toolchain
+      - name: Rust 1.98.1
         shell: pwsh
         run: |
           rustup toolchain install 1.98.1 --profile minimal --component rustfmt
           rustup default 1.98.1
-      - name: Install exact desktop dependency lock
-        run: npm --prefix apps/desktop ci --no-audit --no-fund
-      - name: Verify exact repository contract
-        run: npm run verify:repository
-      - name: Complete source checks (desktop and canonical backend)
+      - name: Install pinned desktop dependencies
+        run: npm run setup
+      - name: Run complete source verification
         run: npm run verify:source
+      - name: Report exact commit and proof boundary
+        if: always()
+        shell: pwsh
+        run: |
+          "### Full source verification" >> $env:GITHUB_STEP_SUMMARY
+          "Commit: \`$env:GITHUB_SHA\`" >> $env:GITHUB_STEP_SUMMARY
+          "No driver installation, Minecraft sign-in or gameplay occurred." >> $env:GITHUB_STEP_SUMMARY
+
+  windows-build:
+    name: Windows desktop compile only (no installer)
+    if: inputs.scope == 'windows-build'
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24.21.0
+          cache: npm
+          cache-dependency-path: apps/desktop/package-lock.json
+      - name: Rust 1.98.1 MSVC
+        shell: pwsh
+        run: |
+          rustup toolchain install 1.98.1 --profile minimal --component rustfmt
+          rustup default 1.98.1
+      - name: Install pinned desktop dependencies
+        run: npm run setup
+      - name: Prepare icons and compile frontend
+        run: |
+          npm --prefix apps/desktop run prepare:icons
+          npm --prefix apps/desktop run build:frontend
+      - name: Compile Tauri desktop (no packaging or installation)
+        run: cargo build --locked --target x86_64-pc-windows-msvc --manifest-path apps/desktop/src-tauri/Cargo.toml
+      - name: Report exact commit and proof boundary
+        if: always()
+        shell: pwsh
+        run: |
+          "### Windows desktop compilation" >> $env:GITHUB_STEP_SUMMARY
+          "Commit: \`$env:GITHUB_SHA\`" >> $env:GITHUB_STEP_SUMMARY
+          "Build only. No NSIS installer, driver signing/load, Sandboxie mutation or Minecraft launch." >> $env:GITHUB_STEP_SUMMARY
