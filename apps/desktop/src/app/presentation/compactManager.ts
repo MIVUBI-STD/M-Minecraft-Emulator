@@ -166,7 +166,16 @@ export function rowPresentation(
   if (busy === "switch" && id === "02") return { ...base, status: "Switching…", action: null, canMove: false };
   if (busy === "move" && id === "02") return { ...base, status: "Moving…", action: null, canMove: false };
   if (issue?.instance === id) return { ...base, status: issue.title, tone: "warning", action: "issue", canMove: false };
-  if (notice?.instance === id) return { ...base, status: notice.text, tone: "neutral", action: null, canMove: false };
+  if (notice?.instance === id) {
+    // A window placement request is not another game launch. Preserve the
+    // existing Switch action only when the last checked candidate was unique;
+    // the backend still verifies its PID, HWND, sandbox and signed image anew.
+    if (id === "02" && notice.text === "Move requested" && base.action === "switch") {
+      return { ...base, status: notice.text };
+    }
+    // An ambiguous Open request must never authorize a second launch.
+    return { ...base, status: notice.text, tone: "neutral", action: null, canMove: false };
+  }
   return base;
 }
 

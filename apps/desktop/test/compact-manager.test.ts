@@ -262,6 +262,34 @@ describe("Compact Manager projections", () => {
     expect(rowPresentation("02", base, "", null, { instance: "02", text: "Open requested" }))
       .toMatchObject({ status: "Open requested", action: null });
   });
+  it("keeps safe Switch access after a move request, not after a launch request", () => {
+    const observed = {
+      status: "Window detected", tone: "neutral" as const,
+      action: "switch" as const, canMove: true,
+      details: "Unique name-matched window; backend will revalidate.",
+    };
+    const moved = { instance: "02" as const, text: "Move requested" };
+    expect(rowPresentation("02", observed, "", null, moved))
+      .toMatchObject({ status: "Move requested", action: "switch", canMove: true });
+    expect(rowPresentation("02", observed, "move", null, moved))
+      .toMatchObject({ status: "Moving…", action: null, canMove: false });
+    expect(rowPresentation("02", observed, "", {
+      instance: "02" as const, title: "Couldn't move", message: "Check status.",
+    }, moved)).toMatchObject({ action: "issue", canMove: false });
+    const notObserved = { ...observed, action: "setup" as const, canMove: false };
+    expect(rowPresentation("02", notObserved, "", null, moved))
+      .toMatchObject({ action: null, canMove: false });
+    expect(rowPresentation("02", observed, "", null, { instance: "02", text: "Open requested" }))
+      .toMatchObject({ status: "Open requested", action: null, canMove: false });
+    expect(rowPresentation("01", observed, "", null, { instance: "01", text: "Move requested" }))
+      .toMatchObject({ action: null, canMove: false });
+    const app = readFileSync(new URL("../src/CompactManagerApp.svelte", import.meta.url), "utf8");
+    const move = app.split("async function moveMinecraft02()")[1]?.split("function choosePrimary(")[0] ?? "";
+    const focus = app.split("async function switchMinecraft02()")[1]?.split("async function moveMinecraft02()")[0] ?? "";
+    expect(move).toContain("await nativeFeasibility.placeObservedClient02(target, moveSide);");
+    expect(move).toContain('text: "Move requested"');
+    expect(focus).toContain("await nativeFeasibility.focusObservedClient02(target);");
+  });
   it("the open-request notice cannot be confused with a verified window", () => {
     const base = client02Presentation(inspected(), "path", true);
     expect(rowPresentation("02", base, "", null, { instance: "02", text: "Open requested" }))

@@ -1,5 +1,15 @@
 # Current Development Handoff — M-Minecraft-Emulator
 
+## Client 02 move notice no longer hides safe Switch — 17 October 2026
+
+**Verified source defect:** after `moveMinecraft02()` accepted a window placement request, the UI stored `Move requested` in instance 02 notices. The canonical `rowPresentation()` treated *every* notice as an unavailable primary action, even when the previously observed unique client window still had `action: "switch"`. This forced another potentially expensive status inspection merely to switch back, despite the existing backend revalidating PID/HWND, sandbox membership and signed image for every focus/move. This is a source-reproducible UI dead end, not evidence of successful window placement on Windows.
+
+**Bounded correction:** `apps/desktop/src/app/presentation/compactManager.ts` keeps `Move requested` visible without hiding Switch **only** for Client 02 with a base action of `switch`. Busy, issue, no eligible candidate, Client 01 and all `Open requested` notices remain restricted; no automatic launch, poll, provider change, new helper or box mutation. The existing `apps/desktop/test/compact-manager.test.ts` checks positive and negative cases, and the active localtest guide describes the new distinction.
+
+**Proof ceiling:** exact pinned `Local` source and affected callers inspected; pure canonical presentation function exercised against source-derived V8 scenarios before and after patch, with expected blocked pre-fix case and passing post-fix cases. Added Vitest regression is source-authored, not an executed Node24 Vitest suite. Full Svelte, Rust, Windows/WebView2, actual focus/window placement and gameplay remain **NOT_EXECUTED**.
+
+**Next:** perform the complete exact-SHA source preflight on a supported toolchain when genuinely available. Preserve official `MinecraftClient02`, account data and the disabled owned-engine Create Virtual route.
+
 ## Host 01 manual feedback recovery and focus — 16 October 2026
 
 **Reproduced UX blocker:** the mounted `apps/desktop/src/CompactManagerApp.svelte` sets a Host 01 `Open requested` notice on an accepted native Windows launch request and sets a sticky issue on an error. The only user-facing native row action comes from `rowPresentation`, which intentionally suppresses Open while any notice/issue exists. There is NO Host 01 inspection route wired into the mounted UI: the global `Check status` inspects **Virtual 02 only**, and previously the Host 01 Details button appeared only for an issue, not for `Open requested`. Hence a successful initial launch request left the native row with no way to review/dismiss its feedback and request another launch in the same app session; a failed launch also offered no explicit feedback dismissal.

@@ -89,6 +89,8 @@ When opening **Set up Minecraft 02** from Settings, an inconclusive box/process 
 
 The optional **Switch to** and **Move window** controls apply only to an eligible observed Client 02 window. Windows may reject foreground focus; Alt+Tab is the manual fallback. This manager does not verify Client 01 sign-in, or read any account credentials.
 
+A successful **Move window** request leaves a non-launch `Move requested` notice; the existing **Switch to** action stays available only while the last inspected Client 02 observation still identifies a unique candidate window. The backend always rechecks PID, window and executable identity before another focus/move request. An **Open requested** notice continues to suppress a second launch until the operator uses **Check status**; never infer game readiness from either notice.
+
 ## C. Read-only collector (optional diagnostics)
 
 ```powershell
