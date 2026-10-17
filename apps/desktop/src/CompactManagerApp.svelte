@@ -299,7 +299,11 @@
       }
     } catch (error) {
       reportIssue("02", "Couldn't confirm if Minecraft opened",
-        "Check status before trying to open another copy.", error, requestRevision);
+        "The launch request may have started Minecraft despite an error. Check status and Windows before retrying.", error, requestRevision);
+      // A failed or timed-out launcher can already have spawned Minecraft.
+      // Keep an independent pending-Open safeguard for later status checks.
+      // The original issue remains visible until explicit reinspection.
+      notices = { ...notices, "02": { instance: "02", text: "Open requested" } };
     } finally {
       busy = "";
     }

@@ -291,6 +291,38 @@ describe("Compact Manager projections", () => {
     expect(move).toContain('text: "Move requested"');
     expect(focus).toContain("await nativeFeasibility.focusObservedClient02(target);");
   });
+  it("keeps a failed or timed-out Client 02 Open request guarded through recheck", () => {
+    const source = readFileSync(new URL("../src/CompactManagerApp.svelte", import.meta.url), "utf8");
+    const launch = source.split("async function openMinecraft02()")[1]
+      ?.split("async function switchMinecraft02()")[0] ?? "";
+    const failure = launch.split("} catch (error) {")[1]?.split("} finally {")[0] ?? "";
+    expect(launch).toContain("await nativeFeasibility.requestSandboxClient02(selectedExecutable, licenseConfirmed);");
+    expect(failure).toContain("reportIssue(\"02\", \"Couldn't confirm if Minecraft opened\"");
+    expect(failure).toContain("The launch request may have started Minecraft despite an error.");
+    expect(failure).toContain('notices = { ...notices, "02": { instance: "02", text: "Open requested" } };');
+    expect(failure.indexOf("reportIssue(")).toBeLessThan(failure.indexOf("notices = {"));
+    const check = source.split("async function checkStatus()")[1]
+      ?.split("async function openMinecraft01()")[0] ?? "";
+    expect(check).toContain('const pendingLaunchNotice = notices["02"]?.text === "Open requested"');
+    expect(check).toContain("!preserveClient02LaunchFeedback(pendingLaunchNotice, result)");
+    expect(check.match(/notices = \{ \.\.\.notices, "02": pendingLaunchNotice \};/g)).toHaveLength(2);
+    const pending = { instance: "02" as const, text: "Open requested" };
+    const empty = client02Presentation(inspected(), "selected.exe", true);
+    expect(rowPresentation("02", empty, "", null, pending))
+      .toMatchObject({ status: "Open requested", action: null, canMove: false });
+    expect(rowPresentation("02", empty, "", {
+      instance: "02", title: "Couldn't confirm if Minecraft opened", message: "Review.",
+    }, pending)).toMatchObject({ action: "issue", canMove: false });
+    expect(preserveClient02LaunchFeedback(pending, inspected())).toBe(true);
+    expect(preserveClient02LaunchFeedback(pending, {
+      ...inspected(), membershipStatus: "UNKNOWN",
+    })).toBe(true);
+    expect(preserveClient02LaunchFeedback(pending, {
+      ...inspected(), isolatedCandidateProcesses: 1,
+    })).toBe(false);
+    expect(failure).not.toContain("requestSandboxClient02(");
+    expect(check).not.toContain("requestSandboxClient02(");
+  });
   it("retains an unresolved Client 02 launch across quick or failed checks", () => {
     const pending = { instance: "02" as const, text: "Open requested" };
     expect(preserveClient02LaunchFeedback(pending, undefined)).toBe(true);

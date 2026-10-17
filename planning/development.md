@@ -1,5 +1,15 @@
 # Current Development Handoff — M-Minecraft-Emulator
 
+## Client 02 failed Open request retains launch safeguard — 17 October 2026
+
+**Reproduced source fault:** an accepted Client 02 Open request retained a pending launch notice, but a rejected/timed-out `requestSandboxClient02()` returned to `reportIssue()` only. The next `checkStatus()` cleared that issue, and a quick empty candidate snapshot could project `Ready to open` even though an earlier Start.exe request might already have spawned Minecraft. The Rust retry gap is not an atomic game-process status proof.
+
+**Bounded correction:** the active `openMinecraft02()` catch now records both the actionable launch error and the existing `Open requested` safeguard. The canonical recheck behavior retains the notice through empty/UNKNOWN or failed inspection, releases it for an observed boxed candidate, or permits operator review after a fresh safe-empty check. No retry, extra manager, new state store, driver, box mutation or account access was added. Existing source test owner and active operator instructions were updated.
+
+**Proof ceiling:** the precise catch/recheck fault is source-confirmed; affected exact-source control-flow/static regression checks performed and a canonical Vitest regression authored. No successful Node24/npm11, Rust/Cargo, Svelte or Windows/WebView2 build or Minecraft playback is claimed. The available local CLI is Node22/npm10 with no cargo or supported Git checkout network.
+
+**Next:** perform a complete exact-SHA source preflight once the pinned toolchain is available.
+
 ## Client 02 unresolved launch survives early and failed checks — 17 October 2026
 
 **Source defect:** active `checkStatus()` previously cleared Client 02's `Open requested` notice before inspection. A quick snapshot with no name-matched candidate then projected `Ready to open` even though an earlier request might still be starting. A failed inspection also dropped the launch notice. Rust's 30-second retry gap alone cannot prove a child cannot appear later.
