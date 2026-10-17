@@ -15,6 +15,7 @@
     isResourceOperationBusy,
     ownedVirtualCreationReason,
     rowPresentation,
+    preserveClient02LaunchFeedback,
     safeErrorDetails,
     setupInstruction,
     shouldClearPickerIssue,
@@ -168,6 +169,15 @@
     });
   }
 
+  // Manual acknowledgement only: never launches, stops or inspects Minecraft.
+  function dismissClient02LaunchFeedback() {
+    if (resourceOperationBusy || page !== "instances" || expanded !== "02" ||
+        notices["02"]?.text !== "Open requested" || issues["02"] ||
+        !lastCheckIsCurrent || !canRequestClient02(observation)) return;
+    notices = { ...notices, "02": undefined };
+    closeDetails();
+  }
+
   function reportIssue(instance: InstanceId, title: string, message: string, error: unknown, requestRevision: number, origin?: UiIssue["origin"]) {
     issues = { ...issues, [instance]: {
       instance, title, message,
@@ -187,20 +197,29 @@
   async function checkStatus() {
     if (isResourceOperationBusy(busy, ownedHostBusy, ownedInspectionBusy)) return;
     const requestRevision = navigationRevision;
+    const pendingLaunchNotice = notices["02"]?.text === "Open requested" ? notices["02"] : undefined;
     busy = "check";
     clearFeedback("02");
+    // A fast check may run before the newly requested game appears as a PID.
+    // Retain the launch guard across an empty snapshot and probe errors.
+    if (pendingLaunchNotice) notices = { ...notices, "02": pendingLaunchNotice };
     invalidateCurrentInspection();
     try {
       const result = await nativeFeasibility.inspectIsolatedClient02();
       observation = result;
       lastCheck = new Date();
       lastCheckIsCurrent = true;
+      if (pendingLaunchNotice && !preserveClient02LaunchFeedback(pendingLaunchNotice, result)) {
+        notices = { ...notices, "02": undefined };
+      }
       // Client 02 inspection cannot dismiss Client 01's expanded issue.
       if (page === "instances" && requestRevision === navigationRevision &&
           expanded === "02" && detailMode === "issue") closeDetails();
     } catch (error) {
       reportIssue("02", "Couldn't check status",
         "The app couldn't confirm the instance status. Review Sandboxie Plus, then check again.", error, requestRevision);
+      // reportIssue shows the error; keep the separate launch safeguard.
+      if (pendingLaunchNotice) notices = { ...notices, "02": pendingLaunchNotice };
     } finally {
       busy = "";
     }
@@ -484,9 +503,9 @@
                 <button type="button" class="cm-button cm-primary" disabled={resourceOperationBusy}
                   on:click={(event) => choosePrimary("02", event.currentTarget)} aria-label={row02.action === "check" ? "Check status for Minecraft 02" : undefined} aria-expanded={row02.action === "issue" || row02.action === "setup" ? expanded === "02" : undefined} aria-controls={row02.action === "issue" || row02.action === "setup" ? "cm-details-02" : undefined}>{primaryLabel(row02.action)}</button>
               {/if}
-              {#if row02.action === "switch" || expanded === "02"}
+              {#if row02.action === "switch" || expanded === "02" || notice02}
                 <button class="cm-link" type="button" aria-label="Minecraft 02 details" aria-expanded={expanded === "02"}
-                  aria-controls="cm-details-02" on:click={(event) => toggleDetails("02", row02.action === "switch" ? "move" : "info", event.currentTarget)}>Details</button>
+                  aria-controls="cm-details-02" on:click={(event) => toggleDetails("02", row02.action === "switch" ? "move" : row02.action === "issue" ? "issue" : "info", event.currentTarget)}>Details</button>
               {/if}
             </div>
           </div>
@@ -505,6 +524,18 @@
                   <details><summary>Advanced details</summary>
                     <p class="cm-technical">Box: {observation.boxConfigured}; membership: {observation.membershipStatus}; settings: {observation.boxSettingsSource}.</p>
                   </details>
+                {/if}
+              {:else if notice02?.text === "Open requested"}
+                <h3>Open requested</h3>
+                <p>Sandboxie accepted a launch request, but this app cannot confirm whether Minecraft started or stopped.</p>
+                <button type="button" class="cm-button cm-secondary" disabled={resourceOperationBusy}
+                  on:click={checkStatus}>Check status · 02</button>
+                {#if lastCheckIsCurrent && canRequestClient02(observation)}
+                  <p class="cm-assist">The latest check found no matching game process, but a late launch is still possible. Inspect Windows and Sandboxie before clearing this notice. Clearing does not stop Minecraft or verify it is closed.</p>
+                  <button type="button" class="cm-button cm-secondary" disabled={resourceOperationBusy}
+                    on:click={dismissClient02LaunchFeedback}>I checked Windows · Clear message</button>
+                {:else}
+                  <p class="cm-assist">A fresh safely observed empty box and manual Windows review are required before clearing this launch notice. Do not retry an uncertain launch.</p>
                 {/if}
               {:else if detailMode === "setup"}
                 <h3>{setupInstruction(observation).title}</h3>

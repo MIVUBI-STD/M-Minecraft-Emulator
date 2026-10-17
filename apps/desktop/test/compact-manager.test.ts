@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import {
   client02Presentation, focusCandidate, rowPresentation,
   safeErrorDetails, setupInstruction, shouldClearPickerIssue,
+  preserveClient02LaunchFeedback,
   ownedVirtualCreationReason,
   isResourceOperationBusy,
 } from "../src/app/presentation/compactManager.js";
@@ -289,6 +290,40 @@ describe("Compact Manager projections", () => {
     expect(move).toContain("await nativeFeasibility.placeObservedClient02(target, moveSide);");
     expect(move).toContain('text: "Move requested"');
     expect(focus).toContain("await nativeFeasibility.focusObservedClient02(target);");
+  });
+  it("retains an unresolved Client 02 launch across quick or failed checks", () => {
+    const pending = { instance: "02" as const, text: "Open requested" };
+    expect(preserveClient02LaunchFeedback(pending, undefined)).toBe(true);
+    expect(preserveClient02LaunchFeedback(pending, inspected())).toBe(true);
+    expect(preserveClient02LaunchFeedback(pending,
+      { ...inspected(), membershipStatus: "UNKNOWN" })).toBe(true);
+    expect(preserveClient02LaunchFeedback(pending,
+      { ...inspected(), isolatedCandidateProcesses: 1 })).toBe(false);
+    expect(preserveClient02LaunchFeedback({ instance: "02", text: "Move requested" }, inspected())).toBe(false);
+    expect(preserveClient02LaunchFeedback({ instance: "01", text: "Open requested" }, inspected())).toBe(false);
+    const unknown = client02Presentation({ ...inspected(), membershipStatus: "UNKNOWN" }, "selected.exe", true);
+    expect(rowPresentation("02", unknown, "", null, pending))
+      .toMatchObject({ action: "issue", canMove: false });
+    const ready = client02Presentation(inspected(), "selected.exe", true);
+    expect(rowPresentation("02", ready, "", null, pending))
+      .toMatchObject({ status: "Open requested", action: null });
+    const src = readFileSync(new URL("../src/CompactManagerApp.svelte", import.meta.url), "utf8");
+    const check = src.split("async function checkStatus()")[1]?.split("async function openMinecraft01()")[0] ?? "";
+    expect(check).toContain('const pendingLaunchNotice = notices["02"]?.text === "Open requested"');
+    expect(check.match(/notices = \{ \.\.\.notices, "02": pendingLaunchNotice \};/g)).toHaveLength(2);
+    expect(check).toContain('!preserveClient02LaunchFeedback(pendingLaunchNotice, result)');
+    const dismiss = src.split("function dismissClient02LaunchFeedback()")[1]?.split("function reportIssue(")[0] ?? "";
+    expect(dismiss).toContain('!lastCheckIsCurrent || !canRequestClient02(observation)');
+    expect(dismiss).toContain('notices["02"]?.text !== "Open requested" || issues["02"]');
+    expect(dismiss).toContain('notices = { ...notices, "02": undefined };');
+    expect(dismiss).not.toContain("nativeFeasibility.");
+    const panel = src.split('<div id="cm-details-02"')[1]?.split('<section class="cm-future-virtuals"')[0] ?? "";
+    expect(panel).toContain('{:else if notice02?.text === "Open requested"}');
+    expect(panel).toContain('{#if lastCheckIsCurrent && canRequestClient02(observation)}');
+    expect(panel).toContain('on:click={dismissClient02LaunchFeedback}');
+    expect(src).toContain('{#if row02.action === "switch" || expanded === "02" || notice02}');
+    expect(src).not.toContain("setTimeout(");
+    expect(src).not.toContain("setInterval(");
   });
   it("the open-request notice cannot be confused with a verified window", () => {
     const base = client02Presentation(inspected(), "path", true);

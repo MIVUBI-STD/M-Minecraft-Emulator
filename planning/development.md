@@ -1,5 +1,15 @@
 # Current Development Handoff — M-Minecraft-Emulator
 
+## Client 02 unresolved launch survives early and failed checks — 17 October 2026
+
+**Source defect:** active `checkStatus()` previously cleared Client 02's `Open requested` notice before inspection. A quick snapshot with no name-matched candidate then projected `Ready to open` even though an earlier request might still be starting. A failed inspection also dropped the launch notice. Rust's 30-second retry gap alone cannot prove a child cannot appear later.
+
+**Bounded fix:** preserve pending Client 02 Open feedback through empty/UNKNOWN status and errors, clear it when an observed boxed candidate exists, expose a reviewable Details control and allow explicit operator acknowledgement only after a fresh safely observed empty box. Unknown status remains an actionable issue, not a successful running claim. The acknowledgement is UI-only; the Rust preflight, Sandboxie box, signed executable policy, account storage, driver and unavailable Create Virtual stay unchanged.
+
+**Proof ceiling:** exact pinned source inspected and source-derived V8 projection/guard cases evaluated; source regression added to existing Vitest owner and localtest guide updated. Full Node24/Vitest/Svelte/Rust/Windows/WebView2 and real Minecraft startup/crash proof remain NOT_EXECUTED. An empty snapshot is never an atomic guarantee.
+
+**Next:** run the pinned full source preflight when the appropriate toolchain becomes available.
+
 ## Client 02 move notice no longer hides safe Switch — 17 October 2026
 
 **Verified source defect:** after `moveMinecraft02()` accepted a window placement request, the UI stored `Move requested` in instance 02 notices. The canonical `rowPresentation()` treated *every* notice as an unavailable primary action, even when the previously observed unique client window still had `action: "switch"`. This forced another potentially expensive status inspection merely to switch back, despite the existing backend revalidating PID/HWND, sandbox membership and signed image for every focus/move. This is a source-reproducible UI dead end, not evidence of successful window placement on Windows.

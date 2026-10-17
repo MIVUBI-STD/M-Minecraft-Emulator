@@ -67,6 +67,17 @@ export interface UiNotice {
   text: string;
 }
 
+// An empty/UNKNOWN process snapshot is not proof that a requested game
+// has finished starting or failed. Do not silently re-enable another launch.
+export function preserveClient02LaunchFeedback(
+  notice: UiNotice | undefined,
+  observation: IsolatedClientObservation | undefined,
+): boolean {
+  return notice?.instance === "02" && notice.text === "Open requested" &&
+    (!observation || observation.membershipStatus !== "OBSERVED" ||
+      observation.isolatedCandidateProcesses === 0);
+}
+
 export function focusCandidate(observation: IsolatedClientObservation | undefined): ProcessIdentityCandidate | null {
   if (!observation || observation.membershipStatus !== "OBSERVED" || !observation.interactiveSession) return null;
   const candidates = observation.processCandidates.filter((candidate) =>
@@ -167,6 +178,10 @@ export function rowPresentation(
   if (busy === "move" && id === "02") return { ...base, status: "Moving…", action: null, canMove: false };
   if (issue?.instance === id) return { ...base, status: issue.title, tone: "warning", action: "issue", canMove: false };
   if (notice?.instance === id) {
+    // Keep UNKNOWN observations actionable without discarding the launch guard.
+    if (id === "02" && notice.text === "Open requested" && base.action === "issue") {
+      return base;
+    }
     // A window placement request is not another game launch. Preserve the
     // existing Switch action only when the last checked candidate was unique;
     // the backend still verifies its PID, HWND, sandbox and signed image anew.
